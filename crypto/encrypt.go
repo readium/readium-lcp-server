@@ -6,7 +6,6 @@ import (
   "crypto/rand"
   "io"
   "bytes"
-  "fmt"
 )
 
 func Encrypt(key []byte, r io.Reader, w io.Writer) error {
@@ -53,8 +52,6 @@ func Decrypt(key []byte, r io.Reader, w io.Writer) error {
 
   var buffer bytes.Buffer
   io.Copy(&buffer, r)
-
-  fmt.Println(buffer.Len())
 
   buf := buffer.Bytes()
   iv := buf[:aes.BlockSize]

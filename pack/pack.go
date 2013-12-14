@@ -4,7 +4,6 @@ import (
   "github.com/demarque/lcpserve/epub"
   "github.com/demarque/lcpserve/crypto"
   "github.com/demarque/lcpserve/xmlenc"
-  "fmt"
   "strings"
 )
 
@@ -38,7 +37,7 @@ func canEncrypt(file epub.Resource) bool {
 
 func encryptFile(key []byte, m *xmlenc.Manifest, file epub.Resource) error {
   data := xmlenc.Data{}
-  data.Method.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256"
+  data.Method.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
   data.KeyInfo.RetrievalMethod.URI = "license.json#/content_key"
   data.KeyInfo.RetrievalMethod.Type = "http://readium.org/2014/01/lcp#EncryptedContentKey"
   data.CipherData.CipherReference.URI = xmlenc.URI(file.File.Name)
@@ -59,7 +58,6 @@ func Undo(key []byte, ep epub.Epub) (epub.Epub, error) {
   for _, data := range ep.Encryption.Data {
     ok, res := findFile(string(data.CipherData.CipherReference.URI), ep)
     if ok {
-      fmt.Println(res.File.Name)
       r, err := res.File.Open()
       if err != nil {
         return ep, err

@@ -5,10 +5,22 @@ import (
   "os"
   "bytes"
   "io"
+  "path/filepath"
+  "math/rand"
+  "time"
 )
 
 func TestFileSystemStorage(t * testing.T) {
-  store := NewFileSystem(os.TempDir(), "http://localhost/assets")
+  dir := filepath.Join(os.TempDir(), "lcpserve_test_store", string(rand.New(rand.NewSource(time.Now().UnixNano())).Int()))
+  err := os.Mkdir(dir, os.ModePerm)
+  if err != nil {
+    t.Error("Could not create temp directory for test")
+    t.Error(err)
+    t.FailNow()
+  }
+  defer os.RemoveAll(dir)
+
+  store := NewFileSystem(dir, "http://localhost/assets")
 
   item, err := store.Add("test", bytes.NewBufferString("test1234"));
   if  err != nil {
@@ -32,6 +44,18 @@ func TestFileSystemStorage(t * testing.T) {
     if string(buf[:]) != "test1234" {
       t.Error("expected buf to be test1234, got ", string(buf[:]))
     }
+  }
+
+  it := store.List()
+
+  i := 0
+  for item, err = it(); err == nil; item, err = it() {
+    t.Log(item.Key())
+    i++
+  }
+
+  if i != 1 {
+    t.Error("Expected 1 element, got ", i)
   }
   
 }

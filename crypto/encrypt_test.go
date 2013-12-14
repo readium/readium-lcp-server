@@ -21,7 +21,6 @@ func TestSimpleEncrypt(t *testing.T) {
 
   bytes := output.Bytes()
 
-  t.Log(bytes)
   if len(bytes) != aes.BlockSize * 2 {
     t.Errorf("Expected %d bytes, got %d", aes.BlockSize * 2, len(bytes))
   }

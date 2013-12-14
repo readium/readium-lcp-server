@@ -43,16 +43,35 @@ func (s fsStorage) Add(key string, r io.Reader) (Item, error) {
 }
 
 func (s fsStorage) Get(key string) (Item, error) {
-  return nil, NotFound
+  file, err := os.Open(filepath.Join(s.fspath, key))
+  if err != nil {
+    return nil, NotFound
+  }
+  return &fsItem{file, key, s.url}, nil
 }
 
 func (s fsStorage) Remove(key string) error {
-  return nil
+  return os.Remove(filepath.Join(s.fspath, key))
 }
 
 func (s fsStorage) List() Iterator {
+  i := 0
+  size := 0
+  var items []os.FileInfo
+  d, err := os.Open(s.fspath)
+  if err == nil {
+    items, err = d.Readdir(0)
+    if err == nil {
+      size = len(items)
+    }
+  }
   return func() (Item, error) {
-    return nil, io.EOF
+    if i < size {
+      i++
+      return s.Get(items[i - 1].Name())
+    } else {
+      return nil, io.EOF
+    }
   }
 }
 
