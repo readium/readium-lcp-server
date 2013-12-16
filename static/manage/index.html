@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="//code.jquery.com/jquery-2.0.3.min.js" type="text/javascript"></script>
+<link href='http://fonts.googleapis.com/css?family=Open+Sans:400italic,400,800,300&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
+    
+    <style>
+      body { font-family: 'Open Sans', sans-serif; }
+    </style>
+  </head>
+  <body>
+    <h1>LCPServer Admin</h1>
+    <div id="dropzone">Drag & Drop Files Here</div>
+  </body>
+    <script language="javascript" type="text/javascript">
+      var obj = $("#dropzone");
+      obj.on('dragenter', function (e) {
+          e.stopPropagation();
+          e.preventDefault();
+          $(this).css('border', '2px solid #0B85A1');
+      });
+      obj.on('dragover', function (e) {
+          e.stopPropagation();
+          e.preventDefault();
+          });
+    obj.on('drop', function (e) {
+        $(this).css('border', '2px dotted #0B85A1');
+        e.preventDefault();
+        var files = e.originalEvent.dataTransfer.files;
+        //We need to send dropped files to Server
+        handleFileUpload(files,obj);
+    });
+
+$(document).on('dragenter', function (e) {
+    obj.css('border', '2px dotted #0B85A1');
+    e.stopPropagation();
+    e.preventDefault();
+    });
+$(document).on('dragover', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    obj.css('border', '2px dotted #0B85A1');
+    });
+$(document).on('drop', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    });
+
+
+function handleFileUpload(files,obj) {
+  
+  for (var i = 0; i < files.length; i++) {
+    var uploadURL ="/api/store/" + files[i].name; //Upload URL
+    var req = new XMLHttpRequest();
+    req.onload = function(event) {
+      $('body').append("<p>" + this.response + " has been packaged</p>");
+    }
+    req.open("POST", uploadURL, true);
+    req.send(files[i]);
+    
+  }
+}
+    </script>
+</html>
