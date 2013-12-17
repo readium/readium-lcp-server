@@ -19,7 +19,7 @@ func main() {
     host = os.Args[1]
   }
   idx, err := index.Open("test.sqlite")
-  store := storage.NewFileSystem("files", "http:/" + host + "/files")
+  store := storage.NewFileSystem("files", "http://" + host + ":8989/files")
   if err != nil {
     panic(err)
   }
