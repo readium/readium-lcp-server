@@ -10,9 +10,8 @@
              color: white }
 
       .dropping {
-        border: 2px solid #2C3340;
-        background-color: transparent;
-        
+        border-color: white;
+        color: #59657F;
       }
       #dropzone {
         text-transform: uppercase;
@@ -31,16 +30,17 @@
     <script language="javascript" type="text/javascript">
       var obj = $("#dropzone");
       obj.on('dragenter', function (e) {
+          console.log(this);
+          $(this).addClass("dropping")
           e.stopPropagation();
           e.preventDefault();
-          $(this).addClass("dropping")
       });
       obj.on('dragover', function (e) {
           e.stopPropagation();
           e.preventDefault();
           });
     obj.on('drop', function (e) {
-        $(this).addClass("dropping")
+        $(this).removeClass("dropping")
         e.preventDefault();
         var files = e.originalEvent.dataTransfer.files;
         //We need to send dropped files to Server
@@ -48,7 +48,7 @@
     });
 
 $(document).on('dragenter', function (e) {
-        $(this).addClass("dropping")
+    $('#dropzone').addClass("dropping")
     e.stopPropagation();
     e.preventDefault();
     });
@@ -57,9 +57,10 @@ $(document).on('dragover', function (e) {
     e.preventDefault();
     });
 $(document).on('drop', function (e) {
-    $(this).css('border', '2px dotted #0B85A1');
-    e.stopPropagation();
+    $(this).removeClass("dropping")
     e.preventDefault();
+    var files = e.originalEvent.dataTransfer.files;
+    handleFileUpload(files,obj);
     });
 
 
