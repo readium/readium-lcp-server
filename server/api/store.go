@@ -78,7 +78,6 @@ func ListPackages(w http.ResponseWriter, r *http.Request, s Server) {
 
   for it, err := fn(); err == nil; it, err = fn() {
     packages = append(packages, it)
-    it, err = fn()
   }
 
   enc := json.NewEncoder(w)

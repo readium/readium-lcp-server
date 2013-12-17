@@ -14,9 +14,9 @@ type Index interface {
 }
 
 type Package struct {
-  StorageKey string
-  EncryptionKey []byte
-  Filename string
+  StorageKey string `json:"key"`
+  EncryptionKey []byte `json:"content_key"`
+  Filename string `json:"filename"`
 }
 
 type dbIndex struct {

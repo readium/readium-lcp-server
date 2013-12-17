@@ -53,12 +53,29 @@ function handleFileUpload(files,obj) {
     var uploadURL ="/api/store/" + files[i].name; //Upload URL
     var req = new XMLHttpRequest();
     req.onload = function(event) {
-      $('body').append("<p>" + this.response + " has been packaged</p>");
+      refreshPackages();
     }
     req.open("POST", uploadURL, true);
     req.send(files[i]);
     
   }
 }
+
+function refreshPackages() {
+  var req = new XMLHttpRequest();
+  req.onload =  function() {
+    $('#packages').html('');
+    data = JSON.parse(this.response);
+    for(i in data) {
+      $('#packages').append('<li>' + data[i].key + '</li>')
+    }
+  }
+  req.open("GET", "/api/packages");
+  req.send();
+}
+$(function() {
+  refreshPackages()
+    })
     </script>
+    <ul id="packages"></ul>
 </html>
