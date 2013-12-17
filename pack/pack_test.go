@@ -1,7 +1,7 @@
 package pack
 
 import (
-  "github.com/demarque/lcpserve/epub"
+  "github.com/jpbougie/lcpserve/epub"
   "testing"
   "archive/zip"
 )

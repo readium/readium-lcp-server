@@ -1,9 +1,9 @@
 package pack
 
 import (
-  "github.com/demarque/lcpserve/epub"
-  "github.com/demarque/lcpserve/crypto"
-  "github.com/demarque/lcpserve/xmlenc"
+  "github.com/jpbougie/lcpserve/epub"
+  "github.com/jpbougie/lcpserve/crypto"
+  "github.com/jpbougie/lcpserve/xmlenc"
   "strings"
 )
 

@@ -1,10 +1,7 @@
 package crypto
 
 import (
-  //"io"
-  //"crypto/cipher"
   "crypto/rand"
-  //"github.com/demarque/lcpserve/epub"
 )
 
 const (

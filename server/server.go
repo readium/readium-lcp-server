@@ -3,9 +3,9 @@ package server
 import (
   "net/http"
   "github.com/gorilla/mux"
-  "github.com/demarque/lcpserve/index"
-  "github.com/demarque/lcpserve/storage"
-  "github.com/demarque/lcpserve/server/api"
+  "github.com/jpbougie/lcpserve/index"
+  "github.com/jpbougie/lcpserve/storage"
+  "github.com/jpbougie/lcpserve/server/api"
   "html/template"
   "log"
 )
@@ -48,6 +48,8 @@ func New(bindAddr string, idx *index.Index, st *storage.Store) *Server {
 
   r.Handle("/files/{file}", http.StripPrefix("/files/", http.FileServer(http.Dir("files"))))
   s.handleFunc("/api/store/{name}", api.StorePackage).Methods("POST")
+  s.handleFunc("/api/packages", api.ListPackages).Methods("GET")
+  s.handleFunc("/api/license/{key}/{passphrase}", api.GrantLicense) //.Methods("GET")
   r.Handle("/", http.NotFoundHandler())
 
   return s

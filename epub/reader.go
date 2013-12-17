@@ -5,8 +5,8 @@ import (
   "bytes"
   "io"
   "encoding/xml"
-  "github.com/demarque/lcpserve/epub/opf"
-  "github.com/demarque/lcpserve/xmlenc"
+  "github.com/jpbougie/lcpserve/epub/opf"
+  "github.com/jpbougie/lcpserve/xmlenc"
 )
 
 const (

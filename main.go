@@ -2,20 +2,24 @@ package main
 
 import (
   _ "github.com/mattn/go-sqlite3"
-  //"github.com/demarque/lcpserve/epub"
-  //"github.com/demarque/lcpserve/crypto"
-  //"github.com/demarque/lcpserve/pack"
-  "github.com/demarque/lcpserve/storage"
-  "github.com/demarque/lcpserve/index"
-  "github.com/demarque/lcpserve/server"
+  //"github.com/jpbougie/lcpserve/epub"
+  //"github.com/jpbougie/lcpserve/crypto"
+  //"github.com/jpbougie/lcpserve/pack"
+  "github.com/jpbougie/lcpserve/storage"
+  "github.com/jpbougie/lcpserve/index"
+  "github.com/jpbougie/lcpserve/server"
   //"archive/zip"
-  //"os"
+  "os"
   //"fmt"
 )
 
 func main() {
+  host := "localhost"
+  if len(os.Args) >= 1 {
+    host = os.Args[0]
+  }
   idx, err := index.Open("test.sqlite")
-  store := storage.NewFileSystem("files", "http://localhost:8989/files")
+  store := storage.NewFileSystem("files", "http:/" + host + "/files")
   if err != nil {
     panic(err)
   }

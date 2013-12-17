@@ -10,6 +10,7 @@ var NotFound = errors.New("Package not found")
 type Index interface {
   Get(storageKey string) (Package, error)
   Add(p Package) error
+  List() func() (Package, error)
 }
 
 type Package struct {
@@ -22,6 +23,7 @@ type dbIndex struct {
   db *sql.DB
   get *sql.Stmt
   add *sql.Stmt
+  list *sql.Stmt
 }
 
 func (i dbIndex) Get(storageKey string) (Package, error) {
@@ -38,6 +40,23 @@ func (i dbIndex) Get(storageKey string) (Package, error) {
 func (i dbIndex) Add(p Package) error {
   _, err := i.add.Exec(p.StorageKey, p.EncryptionKey, p.Filename)
   return err
+}
+
+func (i dbIndex) List() func() (Package, error) {
+  rows, err := i.list.Query()
+  if err != nil {
+    return func() (Package, error) { return Package{}, err }
+  }
+  return func() (Package, error) {
+    var p Package
+    var err error
+    if rows.Next() {
+      err = rows.Scan(&p.StorageKey, &p.EncryptionKey, &p.Filename)
+    } else {
+      err = NotFound
+    }
+    return p, err
+  }
 }
 
 func Open(where string) (i Index, err error) {
@@ -57,6 +76,10 @@ func Open(where string) (i Index, err error) {
     if err != nil {
       return
     }
-  i = dbIndex{db, get, add}
+  list, err := db.Prepare("SELECT * FROM packages")
+    if err != nil {
+      return
+    }
+  i = dbIndex{db, get, add, list}
   return
 }

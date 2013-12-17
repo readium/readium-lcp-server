@@ -2,11 +2,12 @@ package api
 
 import (
   "github.com/gorilla/mux"
-  "github.com/demarque/lcpserve/epub"
-  "github.com/demarque/lcpserve/pack"
-  "github.com/demarque/lcpserve/storage"
-  "github.com/demarque/lcpserve/index"
+  "github.com/jpbougie/lcpserve/epub"
+  "github.com/jpbougie/lcpserve/pack"
+  "github.com/jpbougie/lcpserve/storage"
+  "github.com/jpbougie/lcpserve/index"
   "net/http"
+  "encoding/json"
   "bytes"
   "archive/zip"
   "io/ioutil"
@@ -69,4 +70,21 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
   }
   w.WriteHeader(200)
   w.Write([]byte(name))
+}
+
+func ListPackages(w http.ResponseWriter, r *http.Request, s Server) {
+  fn := s.Index().List()
+  packages := make([]index.Package, 0)
+
+  for it, err := fn(); err == nil; it, err = fn() {
+    packages = append(packages, it)
+    it, err = fn()
+  }
+
+  enc := json.NewEncoder(w)
+  err := enc.Encode(packages)
+  if err != nil {
+    w.WriteHeader(500)
+  }
+
 }
