@@ -15,8 +15,8 @@ import (
 
 func main() {
   host := "localhost"
-  if len(os.Args) >= 1 {
-    host = os.Args[0]
+  if len(os.Args) > 1 {
+    host = os.Args[1]
   }
   idx, err := index.Open("test.sqlite")
   store := storage.NewFileSystem("files", "http:/" + host + "/files")
