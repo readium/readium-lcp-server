@@ -59,11 +59,7 @@ func (i dbIndex) List() func() (Package, error) {
   }
 }
 
-func Open(where string) (i Index, err error) {
-  db, err := sql.Open("sqlite3", where)
-  if err != nil {
-    return
-  }
+func Open(db *sql.DB) (i Index, err error) {
   _, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (storage_key varchar(255) PRIMARY KEY, encryption_key blob, filename varchar(255))")
     if err != nil {
       return

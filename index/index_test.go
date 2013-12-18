@@ -3,10 +3,12 @@ package index
 import (
   "testing"
   _ "github.com/mattn/go-sqlite3"
+  "database/sql"
 )
 
 func TestIndexCreation(t *testing.T) {
-  idx, err := Open(":memory:")
+  db, err := sql.Open("sqlite3", ":memory:")
+  idx, err := Open(db)
   if err != nil {
     t.Error("Can't open index")
     t.Error(err)

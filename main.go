@@ -2,6 +2,7 @@ package main
 
 import (
   _ "github.com/mattn/go-sqlite3"
+  "database/sql"
   //"github.com/jpbougie/lcpserve/epub"
   //"github.com/jpbougie/lcpserve/crypto"
   //"github.com/jpbougie/lcpserve/pack"
@@ -18,7 +19,14 @@ func main() {
   if len(os.Args) > 1 {
     host = os.Args[1]
   }
-  idx, err := index.Open("test.sqlite")
+
+  db, err := sql.Open("sqlite3", "test.sqlite")
+  if err != nil {
+    panic(err)
+  }
+  idx, err := index.Open(db)
+
+  os.Mkdir("files", os.ModePerm) //ignore the error, the folder can already exist
   store := storage.NewFileSystem("files", "http://" + host + ":8989/files")
   if err != nil {
     panic(err)

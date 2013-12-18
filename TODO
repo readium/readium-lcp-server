@@ -2,6 +2,5 @@
 * Do not encrypt the ncx and the cover images
 * Add auth for APIs and /manage
 * Remove hardcoded urls (in particular, in the license)
-* Move db connection out of the sql index
 * Make the storage take a function to generate the url instead of a base path
 * Add a command line tool (rename the tool lcp)
