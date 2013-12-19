@@ -15,15 +15,16 @@ func Do(ep epub.Epub) (epub.Epub, []byte, error) {
 
   ep.Encryption = &xmlenc.Manifest{}
   for _, res := range ep.Resource {
-    if canEncrypt(res) {
+    if canEncrypt(res, ep) {
       encryptFile(k, ep.Encryption, res)
     }
   }
   return ep, k, nil
 }
 
-func canEncrypt(file epub.Resource) bool {
+func canEncrypt(file epub.Resource, ep epub.Epub) bool {
   n := file.File.Name
+  hasCover, cover := ep.Cover()
   return (n != "mimetype" &&
   n != "META-INF/container.xml" &&
   n != "META-INF/encryption.xml" &&
@@ -32,7 +33,9 @@ func canEncrypt(file epub.Resource) bool {
   n != "META-INF/rights.xml" &&
   n != "META-INF/signatures.xml" &&
   n != "META-INF/license.json") &&
-  !strings.HasSuffix(n, ".opf")
+  !strings.HasSuffix(n, ".opf") &&
+  !strings.HasSuffix(n, ".ncx") &&
+  (!hasCover || n != cover.File.Name)
 }
 
 func encryptFile(key []byte, m *xmlenc.Manifest, file epub.Resource) error {
