@@ -2,6 +2,7 @@ package main
 
 import (
   _ "github.com/mattn/go-sqlite3"
+  _ "github.com/lib/pq"
   "database/sql"
   //"github.com/jpbougie/lcpserve/epub"
   //"github.com/jpbougie/lcpserve/crypto"
@@ -11,27 +12,47 @@ import (
   "github.com/jpbougie/lcpserve/server"
   //"archive/zip"
   "os"
+  "strings"
   //"fmt"
 )
 
+func dbFromURI(uri string) (string, string) {
+  parts := strings.Split(uri, "://")
+  return parts[0], parts[1]
+}
+
 func main() {
-  host := "localhost"
-  if len(os.Args) > 1 {
-    host = os.Args[1]
+  var host, port, dbURI, storagePath string
+
+  if host = os.Getenv("HOST"); host == "" {
+    host = "localhost"
   }
 
-  db, err := sql.Open("sqlite3", "test.sqlite")
+  if port = os.Getenv("PORT"); port == "" {
+    port = "8989"
+  }
+
+  if dbURI = os.Getenv("DB"); dbURI == "" {
+    dbURI = "sqlite3://test.sqlite"
+  }
+
+  if storagePath = os.Getenv("STORAGE"); storagePath == "" {
+    storagePath = "files"
+  }
+
+  driver, cnxn := dbFromURI(dbURI)
+  db, err := sql.Open(driver, cnxn)
   if err != nil {
     panic(err)
   }
   idx, err := index.Open(db)
 
-  os.Mkdir("files", os.ModePerm) //ignore the error, the folder can already exist
-  store := storage.NewFileSystem("files", "http://" + host + ":8989/files")
+  os.Mkdir(storagePath, os.ModePerm) //ignore the error, the folder can already exist
+  store := storage.NewFileSystem(storagePath, "http://" + host + ":" + port + "/files")
   if err != nil {
     panic(err)
   }
-  s := server.New(":8989", &idx, &store)
+  s := server.New(":" + port, &idx, &store)
   s.ListenAndServe()
   //zipfile, err := zip.OpenReader("test/samples/sample.epub")
   //if err != nil {
