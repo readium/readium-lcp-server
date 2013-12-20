@@ -1,5 +1,3 @@
-* Add parameters to the application for file storage, database, port
-* Do not encrypt the ncx and the cover images
 * Add auth for APIs and /manage
 * Remove hardcoded urls (in particular, in the license)
 * Make the storage take a function to generate the url instead of a base path
