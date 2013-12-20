@@ -32,7 +32,7 @@ func canEncrypt(file epub.Resource, ep epub.Epub) bool {
   n != "META-INF/metadata.xml" &&
   n != "META-INF/rights.xml" &&
   n != "META-INF/signatures.xml" &&
-  n != "META-INF/license.json") &&
+  n != "META-INF/license.lcpl") &&
   !strings.HasSuffix(n, ".opf") &&
   !strings.HasSuffix(n, ".ncx") &&
   (!hasCover || n != cover.File.Name)
@@ -41,7 +41,7 @@ func canEncrypt(file epub.Resource, ep epub.Epub) bool {
 func encryptFile(key []byte, m *xmlenc.Manifest, file epub.Resource) error {
   data := xmlenc.Data{}
   data.Method.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
-  data.KeyInfo.RetrievalMethod.URI = "license.json#/content_key"
+  data.KeyInfo.RetrievalMethod.URI = "license.lcpl#/content_key"
   data.KeyInfo.RetrievalMethod.Type = "http://readium.org/2014/01/lcp#EncryptedContentKey"
   data.CipherData.CipherReference.URI = xmlenc.URI(file.File.Name)
   m.Data = append(m.Data, data)
