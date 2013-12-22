@@ -1,7 +1,7 @@
 package server
 
 import (
-  "testing"
+	"testing"
 )
 
 func TestSetup(t *testing.T) {

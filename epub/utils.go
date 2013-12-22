@@ -2,9 +2,8 @@ package epub
 
 import (
 	"archive/zip"
-  "io"
+	"io"
 )
-
 
 func findFileInZip(zr zip.Reader, path string) (*zip.File, error) {
 	for _, f := range zr.File {
