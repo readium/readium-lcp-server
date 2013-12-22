@@ -68,16 +68,16 @@ func Decrypt(key []byte, r io.Reader, w io.Writer) error {
 
 
 var (
- KW_IV = []byte{0xa6, 0xa6, 0xa6, 0xa6,
-                0xa6, 0xa6, 0xa6, 0xa6}
+ keywrap_iv = []byte{0xa6, 0xa6, 0xa6, 0xa6,
+                     0xa6, 0xa6, 0xa6, 0xa6}
 )
 func KeyWrap(kek []byte, key []byte) []byte {
   cipher, _ := aes.NewCipher(kek)
   n := len(key) / 8
-  r := make([]byte, len(KW_IV) + len(key))
-  a := make([]byte, len(KW_IV))
+  r := make([]byte, len(keywrap_iv) + len(key))
+  a := make([]byte, len(keywrap_iv))
 
-  copy(a, KW_IV)
+  copy(a, keywrap_iv)
   copy(r[8:], key)
 
   for j := 0; j < 6; j++ {
