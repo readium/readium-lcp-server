@@ -3,12 +3,16 @@ package api
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
+
 	"github.com/gorilla/mux"
 	"github.com/jpbougie/lcpserve/epub"
 	"github.com/jpbougie/lcpserve/index"
 	"github.com/jpbougie/lcpserve/pack"
 	"github.com/jpbougie/lcpserve/storage"
+
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -30,6 +34,10 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 		w.WriteHeader(500)
 		return
 	}
+
+	sha := sha256.Sum256(buf)
+	key := fmt.Sprintf("%x", sha)
+
 	zr, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
 	if err != nil {
 		log.Println("Error opening zip")
@@ -54,14 +62,14 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 
 	output := new(bytes.Buffer)
 	out.Write(output)
-	_, err = s.Store().Add(name, output)
+	_, err = s.Store().Add(key, output)
 	if err != nil {
 		log.Println("Error storing")
 		log.Println(err)
 		w.WriteHeader(500)
 		return
 	}
-	err = s.Index().Add(index.Package{name, encryptionKey, name})
+	err = s.Index().Add(index.Package{key, encryptionKey, name})
 	if err != nil {
 		log.Println("Error while adding to index")
 		log.Println(err)
