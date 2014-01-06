@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"math/rand"
 	"os"
@@ -11,8 +12,8 @@ import (
 )
 
 func TestFileSystemStorage(t *testing.T) {
-	dir := filepath.Join(os.TempDir(), "lcpserve_test_store", string(rand.New(rand.NewSource(time.Now().UnixNano())).Int()))
-	err := os.Mkdir(dir, os.ModePerm)
+	dir := filepath.Join(os.TempDir(), "lcpserve_test_store", fmt.Sprintf("%d", rand.New(rand.NewSource(time.Now().UnixNano())).Int()))
+	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		t.Error("Could not create temp directory for test")
 		t.Error(err)

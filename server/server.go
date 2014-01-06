@@ -1,10 +1,13 @@
 package server
 
 import (
+	"crypto/tls"
+
 	"github.com/gorilla/mux"
 	"github.com/jpbougie/lcpserve/index"
 	"github.com/jpbougie/lcpserve/server/api"
 	"github.com/jpbougie/lcpserve/storage"
+
 	"html/template"
 	"log"
 	"net/http"
@@ -15,6 +18,7 @@ type Server struct {
 	idx    *index.Index
 	st     *storage.Store
 	router *mux.Router
+	cert   *tls.Certificate
 }
 
 func (s *Server) Store() storage.Store {
@@ -25,7 +29,11 @@ func (s *Server) Index() index.Index {
 	return *s.idx
 }
 
-func New(bindAddr string, idx *index.Index, st *storage.Store) *Server {
+func (s *Server) Certificate() *tls.Certificate {
+	return s.cert
+}
+
+func New(bindAddr string, idx *index.Index, st *storage.Store, cert *tls.Certificate) *Server {
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{
@@ -34,6 +42,7 @@ func New(bindAddr string, idx *index.Index, st *storage.Store) *Server {
 		},
 		idx:    idx,
 		st:     st,
+		cert:   cert,
 		router: r,
 	}
 	manageIndex, err := template.ParseFiles("static/manage/index.html")

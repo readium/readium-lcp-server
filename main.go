@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"database/sql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -22,10 +23,14 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-	var host, port, dbURI, storagePath string
+	var host, port, dbURI, storagePath, certFile, privKeyFile string
+	var err error
 
 	if host = os.Getenv("HOST"); host == "" {
-		host = "localhost"
+		host, err = os.Hostname()
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	if port = os.Getenv("PORT"); port == "" {
@@ -33,11 +38,24 @@ func main() {
 	}
 
 	if dbURI = os.Getenv("DB"); dbURI == "" {
-		dbURI = "sqlite3://test.sqlite"
+		dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
 	}
 
 	if storagePath = os.Getenv("STORAGE"); storagePath == "" {
 		storagePath = "files"
+	}
+
+	if certFile = os.Getenv("CERT"); certFile == "" {
+		panic("Must specify a certificate")
+	}
+
+	if privKeyFile = os.Getenv("PRIVATE_KEY"); privKeyFile == "" {
+		panic("Must specify a private key")
+	}
+
+	cert, err := tls.LoadX509KeyPair(certFile, privKeyFile)
+	if err != nil {
+		panic(err)
 	}
 
 	driver, cnxn := dbFromURI(dbURI)
@@ -52,7 +70,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	s := server.New(":"+port, &idx, &store)
+	s := server.New(":"+port, &idx, &store, &cert)
 	s.ListenAndServe()
 	//zipfile, err := zip.OpenReader("test/samples/sample.epub")
 	//if err != nil {

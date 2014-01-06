@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 
@@ -21,6 +22,7 @@ import (
 type Server interface {
 	Store() storage.Store
 	Index() index.Index
+	Certificate() *tls.Certificate
 }
 
 func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
