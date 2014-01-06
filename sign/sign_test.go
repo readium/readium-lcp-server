@@ -8,7 +8,7 @@ import (
 )
 
 func TestSigning(t *testing.T) {
-	cert, err := tls.LoadX509KeyPair("cert/server.crt", "cert/server.pem")
+	cert, err := tls.LoadX509KeyPair("cert/sample.crt", "cert/sample.pem")
 	if err != nil {
 		t.Error("Couldn't load sample certificate ", err)
 		t.FailNow()
