@@ -2,3 +2,4 @@
 * Remove hardcoded urls (in particular, in the license)
 * Make the storage take a function to generate the url instead of a base path
 * Add a command line tool (rename the tool lcp)
+* Support the embedded licenses
