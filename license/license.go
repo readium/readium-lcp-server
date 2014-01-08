@@ -21,7 +21,9 @@ type ContentKey struct {
 
 type UserKey struct {
 	Key
-	Hint string `json:"hint"`
+	Hint       string `json:"text_hint"`
+	Value      []byte `json:"value,omitempty"`       //Used for the license request
+	ClearValue string `json:"clear_value,omitempty"` //Used for the license request
 }
 
 type Encryption struct {
@@ -33,8 +35,8 @@ type Encryption struct {
 type Link struct {
 	Href   string `json:"href"`
 	Type   string `json:"type,omitempty"`
-	Size   int64  `json:"size,omitempty"`
-	Digest []byte `json:"digest,omitempty"`
+	Size   int64  `json:"length,omitempty"`
+	Digest []byte `json:"hash,omitempty"`
 }
 
 type UserInfo struct {
@@ -46,12 +48,19 @@ type UserInfo struct {
 }
 
 type UserRights struct {
-	Print    int32     `json:"print"`
-	Copy     int32     `json:"copy"`
-	TTS      bool      `json:"tts"`
-	Editable bool      `json:"edit"`
-	Start    time.Time `json:"start,omitempty"`
-	End      time.Time `json:"end,omitempty"`
+	Print    int32      `json:"print"`
+	Copy     int32      `json:"copy"`
+	TTS      bool       `json:"tts"`
+	Editable bool       `json:"edit"`
+	Start    *time.Time `json:"start,omitempty"`
+	End      *time.Time `json:"end,omitempty"`
+}
+
+var DefaultRights = UserRights{
+	Print:    10,
+	Copy:     10,
+	TTS:      true,
+	Editable: false,
 }
 
 const DEFAULT_PROFILE = "http://readium.org/lcp/profile-1.0"
@@ -68,17 +77,24 @@ type License struct {
 
 func New() License {
 	l := License{Links: map[string]Link{}}
-	return Prepare(l)
+	Prepare(&l)
+	return l
 }
 
-func Prepare(l License) License {
+func Prepare(l *License) {
 	uuid, _ := newUUID()
 	l.Id = uuid
 	l.Date = time.Now()
 
-	l.Encryption.Profile = DEFAULT_PROFILE
+	if l.Links == nil {
+		l.Links = map[string]Link{}
+	}
 
-	return l
+	if l.Rights == nil {
+		l.Rights = &DefaultRights
+	}
+
+	l.Encryption.Profile = DEFAULT_PROFILE
 }
 
 // source: http://play.golang.org/p/4FkNSiUDMg

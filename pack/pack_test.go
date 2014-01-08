@@ -13,7 +13,7 @@ func TestPacking(t *testing.T) {
 		t.FailNow()
 	}
 
-	input, _ := epub.Read(z.Reader)
+	input, _ := epub.Read(&z.Reader)
 	output, key, err := Do(input)
 	if err != nil {
 		t.Error(err)

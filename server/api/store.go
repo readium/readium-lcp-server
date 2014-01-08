@@ -47,7 +47,7 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 		w.WriteHeader(500)
 		return
 	}
-	ep, err := epub.Read(*zr)
+	ep, err := epub.Read(zr)
 	if err != nil {
 		log.Println("Error reading epub")
 		log.Println(err)

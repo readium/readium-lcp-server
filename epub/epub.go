@@ -3,8 +3,11 @@ package epub
 import (
 	"archive/zip"
 	"bytes"
+
 	"github.com/jpbougie/lcpserve/epub/opf"
 	"github.com/jpbougie/lcpserve/xmlenc"
+
+	"io"
 )
 
 type Signatures struct {
@@ -35,7 +38,25 @@ func (ep Epub) Cover() (bool, *Resource) {
 	return false, nil
 }
 
+func (ep *Epub) Add(name string, body io.Reader) error {
+	var buf bytes.Buffer
+	_, err := io.Copy(&buf, body)
+	if err != nil {
+		return err
+	}
+	fh := &zip.FileHeader{
+		Name:               name,
+		UncompressedSize64: uint64(buf.Len()),
+		Method:             zip.Deflate,
+	}
+
+	ep.Resource = append(ep.Resource, Resource{Output: &buf, FileHeader: fh})
+
+	return nil
+}
+
 type Resource struct {
-	File   *zip.File
-	Output *bytes.Buffer
+	File       *zip.File
+	Output     *bytes.Buffer
+	FileHeader *zip.FileHeader
 }

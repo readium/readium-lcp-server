@@ -22,8 +22,6 @@ func TestSigning(t *testing.T) {
 	input := map[string]string{"test": "test"}
 	sig, err := signer.Sign(input)
 
-	t.Log(sig)
-
 	if err != nil {
 		t.Error(err)
 	}

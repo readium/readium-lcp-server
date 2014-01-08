@@ -44,7 +44,7 @@ func findRootFiles(r io.Reader) ([]rootFile, error) {
 	return roots, nil
 }
 
-func Read(r zip.Reader) (Epub, error) {
+func Read(r *zip.Reader) (Epub, error) {
 	container, err := findFileInZip(r, CONTAINER_FILE)
 	fd, err := container.Open()
 	if err != nil {

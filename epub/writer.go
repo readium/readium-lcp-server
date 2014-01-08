@@ -19,7 +19,7 @@ func (ep Epub) Write(dst io.Writer) error {
 	}
 
 	for _, res := range ep.Resource {
-		if res.File.Name != "mimetype" {
+		if (res.File != nil && res.File.Name != "mimetype") || res.FileHeader.Name != "mimetype" {
 			writeResource(res, w)
 		}
 	}
@@ -50,10 +50,14 @@ func writeEncryption(ep Epub, w *zip.Writer) error {
 }
 
 func writeResource(res Resource, w *zip.Writer) error {
-	fh, err := zip.FileInfoHeader(res.File.FileInfo())
-	fh.Name = res.File.Name
-	if err != nil {
-		return err
+	var fh *zip.FileHeader
+	var err error
+	if fh = res.FileHeader; fh == nil {
+		fh, err = zip.FileInfoHeader(res.File.FileInfo())
+		fh.Name = res.File.Name
+		if err != nil {
+			return err
+		}
 	}
 
 	var in io.Reader
