@@ -65,6 +65,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	_, err = db.Exec("PRAGMA journal_mode = WAL")
+	if err != nil {
+		panic(err)
+	}
 	idx, err := index.Open(db)
 
 	os.Mkdir(storagePath, os.ModePerm) //ignore the error, the folder can already exist
