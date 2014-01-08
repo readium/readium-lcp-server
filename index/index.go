@@ -39,13 +39,17 @@ func (i dbIndex) Get(storageKey string) (Package, error) {
 }
 
 func (i dbIndex) Add(p Package) error {
-	_, err := i.add.Exec(p.StorageKey, p.EncryptionKey, p.Filename)
+	add, err := i.db.Prepare("INSERT INTO packages VALUES (?, ?, ?)")
+	if err != nil {
+		return err
+	}
+	defer add.Close()
+	_, err = add.Exec(p.StorageKey, p.EncryptionKey, p.Filename)
 	return err
 }
 
 func (i dbIndex) List() func() (Package, error) {
 	rows, err := i.list.Query()
-	defer rows.Close()
 	if err != nil {
 		return func() (Package, error) { return Package{}, err }
 	}
@@ -55,6 +59,7 @@ func (i dbIndex) List() func() (Package, error) {
 		if rows.Next() {
 			err = rows.Scan(&p.StorageKey, &p.EncryptionKey, &p.Filename)
 		} else {
+			rows.Close()
 			err = NotFound
 		}
 		return p, err
@@ -70,14 +75,10 @@ func Open(db *sql.DB) (i Index, err error) {
 	if err != nil {
 		return
 	}
-	add, err := db.Prepare("INSERT INTO packages VALUES (?, ?, ?)")
-	if err != nil {
-		return
-	}
 	list, err := db.Prepare("SELECT * FROM packages")
 	if err != nil {
 		return
 	}
-	i = dbIndex{db, get, add, list}
+	i = dbIndex{db, get, nil, list}
 	return
 }
