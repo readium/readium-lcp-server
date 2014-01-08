@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
+	"path/filepath"
+	"runtime"
 	//"github.com/jpbougie/lcpserve/epub"
 	//"github.com/jpbougie/lcpserve/crypto"
 	//"github.com/jpbougie/lcpserve/pack"
@@ -70,7 +72,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	s := server.New(":"+port, &idx, &store, &cert)
+
+	_, file, _, _ := runtime.Caller(0)
+	here := filepath.Dir(file)
+	static := filepath.Join(here, "/static")
+
+	s := server.New(":"+port, static, &idx, &store, &cert)
 	s.ListenAndServe()
 	//zipfile, err := zip.OpenReader("test/samples/sample.epub")
 	//if err != nil {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/tls"
+	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/jpbougie/lcpserve/index"
@@ -32,7 +33,7 @@ func (s *Server) Certificate() *tls.Certificate {
 	return s.cert
 }
 
-func New(bindAddr string, idx *index.Index, st *storage.Store, cert *tls.Certificate) *Server {
+func New(bindAddr string, tplPath string, idx *index.Index, st *storage.Store, cert *tls.Certificate) *Server {
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{
@@ -44,7 +45,8 @@ func New(bindAddr string, idx *index.Index, st *storage.Store, cert *tls.Certifi
 		cert:   cert,
 		router: r,
 	}
-	manageIndex, err := template.ParseFiles("static/manage/index.html")
+
+	manageIndex, err := template.ParseFiles(filepath.Join(tplPath, "/manage/index.html"))
 	if err != nil {
 		panic(err)
 	}
