@@ -28,6 +28,7 @@ type dbIndex struct {
 
 func (i dbIndex) Get(storageKey string) (Package, error) {
 	records, err := i.get.Query(storageKey)
+	defer records.Close()
 	if records.Next() {
 		var p Package
 		err = records.Scan(&p.StorageKey, &p.EncryptionKey, &p.Filename)
@@ -44,6 +45,7 @@ func (i dbIndex) Add(p Package) error {
 
 func (i dbIndex) List() func() (Package, error) {
 	rows, err := i.list.Query()
+	defer rows.Close()
 	if err != nil {
 		return func() (Package, error) { return Package{}, err }
 	}
