@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -51,6 +52,13 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			w.Write([]byte(err.Error()))
 			return
 		}
+
+		indexItem, err := s.Index().Get(key)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+			return
+		}
 		var b bytes.Buffer
 		io.Copy(&b, item.Contents())
 		zr, err := zip.NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
@@ -72,10 +80,12 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		}
 		ep.Add("META-INF/licence.lcpl", &buf)
 		w.Header().Add("Content-Type", "application/epub+zip")
+		w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, indexItem.Filename))
 		ep.Write(w)
 
 	} else {
 		w.Header().Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
+		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 		err = grantLicense(&lic, key, false, s, w)
 		if err != nil {
 			w.WriteHeader(500)
