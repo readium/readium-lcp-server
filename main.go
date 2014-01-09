@@ -26,6 +26,7 @@ func dbFromURI(uri string) (string, string) {
 
 func main() {
 	var host, port, dbURI, storagePath, certFile, privKeyFile string
+	var readonly bool = false
 	var err error
 
 	if host = os.Getenv("HOST"); host == "" {
@@ -34,6 +35,8 @@ func main() {
 			panic(err)
 		}
 	}
+
+	readonly = os.Getenv("READONLY") != ""
 
 	if port = os.Getenv("PORT"); port == "" {
 		port = "8989"
@@ -81,7 +84,7 @@ func main() {
 	here := filepath.Dir(file)
 	static := filepath.Join(here, "/static")
 
-	s := server.New(":"+port, static, &idx, &store, &cert)
+	s := server.New(":"+port, static, readonly, &idx, &store, &cert)
 	s.ListenAndServe()
 	//zipfile, err := zip.OpenReader("test/samples/sample.epub")
 	//if err != nil {

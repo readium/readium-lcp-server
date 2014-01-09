@@ -15,10 +15,11 @@ import (
 
 type Server struct {
 	http.Server
-	idx    *index.Index
-	st     *storage.Store
-	router *mux.Router
-	cert   *tls.Certificate
+	readonly bool
+	idx      *index.Index
+	st       *storage.Store
+	router   *mux.Router
+	cert     *tls.Certificate
 }
 
 func (s *Server) Store() storage.Store {
@@ -33,17 +34,18 @@ func (s *Server) Certificate() *tls.Certificate {
 	return s.cert
 }
 
-func New(bindAddr string, tplPath string, idx *index.Index, st *storage.Store, cert *tls.Certificate) *Server {
+func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, cert *tls.Certificate) *Server {
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{
 			Handler: r,
 			Addr:    bindAddr,
 		},
-		idx:    idx,
-		st:     st,
-		cert:   cert,
-		router: r,
+		readonly: readonly,
+		idx:      idx,
+		st:       st,
+		cert:     cert,
+		router:   r,
 	}
 
 	manageIndex, err := template.ParseFiles(filepath.Join(tplPath, "/manage/index.html"))
@@ -56,7 +58,9 @@ func New(bindAddr string, tplPath string, idx *index.Index, st *storage.Store, c
 	r.Handle("/manage/{file}", http.FileServer(http.Dir("static")))
 
 	r.Handle("/files/{file}", http.StripPrefix("/files/", http.FileServer(http.Dir("files"))))
-	s.handleFunc("/api/store/{name}", api.StorePackage).Methods("POST")
+	if !readonly {
+		s.handleFunc("/api/store/{name}", api.StorePackage).Methods("POST")
+	}
 	s.handleFunc("/api/packages", api.ListPackages).Methods("GET")
 	s.handleFunc("/api/packages/{key}/licenses", api.GrantLicense).Methods("POST")
 	r.Handle("/", http.NotFoundHandler())
