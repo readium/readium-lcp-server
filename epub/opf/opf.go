@@ -1,11 +1,12 @@
 package opf
 
 import (
-  "encoding/xml"
-  "io"
+	"encoding/xml"
+	"io"
 )
 
 type Package struct {
+	BasePath string   `xml:"-"`
 	Metadata Metadata `xml:"http://www.idpf.org/2007/opf metadata"`
 	Manifest Manifest `xml:"http://www.idpf.org/2007/opf manifest"`
 }
@@ -23,9 +24,10 @@ type Manifest struct {
 }
 
 type Item struct {
-	Id        string `xml:"id,attr"`
-	Href      string `xml:"href,attr"`
-	MediaType string `xml:"media-type,attr"`
+	Id         string `xml:"id,attr"`
+	Href       string `xml:"href,attr"`
+	MediaType  string `xml:"media-type,attr"`
+	Properties string `xml:"properties,attr"`
 }
 
 type Meta struct {

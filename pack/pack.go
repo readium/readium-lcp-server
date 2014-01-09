@@ -4,7 +4,6 @@ import (
 	"github.com/jpbougie/lcpserve/crypto"
 	"github.com/jpbougie/lcpserve/epub"
 	"github.com/jpbougie/lcpserve/xmlenc"
-	"strings"
 )
 
 func Do(ep epub.Epub) (epub.Epub, []byte, error) {
@@ -23,19 +22,7 @@ func Do(ep epub.Epub) (epub.Epub, []byte, error) {
 }
 
 func canEncrypt(file epub.Resource, ep epub.Epub) bool {
-	n := file.File.Name
-	hasCover, cover := ep.Cover()
-	return (n != "mimetype" &&
-		n != "META-INF/container.xml" &&
-		n != "META-INF/encryption.xml" &&
-		n != "META-INF/manifest.xml" &&
-		n != "META-INF/metadata.xml" &&
-		n != "META-INF/rights.xml" &&
-		n != "META-INF/signatures.xml" &&
-		n != "META-INF/license.lcpl") &&
-		!strings.HasSuffix(n, ".opf") &&
-		!strings.HasSuffix(n, ".ncx") &&
-		(!hasCover || n != cover.File.Name)
+	return ep.CanEncrypt(file)
 }
 
 func encryptFile(key []byte, m *xmlenc.Manifest, file epub.Resource) error {
