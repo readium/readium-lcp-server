@@ -59,7 +59,7 @@ type Resource struct {
 	FileHeader *zip.FileHeader
 }
 
-func (ep Epub) CanEncrypt(r Resource) bool {
-	i := sort.SearchStrings(ep.cleartextResources, r.File.Name)
-	return i >= len(ep.cleartextResources) || ep.cleartextResources[i] != r.File.Name
+func (ep Epub) CanEncrypt(file string) bool {
+	i := sort.SearchStrings(ep.cleartextResources, file)
+	return i >= len(ep.cleartextResources) || ep.cleartextResources[i] != file
 }

@@ -22,7 +22,7 @@ func Do(ep epub.Epub) (epub.Epub, []byte, error) {
 }
 
 func canEncrypt(file epub.Resource, ep epub.Epub) bool {
-	return ep.CanEncrypt(file)
+	return ep.CanEncrypt(file.File.Name)
 }
 
 func encryptFile(key []byte, m *xmlenc.Manifest, file epub.Resource) error {

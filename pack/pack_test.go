@@ -31,4 +31,10 @@ func TestPacking(t *testing.T) {
 	if key == nil {
 		t.Error("expected a key")
 	}
+
+	for _, item := range output.Encryption.Data {
+		if !input.CanEncrypt(string(item.CipherData.CipherReference.URI)) {
+			t.Errorf("Should not have encrypted %s\n", item.CipherData.CipherReference.URI)
+		}
+	}
 }
