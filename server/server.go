@@ -8,6 +8,7 @@ import (
 	"github.com/jpbougie/lcpserve/index"
 	"github.com/jpbougie/lcpserve/server/api"
 	"github.com/jpbougie/lcpserve/storage"
+	"github.com/technoweenie/grohl"
 
 	"html/template"
 	"net/http"
@@ -72,6 +73,8 @@ type HandlerFunc func(w http.ResponseWriter, r *http.Request, s api.Server)
 
 func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+		grohl.Log(grohl.Data{"path": r.URL.Path})
+
 		// Add CORS
 		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		w.Header().Add("Access-Control-Allow-Origin", "*")
