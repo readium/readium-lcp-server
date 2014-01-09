@@ -51,7 +51,6 @@ func TestFileSystemStorage(t *testing.T) {
 
 	i := 0
 	for item, err = it(); err == nil; item, err = it() {
-		t.Log(item.Key())
 		i++
 	}
 
