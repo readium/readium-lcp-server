@@ -116,16 +116,17 @@ $(document).on('drop', function (e) {
 function handleFileUpload(files,obj) {
   
   for (var i = 0; i < files.length; i++) {
-    $('#dropzone').css('background', '-webkit-linear-gradient(left, #2C3340 0%,#2C3340 0%,transparent 0%)')
+    $('#dropzone').css('background', '-webkit-linear-gradient(left, #0074D9 0%,#0074D9 0%,transparent 0%)')
     var uploadURL ="/api/store/" + files[i].name; //Upload URL
     var req = new XMLHttpRequest();
     req.upload.onprogress = function(e) {
       if (e.lengthComputable) {
         var prog = Math.ceil((e.loaded / e.total) * 100);
-        $('#dropzone').css('background', '-webkit-linear-gradient(left, #2C3340 ' + prog + '%,#2C3340 ' + prog + '%,transparent 0%)');
+        $('#dropzone').css('background', '-webkit-linear-gradient(left, #0074D9 ' + prog + '%,#0074D9 ' + prog + '%,transparent 0%)');
       }
     }
     req.onload = function(event) {
+      $('#dropzone').css('background', 'transparent');
       refreshPackages();
     }
     req.open("POST", uploadURL, true);
