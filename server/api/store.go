@@ -13,6 +13,7 @@ import (
 	"github.com/jpbougie/lcpserve/index"
 	"github.com/jpbougie/lcpserve/pack"
 	"github.com/jpbougie/lcpserve/storage"
+	"github.com/technoweenie/grohl"
 
 	"io/ioutil"
 	"log"
@@ -54,7 +55,9 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 		w.WriteHeader(500)
 		return
 	}
+	t := grohl.NewTimer(grohl.Data{"step": "pack"})
 	out, encryptionKey, err := pack.Do(ep)
+	t.Finish()
 	if err != nil {
 		log.Println("Error packing")
 		log.Println(err)
