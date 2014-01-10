@@ -40,42 +40,38 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	err := dec.Decode(&lic)
 	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	mode := r.PostFormValue("type")
 	key := vars["key"]
 	if mode == "embedded" {
 		item, err := s.Store().Get(key)
 		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		indexItem, err := s.Index().Get(key)
 		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		var b bytes.Buffer
 		io.Copy(&b, item.Contents())
 		zr, err := zip.NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
 		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		ep, err := epub.Read(zr)
 		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		var buf bytes.Buffer
 		err = grantLicense(&lic, key, false, s, &buf)
 		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		ep.Add("META-INF/licence.lcpl", &buf)
@@ -88,8 +84,8 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 		err = grantLicense(&lic, key, false, s, w)
 		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 }

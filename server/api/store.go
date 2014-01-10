@@ -45,14 +45,14 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		log.Println("Error opening zip")
 		log.Println(err)
-		w.WriteHeader(500)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	ep, err := epub.Read(zr)
 	if err != nil {
 		log.Println("Error reading epub")
 		log.Println(err)
-		w.WriteHeader(500)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	t := grohl.NewTimer(grohl.Data{"step": "pack"})
@@ -61,7 +61,7 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		log.Println("Error packing")
 		log.Println(err)
-		w.WriteHeader(500)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -71,14 +71,14 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		log.Println("Error storing")
 		log.Println(err)
-		w.WriteHeader(500)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	err = s.Index().Add(index.Package{key, encryptionKey, name})
 	if err != nil {
 		log.Println("Error while adding to index")
 		log.Println(err)
-		w.WriteHeader(500)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(200)
@@ -96,7 +96,7 @@ func ListPackages(w http.ResponseWriter, r *http.Request, s Server) {
 	enc := json.NewEncoder(w)
 	err := enc.Encode(packages)
 	if err != nil {
-		w.WriteHeader(500)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
 }
