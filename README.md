@@ -14,10 +14,11 @@ go get github.com/jpbougie/lcpserve
 Running
 =======
 You must have a certificate (currently, only RSA is supported). Use the following environment variables to configure lcpserve:
-- CER
-- PRIVATE_KEY
-- PORT
-- HOST
-- READONLY
+- CERT - Points to the certificate file (typically a .crt)
+- PRIVATE_KEY - Points to the private key (typically a .pem)
+- PORT - Where lcpserve will listen, by default 8989
+- HOST - The public hostname, defaults to `hostname`
+- READONLY - Readonly mode for demo purposes
+- DB - the connection string to the database, by default sqlite3://file:lcpserve.sqlite?cache=shared&mode=rwc
 
 $GOPATH/bin/lcpserve
