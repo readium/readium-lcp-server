@@ -3,6 +3,7 @@ package crypto
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/sha256"
 	"testing"
 )
 
@@ -59,6 +60,26 @@ func TestFailingReaderForEncryption(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected an error from the reader")
+	}
+}
+
+func TestDecrypt(t *testing.T) {
+	clear := bytes.NewBufferString("cleartext")
+	key := sha256.Sum256([]byte("password"))
+	var cipher bytes.Buffer
+
+	err := Encrypt(key[:], clear, &cipher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var res bytes.Buffer
+	err = Decrypt(key[:], &cipher, &res)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if str := res.String(); str != "cleartext" {
+		t.Errorf("Expected 'cleartext', got %s\n", str)
 	}
 }
 
