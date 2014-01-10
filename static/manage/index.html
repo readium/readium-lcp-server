@@ -140,6 +140,8 @@ function makeLicense() {
     "user": {
       "id": $('#user_id').val(),
       "provider": "http://example.com",
+      "name": $('#user_name').val(),
+      "encrypted": ["name"]
     },
     "encryption": {
       "user_key": {
@@ -185,6 +187,7 @@ $(function() {
       <label for="key">Package Identifier:</label><input type="text" id="key" name="key" readonly /></br>
       <label for="passphrase">Passphrase:</label><input type="password" id="passphrase" name="passphrase"/></br>
       <label for="user_id">User identifier:</label><input type="text" id="user_id" name="user_id" /></br>
+      <label for="user_name">User name (will be encrypted):</label><input type="text" id="user_name" name="user_name" /></br>
       <label><input type="radio" checked name="type" value="external"/>External</label></br>
       <label><input type="radio" name="type" value="embedded"/>Embedded</label></br>
       <input type="submit" value="Emit License" /></br>
