@@ -74,6 +74,13 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		err = s.Licenses().Add(lic)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		ep.Add("META-INF/licence.lcpl", &buf)
 		w.Header().Add("Content-Type", "application/epub+zip")
 		w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, indexItem.Filename))

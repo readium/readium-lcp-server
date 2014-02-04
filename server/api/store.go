@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpbougie/lcpserve/epub"
 	"github.com/jpbougie/lcpserve/index"
+	"github.com/jpbougie/lcpserve/license"
 	"github.com/jpbougie/lcpserve/pack"
 	"github.com/jpbougie/lcpserve/storage"
 	"github.com/technoweenie/grohl"
@@ -23,6 +24,7 @@ import (
 type Server interface {
 	Store() storage.Store
 	Index() index.Index
+	Licenses() license.Store
 	Certificate() *tls.Certificate
 }
 

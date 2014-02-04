@@ -22,3 +22,7 @@ You must have a certificate (currently, only RSA is supported). Use the followin
 - DB - the connection string to the database, by default sqlite3://file:lcpserve.sqlite?cache=shared&mode=rwc
 
 $GOPATH/bin/lcpserve
+
+Contributing
+============
+A great tool to help development is goconvey (available at https://github.com/smartystreets/goconvey). Running it will give you an auto-refreshing view of the tests in a nice Web UI.

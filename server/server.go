@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jpbougie/lcpserve/index"
+	"github.com/jpbougie/lcpserve/license"
 	"github.com/jpbougie/lcpserve/server/api"
 	"github.com/jpbougie/lcpserve/storage"
 	"github.com/technoweenie/grohl"
@@ -19,6 +20,7 @@ type Server struct {
 	readonly bool
 	idx      *index.Index
 	st       *storage.Store
+	lst      *license.Store
 	router   *mux.Router
 	cert     *tls.Certificate
 }
@@ -31,11 +33,15 @@ func (s *Server) Index() index.Index {
 	return *s.idx
 }
 
+func (s *Server) Licenses() license.Store {
+	return *s.lst
+}
+
 func (s *Server) Certificate() *tls.Certificate {
 	return s.cert
 }
 
-func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, cert *tls.Certificate) *Server {
+func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate) *Server {
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{
@@ -45,6 +51,7 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 		readonly: readonly,
 		idx:      idx,
 		st:       st,
+		lst:      lst,
 		cert:     cert,
 		router:   r,
 	}

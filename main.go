@@ -11,6 +11,7 @@ import (
 	//"github.com/jpbougie/lcpserve/crypto"
 	//"github.com/jpbougie/lcpserve/pack"
 	"github.com/jpbougie/lcpserve/index"
+	"github.com/jpbougie/lcpserve/license"
 	"github.com/jpbougie/lcpserve/server"
 	"github.com/jpbougie/lcpserve/storage"
 	//"archive/zip"
@@ -73,6 +74,14 @@ func main() {
 		panic(err)
 	}
 	idx, err := index.Open(db)
+	if err != nil {
+		panic(err)
+	}
+
+	lst, err := license.NewSqlStore(db)
+	if err != nil {
+		panic(err)
+	}
 
 	os.Mkdir(storagePath, os.ModePerm) //ignore the error, the folder can already exist
 	store := storage.NewFileSystem(storagePath, "http://"+host+":"+port+"/files")
@@ -84,7 +93,7 @@ func main() {
 	here := filepath.Dir(file)
 	static := filepath.Join(here, "/static")
 
-	s := server.New(":"+port, static, readonly, &idx, &store, &cert)
+	s := server.New(":"+port, static, readonly, &idx, &store, &lst, &cert)
 	s.ListenAndServe()
 	//zipfile, err := zip.OpenReader("test/samples/sample.epub")
 	//if err != nil {
