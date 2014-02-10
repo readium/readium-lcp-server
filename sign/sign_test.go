@@ -26,8 +26,8 @@ func TestSigning(t *testing.T) {
 		t.Error(err)
 	}
 
-	if sig.Algorithm != "http://www.w3.org/2000/09/xmldsig#rsa-sha1" {
-		t.Error("Expected 'http://www.w3.org/2000/09/xmldsig#rsa-sha1', got ", sig.Algorithm)
+	if sig.Algorithm != "http://www.w3.org/2000/09/xmldsig#rsa-sha256" {
+		t.Error("Expected 'http://www.w3.org/2000/09/xmldsig#rsa-sha256', got ", sig.Algorithm)
 	}
 }
 
