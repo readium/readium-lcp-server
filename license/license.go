@@ -40,7 +40,6 @@ type Link struct {
 }
 
 type UserInfo struct {
-	Provider  string   `json:"provider"`
 	Id        string   `json:"id"`
 	Email     string   `json:"email,omitempty"`
 	Name      string   `json:"name,omitempty"`
@@ -66,6 +65,7 @@ var DefaultRights = UserRights{
 const DEFAULT_PROFILE = "http://readium.org/lcp/profile-1.0"
 
 type License struct {
+	Provider   string          `json:"provider"`
 	Id         string          `json:"id"`
 	Date       time.Time       `json:"date"`
 	Encryption Encryption      `json:"encryption"`
