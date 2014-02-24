@@ -14,6 +14,7 @@ import (
 	"github.com/jpbougie/lcpserve/license"
 	"github.com/jpbougie/lcpserve/server"
 	"github.com/jpbougie/lcpserve/storage"
+	"github.com/kylelemons/go-gypsy/yaml"
 	//"archive/zip"
 	"os"
 	"strings"
@@ -37,26 +38,46 @@ func main() {
 		}
 	}
 
+	config_file := "config.yaml"
+
+	config, err := yaml.ReadFile(config_file)
+	if err != nil {
+		panic("can't read config file : " + config_file)
+	}
+
 	readonly = os.Getenv("READONLY") != ""
 
 	if port = os.Getenv("PORT"); port == "" {
 		port = "8989"
 	}
 
-	if dbURI = os.Getenv("DB"); dbURI == "" {
-		dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
+	dbURI, _ = config.Get("database")
+	if dbURI == "" {
+		if dbURI = os.Getenv("DB"); dbURI == "" {
+			dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
+		}
 	}
 
-	if storagePath = os.Getenv("STORAGE"); storagePath == "" {
-		storagePath = "files"
+	storagePath, _ = config.Get("storage.filesystem.storage")
+	if storagePath == "" {
+		if storagePath = os.Getenv("STORAGE"); storagePath == "" {
+			storagePath = "files"
+		}
 	}
 
-	if certFile = os.Getenv("CERT"); certFile == "" {
-		panic("Must specify a certificate")
+	certFile, _ = config.Get("certificate.cert")
+	privKeyFile, _ = config.Get("certificate.private_key")
+
+	if certFile == "" {
+		if certFile = os.Getenv("CERT"); certFile == "" {
+			panic("Must specify a certificate")
+		}
 	}
 
-	if privKeyFile = os.Getenv("PRIVATE_KEY"); privKeyFile == "" {
-		panic("Must specify a private key")
+	if privKeyFile == "" {
+		if privKeyFile = os.Getenv("PRIVATE_KEY"); privKeyFile == "" {
+			panic("Must specify a private key")
+		}
 	}
 
 	cert, err := tls.LoadX509KeyPair(certFile, privKeyFile)
