@@ -22,6 +22,7 @@ type ContentKey struct {
 type UserKey struct {
 	Key
 	Hint       string `json:"text_hint"`
+	Check      []byte `json:"key_check,omitempty"`
 	Value      []byte `json:"value,omitempty"`       //Used for the license request
 	ClearValue string `json:"clear_value,omitempty"` //Used for the license request
 }

@@ -132,8 +132,18 @@ func grantLicense(l *license.License, key string, embedded bool, s Server, w io.
 	}
 	l.Links["hint"] = license.Link{Href: "http://example.com/hint"}
 
-	encryptFields(l, encryptionKey[:])
-	signLicense(l, s.Certificate())
+	err = encryptFields(l, encryptionKey[:])
+	if err != nil {
+		return err
+	}
+	err = buildKeyCheck(l, encryptionKey[:])
+	if err != nil {
+		return err
+	}
+	err = signLicense(l, s.Certificate())
+	if err != nil {
+		return err
+	}
 
 	enc := json.NewEncoder(w)
 	enc.Encode(l)
@@ -141,11 +151,24 @@ func grantLicense(l *license.License, key string, embedded bool, s Server, w io.
 	return nil
 }
 
+func buildKeyCheck(l *license.License, key []byte) error {
+	var out bytes.Buffer
+	err := crypto.Encrypt(key, bytes.NewBufferString(l.Id), &out)
+	if err != nil {
+		return err
+	}
+	l.Encryption.UserKey.Check = out.Bytes()
+	return nil
+}
+
 func encryptFields(l *license.License, key []byte) error {
 	for _, toEncrypt := range l.User.Encrypted {
 		var out bytes.Buffer
 		field := getField(&l.User, toEncrypt)
-		crypto.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
+		err := crypto.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
+		if err != nil {
+			return err
+		}
 		field.Set(reflect.ValueOf(base64.StdEncoding.EncodeToString(out.Bytes())))
 	}
 	return nil
