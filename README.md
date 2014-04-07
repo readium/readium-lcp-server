@@ -9,11 +9,11 @@ Install
 
 Assuming a working Go installation,
 
-go get github.com/jpbougie/lcpserve
+go get github.com/readium/readium-lcp-server
 
 Running
 =======
-You must have a certificate (currently, only RSA is supported). Use the following environment variables to configure lcpserve:
+You must have a certificate (currently, only RSA is supported). Use the following environment variables to configure the lcp server:
 - CERT - Points to the certificate file (typically a .crt)
 - PRIVATE_KEY - Points to the private key (typically a .pem)
 - PORT - Where lcpserve will listen, by default 8989
@@ -21,7 +21,7 @@ You must have a certificate (currently, only RSA is supported). Use the followin
 - READONLY - Readonly mode for demo purposes
 - DB - the connection string to the database, by default sqlite3://file:lcpserve.sqlite?cache=shared&mode=rwc
 
-$GOPATH/bin/lcpserve
+$GOPATH/bin/readium-lcp-server
 
 Contributing
 ============

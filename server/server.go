@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/mux"
-	"github.com/jpbougie/lcpserve/index"
-	"github.com/jpbougie/lcpserve/license"
-	"github.com/jpbougie/lcpserve/server/api"
-	"github.com/jpbougie/lcpserve/storage"
+	"github.com/readium/readium-lcp-server/index"
+	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/server/api"
+	"github.com/readium/readium-lcp-server/storage"
 	"github.com/technoweenie/grohl"
 
 	"html/template"

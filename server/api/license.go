@@ -12,10 +12,10 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/jpbougie/lcpserve/crypto"
-	"github.com/jpbougie/lcpserve/epub"
-	"github.com/jpbougie/lcpserve/license"
-	"github.com/jpbougie/lcpserve/sign"
+	"github.com/readium/readium-lcp-server/crypto"
+	"github.com/readium/readium-lcp-server/epub"
+	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/sign"
 
 	"io"
 	"net/http"

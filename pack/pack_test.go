@@ -2,7 +2,7 @@ package pack
 
 import (
 	"archive/zip"
-	"github.com/jpbougie/lcpserve/epub"
+	"github.com/readium/readium-lcp-server/epub"
 	"testing"
 )
 

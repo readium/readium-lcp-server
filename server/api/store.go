@@ -9,11 +9,11 @@ import (
 	"fmt"
 
 	"github.com/gorilla/mux"
-	"github.com/jpbougie/lcpserve/epub"
-	"github.com/jpbougie/lcpserve/index"
-	"github.com/jpbougie/lcpserve/license"
-	"github.com/jpbougie/lcpserve/pack"
-	"github.com/jpbougie/lcpserve/storage"
+	"github.com/readium/readium-lcp-server/epub"
+	"github.com/readium/readium-lcp-server/index"
+	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/pack"
+	"github.com/readium/readium-lcp-server/storage"
 	"github.com/technoweenie/grohl"
 
 	"io/ioutil"

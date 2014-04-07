@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jpbougie/lcpserve/epub/opf"
-	"github.com/jpbougie/lcpserve/xmlenc"
+	"github.com/readium/readium-lcp-server/epub/opf"
+	"github.com/readium/readium-lcp-server/xmlenc"
 
 	"io"
 )

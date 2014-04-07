@@ -1,9 +1,9 @@
 package pack
 
 import (
-	"github.com/jpbougie/lcpserve/crypto"
-	"github.com/jpbougie/lcpserve/epub"
-	"github.com/jpbougie/lcpserve/xmlenc"
+	"github.com/readium/readium-lcp-server/crypto"
+	"github.com/readium/readium-lcp-server/epub"
+	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
 func Do(ep epub.Epub) (epub.Epub, []byte, error) {

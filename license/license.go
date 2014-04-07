@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 
-	"github.com/jpbougie/lcpserve/sign"
+	"github.com/readium/readium-lcp-server/sign"
 
 	"io"
 	"time"

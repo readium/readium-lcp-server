@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/jpbougie/lcpserve/sign"
+	"github.com/readium/readium-lcp-server/sign"
 )
 
 var NotFound = errors.New("Package not found")
