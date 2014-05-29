@@ -68,7 +68,8 @@ const DEFAULT_PROFILE = "http://readium.org/lcp/profile-1.0"
 type License struct {
 	Provider   string          `json:"provider"`
 	Id         string          `json:"id"`
-	Date       time.Time       `json:"date"`
+	Issued     time.Time       `json:"issued"`
+	Updated    time.Time       `json:"updated"`
 	Encryption Encryption      `json:"encryption"`
 	Links      map[string]Link `json:"links"`
 	User       UserInfo        `json:"user"`
@@ -85,7 +86,8 @@ func New() License {
 func Prepare(l *License) {
 	uuid, _ := newUUID()
 	l.Id = uuid
-	l.Date = time.Now()
+	l.Issued = time.Now()
+	l.Updated = l.Issued
 
 	if l.Links == nil {
 		l.Links = map[string]Link{}
