@@ -100,5 +100,26 @@ func ListPackages(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
+}
 
+func DeletePackage(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+	key := vars["key"]
+
+  _, err := s.Store().Get(key)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = s.Index().Del(key)
+	if err != nil {
+		log.Println("Error while removing to index")
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+  s.Store().Remove(key)
+	w.WriteHeader(200)
+  return
 }
