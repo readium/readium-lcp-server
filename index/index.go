@@ -51,6 +51,7 @@ func (i dbIndex) Add(p Package) error {
 }
 
 func (i dbIndex) Del(storageKey string) error {
+  defer i.del.Close()
   _, err := i.del.Exec(storageKey)
 	return err
 }
