@@ -106,7 +106,7 @@ func DeletePackage(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	key := vars["key"]
 
-  _, err := s.Store().Get(key)
+	_, err := s.Store().Get(key)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -119,7 +119,7 @@ func DeletePackage(w http.ResponseWriter, r *http.Request, s Server) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-  s.Store().Remove(key)
+	s.Store().Remove(key)
 	w.WriteHeader(200)
-  return
+	return
 }
