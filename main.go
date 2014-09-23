@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
-  _ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql"
 	"path/filepath"
 	"runtime"
 	"github.com/kylelemons/go-gypsy/yaml"
@@ -86,12 +86,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-  if driver == "sqlite3" {
-	  _, err = db.Exec("PRAGMA journal_mode = WAL")
-	  if err != nil {
-	  panic(err)
-	  }
-  }
+	if driver == "sqlite3" {
+		_, err = db.Exec("PRAGMA journal_mode = WAL")
+		if err != nil {
+			panic(err)
+		}
+	}
 	idx, err := index.Open(db)
 	if err != nil {
 		panic(err)
