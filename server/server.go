@@ -22,11 +22,16 @@ type Server struct {
 	st       *storage.Store
 	lst      *license.Store
 	router   *mux.Router
+	dpbx     string
 	cert     *tls.Certificate
 }
 
 func (s *Server) Store() storage.Store {
 	return *s.st
+}
+
+func (s *Server) DropBox() string {
+	return s.dpbx
 }
 
 func (s *Server) Index() index.Index {
@@ -41,7 +46,7 @@ func (s *Server) Certificate() *tls.Certificate {
 	return s.cert
 }
 
-func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate) *Server {
+func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, dpbx string, lst *license.Store, cert *tls.Certificate) *Server {
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{
@@ -51,6 +56,7 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 		readonly: readonly,
 		idx:      idx,
 		st:       st,
+		dpbx:     dpbx,
 		lst:      lst,
 		cert:     cert,
 		router:   r,
@@ -68,6 +74,7 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	r.Handle("/files/{file}", http.StripPrefix("/files/", http.FileServer(http.Dir("files"))))
 	if !readonly {
 		s.handleFunc("/api/store/{name}", api.StorePackage).Methods("POST")
+		s.handleFunc("/api/storefromdropbox/{name}", api.StoreFromDropBox).Methods("POST")
 	}
 	s.handleFunc("/api/packages", api.ListPackages).Methods("GET")
 	s.handleFunc("/api/packages/{key}/licenses", api.GrantLicense).Methods("POST")
