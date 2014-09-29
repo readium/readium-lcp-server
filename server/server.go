@@ -73,6 +73,7 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	s.handleFunc("/api/packages/{key}/licenses", api.GrantLicense).Methods("POST")
 	if !readonly {
 		s.handleFunc("/api/packages/{key}", api.DeletePackage).Methods("DELETE")
+		s.handleFunc("/api/packages/{key}/disable", api.DisablePackage).Methods("POST")
 	}
 	r.Handle("/", http.NotFoundHandler())
 
