@@ -67,18 +67,31 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	_,err = s.Store().Get(key)
+	if err != index.NotFound && err != storage.NotFound {
+		if err == nil {
+			log.Println("Error: file is already stored")
+			http.Error(w, "This file is already stored", http.StatusBadRequest)
+		} else {
+			log.Println("Error "+err.Error())
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+		return
+	}
+
+	err = s.Index().Add(index.Package{key, encryptionKey, name})
+	if err != nil {
+		log.Println("Error while adding to index")
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	output := new(bytes.Buffer)
 	out.Write(output)
 	_, err = s.Store().Add(key, output)
 	if err != nil {
 		log.Println("Error storing")
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	err = s.Index().Add(index.Package{key, encryptionKey, name})
-	if err != nil {
-		log.Println("Error while adding to index")
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
