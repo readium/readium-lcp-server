@@ -48,8 +48,8 @@ type UserInfo struct {
 }
 
 type UserRights struct {
-	Print    int32      `json:"print,omitempty"`
-	Copy     int32      `json:"copy,omitempty"`
+	Print    int32      `json:"print"`
+	Copy     int32      `json:"copy"`
 	TTS      bool       `json:"tts"`
 	Editable bool       `json:"edit"`
 	Start    *time.Time `json:"start,omitempty"`
@@ -57,6 +57,8 @@ type UserRights struct {
 }
 
 var DefaultRights = UserRights{
+	Print:    -1,
+	Copy:     -1,
 	TTS:      true,
 	Editable: false,
 }
