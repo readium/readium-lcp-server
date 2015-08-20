@@ -37,7 +37,7 @@ func (s *rsaSigner) Sign(in interface{}) (sig Signature, err error) {
 	}
 
 	sig.Hash = res
-	sig.Algorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha256"
+	sig.Algorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
 	sig.Certificate = s.cert.Certificate[0]
 	return
 }
