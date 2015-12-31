@@ -23,7 +23,7 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-	var config_file, host, port, dbURI, storagePath, certFile, privKeyFile string
+	var config_file, host, port, dbURI, storagePath, certFile, privKeyFile, static string
 	var readonly bool = false
 	var err error
 
@@ -110,9 +110,13 @@ func main() {
 		panic(err)
 	}
 
-	_, file, _, _ := runtime.Caller(0)
-	here := filepath.Dir(file)
-	static := filepath.Join(here, "/static")
+
+	static, _ = config.Get("static.directory");
+	if static == "" {
+		_, file, _, _ := runtime.Caller(0)
+		here := filepath.Dir(file)
+		static = filepath.Join(here, "/static")
+	}
 
 	s := server.New(":"+port, static, readonly, &idx, &store, &lst, &cert)
 	s.ListenAndServe()
