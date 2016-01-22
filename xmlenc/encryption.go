@@ -112,7 +112,20 @@ type Key struct {
 	CarriedKeyName string
 	Recipient      string
 }
+type Compression struct {
+	Method         int    `xml:"Method,attr"`
+	OriginalLength uint64 `xml:"OriginalLength,attr"`
+}
+
+type EncryptionProperty struct {
+	Compression Compression `xml:"http://idpf.org/ocf/encryption#compression Compression"`
+}
+
+type EncryptionProperties struct {
+	Properties []EncryptionProperty `xml:"http://www.w3.org/2001/04/xmlenc# EncryptionProperty"`
+}
 
 type Data struct {
 	encryptedType
+	Properties *EncryptionProperties `xml:"http://www.w3.org/2001/04/xmlenc# EncryptionProperties,omitempty"`
 }
