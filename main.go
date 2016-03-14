@@ -23,7 +23,7 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-	var host, port, dbURI, storagePath, certFile, privKeyFile string
+	var host, port, dbURI, storagePath, dropBox, certFile, privKeyFile string
 	var readonly bool = false
 	var err error
 
@@ -54,10 +54,17 @@ func main() {
 		}
 	}
 
-	storagePath, _ = config.Get("storage.filesystem.storage")
+	storagePath, _ = config.Get("storage.filesystem.directory")
 	if storagePath == "" {
 		if storagePath = os.Getenv("STORAGE"); storagePath == "" {
 			storagePath = "files"
+		}
+	}
+
+	dropBox, _ = config.Get("dropbox.filesystem.directory")
+	if dropBox == "" {
+		if dropBox = os.Getenv("DROPBOX"); dropBox == "" {
+			dropBox = "dropbox"
 		}
 	}
 
@@ -108,10 +115,12 @@ func main() {
 		panic(err)
 	}
 
+	os.Mkdir(dropBox, os.ModePerm) //ignore the error, the folder can already exist
+
 	_, file, _, _ := runtime.Caller(0)
 	here := filepath.Dir(file)
 	static := filepath.Join(here, "/static")
 
-	s := server.New(":"+port, static, readonly, &idx, &store, &lst, &cert)
+	s := server.New(":"+port, static, readonly, &idx, &store, dropBox, &lst, &cert)
 	s.ListenAndServe()
 }

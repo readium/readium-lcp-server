@@ -17,28 +17,21 @@ import (
 	"github.com/technoweenie/grohl"
 
 	"io/ioutil"
+	"os"
+	"path"
 	"log"
 	"net/http"
 )
 
 type Server interface {
 	Store() storage.Store
+	DropBox() string
 	Index() index.Index
 	Licenses() license.Store
 	Certificate() *tls.Certificate
 }
 
-func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
-	vars := mux.Vars(r)
-
-	name := vars["name"]
-	buf, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Println("Error reading body")
-		log.Println(err)
-		w.WriteHeader(500)
-		return
-	}
+func _StorePackage(w http.ResponseWriter, r *http.Request, s Server, name string, buf[]byte) {
 
 	sha := sha256.Sum256(buf)
 	key := fmt.Sprintf("%x", sha)
@@ -85,6 +78,42 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	w.WriteHeader(200)
 	w.Write([]byte(name))
+
+}
+
+func StoreFromDropBox(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+
+	name := vars["name"]
+	filePath := path.Join(s.DropBox(), name)
+	buf, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		log.Println("Error reading file")
+		log.Println(err)
+		w.WriteHeader(500)
+		return
+	}
+
+	_StorePackage(w, r, s, name, buf)
+	// After storage add, remove file from dropbox
+	os.Remove(filePath)
+	return
+}
+
+func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+
+	name := vars["name"]
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Println("Error reading body")
+		log.Println(err)
+		w.WriteHeader(500)
+		return
+	}
+
+	_StorePackage(w, r, s, name, buf)
+	return
 }
 
 func ListPackages(w http.ResponseWriter, r *http.Request, s Server) {
