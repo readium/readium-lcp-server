@@ -23,7 +23,7 @@ func TestFileSystemStorage(t *testing.T) {
 
 	store := NewFileSystem(dir, "http://localhost/assets")
 
-	item, err := store.Add("test", bytes.NewBufferString("test1234"))
+	item, err := store.Add("test", bytes.NewReader([]byte("test1234")))
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -38,24 +38,25 @@ func TestFileSystemStorage(t *testing.T) {
 	}
 
 	var buf [8]byte
-	if _, err = io.ReadFull(item.Contents(), buf[:]); err != nil {
-		t.Error(err)
-		t.FailNow()
+	contents, err := item.Contents()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = io.ReadFull(contents, buf[:]); err != nil {
+		t.Fatal(err)
 	} else {
 		if string(buf[:]) != "test1234" {
 			t.Error("expected buf to be test1234, got ", string(buf[:]))
 		}
 	}
 
-	it := store.List()
-
-	i := 0
-	for item, err = it(); err == nil; item, err = it() {
-		i++
+	results, err := store.List()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if i != 1 {
-		t.Error("Expected 1 element, got ", i)
+	if len(results) != 1 {
+		t.Error("Expected 1 element, got ", len(results))
 	}
 
 }

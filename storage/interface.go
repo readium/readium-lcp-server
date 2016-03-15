@@ -10,14 +10,12 @@ var NotFound = errors.New("Item could not be found")
 type Item interface {
 	Key() string
 	PublicUrl() string
-	Contents() io.Reader
+	Contents() (io.ReadCloser, error)
 }
 
-type Iterator func() (Item, error)
-
 type Store interface {
-	Add(key string, r io.Reader) (Item, error)
+	Add(key string, r io.ReadSeeker) (Item, error)
 	Get(key string) (Item, error)
 	Remove(key string) error
-	List() Iterator
+	List() ([]Item, error)
 }

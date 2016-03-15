@@ -34,17 +34,16 @@ func TestPacking(t *testing.T) {
 
 	inputRes.Contents = bytes.NewReader(inputBytes)
 
-	output, key, err := Do(input)
+	buf := new(bytes.Buffer)
+	encryption, key, err := Do(input, buf)
 	if err != nil {
-		t.Error(err)
-		t.FailNow()
+		t.Fatal(err)
+	}
+	if encryption == nil {
+		t.Fatal("Expected an xmlenc file")
 	}
 
-	if output.Encryption == nil {
-		t.Error("Expected an xmlenc file")
-	}
-
-	if len(output.Encryption.Data) == 0 {
+	if len(encryption.Data) == 0 {
 		t.Error("Expected some encrypted data")
 	}
 
@@ -52,11 +51,17 @@ func TestPacking(t *testing.T) {
 		t.Error("expected a key")
 	}
 
-	for _, item := range output.Encryption.Data {
+	for _, item := range encryption.Data {
 		if !input.CanEncrypt(string(item.CipherData.CipherReference.URI)) {
 			t.Errorf("Should not have encrypted %s\n", item.CipherData.CipherReference.URI)
 		}
 	}
+
+	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, _ := epub.Read(zr)
 
 	if res, ok := findFile("OPS/images/Moby-Dick_FE_title_page.jpg", output); !ok {
 		t.Errorf("Could not find image")
@@ -66,6 +71,7 @@ func TestPacking(t *testing.T) {
 		}
 	}
 
+	//fmt.Printf("%#v\n", output.Encryption)
 	var encryptionData xmlenc.Data
 	for _, data := range output.Encryption.Data {
 		if data.CipherData.CipherReference.URI == xmlenc.URI(htmlFilePath) {

@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/pack"
 	"github.com/readium/readium-lcp-server/server/api"
 	"github.com/readium/readium-lcp-server/storage"
 	"github.com/technoweenie/grohl"
@@ -23,6 +24,7 @@ type Server struct {
 	lst      *license.Store
 	router   *mux.Router
 	cert     *tls.Certificate
+	source   pack.ManualSource
 }
 
 func (s *Server) Store() storage.Store {
@@ -41,7 +43,11 @@ func (s *Server) Certificate() *tls.Certificate {
 	return s.cert
 }
 
-func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate) *Server {
+func (s *Server) Source() *pack.ManualSource {
+	return &s.source
+}
+
+func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager) *Server {
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{
@@ -54,7 +60,10 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 		lst:      lst,
 		cert:     cert,
 		router:   r,
+		source:   pack.ManualSource{},
 	}
+
+	s.source.Feed(packager.Incoming)
 
 	manageIndex, err := template.ParseFiles(filepath.Join(tplPath, "/manage/index.html"))
 	if err != nil {

@@ -2,85 +2,95 @@ package epub
 
 import (
 	"archive/zip"
-	"bytes"
 	"io"
+
+	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
 const (
 	mimetype = "application/epub+zip"
 )
 
-func (ep Epub) Write(dst io.Writer) error {
-	w := zip.NewWriter(dst)
+type Writer struct {
+	w *zip.Writer
+}
 
-	writeMimetype(w)
-	if ep.Encryption != nil {
-		writeEncryption(ep, w)
+func (w *Writer) WriteHeader() error {
+	return writeMimetype(w.w)
+}
+
+func (w *Writer) AddResource(path string, storeMethod uint16) (io.Writer, error) {
+	return w.w.CreateHeader(&zip.FileHeader{
+		Name:   path,
+		Method: storeMethod,
+	})
+}
+
+func (w *Writer) Copy(r *Resource) error {
+	fw, err := w.AddResource(r.Path, r.StorageMethod)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(fw, r.Contents)
+	return err
+}
+
+func (w *Writer) WriteEncryption(enc *xmlenc.Manifest) error {
+	fw, err := w.AddResource("META-INF/encryption.xml", zip.Deflate)
+	if err != nil {
+		return err
+	}
+
+	return enc.Write(fw)
+
+}
+
+func (w *Writer) Close() error {
+	return w.w.Close()
+}
+
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{
+		w: zip.NewWriter(w),
+	}
+}
+
+func (ep Epub) Write(dst io.Writer) error {
+	w := NewWriter(dst)
+
+	err := w.WriteHeader()
+	if err != nil {
+		return err
 	}
 
 	for _, res := range ep.Resource {
 		if res.Path != "mimetype" {
-			writeResource(res, w)
+			fw, err := w.AddResource(res.Path, res.StorageMethod)
+			if err != nil {
+				return err
+			}
+			_, err = io.Copy(fw, res.Contents)
+			if err != nil {
+				return err
+			}
 		}
+	}
+
+	if ep.Encryption != nil {
+		writeEncryption(ep, w)
 	}
 
 	return w.Close()
 }
 
-func writeEncryption(ep Epub, w *zip.Writer) error {
-	var buf bytes.Buffer
-	err := ep.Encryption.Write(&buf)
-	if err != nil {
-		panic(err)
-	}
-
-	fh := &zip.FileHeader{
-		Name:   "META-INF/encryption.xml",
-		Method: zip.Deflate,
-	}
-
-	wf, err := w.CreateHeader(fh)
-	if err != nil {
-		return err
-	}
-
-	io.Copy(wf, &buf)
-	return nil
-}
-
-func writeResource(res *Resource, w *zip.Writer) error {
-	var err error
-
-	size := res.ContentsSize
-	if size == 0 {
-		size = res.OriginalSize
-	}
-
-	fh := &zip.FileHeader{
-		Name:               res.Path,
-		UncompressedSize64: size,
-	}
-
-	if res.Compressed {
-		fh.Method = zip.Store
-	} else {
-		fh.Method = zip.Deflate
-	}
-
-	wf, err := w.CreateHeader(fh)
-	if err != nil {
-		return err
-	}
-
-	io.Copy(wf, res.Contents)
-	return nil
+func writeEncryption(ep Epub, w *Writer) error {
+	return w.WriteEncryption(ep.Encryption)
 }
 
 func writeMimetype(w *zip.Writer) error {
 	fh := &zip.FileHeader{
-		Name:               "mimetype",
-		UncompressedSize64: uint64(len(mimetype)),
-		Method:             zip.Store,
+		Name:   "mimetype",
+		Method: zip.Store,
 	}
 	wf, err := w.CreateHeader(fh)
 	if err != nil {

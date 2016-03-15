@@ -1,6 +1,7 @@
 package epub
 
 import (
+	"archive/zip"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -22,8 +23,9 @@ func (ep Epub) Cover() (bool, *Resource) {
 	for _, p := range ep.Package {
 		for _, it := range p.Manifest.Items {
 			if strings.Contains(it.Properties, "cover-image") {
+				path := filepath.Join(p.BasePath, it.Href)
 				for _, r := range ep.Resource {
-					if r.Path == filepath.Join(p.BasePath, it.Href) {
+					if r.Path == path {
 						return true, r
 					}
 				}
@@ -35,18 +37,19 @@ func (ep Epub) Cover() (bool, *Resource) {
 }
 
 func (ep *Epub) Add(name string, body io.Reader, size uint64) error {
-	ep.Resource = append(ep.Resource, &Resource{Contents: body, Compressed: false, Path: name, OriginalSize: size})
+	ep.Resource = append(ep.Resource, &Resource{Contents: body, StorageMethod: zip.Deflate, Path: name, OriginalSize: size})
 
 	return nil
 }
 
 type Resource struct {
-	Contents     io.Reader
-	Compressed   bool
-	Path         string
-	ContentType  string
-	OriginalSize uint64
-	ContentsSize uint64
+	Path          string
+	ContentType   string
+	OriginalSize  uint64
+	ContentsSize  uint64
+	Compressed    bool
+	StorageMethod uint16
+	Contents      io.Reader
 }
 
 func (ep Epub) CanEncrypt(file string) bool {

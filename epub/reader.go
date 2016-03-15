@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	containerFile  = "META-INF/container.xml"
-	encryptionFile = "META-INF/encryption.xml"
+	ContainerFile   = "META-INF/container.xml"
+	EncryptionFile  = "META-INF/encryption.xml"
+	RootFileElement = "rootfile"
 )
 
 type rootFile struct {
@@ -33,7 +34,7 @@ func findRootFiles(r io.Reader) ([]rootFile, error) {
 		switch x.(type) {
 		case xml.StartElement:
 			start := x.(xml.StartElement)
-			if start.Name.Local == "rootfile" {
+			if start.Name.Local == RootFileElement {
 				var file rootFile
 				err = xd.DecodeElement(&file, &start)
 				if err != nil {
@@ -67,7 +68,7 @@ func (ep *Epub) addCleartextResource(name string) {
 
 func Read(r *zip.Reader) (Epub, error) {
 	var ep Epub
-	container, err := findFileInZip(r, containerFile)
+	container, err := findFileInZip(r, ContainerFile)
 	if err != nil {
 		return ep, err
 	}
@@ -105,26 +106,8 @@ func Read(r *zip.Reader) (Epub, error) {
 
 	var resources []*Resource
 
-	for _, file := range r.File {
-		if file.Name != "META-INF/encryption.xml" &&
-			file.Name != "mimetype" {
-			in, err := file.Open()
-			if err != nil {
-				return ep, err
-			}
-			resource := &Resource{Path: file.Name, Contents: in, OriginalSize: file.FileHeader.UncompressedSize64}
-			if item, ok := findResourceInPackages(resource, packages); ok {
-				resource.ContentType = item.MediaType
-			}
-			resources = append(resources, resource)
-		}
-		if strings.HasPrefix(file.Name, "META-INF") {
-			ep.addCleartextResource(file.Name)
-		}
-	}
-
 	var encryption *xmlenc.Manifest
-	f, err := findFileInZip(r, encryptionFile)
+	f, err := findFileInZip(r, EncryptionFile)
 	if err == nil {
 		r, err := f.Open()
 		if err != nil {
@@ -133,6 +116,39 @@ func Read(r *zip.Reader) (Epub, error) {
 		defer r.Close()
 		m, err := xmlenc.Read(r)
 		encryption = &m
+	}
+
+	for _, file := range r.File {
+		if file.Name != EncryptionFile &&
+			file.Name != "mimetype" {
+			rc, err := file.Open()
+			if err != nil {
+				return Epub{}, err
+			}
+			compressed := false
+
+			if encryption != nil {
+				if data, ok := encryption.DataForFile(file.Name); ok {
+					if data.Properties != nil {
+						for _, prop := range data.Properties.Properties {
+							if prop.Compression.Method == 8 {
+								compressed = true
+								break
+							}
+						}
+					}
+				}
+			}
+
+			resource := &Resource{Path: file.Name, Contents: rc, StorageMethod: file.Method, OriginalSize: file.FileHeader.UncompressedSize64, Compressed: compressed}
+			if item, ok := findResourceInPackages(resource, packages); ok {
+				resource.ContentType = item.MediaType
+			}
+			resources = append(resources, resource)
+		}
+		if strings.HasPrefix(file.Name, "META-INF") {
+			ep.addCleartextResource(file.Name)
+		}
 	}
 
 	ep.Package = packages

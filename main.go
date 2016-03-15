@@ -3,18 +3,23 @@ package main
 import (
 	"crypto/tls"
 	"database/sql"
-	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
-	_ "github.com/go-sql-driver/mysql"
+	"fmt"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"syscall"
+
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/kylelemons/go-gypsy/yaml"
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/pack"
 	"github.com/readium/readium-lcp-server/server"
 	"github.com/readium/readium-lcp-server/storage"
-	"os"
-	"strings"
 )
 
 func dbFromURI(uri string) (string, string) {
@@ -51,7 +56,7 @@ func main() {
 
 	publicBaseUrl, _ = config.Get("public_base_url")
 	if publicBaseUrl == "" {
-		publicBaseUrl =  "http://"+host+":"+port
+		publicBaseUrl = "http://" + host + ":" + port
 	}
 
 	dbURI, _ = config.Get("database")
@@ -109,20 +114,66 @@ func main() {
 		panic(err)
 	}
 
-	os.Mkdir(storagePath, os.ModePerm) //ignore the error, the folder can already exist
-	store := storage.NewFileSystem(storagePath, publicBaseUrl+"/files")
-	if err != nil {
-		panic(err)
+	var store storage.Store
+
+	if mode, _ := config.Get("storage.mode"); mode == "s3" {
+		s3Conf := s3ConfigFromYAML(config)
+		store, _ = storage.S3(s3Conf)
+	} else {
+		os.Mkdir(storagePath, os.ModePerm) //ignore the error, the folder can already exist
+		store = storage.NewFileSystem(storagePath, publicBaseUrl+"/files")
 	}
 
+	packager := pack.NewPackager(store, idx, 4)
 
-	static, _ = config.Get("static.directory");
+	static, _ = config.Get("static.directory")
 	if static == "" {
 		_, file, _, _ := runtime.Caller(0)
 		here := filepath.Dir(file)
 		static = filepath.Join(here, "/static")
 	}
 
-	s := server.New(":"+port, static, readonly, &idx, &store, &lst, &cert)
+	HandleSignals()
+
+	s := server.New(":"+port, static, readonly, &idx, &store, &lst, &cert, packager)
 	s.ListenAndServe()
+
+}
+
+func HandleSignals() {
+	sigChan := make(chan os.Signal)
+	go func() {
+		stacktrace := make([]byte, 1<<20)
+		for sig := range sigChan {
+			switch sig {
+			case syscall.SIGQUIT:
+				length := runtime.Stack(stacktrace, true)
+				fmt.Println(string(stacktrace[:length]))
+			case syscall.SIGINT:
+				fallthrough
+			case syscall.SIGTERM:
+				fmt.Println("Shutting down...")
+				os.Exit(0)
+			}
+		}
+	}()
+	signal.Notify(sigChan, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
+}
+
+func s3ConfigFromYAML(in *yaml.File) storage.S3Config {
+	config := storage.S3Config{}
+
+	config.Id, _ = in.Get("storage.access_id")
+	config.Secret, _ = in.Get("storage.token")
+	config.Token, _ = in.Get("storage.secret")
+
+	config.Endpoint, _ = in.Get("storage.endpoint")
+	config.Bucket, _ = in.Get("storage.bucket")
+	config.Region, _ = in.Get("storage.region")
+
+	ssl, _ := in.GetBool("storage.disable_ssl")
+	config.DisableSSL = ssl
+	config.ForcePathStyle, _ = in.GetBool("storage.path_style")
+
+	return config
 }

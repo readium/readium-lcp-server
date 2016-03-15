@@ -58,7 +58,13 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 		var b bytes.Buffer
-		io.Copy(&b, item.Contents())
+		contents, err := item.Contents()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		io.Copy(&b, contents)
 		zr, err := zip.NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
