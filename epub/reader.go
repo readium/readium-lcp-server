@@ -3,7 +3,6 @@ package epub
 import (
 	"archive/zip"
 	"encoding/xml"
-	"fmt"
 	"path/filepath"
 
 	"github.com/readium/readium-lcp-server/epub/opf"
@@ -111,10 +110,13 @@ func Read(r *zip.Reader) (Epub, error) {
 			file.Name != "mimetype" {
 			in, err := file.Open()
 			if err != nil {
-				fmt.Println("Could not open : ", file)
 				return ep, err
 			}
-			resources = append(resources, &Resource{Path: file.Name, Contents: in, OriginalSize: file.FileHeader.UncompressedSize64})
+			resource := &Resource{Path: file.Name, Contents: in, OriginalSize: file.FileHeader.UncompressedSize64}
+			if item, ok := findResourceInPackages(resource, packages); ok {
+				resource.ContentType = item.MediaType
+			}
+			resources = append(resources, resource)
 		}
 		if strings.HasPrefix(file.Name, "META-INF") {
 			ep.addCleartextResource(file.Name)
@@ -126,7 +128,6 @@ func Read(r *zip.Reader) (Epub, error) {
 	if err == nil {
 		r, err := f.Open()
 		if err != nil {
-			fmt.Println("Could not open : ", encryptionFile)
 			return Epub{}, err
 		}
 		defer r.Close()
@@ -151,4 +152,19 @@ func addCleartextResources(ep *Epub, p opf.Package) {
 			ep.addCleartextResource(filepath.Join(p.BasePath, item.Href))
 		}
 	}
+}
+
+func findResourceInPackages(r *Resource, packages []opf.Package) (opf.Item, bool) {
+	for _, p := range packages {
+		relative, err := filepath.Rel(p.BasePath, r.Path)
+		if err != nil {
+			return opf.Item{}, false
+		}
+
+		if item, ok := p.Manifest.ItemWithPath(relative); ok {
+			return item, ok
+		}
+	}
+
+	return opf.Item{}, false
 }

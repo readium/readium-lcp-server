@@ -23,6 +23,15 @@ type Manifest struct {
 	Items   []Item `xml:"http://www.idpf.org/2007/opf item"`
 }
 
+func (m Manifest) ItemWithPath(path string) (Item, bool) {
+	for _, i := range m.Items {
+		if i.Href == path { // FIXME(JPB) Canonicalize the path
+			return i, true
+		}
+	}
+	return Item{}, false
+}
+
 type Item struct {
 	Id         string `xml:"id,attr"`
 	Href       string `xml:"href,attr"`

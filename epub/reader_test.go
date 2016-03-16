@@ -31,10 +31,14 @@ func TestEpubLoading(t *testing.T) {
 	expectedCleartext := []string{"META-INF/container.xml", "OPS/package.opf", "OPS/images/9780316000000.jpg", "OPS/toc.xhtml"}
 	sort.Strings(expectedCleartext)
 	if fmt.Sprintf("%v", ep.cleartextResources) != fmt.Sprintf("%v", expectedCleartext) {
-		t.Error("Cleartext resources, expected %v, got %v", expectedCleartext, ep.cleartextResources)
+		t.Errorf("Cleartext resources, expected %v, got %v", expectedCleartext, ep.cleartextResources)
 	}
 
 	if found, r := ep.Cover(); !found || r == nil {
 		t.Error("Expected a cover to be found")
+	}
+
+	if expected := "application/xhtml+xml"; ep.Resource[2].ContentType != expected {
+		t.Errorf("Content Type matching, expected %v, got %v", expected, ep.Resource[2].ContentType)
 	}
 }

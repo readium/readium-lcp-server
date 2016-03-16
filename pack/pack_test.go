@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/jpbougie/lcpserve-back/crypto"
+	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/xmlenc"
 )

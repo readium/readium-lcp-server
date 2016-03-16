@@ -5,7 +5,6 @@ import (
 	"compress/flate"
 	"io"
 	"io/ioutil"
-	"mime"
 	"path/filepath"
 	"strings"
 
@@ -41,7 +40,7 @@ func mustCompressBeforeEncryption(file epub.Resource, ep epub.Epub) bool {
 		return false
 	}
 
-	mimetype := mime.TypeByExtension(ext)
+	mimetype := file.ContentType
 
 	if mimetype == "" {
 		return true
@@ -50,6 +49,11 @@ func mustCompressBeforeEncryption(file epub.Resource, ep epub.Epub) bool {
 	return !strings.HasPrefix(mimetype, "image") && !strings.HasPrefix(mimetype, "video") && !strings.HasPrefix(mimetype, "audio")
 }
 
+const (
+	NoCompression = 0
+	Deflate       = 8
+)
+
 func encryptFile(key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool) error {
 	data := xmlenc.Data{}
 	data.Method.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
@@ -57,13 +61,17 @@ func encryptFile(key []byte, m *xmlenc.Manifest, file *epub.Resource, compress b
 	data.KeyInfo.RetrievalMethod.Type = "http://readium.org/2014/01/lcp#EncryptedContentKey"
 	data.CipherData.CipherReference.URI = xmlenc.URI(file.Path)
 
+	method := NoCompression
 	if compress {
-		data.Properties = &xmlenc.EncryptionProperties{
-			Properties: []xmlenc.EncryptionProperty{
-				{Compression: xmlenc.Compression{Method: 8, OriginalLength: file.OriginalSize}},
-			},
-		}
+		method = Deflate
 	}
+
+	data.Properties = &xmlenc.EncryptionProperties{
+		Properties: []xmlenc.EncryptionProperty{
+			{Compression: xmlenc.Compression{Method: method, OriginalLength: file.OriginalSize}},
+		},
+	}
+
 	m.Data = append(m.Data, data)
 
 	input := file.Contents
