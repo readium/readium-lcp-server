@@ -23,7 +23,7 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-	var host, port, dbURI, storagePath, certFile, privKeyFile string
+	var config_file, host, port, dbURI, storagePath, certFile, privKeyFile string
 	var readonly bool = false
 	var err error
 
@@ -34,7 +34,9 @@ func main() {
 		}
 	}
 
-	config_file := "config.yaml"
+	if config_file = os.Getenv("READIUM_LCP_CONFIG"); config_file == "" {
+		config_file = "config.yaml"
+	}
 
 	config, err := yaml.ReadFile(config_file)
 	if err != nil {
