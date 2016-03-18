@@ -41,6 +41,7 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	err := dec.Decode(&lic)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	mode := r.PostFormValue("type")
 	key := vars["key"]
