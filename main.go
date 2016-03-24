@@ -23,7 +23,7 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-	var config_file, host, port, dbURI, storagePath, certFile, privKeyFile, static string
+	var config_file, host, port, publicBaseUrl, dbURI, storagePath, certFile, privKeyFile, static string
 	var readonly bool = false
 	var err error
 
@@ -47,6 +47,11 @@ func main() {
 
 	if port = os.Getenv("PORT"); port == "" {
 		port = "8989"
+	}
+
+	publicBaseUrl, _ = config.Get("public_base_url")
+	if publicBaseUrl == "" {
+		publicBaseUrl =  "http://"+host+":"+port
 	}
 
 	dbURI, _ = config.Get("database")
@@ -105,7 +110,7 @@ func main() {
 	}
 
 	os.Mkdir(storagePath, os.ModePerm) //ignore the error, the folder can already exist
-	store := storage.NewFileSystem(storagePath, "http://"+host+":"+port+"/files")
+	store := storage.NewFileSystem(storagePath, publicBaseUrl+"/files")
 	if err != nil {
 		panic(err)
 	}
