@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
+	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
@@ -22,6 +23,7 @@ type Server interface {
 	Licenses() license.Store
 	Certificate() *tls.Certificate
 	Source() *pack.ManualSource
+	Encrypter() crypto.Encrypter
 }
 
 func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {

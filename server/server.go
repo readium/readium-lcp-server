@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/mux"
+	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
@@ -45,6 +46,10 @@ func (s *Server) Certificate() *tls.Certificate {
 
 func (s *Server) Source() *pack.ManualSource {
 	return &s.source
+}
+
+func (s *Server) Encrypter() crypto.Encrypter {
+	return crypto.NewAESCBCEncrypter()
 }
 
 func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager) *Server {

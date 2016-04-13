@@ -12,8 +12,8 @@ import (
 	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
-func Do(ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key []byte, err error) {
-	key, err = crypto.GenerateKey()
+func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key crypto.ContentKey, err error) {
+	key, err = encrypter.GenerateKey()
 	if err != nil {
 		return
 	}
@@ -27,7 +27,7 @@ func Do(ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key []byte, err error)
 	for _, res := range ep.Resource {
 		if _, alreadyEncrypted := ep.Encryption.DataForFile(res.Path); !alreadyEncrypted && canEncrypt(res, ep) {
 			toCompress := mustCompressBeforeEncryption(*res, ep)
-			err = encryptFile(key, ep.Encryption, res, toCompress, ew)
+			err = encryptFile(encrypter, key, ep.Encryption, res, toCompress, ew)
 			if err != nil {
 				return
 			}
@@ -65,9 +65,9 @@ func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 	return ep.CanEncrypt(file.Path)
 }
 
-func encryptFile(key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool, w *epub.Writer) error {
+func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool, w *epub.Writer) error {
 	data := xmlenc.Data{}
-	data.Method.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
+	data.Method.Algorithm = xmlenc.URI(encrypter.Signature())
 	data.KeyInfo = &xmlenc.KeyInfo{}
 	data.KeyInfo.RetrievalMethod.URI = "license.lcpl#/encryption/content_key"
 	data.KeyInfo.RetrievalMethod.Type = "http://readium.org/2014/01/lcp#EncryptedContentKey"
@@ -108,21 +108,7 @@ func encryptFile(key []byte, m *xmlenc.Manifest, file *epub.Resource, compress b
 	if err != nil {
 		return err
 	}
-	return crypto.Encrypt(key, input, fw)
-}
-
-func Undo(key []byte, ep epub.Epub) (epub.Epub, error) {
-	for _, data := range ep.Encryption.Data {
-		if res, ok := findFile(string(data.CipherData.CipherReference.URI), ep); ok {
-			var buf bytes.Buffer
-			crypto.Decrypt(key, res.Contents, &buf)
-			res.Contents = &buf
-		}
-	}
-
-	ep.Encryption = nil
-
-	return ep, nil
+	return encrypter.Encrypt(key, input, fw)
 }
 
 func findFile(name string, ep epub.Epub) (*epub.Resource, bool) {

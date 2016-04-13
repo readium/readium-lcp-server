@@ -1,11 +1,9 @@
 package crypto
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestGenerateKey(t *testing.T) {
-	buf, err := GenerateKey()
+	buf, err := GenerateKey(aes256keyLength)
 
 	if err != nil {
 		t.Error(err)

@@ -4,12 +4,10 @@ import (
 	"crypto/rand"
 )
 
-const (
-	keyLength = 32 // 256 bits
-)
+type ContentKey []byte
 
-func GenerateKey() ([]byte, error) {
-	k := make([]byte, keyLength)
+func GenerateKey(size int) ([]byte, error) {
+	k := make([]byte, size)
 
 	_, err := rand.Read(k)
 	if err != nil {
