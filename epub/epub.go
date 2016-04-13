@@ -1,8 +1,6 @@
 package epub
 
 import (
-	"archive/zip"
-	"bytes"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -16,7 +14,7 @@ import (
 type Epub struct {
 	Encryption         *xmlenc.Manifest
 	Package            []opf.Package
-	Resource           []Resource
+	Resource           []*Resource
 	cleartextResources []string
 }
 
@@ -25,8 +23,8 @@ func (ep Epub) Cover() (bool, *Resource) {
 		for _, it := range p.Manifest.Items {
 			if strings.Contains(it.Properties, "cover-image") {
 				for _, r := range ep.Resource {
-					if r.File.Name == filepath.Join(p.BasePath, it.Href) {
-						return true, &r
+					if r.Path == filepath.Join(p.BasePath, it.Href) {
+						return true, r
 					}
 				}
 			}
@@ -36,27 +34,19 @@ func (ep Epub) Cover() (bool, *Resource) {
 	return false, nil
 }
 
-func (ep *Epub) Add(name string, body io.Reader) error {
-	var buf bytes.Buffer
-	_, err := io.Copy(&buf, body)
-	if err != nil {
-		return err
-	}
-	fh := &zip.FileHeader{
-		Name:               name,
-		UncompressedSize64: uint64(buf.Len()),
-		Method:             zip.Deflate,
-	}
-
-	ep.Resource = append(ep.Resource, Resource{Output: &buf, FileHeader: fh})
+func (ep *Epub) Add(name string, body io.Reader, size uint64) error {
+	ep.Resource = append(ep.Resource, &Resource{Contents: body, Compressed: false, Path: name, OriginalSize: size})
 
 	return nil
 }
 
 type Resource struct {
-	File       *zip.File
-	Output     *bytes.Buffer
-	FileHeader *zip.FileHeader
+	Contents     io.Reader
+	Compressed   bool
+	Path         string
+	ContentType  string
+	OriginalSize uint64
+	ContentsSize uint64
 }
 
 func (ep Epub) CanEncrypt(file string) bool {

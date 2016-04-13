@@ -19,7 +19,7 @@ func (ep Epub) Write(dst io.Writer) error {
 	}
 
 	for _, res := range ep.Resource {
-		if (res.File != nil && res.File.Name != "mimetype") || res.FileHeader.Name != "mimetype" {
+		if res.Path != "mimetype" {
 			writeResource(res, w)
 		}
 	}
@@ -35,9 +35,8 @@ func writeEncryption(ep Epub, w *zip.Writer) error {
 	}
 
 	fh := &zip.FileHeader{
-		Name:               "META-INF/encryption.xml",
-		UncompressedSize64: uint64(buf.Len()),
-		Method:             zip.Deflate,
+		Name:   "META-INF/encryption.xml",
+		Method: zip.Deflate,
 	}
 
 	wf, err := w.CreateHeader(fh)
@@ -49,33 +48,31 @@ func writeEncryption(ep Epub, w *zip.Writer) error {
 	return nil
 }
 
-func writeResource(res Resource, w *zip.Writer) error {
-	var fh *zip.FileHeader
+func writeResource(res *Resource, w *zip.Writer) error {
 	var err error
-	if fh = res.FileHeader; fh == nil {
-		fh, err = zip.FileInfoHeader(res.File.FileInfo())
-		fh.Name = res.File.Name
-		if err != nil {
-			return err
-		}
+
+	size := res.ContentsSize
+	if size == 0 {
+		size = res.OriginalSize
 	}
 
-	var in io.Reader
-	if size := res.Output.Len(); size > 0 {
-		fh.UncompressedSize64 = uint64(size)
-		in = res.Output
-	} else {
-		in, err = res.File.Open()
-		if err != nil {
-			return err
-		}
+	fh := &zip.FileHeader{
+		Name:               res.Path,
+		UncompressedSize64: size,
 	}
+
+	if res.Compressed {
+		fh.Method = zip.Store
+	} else {
+		fh.Method = zip.Deflate
+	}
+
 	wf, err := w.CreateHeader(fh)
 	if err != nil {
 		return err
 	}
 
-	io.Copy(wf, in)
+	io.Copy(wf, res.Contents)
 	return nil
 }
 

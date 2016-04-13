@@ -2,7 +2,6 @@ package epub
 
 import (
 	"archive/zip"
-	"bytes"
 	"encoding/xml"
 	"path/filepath"
 
@@ -15,9 +14,8 @@ import (
 )
 
 const (
-	CONTAINER_FILE   = "META-INF/container.xml"
-	ENCRYPTION_FILE  = "META-INF/encryption.xml"
-	ROOTFILE_ELEMENT = "rootfile"
+	containerFile  = "META-INF/container.xml"
+	encryptionFile = "META-INF/encryption.xml"
 )
 
 type rootFile struct {
@@ -35,7 +33,7 @@ func findRootFiles(r io.Reader) ([]rootFile, error) {
 		switch x.(type) {
 		case xml.StartElement:
 			start := x.(xml.StartElement)
-			if start.Name.Local == ROOTFILE_ELEMENT {
+			if start.Name.Local == "rootfile" {
 				var file rootFile
 				err = xd.DecodeElement(&file, &start)
 				if err != nil {
@@ -69,16 +67,19 @@ func (ep *Epub) addCleartextResource(name string) {
 
 func Read(r *zip.Reader) (Epub, error) {
 	var ep Epub
-	container, err := findFileInZip(r, CONTAINER_FILE)
+	container, err := findFileInZip(r, containerFile)
+	if err != nil {
+		return ep, err
+	}
 	fd, err := container.Open()
 	if err != nil {
-		return Epub{}, err
+		return ep, err
 	}
 	defer fd.Close()
 
 	rootFiles, err := findRootFiles(fd)
 	if err != nil {
-		return Epub{}, err
+		return ep, err
 	}
 
 	packages := make([]opf.Package, len(rootFiles))
@@ -86,11 +87,11 @@ func Read(r *zip.Reader) (Epub, error) {
 		ep.addCleartextResource(rootFile.FullPath)
 		file, err := findFileInZip(r, rootFile.FullPath)
 		if err != nil {
-			return Epub{}, err
+			return ep, err
 		}
 		packageFile, err := file.Open()
 		if err != nil {
-			return Epub{}, err
+			return ep, err
 		}
 		defer packageFile.Close()
 
@@ -98,16 +99,24 @@ func Read(r *zip.Reader) (Epub, error) {
 		packages[i].BasePath = filepath.Dir(rootFile.FullPath)
 		addCleartextResources(&ep, packages[i])
 		if err != nil {
-			return Epub{}, err
+			return ep, err
 		}
 	}
 
-	resources := make([]Resource, 0)
+	var resources []*Resource
 
 	for _, file := range r.File {
 		if file.Name != "META-INF/encryption.xml" &&
 			file.Name != "mimetype" {
-			resources = append(resources, Resource{File: file, Output: new(bytes.Buffer)})
+			in, err := file.Open()
+			if err != nil {
+				return ep, err
+			}
+			resource := &Resource{Path: file.Name, Contents: in, OriginalSize: file.FileHeader.UncompressedSize64}
+			if item, ok := findResourceInPackages(resource, packages); ok {
+				resource.ContentType = item.MediaType
+			}
+			resources = append(resources, resource)
 		}
 		if strings.HasPrefix(file.Name, "META-INF") {
 			ep.addCleartextResource(file.Name)
@@ -115,7 +124,7 @@ func Read(r *zip.Reader) (Epub, error) {
 	}
 
 	var encryption *xmlenc.Manifest
-	f, err := findFileInZip(r, ENCRYPTION_FILE)
+	f, err := findFileInZip(r, encryptionFile)
 	if err == nil {
 		r, err := f.Open()
 		if err != nil {
@@ -143,4 +152,19 @@ func addCleartextResources(ep *Epub, p opf.Package) {
 			ep.addCleartextResource(filepath.Join(p.BasePath, item.Href))
 		}
 	}
+}
+
+func findResourceInPackages(r *Resource, packages []opf.Package) (opf.Item, bool) {
+	for _, p := range packages {
+		relative, err := filepath.Rel(p.BasePath, r.Path)
+		if err != nil {
+			return opf.Item{}, false
+		}
+
+		if item, ok := p.Manifest.ItemWithPath(relative); ok {
+			return item, ok
+		}
+	}
+
+	return opf.Item{}, false
 }
