@@ -43,6 +43,12 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	_, hintFound := lic.Links["hint"]
+	if !hintFound {
+		http.Error(w, "hint url not set", http.StatusBadRequest)
+		return
+	}
+
 	mode := r.PostFormValue("type")
 	key := vars["key"]
 	if mode == "embedded" {
@@ -131,7 +137,7 @@ func grantLicense(l *license.License, key string, embedded bool, s Server, w io.
 	if !embedded {
 		l.Links["publication"] = license.Link{Href: item.PublicUrl(), Type: "application/epub+zip"}
 	}
-	l.Links["hint"] = license.Link{Href: "http://example.com/hint"}
+	//l.Links["hint"] = license.Link{Href: "http://example.com/hint"}
 
 	err = encryptFields(l, encryptionKey[:])
 	if err != nil {
