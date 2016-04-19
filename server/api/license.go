@@ -19,6 +19,7 @@ import (
 
 	"io"
 	"net/http"
+	"log"
 )
 
 //{
@@ -57,6 +58,12 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if indexItem.Enabled == false {
+			log.Println("Cannot download a disabled package")
+			http.Error(w, "Cannot download a disabled package", http.StatusNotFound)
+			return
+		}
+
 		var b bytes.Buffer
 		io.Copy(&b, item.Contents())
 		zr, err := zip.NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
@@ -88,6 +95,17 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		ep.Write(w)
 
 	} else {
+		indexItem, err := s.Index().Get(key)
+    if err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
+    }
+    if indexItem.Enabled == false {
+      log.Println("Cannot download license of a disabled package")
+      http.Error(w, "Cannot download license of a disabled package", http.StatusNotFound)
+      return
+    }
+
 		w.Header().Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
 		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 		err = grantLicense(&lic, key, false, s, w)

@@ -76,7 +76,7 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err = s.Index().Add(index.Package{key, encryptionKey, name})
+	err = s.Index().Add(index.Package{key, encryptionKey, name, true})
 	if err != nil {
 		log.Println("Error while adding to index")
 		log.Println(err)
@@ -100,5 +100,59 @@ func ListPackages(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
+}
 
+func DeletePackage(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+	key := vars["key"]
+
+	_, err := s.Store().Get(key)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	pkg, err := s.Index().Get(key)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if pkg.Enabled == true {
+		log.Println("Package must be disabled before delete")
+		http.Error(w, "Package must be disabled before delete", http.StatusNotFound)
+		return
+	}
+
+	err = s.Index().Del(key)
+	if err != nil {
+		log.Println("Error while removing to index")
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s.Store().Remove(key)
+	w.WriteHeader(200)
+	return
+}
+
+func DisablePackage(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+	key := vars["key"]
+
+	_, err := s.Store().Get(key)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	err = s.Index().Disable(key)
+	if err != nil {
+		log.Println("Error while disabling to index")
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(200)
+	return
 }
