@@ -138,6 +138,11 @@ function handleFileUpload(files,obj) {
 function makeLicense() {
   obj = {
     "provider": "http://example.com",
+	"links": {
+		"hint":{
+			"href": "http://example.com/hint" 
+			}
+		},
     "user": {
       "id": $('#user_id').val()
     },
@@ -145,7 +150,7 @@ function makeLicense() {
       "user_key": {
         "clear_value": $('#passphrase').val()
       }
-    }
+    }	
   }
 
   return obj;
