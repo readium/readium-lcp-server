@@ -1,4 +1,5 @@
 lcpserve
 readium-lcp-server
+lcpencrypt/lcpencrypt
 files/
 *.sqlite*

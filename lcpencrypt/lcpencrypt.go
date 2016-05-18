@@ -149,24 +149,22 @@ func main() {
 		os.Exit(3)
 		return
 	}
-	out, encryptionKey, err := pack.Do(ep)
-	if err != nil {
-		addedPublication.ErrorMessage = "Error packing"
-		exitWithError(addedPublication, err, 6)
-		return
-	}
-	addedPublication.ContentKey = encryptionKey
-	//write out to output
-	output := new(bytes.Buffer)
-	out.Write(output)
 
-	err = ioutil.WriteFile(*outputFilename, output.Bytes(), 0)
+	output, err := os.Create(*outputFilename)
 	if err != nil {
 		addedPublication.ErrorMessage = "Error writing output file"
 		exitWithError(addedPublication, err, 4)
 		return
 	}
 
+	_, encryptionKey, err := pack.Do(ep, output)
+	output.Close()
+	if err != nil {
+		addedPublication.ErrorMessage = "Error packing"
+		exitWithError(addedPublication, err, 6)
+		return
+	}
+	addedPublication.ContentKey = encryptionKey
 	addedPublication.Output = *outputFilename
 
 	if *lcpsv != "" {
