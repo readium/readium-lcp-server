@@ -3,6 +3,7 @@ package epub
 import (
 	"archive/zip"
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -81,10 +82,14 @@ func TestWriteBasicEpub(t *testing.T) {
 	testContentsOfFileInZip(t, zr, zip.Store, "mimetype", "application/epub+zip")
 	testContentsOfFileInZip(t, zr, zip.Deflate, "META-INF/container.xml", containerSpec)
 	testContentsOfFileInZip(t, zr, zip.Deflate, "EPUB/package.opf", basicOpf)
-	testContentsOfFileInZip(t, zr, zip.Store, "EPUB/page.xhtml", basicPage)
+	testContentsOfFileInZip(t, zr, zip.Deflate, "EPUB/page.xhtml", basicPage)
 }
 
 func testContentsOfFileInZip(t *testing.T, zr *zip.Reader, m uint16, path, expected string) {
+	for _, f := range zr.File {
+		fmt.Println(f.Name)
+	}
+
 	if f, err := findFileInZip(zr, path); err != nil {
 		t.Fatalf("Could not find %s in file", path)
 	} else {

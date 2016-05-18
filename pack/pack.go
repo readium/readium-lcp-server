@@ -13,23 +13,33 @@ import (
 	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
-func Do(ep epub.Epub) (epub.Epub, []byte, error) {
-	k, err := crypto.GenerateKey()
+func Do(ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key []byte, err error) {
+	key, err = crypto.GenerateKey()
 	if err != nil {
-		return ep, nil, err
+		return
 	}
 
+	ew := epub.NewWriter(w)
+	ew.WriteHeader()
 	ep.Encryption = &xmlenc.Manifest{}
 	for _, res := range ep.Resource {
-		if canEncrypt(*res, ep) {
-			encryptFile(k, ep.Encryption, res, mustCompressBeforeEncryption(*res, ep))
+		if canEncrypt(res, ep) {
+			toCompress := mustCompressBeforeEncryption(*res, ep)
+			err = encryptFile(key, ep.Encryption, res, toCompress, ew)
+			if err != nil {
+				return
+			}
+		} else {
+			err = ew.Copy(res)
+			if err != nil {
+				return
+			}
 		}
 	}
-	return ep, k, nil
-}
 
-func canEncrypt(file epub.Resource, ep epub.Epub) bool {
-	return ep.CanEncrypt(file.Path)
+	ew.WriteEncryption(ep.Encryption)
+
+	return ep.Encryption, key, ew.Close()
 }
 
 // We don't want to compress files that might already be compressed, such
@@ -54,7 +64,11 @@ const (
 	Deflate       = 8
 )
 
-func encryptFile(key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool) error {
+func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
+	return ep.CanEncrypt(file.Path)
+}
+
+func encryptFile(key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool, w *epub.Writer) error {
 	data := xmlenc.Data{}
 	data.Method.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
 	data.KeyInfo.RetrievalMethod.URI = "license.lcpl#/encryption/content_key"
@@ -65,6 +79,8 @@ func encryptFile(key []byte, m *xmlenc.Manifest, file *epub.Resource, compress b
 	if compress {
 		method = Deflate
 	}
+
+	file.StorageMethod = NoCompression
 
 	data.Properties = &xmlenc.EncryptionProperties{
 		Properties: []xmlenc.EncryptionProperty{
@@ -84,22 +100,17 @@ func encryptFile(key []byte, m *xmlenc.Manifest, file *epub.Resource, compress b
 		}
 
 		io.Copy(w, file.Contents)
-		file.Compressed = true
 		w.Close()
 		file.ContentsSize = uint64(buf.Len())
 
 		input = ioutil.NopCloser(&buf)
 	}
-	var output bytes.Buffer
-	err := crypto.Encrypt(key, input, &output)
 
+	fw, err := w.AddResource(file.Path, file.StorageMethod)
 	if err != nil {
 		return err
 	}
-
-	file.Contents = &output
-
-	return nil
+	return crypto.Encrypt(key, input, fw)
 }
 
 func Undo(key []byte, ep epub.Epub) (epub.Epub, error) {

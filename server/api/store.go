@@ -1,23 +1,18 @@
 package api
 
 import (
-	"archive/zip"
-	"bytes"
-	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
 
 	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
 	"github.com/readium/readium-lcp-server/storage"
-	"github.com/technoweenie/grohl"
 
-	"io/ioutil"
-	"log"
 	"net/http"
 )
 
@@ -26,65 +21,53 @@ type Server interface {
 	Index() index.Index
 	Licenses() license.Store
 	Certificate() *tls.Certificate
+	Source() *pack.ManualSource
+}
+
+func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
+	dir := os.TempDir()
+	file, err := ioutil.TempFile(dir, "readium-lcp")
+	if err != nil {
+		return 0, file, err
+	}
+
+	n, err := io.Copy(file, r)
+
+	// Rewind to the beginning of the file
+	file.Seek(0, 0)
+
+	return n, file, err
+}
+
+func cleanupTemp(f *os.File) {
+	if f == nil {
+		return
+	}
+	f.Close()
+	os.Remove(f.Name())
 }
 
 func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 
-	name := vars["name"]
-	buf, err := ioutil.ReadAll(r.Body)
+	size, f, err := writeRequestFileToTemp(r.Body)
 	if err != nil {
-		log.Println("Error reading body")
-		log.Println(err)
-		w.WriteHeader(500)
-		return
-	}
-
-	sha := sha256.Sum256(buf)
-	key := fmt.Sprintf("%x", sha)
-
-	zr, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
-	if err != nil {
-		log.Println("Error opening zip")
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	ep, err := epub.Read(zr)
-	if err != nil {
-		log.Println("Error reading epub")
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	t := grohl.NewTimer(grohl.Data{"step": "pack"})
-	out, encryptionKey, err := pack.Do(ep)
-	t.Finish()
-	if err != nil {
-		log.Println("Error packing")
-		log.Println(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	output := new(bytes.Buffer)
-	out.Write(output)
-	_, err = s.Store().Add(key, output)
-	if err != nil {
-		log.Println("Error storing")
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	defer cleanupTemp(f)
+
+	t := pack.NewTask(vars["name"], f, size)
+	result := s.Source().Post(t)
+
+	if result.Error != nil {
+		http.Error(w, result.Error.Error(), http.StatusBadRequest)
 		return
 	}
-	err = s.Index().Add(index.Package{key, encryptionKey, name})
-	if err != nil {
-		log.Println("Error while adding to index")
-		log.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+
 	w.WriteHeader(200)
-	w.Write([]byte(name))
+	json.NewEncoder(w).Encode(result.Id)
 }
 
 func ListPackages(w http.ResponseWriter, r *http.Request, s Server) {

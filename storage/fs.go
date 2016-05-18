@@ -2,6 +2,7 @@ package storage
 
 import (
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -12,9 +13,9 @@ type fsStorage struct {
 }
 
 type fsItem struct {
-	f    *os.File
-	name string
-	base string
+	name       string
+	storageDir string
+	baseUrl    string
 }
 
 func (i fsItem) Key() string {
@@ -22,56 +23,58 @@ func (i fsItem) Key() string {
 }
 
 func (i fsItem) PublicUrl() string {
-	return i.base + "/" + i.name
+	return i.baseUrl + "/" + i.name
 }
 
-func (i fsItem) Contents() io.Reader {
-	return i.f
+func (i fsItem) Contents() (io.ReadCloser, error) {
+	return os.Open(filepath.Join(i.storageDir, i.name))
 }
 
-func (s fsStorage) Add(key string, r io.Reader) (Item, error) {
+func (s fsStorage) Add(key string, r io.ReadSeeker) (Item, error) {
 	file, err := os.Create(filepath.Join(s.fspath, key))
-	defer file.Seek(0, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
 	io.Copy(file, r)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &fsItem{file, key, s.url}, nil
+	return &fsItem{name: key, storageDir: s.fspath, baseUrl: s.url}, nil
 }
 
 func (s fsStorage) Get(key string) (Item, error) {
-	file, err := os.Open(filepath.Join(s.fspath, key))
+	_, err := os.Stat(filepath.Join(s.fspath, key))
 	if err != nil {
-		return nil, NotFound
+		if os.IsNotExist(err) {
+			return nil, NotFound
+		} else {
+			return nil, err
+		}
 	}
-	return &fsItem{file, key, s.url}, nil
+
+	return &fsItem{name: key, storageDir: s.fspath, baseUrl: s.url}, nil
 }
 
 func (s fsStorage) Remove(key string) error {
 	return os.Remove(filepath.Join(s.fspath, key))
 }
 
-func (s fsStorage) List() Iterator {
-	i := 0
-	size := 0
-	var items []os.FileInfo
-	d, err := os.Open(s.fspath)
-	if err == nil {
-		items, err = d.Readdir(0)
-		if err == nil {
-			size = len(items)
-		}
+func (s fsStorage) List() ([]Item, error) {
+	var items []Item
+
+	files, err := ioutil.ReadDir(s.fspath)
+	if err != nil {
+		return nil, err
 	}
-	return func() (Item, error) {
-		if i < size {
-			i++
-			return s.Get(items[i-1].Name())
-		} else {
-			return nil, io.EOF
-		}
+
+	for _, fi := range files {
+		items = append(items, &fsItem{name: fi.Name(), storageDir: s.fspath, baseUrl: s.url})
 	}
+
+	return items, nil
 }
 
 func NewFileSystem(dir, basePath string) Store {

@@ -11,6 +11,17 @@ type Manifest struct {
 	XMLName struct{} `xml:"urn:oasis:names:tc:opendocument:xmlns:container encryption"`
 }
 
+func (m Manifest) DataForFile(path string) (Data, bool) {
+	uri := URI(path)
+	for _, datum := range m.Data {
+		if datum.CipherData.CipherReference.URI == uri {
+			return datum, true
+		}
+	}
+
+	return Data{}, false
+}
+
 func (m Manifest) Write(w io.Writer) error {
 	w.Write([]byte(xml.Header))
 	enc := xml.NewEncoder(w)
@@ -94,11 +105,10 @@ type encryptedType struct {
 	Method     Method     `xml:"http://www.w3.org/2001/04/xmlenc# EncryptionMethod"`
 	KeyInfo    KeyInfo    `xml:"http://www.w3.org/2000/09/xmldsig# KeyInfo"`
 	CipherData CipherData `xml:"http://www.w3.org/2001/04/xmlenc# CipherData"`
-	//EncyrptionProperties interface{}
-	Id       string `xml:"Id,attr,omitempty"`
-	Type     URI    `xml:"Type,attr,omitempty"`
-	MimeType string `xml:"MimeType,omitempty"`
-	Encoding URI    `xml:"Encoding,omitempty"`
+	Id         string     `xml:"Id,attr,omitempty"`
+	Type       URI        `xml:"Type,attr,omitempty"`
+	MimeType   string     `xml:"MimeType,omitempty"`
+	Encoding   URI        `xml:"Encoding,omitempty"`
 }
 
 type ReferenceList struct {
