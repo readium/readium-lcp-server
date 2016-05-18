@@ -103,7 +103,7 @@ type KeyInfo struct {
 
 type encryptedType struct {
 	Method     Method     `xml:"http://www.w3.org/2001/04/xmlenc# EncryptionMethod"`
-	KeyInfo    KeyInfo    `xml:"http://www.w3.org/2000/09/xmldsig# KeyInfo"`
+	KeyInfo    *KeyInfo   `xml:"http://www.w3.org/2000/09/xmldsig# KeyInfo"`
 	CipherData CipherData `xml:"http://www.w3.org/2001/04/xmlenc# CipherData"`
 	Id         string     `xml:"Id,attr,omitempty"`
 	Type       URI        `xml:"Type,attr,omitempty"`

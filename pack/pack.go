@@ -21,9 +21,12 @@ func Do(ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key []byte, err error)
 
 	ew := epub.NewWriter(w)
 	ew.WriteHeader()
-	ep.Encryption = &xmlenc.Manifest{}
+	if ep.Encryption == nil {
+		ep.Encryption = &xmlenc.Manifest{}
+	}
+
 	for _, res := range ep.Resource {
-		if canEncrypt(res, ep) {
+		if _, alreadyEncrypted := ep.Encryption.DataForFile(res.Path); !alreadyEncrypted && canEncrypt(res, ep) {
 			toCompress := mustCompressBeforeEncryption(*res, ep)
 			err = encryptFile(key, ep.Encryption, res, toCompress, ew)
 			if err != nil {
@@ -71,6 +74,7 @@ func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 func encryptFile(key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool, w *epub.Writer) error {
 	data := xmlenc.Data{}
 	data.Method.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
+	data.KeyInfo = &xmlenc.KeyInfo{}
 	data.KeyInfo.RetrievalMethod.URI = "license.lcpl#/encryption/content_key"
 	data.KeyInfo.RetrievalMethod.Type = "http://readium.org/2014/01/lcp#EncryptedContentKey"
 	data.CipherData.CipherReference.URI = xmlenc.URI(file.Path)
