@@ -128,7 +128,7 @@ type Compression struct {
 }
 
 type EncryptionProperty struct {
-	Compression Compression `xml:"http://idpf.org/ns/encryption#compression Compression"`
+	Compression Compression `xml:"http://www.idpf.org/2016/encryption#compression Compression"`
 }
 
 type EncryptionProperties struct {
