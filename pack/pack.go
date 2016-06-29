@@ -5,7 +5,6 @@ import (
 	"compress/flate"
 	"io"
 	"io/ioutil"
-	"path/filepath"
 	"strings"
 
 	"github.com/readium/readium-lcp-server/crypto"
@@ -48,11 +47,6 @@ func Do(ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key []byte, err error)
 // We don't want to compress files that might already be compressed, such
 // as multimedia files
 func mustCompressBeforeEncryption(file epub.Resource, ep epub.Epub) bool {
-	ext := filepath.Ext(file.Path)
-	if ext == "" {
-		return false
-	}
-
 	mimetype := file.ContentType
 
 	if mimetype == "" {
