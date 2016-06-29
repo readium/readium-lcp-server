@@ -177,6 +177,8 @@ func findResourceInPackages(r *Resource, packages []opf.Package) (opf.Item, bool
 			return opf.Item{}, false
 		}
 
+		relative = filepath.ToSlash(relative)
+
 		if item, ok := p.Manifest.ItemWithPath(relative); ok {
 			return item, ok
 		}
