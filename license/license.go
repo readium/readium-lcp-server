@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/sign"
 
 	"io"
@@ -48,31 +49,39 @@ type UserInfo struct {
 }
 
 type UserRights struct {
-	Print    *int32     `json:"print,omitempty"`
-	Copy     *int32     `json:"copy,omitempty"`
-	TTS      bool       `json:"tts"`
-	Editable bool       `json:"edit"`
-	Start    *time.Time `json:"start,omitempty"`
-	End      *time.Time `json:"end,omitempty"`
-}
-
-var DefaultRights = UserRights{
-	TTS:      true,
-	Editable: false,
+	Print *int32     `json:"print,omitempty"`
+	Copy  *int32     `json:"copy,omitempty"`
+	Start *time.Time `json:"start,omitempty"`
+	End   *time.Time `json:"end,omitempty"`
 }
 
 const DEFAULT_PROFILE = "http://readium.org/lcp/profile-1.0"
+
+var DefaultLinks map[string]Link
 
 type License struct {
 	Provider   string          `json:"provider"`
 	Id         string          `json:"id"`
 	Issued     time.Time       `json:"issued"`
-	Updated    time.Time       `json:"updated"`
+	Updated    *time.Time      `json:"updated,omitempty"`
 	Encryption Encryption      `json:"encryption"`
 	Links      map[string]Link `json:"links"`
 	User       UserInfo        `json:"user"`
 	Rights     *UserRights     `json:"rights,omitempty"`
 	Signature  *sign.Signature `json:"signature,omitempty"`
+	ContentId  string
+}
+
+func CreateLinks(hint string, status string) {
+	var configLinks map[string]string = config.Config.License.Links
+
+	if len(configLinks["hint"]) == 0 {
+		panic("Must specify the hint link")
+	}
+
+	for key := range configLinks {
+		DefaultLinks[key] = Link{Href: configLinks[key]}
+	}
 }
 
 func New() License {
@@ -84,17 +93,28 @@ func New() License {
 func Prepare(l *License) {
 	uuid, _ := newUUID()
 	l.Id = uuid
+
 	l.Issued = time.Now()
-	l.Updated = l.Issued
 
 	if l.Links == nil {
-		l.Links = map[string]Link{}
+		l.Links = DefaultLinks
 	}
 
 	if l.Rights == nil {
-		l.Rights = &DefaultRights
+		l.Rights = new(UserRights)
 	}
 
+	l.Encryption.Profile = DEFAULT_PROFILE
+}
+
+func createForeigns(l *License) {
+	l.Encryption = Encryption{}
+	l.Encryption.UserKey = UserKey{}
+	l.User = UserInfo{}
+	l.Rights = new(UserRights)
+	l.Signature = new(sign.Signature)
+
+	l.Links = DefaultLinks
 	l.Encryption.Profile = DEFAULT_PROFILE
 }
 

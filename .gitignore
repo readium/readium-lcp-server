@@ -3,3 +3,7 @@ readium-lcp-server
 lcpencrypt/lcpencrypt
 files/
 *.sqlite*
+config.yaml
+.vscode/launch.json
+debug
+readium-lcp-server.exe

@@ -92,7 +92,7 @@ $('#packages').on('click', 'li', function() {
 
 $(document).on('submit', '#license-form', function() {
     var lic = makeLicense();
-    $(this).attr('action', "/api/packages/" + $('#key').val() + "/licenses");
+    $(this).attr('action', "/api/contents/" + $('#key').val() + "/licenses");
     $("#data").val(JSON.stringify(lic));
     });
 
@@ -138,18 +138,20 @@ function handleFileUpload(files,obj) {
 function makeLicense() {
   obj = {
     "provider": "http://example.com",
-	"links": {
-		"hint":{
-			"href": "http://example.com/hint" 
-			}
-		},
     "user": {
       "id": $('#user_id').val()
     },
     "encryption": {
       "user_key": {
-        "clear_value": $('#passphrase').val()
+        "clear_value": $('#passphrase').val(),
+         "text_hint": "Enter the email address which authentifies you on imaginaryebookretailer"
       }
+    },
+     "rights": {
+        "print": 10,
+        "copy": 2048,
+        "start": "2016-11-04T01:08:15+01:00",
+        "end": "2016-11-25T01:08:15+01:00"
     }	
   }
 
@@ -162,7 +164,7 @@ function emitLicense(key, license) {
     console.log(JSON.parse(this.responseText));
     console.log(this.responseText);
   }
-  req.open("POST", "/api/packages/" + key + "/licenses", true);
+  req.open("GET", "/api/contents/" + key + "/licenses", true);
   req.send(JSON.stringify(license));
 }
 
@@ -172,11 +174,11 @@ function refreshPackages() {
     $('#packages').html('');
     data = JSON.parse(this.response);
     for(i in data) {
-      $('#packages').append('<li data-key="' + data[i].key + '"><span class="filename">' + data[i].filename +
-                            ' <span class="key">' + data[i].key + '</span</li>')
+      $('#packages').append('<li data-key="' + data[i].id + '"><span class="filename">' + data[i].location +
+                            ' <span class="key">' + data[i].id + '</span</li>')
     }
   }
-  req.open("GET", "/api/packages");
+  req.open("GET", "/api/contents");
   req.send();
 }
 $(function() {

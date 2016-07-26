@@ -43,10 +43,6 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if _, hintFound := lic.Links["hint"]; !hintFound {
-		http.Error(w, "hint url not set", http.StatusBadRequest)
-		return
-	}
 
 	mode := r.PostFormValue("type")
 	key := vars["key"]
@@ -81,13 +77,15 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 		var buf bytes.Buffer
-		err = grantLicense(&lic, key, false, s, &buf)
+		err = grantLicense(&lic, key, true, s, &buf)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
+		lic.ContentId = key
 		err = s.Licenses().Add(lic)
+
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -95,7 +93,7 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 		ep.Add("META-INF/license.lcpl", &buf, uint64(buf.Len()))
 		w.Header().Add("Content-Type", "application/epub+zip")
-		w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, indexItem.Filename))
+		w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, indexItem.Location))
 		ep.Write(w)
 
 	} else {
@@ -110,7 +108,7 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 func grantLicense(l *license.License, key string, embedded bool, s Server, w io.Writer) error {
-	p, err := s.Index().Get(key)
+	c, err := s.Index().Get(key)
 	if err != nil {
 		return err
 	}
@@ -134,10 +132,9 @@ func grantLicense(l *license.License, key string, embedded bool, s Server, w io.
 	}
 
 	l.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
-	l.Encryption.ContentKey.Value = encryptKey(p.EncryptionKey, encryptionKey[:])
+	l.Encryption.ContentKey.Value = encryptKey(c.EncryptionKey, encryptionKey[:])
 
 	l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
-	l.Encryption.UserKey.Hint = "Enter your passphrase"
 
 	if !embedded {
 		l.Links["publication"] = license.Link{Href: item.PublicUrl(), Type: "application/epub+zip"}

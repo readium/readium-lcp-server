@@ -142,7 +142,7 @@ func (p Packager) addToIndex(r *Result, key []byte, name string) {
 		return
 	}
 
-	r.Error = p.idx.Add(index.Package{r.Id, key, name})
+	r.Error = p.idx.Add(index.Content{r.Id, key, name})
 }
 
 func NewPackager(store storage.Store, idx index.Index, concurrency int) *Packager {
