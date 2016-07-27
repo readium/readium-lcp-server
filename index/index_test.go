@@ -2,8 +2,9 @@ package index
 
 import (
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
 	"testing"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func TestIndexCreation(t *testing.T) {
@@ -15,8 +16,8 @@ func TestIndexCreation(t *testing.T) {
 		t.FailNow()
 	}
 
-	p := Package{"test", []byte("1234"), "test.epub"}
-	err = idx.Add(p)
+	c := Content{"test", []byte("1234"), "test.epub"}
+	err = idx.Add(c)
 	if err != nil {
 		t.Error(err)
 	}

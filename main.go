@@ -12,9 +12,9 @@ import (
 	"syscall"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/kylelemons/go-gypsy/yaml"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
@@ -43,10 +43,7 @@ func main() {
 		config_file = "config.yaml"
 	}
 
-	config, err := yaml.ReadFile(config_file)
-	if err != nil {
-		panic("can't read config file : " + config_file)
-	}
+	config.ReadConfig(config_file)
 
 	readonly = os.Getenv("READONLY") != ""
 
@@ -54,27 +51,27 @@ func main() {
 		port = "8989"
 	}
 
-	publicBaseUrl, _ = config.Get("public_base_url")
+	publicBaseUrl = config.Config.PublicBaseUrl
 	if publicBaseUrl == "" {
 		publicBaseUrl = "http://" + host + ":" + port
 	}
 
-	dbURI, _ = config.Get("database")
+	dbURI = config.Config.Database
 	if dbURI == "" {
 		if dbURI = os.Getenv("DB"); dbURI == "" {
 			dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
 		}
 	}
 
-	storagePath, _ = config.Get("storage.filesystem.storage")
+	storagePath = config.Config.Storage.FileSystem.Directory
 	if storagePath == "" {
 		if storagePath = os.Getenv("STORAGE"); storagePath == "" {
 			storagePath = "files"
 		}
 	}
 
-	certFile, _ = config.Get("certificate.cert")
-	privKeyFile, _ = config.Get("certificate.private_key")
+	certFile = config.Config.Certificate.Cert
+	privKeyFile = config.Config.Certificate.PrivateKey
 
 	if certFile == "" {
 		if certFile = os.Getenv("CERT"); certFile == "" {
@@ -94,6 +91,7 @@ func main() {
 	}
 
 	driver, cnxn := dbFromURI(dbURI)
+
 	db, err := sql.Open(driver, cnxn)
 	if err != nil {
 		panic(err)
@@ -110,14 +108,15 @@ func main() {
 	}
 
 	lst, err := license.NewSqlStore(db)
+
 	if err != nil {
 		panic(err)
 	}
 
 	var store storage.Store
 
-	if mode, _ := config.Get("storage.mode"); mode == "s3" {
-		s3Conf := s3ConfigFromYAML(config)
+	if mode := config.Config.Storage.Mode; mode == "s3" {
+		s3Conf := s3ConfigFromYAML()
 		store, _ = storage.S3(s3Conf)
 	} else {
 		os.Mkdir(storagePath, os.ModePerm) //ignore the error, the folder can already exist
@@ -126,7 +125,7 @@ func main() {
 
 	packager := pack.NewPackager(store, idx, 4)
 
-	static, _ = config.Get("static.directory")
+	static = config.Config.Static.Directory
 	if static == "" {
 		_, file, _, _ := runtime.Caller(0)
 		here := filepath.Dir(file)
@@ -160,20 +159,19 @@ func HandleSignals() {
 	signal.Notify(sigChan, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 }
 
-func s3ConfigFromYAML(in *yaml.File) storage.S3Config {
-	config := storage.S3Config{}
+func s3ConfigFromYAML() storage.S3Config {
+	s3config := storage.S3Config{}
 
-	config.Id, _ = in.Get("storage.access_id")
-	config.Secret, _ = in.Get("storage.token")
-	config.Token, _ = in.Get("storage.secret")
+	s3config.Id = config.Config.Storage.AccessId
+	s3config.Secret = config.Config.Storage.Secret
+	s3config.Token = config.Config.Storage.Token
 
-	config.Endpoint, _ = in.Get("storage.endpoint")
-	config.Bucket, _ = in.Get("storage.bucket")
-	config.Region, _ = in.Get("storage.region")
+	s3config.Endpoint = config.Config.Storage.Endpoint
+	s3config.Bucket = config.Config.Storage.Bucket
+	s3config.Region = config.Config.Storage.Region
 
-	ssl, _ := in.GetBool("storage.disable_ssl")
-	config.DisableSSL = ssl
-	config.ForcePathStyle, _ = in.GetBool("storage.path_style")
+	s3config.DisableSSL = config.Config.Storage.DisableSSL
+	s3config.ForcePathStyle = config.Config.Storage.PathStyle
 
-	return config
+	return s3config
 }

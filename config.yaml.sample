@@ -1,7 +1,13 @@
 database: sqlite3://file:test.sqlite?cache=shared&mode=rwc
+public_base_url: "127.0.0.1:8989"
 certificate:
              cert: /home/banux/certs/lcp.crt
              private_key: /home/banux/certs/lcp.pem
 storage:
          filesystem:
                       directory: /home/www/files
+license:
+         links:
+                      hint: "http://example.com/hint" 
+                      status: "http://example.com/licenses/{licensce_id}/status" 
+                      

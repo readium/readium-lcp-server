@@ -1,15 +1,11 @@
 package license
 
 import (
-	"bytes"
 	"database/sql"
-	"encoding/json"
 	"errors"
-
-	"github.com/readium/readium-lcp-server/sign"
 )
 
-var NotFound = errors.New("Package not found")
+var NotFound = errors.New("License not found")
 
 type Store interface {
 	List() func() (License, error)
@@ -28,31 +24,28 @@ func (s *sqlStore) List() func() (License, error) {
 }
 
 func (s *sqlStore) Add(l License) error {
-	json, err := sign.Canon(l)
-	if err != nil {
-		return err
-	}
-
-	_, err = s.db.Exec("INSERT INTO licenses VALUES (?, ?)", l.Id, json)
+	_, err := s.db.Exec("INSERT INTO license VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		l.Id, l.User.Id, l.Provider, l.Issued, nil, l.Rights.Print, l.Rights.Copy, l.Rights.Start,
+		l.Rights.End, l.Encryption.UserKey.Hint, l.Encryption.UserKey.Check,
+		l.Encryption.UserKey.Key.Algorithm, l.ContentId)
 
 	return err
 }
 
 func (s *sqlStore) Get(id string) (License, error) {
+
 	var l License
-	var buf []uint8
+	createForeigns(&l)
 
-	row := s.db.QueryRow("SELECT data FROM licenses where id = ?", id)
+	row := s.db.QueryRow(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, 
+	rights_start, rights_end, user_key_hint, user_key_hash, user_key_algorithm, content_fk FROM license 
+	where id = ?`, id)
 
-	err := row.Scan(&buf)
-	if err != nil {
-		return l, err
-	}
+	err := row.Scan(&l.Id, &l.User.Id, &l.Provider, &l.Issued, &l.Updated,
+		&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End,
+		&l.Encryption.UserKey.Hint, &l.Encryption.UserKey.Check, &l.Encryption.UserKey.Key.Algorithm,
+		&l.ContentId)
 
-	b := bytes.NewBuffer(buf)
-
-	dec := json.NewDecoder(b)
-	err = dec.Decode(&l)
 	if err != nil {
 		return l, err
 	}
@@ -69,6 +62,17 @@ func NewSqlStore(db *sql.DB) (Store, error) {
 	return &sqlStore{db}, nil
 }
 
-const tableDef = `CREATE TABLE IF NOT EXISTS licenses (
+const tableDef = `CREATE TABLE IF NOT EXISTS license (
 	id varchar(255) PRIMARY KEY,
-	data blob)`
+	user_id varchar(255) NOT NULL,
+	provider varchar(255) NOT NULL,
+	issued datetime NOT NULL,
+	updated datetime DEFAULT NULL,
+	rights_print int(11) DEFAULT NULL,
+	rights_copy int(11) DEFAULT NULL,
+	rights_start datetime DEFAULT NULL,
+	rights_end datetime DEFAULT NULL,
+	user_key_hint text NOT NULL,
+  	user_key_hash varchar(64) NOT NULL,
+  	user_key_algorithm varchar(255) NOT NULL,
+	content_fk varchar(255) NOT NULL)`

@@ -47,7 +47,7 @@ func cleanupTemp(f *os.File) {
 	os.Remove(f.Name())
 }
 
-func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
+func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 
 	size, f, err := writeRequestFileToTemp(r.Body)
@@ -70,16 +70,16 @@ func StorePackage(w http.ResponseWriter, r *http.Request, s Server) {
 	json.NewEncoder(w).Encode(result.Id)
 }
 
-func ListPackages(w http.ResponseWriter, r *http.Request, s Server) {
+func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 	fn := s.Index().List()
-	packages := make([]index.Package, 0)
+	contents := make([]index.Content, 0)
 
 	for it, err := fn(); err == nil; it, err = fn() {
-		packages = append(packages, it)
+		contents = append(contents, it)
 	}
 
 	enc := json.NewEncoder(w)
-	err := enc.Encode(packages)
+	err := enc.Encode(contents)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
