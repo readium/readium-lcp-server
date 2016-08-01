@@ -113,6 +113,8 @@ func main() {
 		panic(err)
 	}
 
+	license.CreateLinks()
+
 	var store storage.Store
 
 	if mode := config.Config.Storage.Mode; mode == "s3" {
@@ -136,7 +138,6 @@ func main() {
 
 	s := server.New(":"+port, static, readonly, &idx, &store, &lst, &cert, packager)
 	s.ListenAndServe()
-
 }
 
 func HandleSignals() {

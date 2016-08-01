@@ -11,8 +11,8 @@ type Configuration struct {
 	Certificate   Certificate
 	Database      string
 	Storage       Storage
-	License       License
-	PublicBaseUrl string `yaml:"public_base_url"`
+	License       License `yaml:"license"`
+	PublicBaseUrl string  `yaml:"public_base_url"`
 	Static        Static
 }
 
@@ -43,7 +43,7 @@ type Storage struct {
 }
 
 type License struct {
-	Links map[string]string
+	Links map[string]string `yaml:"links"`
 }
 
 var Config Configuration

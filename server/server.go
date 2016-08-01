@@ -75,11 +75,16 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	r.Handle("/manage/{file}", http.FileServer(http.Dir("static")))
 
 	r.Handle("/files/{file}", http.StripPrefix("/files/", http.FileServer(http.Dir("files"))))
+
 	if !readonly {
 		s.handleFunc("/api/store/{name}", api.StoreContent).Methods("POST")
 	}
+
 	s.handleFunc("/api/contents", api.ListContents).Methods("GET")
-	s.handleFunc("/api/contents/{key}/licenses", api.GrantLicense).Methods("POST")
+
+	s.handleFunc("/api/contents/{key}/licenses", api.GenerateLicense).Methods("POST")
+	s.handleFunc("/api/contents/{key}/publications", api.GenerateProtectedPublication).Methods("POST")
+
 	r.Handle("/", http.NotFoundHandler())
 
 	return s

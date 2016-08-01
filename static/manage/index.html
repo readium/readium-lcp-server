@@ -90,11 +90,18 @@ $('#packages').on('click', 'li', function() {
     $('#key').val($(this).data("key"));
     }); 
 
-$(document).on('submit', '#license-form', function() {
+$(document).on('click', '#license', function() {
     var lic = makeLicense();
-    $(this).attr('action', "/api/contents/" + $('#key').val() + "/licenses");
+    $("#license-form").attr('action', "/api/contents/" + $('#key').val() + "/licenses");
     $("#data").val(JSON.stringify(lic));
-    });
+});
+
+$(document).on('click', '#publication', function() {
+    var lic = makeLicense();
+    $("#license-form").attr('action', "/api/contents/" + $('#key').val() + "/publications");
+    $("#data").val(JSON.stringify(lic));
+});
+
 
 $(document).on('dragenter', function (e) {
     $('#dropzone').addClass("dropping")
@@ -192,9 +199,8 @@ $(function() {
       <label for="key">Package Identifier:</label><input type="text" id="key" name="key" readonly /></br>
       <label for="passphrase">Passphrase:</label><input type="password" id="passphrase" name="passphrase"/></br>
       <label for="user_id">User identifier:</label><input type="text" id="user_id" name="user_id" /></br>
-      <label><input type="radio" checked name="type" value="external"/>External</label></br>
-      <label><input type="radio" name="type" value="embedded"/>Embedded</label></br>
-      <input type="submit" value="Emit License" /></br>
+      <input type="submit" id="license" value="Generate License" /></br>
+      <input type="submit"  id="publication" value="Generate protected publication" /></br>
     </form>
   </body>
 </html>

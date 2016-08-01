@@ -28,97 +28,135 @@ import (
 //"hint_url": "http://www.imaginaryebookretailer.com/lcp"
 //}
 
-func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
+func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	var lic license.License
+
+	err := decodeJsonLicense(r, &lic)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	key := vars["key"]
+
+	w.Header().Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
+	w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
+
+	err = completeLicense(&lic, key, s)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = s.Licenses().Add(lic)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	lic.Encryption.UserKey.Check = nil
+
+	enc := json.NewEncoder(w)
+	enc.Encode(lic)
+}
+
+func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+
+	var lic license.License
+
+	err := decodeJsonLicense(r, &lic)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	key := vars["key"]
+
+	item, err := s.Store().Get(key)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	content, err := s.Index().Get(key)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var b bytes.Buffer
+	contents, err := item.Contents()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	io.Copy(&b, contents)
+	zr, err := zip.NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	ep, err := epub.Read(zr)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var buf bytes.Buffer
+
+	err = completeLicense(&lic, key, s)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	lic.Links["publication"] = license.Link{Href: item.PublicUrl(), Type: "application/epub+zip"}
+	lic.ContentId = key
+
+	enc := json.NewEncoder(&buf)
+	enc.Encode(lic)
+
+	err = s.Licenses().Add(lic)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	ep.Add("META-INF/license.lcpl", &buf, uint64(buf.Len()))
+	w.Header().Add("Content-Type", "application/epub+zip")
+	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, content.Location))
+	ep.Write(w)
+
+}
+
+func decodeJsonLicense(r *http.Request, lic *license.License) error {
 	var dec *json.Decoder
+
 	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == "application/x-www-form-urlencoded" {
 		buf := bytes.NewBufferString(r.PostFormValue("data"))
 		dec = json.NewDecoder(buf)
 	} else {
 		dec = json.NewDecoder(r.Body)
 	}
+
 	err := dec.Decode(&lic)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 
-	mode := r.PostFormValue("type")
-	key := vars["key"]
-	if mode == "embedded" {
-		item, err := s.Store().Get(key)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		indexItem, err := s.Index().Get(key)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		var b bytes.Buffer
-		contents, err := item.Contents()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		io.Copy(&b, contents)
-		zr, err := zip.NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		ep, err := epub.Read(zr)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		var buf bytes.Buffer
-		err = grantLicense(&lic, key, true, s, &buf)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		lic.ContentId = key
-		err = s.Licenses().Add(lic)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		ep.Add("META-INF/license.lcpl", &buf, uint64(buf.Len()))
-		w.Header().Add("Content-Type", "application/epub+zip")
-		w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, indexItem.Location))
-		ep.Write(w)
-
-	} else {
-		w.Header().Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
-		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
-		err = grantLicense(&lic, key, false, s, w)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
+	return err
 }
 
-func grantLicense(l *license.License, key string, embedded bool, s Server, w io.Writer) error {
+func completeLicense(l *license.License, key string, s Server) error {
 	c, err := s.Index().Get(key)
 	if err != nil {
 		return err
 	}
 
-	item, err := s.Store().Get(key)
-	if err != nil {
-		return err
-	}
-
 	license.Prepare(l)
+	l.ContentId = key
 
 	var encryptionKey []byte
 	if len(l.Encryption.UserKey.Value) > 0 {
@@ -136,10 +174,6 @@ func grantLicense(l *license.License, key string, embedded bool, s Server, w io.
 
 	l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 
-	if !embedded {
-		l.Links["publication"] = license.Link{Href: item.PublicUrl(), Type: "application/epub+zip"}
-	}
-
 	err = encryptFields(l, encryptionKey[:])
 	if err != nil {
 		return err
@@ -152,10 +186,6 @@ func grantLicense(l *license.License, key string, embedded bool, s Server, w io.
 	if err != nil {
 		return err
 	}
-
-	enc := json.NewEncoder(w)
-	enc.Encode(l)
-
 	return nil
 }
 

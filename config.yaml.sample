@@ -9,5 +9,5 @@ storage:
 license:
          links:
                       hint: "http://example.com/hint" 
-                      status: "http://example.com/licenses/{licensce_id}/status" 
+                      status: "http://example.com/licenses/{license_id}/status" 
                       

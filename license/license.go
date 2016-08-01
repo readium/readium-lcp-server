@@ -43,8 +43,6 @@ type Link struct {
 
 type UserInfo struct {
 	Id        string   `json:"id"`
-	Email     string   `json:"email,omitempty"`
-	Name      string   `json:"name,omitempty"`
 	Encrypted []string `json:"encrypted,omitempty"`
 }
 
@@ -72,12 +70,10 @@ type License struct {
 	ContentId  string
 }
 
-func CreateLinks(hint string, status string) {
+func CreateLinks() {
 	var configLinks map[string]string = config.Config.License.Links
 
-	if len(configLinks["hint"]) == 0 {
-		panic("Must specify the hint link")
-	}
+	DefaultLinks = make(map[string]Link)
 
 	for key := range configLinks {
 		DefaultLinks[key] = Link{Href: configLinks[key]}
