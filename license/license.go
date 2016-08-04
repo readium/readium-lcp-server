@@ -43,6 +43,8 @@ type Link struct {
 
 type UserInfo struct {
 	Id        string   `json:"id"`
+	Email     string   `json:"email,omitempty"`
+	Name      string   `json:"name,omitempty"`
 	Encrypted []string `json:"encrypted,omitempty"`
 }
 
