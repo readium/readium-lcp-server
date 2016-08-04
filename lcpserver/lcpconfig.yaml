@@ -1,0 +1,12 @@
+database: sqlite3://file:test.sqlite?cache=shared&mode=rwc
+public_base_url: "http://127.0.0.1:8989"
+certificate:
+             cert: E:\GoProjects\src\github.com\readium\readium-lcp-server\sign\cert\sample_ecdsa.crt
+             private_key: E:\GoProjects\src\github.com\readium\readium-lcp-server\sign\cert\sample_ecdsa.pem
+storage:
+         filesystem:
+                      directory: E:\GoProjects\files
+license:
+         links:
+                      hint: "http://example.com/hint" 
+                      status: "http://example.com/licenses/{license_id}/status" 

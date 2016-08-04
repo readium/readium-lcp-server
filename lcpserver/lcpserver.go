@@ -1,15 +1,11 @@
-package main
+package lcpserver
 
 import (
 	"crypto/tls"
 	"database/sql"
-	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"runtime"
-	"strings"
-	"syscall"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
@@ -21,11 +17,6 @@ import (
 	"github.com/readium/readium-lcp-server/server"
 	"github.com/readium/readium-lcp-server/storage"
 )
-
-func dbFromURI(uri string) (string, string) {
-	parts := strings.Split(uri, "://")
-	return parts[0], parts[1]
-}
 
 func main() {
 	var config_file, host, port, publicBaseUrl, dbURI, storagePath, certFile, privKeyFile, static string
@@ -40,7 +31,7 @@ func main() {
 	}
 
 	if config_file = os.Getenv("READIUM_LCP_CONFIG"); config_file == "" {
-		config_file = "config.yaml"
+		config_file = "lcpconfig.yaml"
 	}
 
 	config.ReadConfig(config_file)
@@ -138,41 +129,4 @@ func main() {
 
 	s := server.New(":"+port, static, readonly, &idx, &store, &lst, &cert, packager)
 	s.ListenAndServe()
-}
-
-func HandleSignals() {
-	sigChan := make(chan os.Signal)
-	go func() {
-		stacktrace := make([]byte, 1<<20)
-		for sig := range sigChan {
-			switch sig {
-			case syscall.SIGQUIT:
-				length := runtime.Stack(stacktrace, true)
-				fmt.Println(string(stacktrace[:length]))
-			case syscall.SIGINT:
-				fallthrough
-			case syscall.SIGTERM:
-				fmt.Println("Shutting down...")
-				os.Exit(0)
-			}
-		}
-	}()
-	signal.Notify(sigChan, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
-}
-
-func s3ConfigFromYAML() storage.S3Config {
-	s3config := storage.S3Config{}
-
-	s3config.Id = config.Config.Storage.AccessId
-	s3config.Secret = config.Config.Storage.Secret
-	s3config.Token = config.Config.Storage.Token
-
-	s3config.Endpoint = config.Config.Storage.Endpoint
-	s3config.Bucket = config.Config.Storage.Bucket
-	s3config.Region = config.Config.Storage.Region
-
-	s3config.DisableSSL = config.Config.Storage.DisableSSL
-	s3config.ForcePathStyle = config.Config.Storage.PathStyle
-
-	return s3config
 }
