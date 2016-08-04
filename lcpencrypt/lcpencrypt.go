@@ -16,16 +16,9 @@ import (
 	"strings"
 
 	"github.com/readium/readium-lcp-server/epub"
+	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/pack"
 )
-
-// struct for communication with lcp-server
-type LcpPublication struct {
-	ContentId    string `json:"content-id"`
-	ContentKey   []byte `json:"content-encryption-key"`
-	Output       string `json:"protected-content-location"`
-	ErrorMessage string `json:"error"`
-}
 
 // notification of newly added content (Publication)
 func notifyLcpServer(lcpService, contentid string, lcpPublication LcpPublication) error {

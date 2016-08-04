@@ -12,9 +12,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/index"
+	"github.com/readium/readium-lcp-server/lcpserver"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
-	"github.com/readium/readium-lcp-server/server"
 	"github.com/readium/readium-lcp-server/storage"
 )
 

@@ -1,4 +1,4 @@
-package server
+package lcpserver
 
 import (
 	"crypto/tls"
@@ -6,9 +6,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/index"
+	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
-	"github.com/readium/readium-lcp-server/server/api"
 	"github.com/readium/readium-lcp-server/storage"
 	"github.com/technoweenie/grohl"
 
@@ -80,10 +80,21 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 		s.handleFunc("/api/store/{name}", api.StoreContent).Methods("POST")
 	}
 
-	s.handleFunc("/api/contents", api.ListContents).Methods("GET")
+	//API following spec
+	//CONTENTS
+	s.handleFunc("/contents", api.ListContents).Methods("GET")     //method supported, not in spec
+	s.handleFunc("/contents/{key}", api.AddContent).Methods("PUT") //todo
+	//todo s.handleFunc("/contents/{key}/publications", api.AddLicense).Methods("POST")
+	//todo s.handleFunc("/contents/{key}/licenses", api.GetLicensesForContent).Methods("GET")
 
-	s.handleFunc("/api/contents/{key}/licenses", api.GenerateLicense).Methods("POST")
-	s.handleFunc("/api/contents/{key}/publications", api.GenerateProtectedPublication).Methods("POST")
+	//LICENSES
+	//todo s.handleFunc("/licenses", api.GetLicenses).Methods("GET")
+	//todo s.handleFunc("/licenses/{key}", api.GetLicense).Methods("GET")  //return existing license
+	//todo s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PUT")  //update license
+	//todo s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PATCH")  //update license rights
+
+	s.handleFunc("/contents/{key}/licenses", api.GenerateLicense).Methods("POST")
+	s.handleFunc("/contents/{key}/publications", api.GenerateProtectedPublication).Methods("POST")
 
 	r.Handle("/", http.NotFoundHandler())
 

@@ -24,6 +24,14 @@ type Server interface {
 	Source() *pack.ManualSource
 }
 
+// struct for communication with lcp-server
+type LcpPublication struct {
+	ContentId    string `json:"content-id"`
+	ContentKey   []byte `json:"content-encryption-key"`
+	Output       string `json:"protected-content-location"`
+	ErrorMessage string `json:"error"`
+}
+
 func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
 	dir := os.TempDir()
 	file, err := ioutil.TempFile(dir, "readium-lcp")
@@ -84,4 +92,11 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
+}
+
+func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
+	//PUT PAYLOAD = json {content_id,content_encryption_key,protected_content_location}
+	// content_id in url
+	//this method should add the title in the store (of encrypted files)
+	// and add the information in the database
 }
