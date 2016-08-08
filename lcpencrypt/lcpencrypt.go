@@ -21,7 +21,7 @@ import (
 )
 
 // notification of newly added content (Publication)
-func notifyLcpServer(lcpService, contentid string, lcpPublication LcpPublication) error {
+func notifyLcpServer(lcpService, contentid string, lcpPublication api.LcpPublication) error {
 	//exchange encryption key with lcp service/content/<id>,
 	//Payload: {content-encryption-key, protected-content-location}
 	//fmt.Printf("lcpsv = %s\n", *lcpsv)
@@ -84,7 +84,7 @@ func showHelpAndExit() {
 	return
 }
 
-func exitWithError(lcpPublication LcpPublication, err error, errorlevel int) {
+func exitWithError(lcpPublication api.LcpPublication, err error, errorlevel int) {
 	os.Stderr.WriteString(lcpPublication.ErrorMessage)
 	os.Stderr.WriteString(err.Error())
 	os.Stderr.WriteString("\n")
@@ -99,7 +99,7 @@ func exitWithError(lcpPublication LcpPublication, err error, errorlevel int) {
 
 func main() {
 	var err error
-	var addedPublication LcpPublication
+	var addedPublication api.LcpPublication
 	var inputFilename = flag.String("input", "", "source file locator.  (file system or http GET)")
 	var contentid = flag.String("contentid", "", "optional content identifier, if not present a new one is generated")
 	var outputFilename = flag.String("output", "", "optional target file for protected content (file system or http PUT) ")
