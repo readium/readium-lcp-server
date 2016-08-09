@@ -92,13 +92,13 @@ $('#packages').on('click', 'li', function() {
 
 $(document).on('click', '#license', function() {
     var lic = makeLicense();
-    $("#license-form").attr('action', "/api/contents/" + $('#key').val() + "/licenses");
+    $("#license-form").attr('action', "/contents/" + $('#key').val() + "/licenses");
     $("#data").val(JSON.stringify(lic));
 });
 
 $(document).on('click', '#publication', function() {
     var lic = makeLicense();
-    $("#license-form").attr('action', "/api/contents/" + $('#key').val() + "/publications");
+    $("#license-form").attr('action', "/contents/" + $('#key').val() + "/publications");
     $("#data").val(JSON.stringify(lic));
 });
 
@@ -171,7 +171,7 @@ function emitLicense(key, license) {
     console.log(JSON.parse(this.responseText));
     console.log(this.responseText);
   }
-  req.open("GET", "/api/contents/" + key + "/licenses", true);
+  req.open("GET", "/contents/" + key + "/licenses", true);
   req.send(JSON.stringify(license));
 }
 
@@ -185,7 +185,7 @@ function refreshPackages() {
                             ' <span class="key">' + data[i].id + '</span</li>')
     }
   }
-  req.open("GET", "/api/contents");
+  req.open("GET", "/contents");
   req.send();
 }
 $(function() {
