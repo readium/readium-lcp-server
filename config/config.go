@@ -10,10 +10,10 @@ import (
 type Configuration struct {
 	Certificate   Certificate
 	Database      string
-	Storage       Storage
+	Storage       Storage `yaml:"storage"`
 	License       License `yaml:"license"`
 	PublicBaseUrl string  `yaml:"public_base_url"`
-	Static        Static
+	Static        Static  `yaml:"static"`
 }
 
 type Certificate struct {
@@ -30,7 +30,7 @@ type Static struct {
 }
 
 type Storage struct {
-	FileSystem FileSystem `yaml:"storage"`
+	FileSystem FileSystem `yaml:"filesystem"`
 	AccessId   string     `yaml:"access_id"`
 	DisableSSL bool       `yaml:"disable_ssl"`
 	PathStyle  bool       `yaml:"path_style"`

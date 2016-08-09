@@ -69,7 +69,7 @@ type License struct {
 	User       UserInfo        `json:"user"`
 	Rights     *UserRights     `json:"rights,omitempty"`
 	Signature  *sign.Signature `json:"signature,omitempty"`
-	ContentId  string
+	ContentId  string          `json:"-"`
 }
 
 func CreateLinks() {
