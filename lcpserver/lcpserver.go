@@ -1,4 +1,4 @@
-package lcpserver
+package main
 
 import (
 	"crypto/tls"
@@ -16,6 +16,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/index"
+	"github.com/readium/readium-lcp-server/lcpserver/server"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
 	"github.com/readium/readium-lcp-server/storage"
@@ -31,7 +32,7 @@ func main() {
 	var readonly bool = false
 	var err error
 
-	if host = os.Getenv("HOST"); host == "" {
+	if host = os.Getenv("LCP_HOST"); host == "" {
 		host, err = os.Hostname()
 		if err != nil {
 			panic(err)
@@ -46,7 +47,7 @@ func main() {
 
 	readonly = os.Getenv("READONLY") != ""
 
-	if port = os.Getenv("PORT"); port == "" {
+	if port = os.Getenv("LCP_PORT"); port == "" {
 		port = "8989"
 	}
 
@@ -130,12 +131,12 @@ func main() {
 	if static == "" {
 		_, file, _, _ := runtime.Caller(0)
 		here := filepath.Dir(file)
-		static = filepath.Join(here, "/static")
+		static = filepath.Join(here, "../static")
 	}
 
 	HandleSignals()
 
-	s := New(":"+port, static, readonly, &idx, &store, &lst, &cert, packager)
+	s := lcpserver.New(":"+port, static, readonly, &idx, &store, &lst, &cert, packager)
 	s.ListenAndServe()
 }
 

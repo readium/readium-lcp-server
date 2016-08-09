@@ -1,12 +1,12 @@
 database: sqlite3://file:test.sqlite?cache=shared&mode=rwc
 public_base_url: "http://127.0.0.1:8989"
 certificate:
-             cert: E:\GoProjects\src\github.com\readium\readium-lcp-server\sign\cert\sample_ecdsa.crt
-             private_key: E:\GoProjects\src\github.com\readium\readium-lcp-server\sign\cert\sample_ecdsa.pem
+             cert: C:\temp\epagine_params\lcpSelfSigned.crt
+             private_key: C:\temp\epagine_params\lcpSelfSigned.key
 storage:
          filesystem:
-                      directory: E:\GoProjects\files
+                      directory: C:\temp\epagine_params\epubs
 license:
          links:
-                      hint: "http://example.com/hint" 
-                      status: "http://example.com/licenses/{license_id}/status" 
+                      hint: "http://www.epagine.fr/hint" 
+                      status: "http://www.epagine.fr/licenses/{license_id}/status" 
