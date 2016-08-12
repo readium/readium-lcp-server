@@ -243,8 +243,40 @@ func encryptKey(key []byte, kek []byte) []byte {
 //ListLicenses returns a JSON struct with information about emitted licenses
 // optional GET parameters are "page" (page number) and "per_page" (items par page)
 func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
-	//TODO?
-	http.Error(w, "Not implemented, please specify content id", http.StatusNotImplemented)
+	page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
+	if err != nil {
+		page = 0 //default starting page
+	}
+	per_page, err := strconv.ParseInt(r.FormValue("per_page"), 10, 32)
+	if err != nil {
+		per_page = 30 // default licenses per page
+	}
+	if page > 0 {
+		page -= 1
+	} // interface using pageNum starting at page 1 instead of 0 ?
+	if page < 0 {
+		page = 0
+	}
+	licenses := make([]license.License, 0)
+	log.Println("ListAll(" + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
+	fn := s.Licenses().ListAll(int(per_page), int(page))
+	for it, err := fn(); err == nil; it, err = fn() {
+		licenses = append(licenses, it)
+	}
+	if len(licenses) > 0 {
+		nextPage := strconv.Itoa(int(page) + 1)
+		w.Header().Set("Link", "</licenses/?page="+nextPage+">; rel=\"next\"; title=\"next\"")
+	}
+	if page > 1 {
+		previousPage := strconv.Itoa(int(page) - 1)
+		w.Header().Set("Link", "</licenses/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
+	}
+	enc := json.NewEncoder(w)
+	err = enc.Encode(licenses)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
 }
 
 //ListLicenses returns a JSON struct with information about emitted licenses
@@ -259,7 +291,7 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	per_page, err := strconv.ParseInt(r.FormValue("per_page"), 10, 32)
 	if err != nil {
-		per_page = 20 // default licenses per page
+		per_page = 30 // default licenses per page
 	}
 	if page > 0 {
 		page -= 1
@@ -273,7 +305,14 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	for it, err := fn(); err == nil; it, err = fn() {
 		licenses = append(licenses, it)
 	}
-
+	if len(licenses) > 0 {
+		nextPage := strconv.Itoa(int(page) + 1)
+		w.Header().Set("Link", "</licenses/?page="+nextPage+">; rel=\"next\"; title=\"next\"")
+	}
+	if page > 1 {
+		previousPage := strconv.Itoa(int(page) - 1)
+		w.Header().Set("Link", "</licenses/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
+	}
 	enc := json.NewEncoder(w)
 	err = enc.Encode(licenses)
 	if err != nil {

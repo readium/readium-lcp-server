@@ -10,6 +10,7 @@ var NotFound = errors.New("License not found")
 type Store interface {
 	//List() func() (License, error)
 	List(ContentId string, page int, pageNum int) func() (License, error)
+	ListAll(page int, pageNum int) func() (License, error)
 	Add(l License) error
 	Get(id string) (License, error)
 }
@@ -18,18 +19,44 @@ type sqlStore struct {
 	db *sql.DB
 }
 
-/*
-func (s *sqlStore) List() func() (License, error) {
+//ListAll, lists all licenses in ante-chronological order
+// pageNum starting at 0
+func (s *sqlStore) ListAll(page int, pageNum int) func() (License, error) {
+	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated, 
+	rights_print, rights_copy, rights_start, rights_end, content_fk  
+	FROM license 
+	ORDER BY issued desc LIMIT ? OFFSET ? `, page, pageNum*page)
+	if err != nil {
+		return func() (License, error) { return License{}, err }
+	}
 	return func() (License, error) {
-		return License{}, NotFound
+		var l License
+		createForeigns(&l)
+		if listLicenses.Next() {
+			err := listLicenses.Scan(&l.Id, &l.User.Id, &l.Provider, &l.Issued, &l.Updated,
+				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End,
+				&l.Encryption.UserKey.Hint, &l.Encryption.UserKey.Check, &l.Encryption.UserKey.Key.Algorithm,
+				&l.ContentId)
+
+			if err != nil {
+				return l, err
+			}
+
+		} else {
+			listLicenses.Close()
+			err = NotFound
+		}
+		return l, err
 	}
 }
-*/
+
+//List() list licenses for a given ContentId
 //pageNum starting at 0
 func (s *sqlStore) List(ContentId string, page int, pageNum int) func() (License, error) {
-	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, 
-	rights_start, rights_end, user_key_hint, user_key_hash, user_key_algorithm, content_fk 
-	FROM license  WHERE content_fk=? LIMIT ? OFFSET ? `, ContentId, page, pageNum*page)
+	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated, 
+	rights_print, rights_copy, rights_start, rights_end, content_fk 
+	FROM license  
+	WHERE content_fk=? LIMIT ? OFFSET ? `, ContentId, page, pageNum*page)
 	if err != nil {
 		return func() (License, error) { return License{}, err }
 	}

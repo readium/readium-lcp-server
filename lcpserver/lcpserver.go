@@ -58,7 +58,7 @@ func main() {
 
 	dbURI = config.Config.Database
 	if dbURI == "" {
-		if dbURI = os.Getenv("DB"); dbURI == "" {
+		if dbURI = os.Getenv("LCP_DB"); dbURI == "" {
 			dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
 		}
 	}
