@@ -29,7 +29,7 @@ func main() {
 	var readonly bool = false
 	var err error
 
-	if host = os.Getenv("HOST"); host == "" {
+	if host = os.Getenv("LSD_HOST"); host == "" {
 		host, err = os.Hostname()
 		if err != nil {
 			panic(err)
@@ -44,8 +44,8 @@ func main() {
 
 	readonly = os.Getenv("READONLY") != ""
 
-	if port = os.Getenv("PORT"); port == "" {
-		port = "8989"
+	if port = os.Getenv("LSD_PORT"); port == "" {
+		port = "8990"
 	}
 
 	publicBaseUrl = config.Config.PublicBaseUrl
@@ -55,7 +55,7 @@ func main() {
 
 	dbURI = config.Config.Database
 	if dbURI == "" {
-		if dbURI = os.Getenv("DB"); dbURI == "" {
+		if dbURI = os.Getenv("LSD_DB"); dbURI == "" {
 			dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
 		}
 	}
