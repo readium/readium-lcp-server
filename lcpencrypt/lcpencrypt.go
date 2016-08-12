@@ -74,9 +74,9 @@ func getInputFile(inputFilename string) ([]byte, error) {
 }
 
 func showHelpAndExit() {
-	log.Println("lcpencrypt packs en epub for usage in an lcp environment")
+	log.Println("lcpencrypt packs an epub for usage in an lcp environment")
 	log.Println("-input : source file locator.  (file system or http GET)")
-	log.Println("[-contentid] : optional content identifier, if not present a new one is generated")
+	log.Println("[-contentid] : optional content identifier, if omitted a new one will be generated")
 	log.Println("[-output] : optional target file for protected content (file system or http PUT)")
 	log.Println("[-lcpsv] : http endpoint of the LCP service for exchange of information")
 	log.Println("[-help] ")

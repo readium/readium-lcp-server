@@ -10,6 +10,7 @@ var NotFound = errors.New("Content not found")
 type Index interface {
 	Get(id string) (Content, error)
 	Add(c Content) error
+	Update(c Content) error
 	List() func() (Content, error)
 }
 
@@ -48,6 +49,15 @@ func (i dbIndex) Add(c Content) error {
 	return err
 }
 
+func (i dbIndex) Update(c Content) error {
+	add, err := i.db.Prepare("UPDATE content SET encryption_key=? , location=? WHERE id=?")
+	if err != nil {
+		return err
+	}
+	defer add.Close()
+	_, err = add.Exec(c.EncryptionKey, c.Location, c.Id)
+	return err
+}
 func (i dbIndex) List() func() (Content, error) {
 	rows, err := i.list.Query()
 	if err != nil {

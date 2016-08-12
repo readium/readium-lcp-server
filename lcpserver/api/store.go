@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/index"
@@ -78,6 +79,57 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 	json.NewEncoder(w).Encode(result.Id)
 }
 
+// AddContent()
+// lcp spec : store data resulting from an external encryption
+// PUT method with PAYLOAD : LcpPublication in json format
+// content_id is also present in also url.
+// if contentId is different , url key overrides the contentId in the json payload
+// this method adds ths <protected_content_location>  in the store (of encrypted files)
+// and the needed key in the database in order to create the licenses
+func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+	decoder := json.NewDecoder(r.Body)
+	var publication LcpPublication
+	err := decoder.Decode(&publication)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	contentId := vars["key"]
+	if strings.Compare(contentId, publication.ContentId) != 0 {
+		publication.ContentId = contentId
+	}
+	//read encrypted file from reference
+	file, err := os.Open(publication.Output)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	//and add file to storage
+	var storageItem storage.Item
+	storageItem, err = s.Store().Add(publication.ContentId, file)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var c index.Content
+	// insert row in database if key does not exist
+	c, err = s.Index().Get(publication.ContentId)
+	c.EncryptionKey = publication.ContentKey
+	c.Location = storageItem.Key()
+	if err == index.NotFound { //insert into database
+		c.Id = publication.ContentId
+		err = s.Index().Add(c)
+	} else { //update encryption key for c.Id = publication.ContentId
+		err = s.Index().Update(c)
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(publication.ContentId)
+
+}
+
 func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 	fn := s.Index().List()
 	contents := make([]index.Content, 0)
@@ -92,11 +144,4 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-}
-
-func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
-	//PUT PAYLOAD = json {content_id,content_encryption_key,protected_content_location}
-	// content_id in url
-	//this method should add the title in the store (of encrypted files)
-	// and add the information in the database
 }

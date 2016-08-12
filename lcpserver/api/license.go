@@ -8,7 +8,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -236,4 +238,46 @@ func encryptKey(key []byte, kek []byte) []byte {
 	in := bytes.NewReader(key)
 	crypto.Encrypt(kek[:], in, &out)
 	return out.Bytes()
+}
+
+//ListLicenses returns a JSON struct with information about emitted licenses
+// optional GET parameters are "page" (page number) and "per_page" (items par page)
+func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
+	//TODO?
+	http.Error(w, "Not implemented, please specify content id", http.StatusNotImplemented)
+}
+
+//ListLicenses returns a JSON struct with information about emitted licenses
+// content-id is in url
+// optional GET parameters are "page" (page number) and "per_page" (items par page)
+func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+	contentId := vars["key"]
+	page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
+	if err != nil {
+		page = 0 //default starting page
+	}
+	per_page, err := strconv.ParseInt(r.FormValue("per_page"), 10, 32)
+	if err != nil {
+		per_page = 20 // default licenses per page
+	}
+	if page > 0 {
+		page -= 1
+	} // interface using pageNum starting at page 1 instead of 0 ?
+	if page < 0 {
+		page = 0
+	}
+	licenses := make([]license.License, 0)
+	log.Println("List(" + contentId + "," + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
+	fn := s.Licenses().List(contentId, int(per_page), int(page))
+	for it, err := fn(); err == nil; it, err = fn() {
+		licenses = append(licenses, it)
+	}
+
+	enc := json.NewEncoder(w)
+	err = enc.Encode(licenses)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
 }

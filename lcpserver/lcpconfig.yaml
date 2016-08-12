@@ -5,7 +5,7 @@ certificate:
              private_key: C:\temp\epagine_params\lcpSelfSigned.key
 storage:
          filesystem:
-                      directory: C:\temp\epagine_params\epubs
+                      directory: C:\Users\snemegeer\Documents\GitHub\src\github.com\readium\readium-lcp-server\lcpserver\files
 license:
          links:
                       hint: "http://www.epagine.fr/hint" 
