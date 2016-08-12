@@ -10,10 +10,11 @@ import (
 type Configuration struct {
 	Certificate   Certificate
 	Database      string
-	Storage       Storage `yaml:"storage"`
-	License       License `yaml:"license"`
-	PublicBaseUrl string  `yaml:"public_base_url"`
-	Static        Static  `yaml:"static"`
+	Storage       Storage       `yaml:"storage"`
+	License       License       `yaml:"license"`
+	PublicBaseUrl string        `yaml:"public_base_url"`
+	Static        Static        `yaml:"static"`
+	LicenseStatus LicenseStatus `yaml:"license_status"`
 }
 
 type Certificate struct {
@@ -44,6 +45,15 @@ type Storage struct {
 
 type License struct {
 	Links map[string]string `yaml:"links"`
+}
+
+type LicenseStatus struct {
+	Localization Localization `yaml:"localization"`
+}
+
+type Localization struct {
+	Languages []string `yaml:"languages"`
+	Folder    string   `yaml:"folder"`
 }
 
 var Config Configuration

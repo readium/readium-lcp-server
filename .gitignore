@@ -11,3 +11,5 @@ lcpencrypt/lcpencrypt.exe
 *.exe
 lcpserver/lcpconfig.yaml
 *.yaml
+lcpserver/lcpconfig.yaml
+*.yaml
