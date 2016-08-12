@@ -124,7 +124,7 @@ function handleFileUpload(files,obj) {
   
   for (var i = 0; i < files.length; i++) {
     $('#dropzone').css('background', '-webkit-linear-gradient(left, #0074D9 0%,#0074D9 0%,transparent 0%)')
-    var uploadURL ="/api/store/" + files[i].name; //Upload URL
+    var uploadURL ="/store/" + files[i].name; //Upload URL
     var req = new XMLHttpRequest();
     req.upload.onprogress = function(e) {
       if (e.lengthComputable) {
