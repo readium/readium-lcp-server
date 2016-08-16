@@ -50,6 +50,7 @@ func (i dbHistory) Add(ls LicenseStatus) error {
 	defer add.Close()
 
 	statusDB, err := setStatus(ls.Status)
+
 	if err == nil {
 		_, err = add.Exec(nil, statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, ls.LicenseRef)
 	}

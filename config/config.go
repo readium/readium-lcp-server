@@ -52,8 +52,9 @@ type LicenseStatus struct {
 }
 
 type Localization struct {
-	Languages []string `yaml:"languages"`
-	Folder    string   `yaml:"folder"`
+	Languages       []string `yaml:"languages"`
+	Folder          string   `yaml:"folder"`
+	DefaultLanguage string   `yaml:"default_language"`
 }
 
 var Config Configuration

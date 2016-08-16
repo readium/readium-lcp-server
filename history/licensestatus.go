@@ -5,9 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/transactions"
-	"github.com/rocwong/i18n"
 )
 
 const (
@@ -91,10 +89,4 @@ func reverse(s string) string {
 		r[i], r[j] = r[j], r[i]
 	}
 	return string(r)
-}
-
-func setMessage(language string, message *string, status string) {
-	localizationPath := config.Config.LicenseStatus.Localization.Folder
-	i18n.LoadMessages(localizationPath)
-	*message = i18n.Translate(language, status, "messages")
 }
