@@ -1,8 +1,8 @@
 database: sqlite3://file:test.sqlite?cache=shared&mode=rwc
-public_base_url: "http://127.0.0.1:8989"
-lisence_status:
-        localization: 
-                languages: ["en","fr","ru"]
-                folder: E:\GoProjects\LanguagesFolder
+public_base_url: "http://127.0.0.1:8990"
+localization: 
+        languages: ["ru-RU", "en-US"]
+        folder: E:\GoProjects\src\github.com\readium\readium-lcp-server\messages\
+        default_language: "en-US"
 
                       

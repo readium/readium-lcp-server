@@ -9,8 +9,8 @@ import (
 //need to run in main.go in server
 //err!=nil  means that one of them can't be opened
 func InitTranslations() error {
-	acceptableLanguages := config.Config.LicenseStatus.Localization.Languages
-	localizationPath := config.Config.LicenseStatus.Localization.Folder
+	acceptableLanguages := config.Config.Localization.Languages
+	localizationPath := config.Config.Localization.Folder
 
 	for _, value := range acceptableLanguages {
 		err := i18n.LoadTranslationFile(localizationPath + value + ".json")
@@ -23,7 +23,7 @@ func InitTranslations() error {
 //func to translate message
 //acceptLanguage - Accept-Languages from request header (r.Header.Get("Accept-Language"))
 func LocalizeMessage(acceptLanguage string, message *string, key string) {
-	defaultLanguage := config.Config.LicenseStatus.Localization.DefaultLanguage
+	defaultLanguage := config.Config.Localization.DefaultLanguage
 
 	T, _ := i18n.Tfunc(acceptLanguage, defaultLanguage)
 	*message = T(key)
