@@ -15,6 +15,7 @@ type Configuration struct {
 	PublicBaseUrl string        `yaml:"public_base_url"`
 	Static        Static        `yaml:"static"`
 	LicenseStatus LicenseStatus `yaml:"license_status"`
+	Localization  Localization  `yaml:"localization"`
 }
 
 type Certificate struct {
@@ -48,7 +49,6 @@ type License struct {
 }
 
 type LicenseStatus struct {
-	Localization Localization `yaml:"localization"`
 }
 
 type Localization struct {
