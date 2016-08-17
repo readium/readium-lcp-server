@@ -4,8 +4,12 @@ package problem
 // "application/problem+json" media type
 import (
 	"encoding/json"
+
 	"net/http"
 	"strings"
+
+	//"github.com/nicksnyder/go-i18n/i18n"
+	"github.com/readium/readium-lcp-server/localization"
 )
 
 type Problem struct {
@@ -18,12 +22,15 @@ type Problem struct {
 	//Additional members
 }
 
-func Error(w http.ResponseWriter, problem Problem, status int) {
+func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) {
 	//todo add i18n
+	acceptLanguages := r.Header.Get("Accept-Language")
+
 	w.Header().Add("Content-Type", "application/problem+json")
 	if strings.Compare(problem.Type, "about:blank") == 0 {
 		// lookup Title  statusText should match http status
-		problem.Title = http.StatusText(status)
+		localization.LocalizeMessage(acceptLanguages, &problem.Title, http.StatusText(status))
+
 	}
 	problem.Status = status
 	jsonError, e := json.Marshal(problem)
