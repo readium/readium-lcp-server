@@ -4,25 +4,14 @@ package problem
 // "application/problem+json" media type
 import (
 	"encoding/json"
-
 	"net/http"
 	"strings"
 
-	//"github.com/nicksnyder/go-i18n/i18n"
+	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/localization"
 )
 
-type Problem struct {
-	Type string `json:"type"`
-	//optionnal
-	Title    string `json:"title,omitempty"`
-	Status   int    `json:"status,omitempty"` //if present = http response code
-	Detail   string `json:"detail,omitempty"`
-	Instance string `json:"instance,omitempty"`
-	//Additional members
-}
-
-func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) {
+func Error(w http.ResponseWriter, r *http.Request, problem api.Problem, status int) {
 	//todo add i18n
 	acceptLanguages := r.Header.Get("Accept-Language")
 
@@ -38,4 +27,8 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 		http.Error(w, "{}", problem.Status)
 	}
 	http.Error(w, string(jsonError), problem.Status)
+}
+
+func NotFoundHandler(w http.ResponseWriter, r *http.Request, s api.Server) {
+	Error(w, r, api.Problem{Type: "about:blank"}, 404)
 }

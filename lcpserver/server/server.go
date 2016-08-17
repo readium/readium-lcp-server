@@ -9,23 +9,13 @@ import (
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
+	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/storage"
 	"github.com/technoweenie/grohl"
 
 	"html/template"
 	"net/http"
 )
-
-type Server struct {
-	http.Server
-	readonly bool
-	idx      *index.Index
-	st       *storage.Store
-	lst      *license.Store
-	router   *mux.Router
-	cert     *tls.Certificate
-	source   pack.ManualSource
-}
 
 func (s *Server) Store() storage.Store {
 	return *s.st
@@ -96,7 +86,7 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	//todo s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PUT")  //update license
 	//todo s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PATCH")  //update license rights
 
-	r.Handle("/", http.NotFoundHandler())
+	r.Handle("/", problem.NotFoundHandler) //http.NotFoundHandler()
 
 	return s
 }
