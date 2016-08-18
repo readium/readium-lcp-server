@@ -34,9 +34,7 @@ func (s *sqlStore) ListAll(page int, pageNum int) func() (License, error) {
 		createForeigns(&l)
 		if listLicenses.Next() {
 			err := listLicenses.Scan(&l.Id, &l.User.Id, &l.Provider, &l.Issued, &l.Updated,
-				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End,
-				&l.Encryption.UserKey.Hint, &l.Encryption.UserKey.Check, &l.Encryption.UserKey.Key.Algorithm,
-				&l.ContentId)
+				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End, &l.ContentId)
 
 			if err != nil {
 				return l, err
@@ -64,15 +62,12 @@ func (s *sqlStore) List(ContentId string, page int, pageNum int) func() (License
 		var l License
 		createForeigns(&l)
 		if listLicenses.Next() {
-			err := listLicenses.Scan(&l.Id, &l.User.Id, &l.Provider, &l.Issued, &l.Updated,
-				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End,
-				&l.Encryption.UserKey.Hint, &l.Encryption.UserKey.Check, &l.Encryption.UserKey.Key.Algorithm,
-				&l.ContentId)
 
+			err := listLicenses.Scan(&l.Id, &l.User.Id, &l.Provider, &l.Issued, &l.Updated,
+				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End, &l.ContentId)
 			if err != nil {
 				return l, err
 			}
-
 		} else {
 			listLicenses.Close()
 			err = NotFound
@@ -105,7 +100,11 @@ func (s *sqlStore) Get(id string) (License, error) {
 		&l.ContentId)
 
 	if err != nil {
-		return l, err
+		if err == sql.ErrNoRows {
+			return l, NotFound
+		} else {
+			return l, err
+		}
 	}
 
 	return l, nil

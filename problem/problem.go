@@ -8,9 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/readium/readium-lcp-server/localization"
+	"github.com/technoweenie/grohl"
 )
 
 type Problem struct {
@@ -31,7 +31,7 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 
-	if strings.Compare(problem.Type, "about:blank") == 0 {
+	if problem.Type == "about:blank" {
 		// lookup Title  statusText should match http status
 		localization.LocalizeMessage(acceptLanguages, &problem.Title, http.StatusText(status))
 
@@ -45,5 +45,6 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 }
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	grohl.Log(grohl.Data{"404 : path": r.URL.Path})
 	Error(w, r, Problem{Type: "about:blank"}, http.StatusNotFound)
 }
