@@ -13,14 +13,15 @@ import (
 	"strconv"
 	"strings"
 
+	"io"
+	"net/http"
+
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/sign"
-
-	"io"
-	"net/http"
 )
 
 //{
@@ -37,7 +38,7 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	err := decodeJsonLicense(r, &lic)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -49,13 +50,13 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	err = completeLicense(&lic, key, s)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
 	err = s.Licenses().Add(lic)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
@@ -81,38 +82,38 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 
 	item, err := s.Store().Get(key)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
 	content, err := s.Index().Get(key)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 	var b bytes.Buffer
 	contents, err := item.Contents()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
 	io.Copy(&b, contents)
 	zr, err := zip.NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 	ep, err := epub.Read(zr)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 	var buf bytes.Buffer
 
 	err = completeLicense(&lic, key, s)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
@@ -125,7 +126,7 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 	err = s.Licenses().Add(lic)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
@@ -274,7 +275,7 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 	enc := json.NewEncoder(w)
 	err = enc.Encode(licenses)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 	}
 
 }
@@ -316,7 +317,7 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	enc := json.NewEncoder(w)
 	err = enc.Encode(licenses)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 	}
 
 }

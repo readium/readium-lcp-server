@@ -12,6 +12,7 @@ import (
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
+	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/storage"
 
 	"net/http"
@@ -144,4 +145,8 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
+}
+
+func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	problem.Error(w, r, problem.Problem{Type: "about:blank"}, http.StatusNotFound)
 }

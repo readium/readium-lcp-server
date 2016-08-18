@@ -1,21 +1,36 @@
 package problem
 
 // rfc 7807
-// "application/problem+json" media type
+// problem.Type should be an URI
+// for example http://readium.org/readium/[lcpserver|lsdserver]/<code>
+// for standard http error messages use "about:blank" status in json equals http status
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/localization"
 )
 
-func Error(w http.ResponseWriter, r *http.Request, problem api.Problem, status int) {
+type Problem struct {
+	Type string `json:"type"`
+	//optionnal
+	Title    string `json:"title,omitempty"`
+	Status   int    `json:"status,omitempty"` //if present = http response code
+	Detail   string `json:"detail,omitempty"`
+	Instance string `json:"instance,omitempty"`
+	//Additional members
+}
+
+func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) {
 	//todo add i18n
 	acceptLanguages := r.Header.Get("Accept-Language")
 
-	w.Header().Add("Content-Type", "application/problem+json")
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(status)
+
 	if strings.Compare(problem.Type, "about:blank") == 0 {
 		// lookup Title  statusText should match http status
 		localization.LocalizeMessage(acceptLanguages, &problem.Title, http.StatusText(status))
@@ -26,9 +41,9 @@ func Error(w http.ResponseWriter, r *http.Request, problem api.Problem, status i
 	if e != nil {
 		http.Error(w, "{}", problem.Status)
 	}
-	http.Error(w, string(jsonError), problem.Status)
+	fmt.Fprintln(w, string(jsonError))
 }
 
-func NotFoundHandler(w http.ResponseWriter, r *http.Request, s api.Server) {
-	Error(w, r, api.Problem{Type: "about:blank"}, 404)
+func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	Error(w, r, Problem{Type: "about:blank"}, http.StatusNotFound)
 }

@@ -17,6 +17,17 @@ import (
 	"net/http"
 )
 
+type Server struct {
+	http.Server
+	readonly bool
+	idx      *index.Index
+	st       *storage.Store
+	lst      *license.Store
+	router   *mux.Router
+	cert     *tls.Certificate
+	source   pack.ManualSource
+}
+
 func (s *Server) Store() storage.Store {
 	return *s.st
 }
@@ -86,7 +97,7 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	//todo s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PUT")  //update license
 	//todo s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PATCH")  //update license rights
 
-	r.Handle("/", problem.NotFoundHandler) //http.NotFoundHandler()
+	r.HandleFunc("/", problem.NotFoundHandler) //	http.NotFoundHandler()
 
 	return s
 }
