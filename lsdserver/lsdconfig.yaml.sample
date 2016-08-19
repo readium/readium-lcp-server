@@ -1,5 +1,5 @@
 database: sqlite3://file:test.sqlite?cache=shared&mode=rwc
-public_base_url: "http://127.0.0.1:8990"
+lsd_base_url: "http://127.0.0.1:8990"
 localization: 
         languages: ["ru-RU", "en-US"]
         folder: E:\GoProjects\src\github.com\readium\readium-lcp-server\messages\
