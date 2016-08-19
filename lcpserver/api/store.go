@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/index"
@@ -62,7 +61,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 	size, f, err := writeRequestFileToTemp(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -72,7 +71,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 	result := s.Source().Post(t)
 
 	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -96,19 +95,20 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	contentId := vars["key"]
-	if strings.Compare(contentId, publication.ContentId) != 0 {
+	if contentId != publication.ContentId {
 		publication.ContentId = contentId
 	}
 	//read encrypted file from reference
 	file, err := os.Open(publication.Output)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		return
 	}
 	//and add file to storage
 	var storageItem storage.Item
 	storageItem, err = s.Store().Add(publication.ContentId, file)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	var c index.Content
@@ -123,7 +123,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		err = s.Index().Update(c)
 	}
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(200)
@@ -142,7 +142,8 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 	enc := json.NewEncoder(w)
 	err := enc.Encode(contents)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		return
 	}
 
 }

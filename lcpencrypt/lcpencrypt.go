@@ -125,7 +125,7 @@ func main() {
 	addedPublication.ContentId = *contentid
 	if *outputFilename == "" { //output not set -> "content-id.epub" in working directory
 		workingDir, _ := os.Getwd()
-		*outputFilename = strings.Join([]string{workingDir, *contentid, ".epub"}, "")
+		*outputFilename = strings.Join([]string{workingDir, string(os.PathSeparator), *contentid, ".epub"}, "")
 	}
 	addedPublication.Output = *outputFilename
 	// decode and pack epub file
