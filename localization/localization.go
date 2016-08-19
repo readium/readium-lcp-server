@@ -12,12 +12,12 @@ func InitTranslations() error {
 	acceptableLanguages := config.Config.Localization.Languages
 	localizationPath := config.Config.Localization.Folder
 
+	var err error
 	for _, value := range acceptableLanguages {
-		err := i18n.LoadTranslationFile(localizationPath + value + ".json")
-		return err
+		err = i18n.LoadTranslationFile(localizationPath + value + ".json")
 	}
 
-	return nil
+	return err
 }
 
 //func to translate message
