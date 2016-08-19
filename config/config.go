@@ -8,11 +8,10 @@ import (
 )
 
 type Configuration struct {
-	Certificate Certificate
-	Database    string
-	Storage     Storage `yaml:"storage"`
-	License     License `yaml:"license"`
-	//PublicBaseUrl string        `yaml:"public_base_url"`
+	Certificate   Certificate
+	Database      string
+	Storage       Storage       `yaml:"storage"`
+	License       License       `yaml:"license"`
 	LsdBaseUrl    string        `yaml:"lsd_base_url"`
 	LcpBaseUrl    string        `yaml:"lcp_base_url"`
 	Static        Static        `yaml:"static"`
@@ -51,6 +50,10 @@ type License struct {
 }
 
 type LicenseStatus struct {
+	Renew       bool `yaml:"renew"`
+	Register    bool `yaml:"register"`
+	Return      bool `yaml:"return"`
+	RentingDays int  `yaml:"renting_days" "default 0"`
 }
 
 type Localization struct {
