@@ -136,6 +136,9 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 	ep.Write(w)
 
 }
+func DecodeJsonLicense(r *http.Request, lic *license.License) error {
+	return decodeJsonLicense(r, lic)
+}
 
 func decodeJsonLicense(r *http.Request, lic *license.License) error {
 	var dec *json.Decoder
