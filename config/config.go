@@ -8,11 +8,13 @@ import (
 )
 
 type Configuration struct {
-	Certificate   Certificate
-	Database      string
-	Storage       Storage       `yaml:"storage"`
-	License       License       `yaml:"license"`
-	PublicBaseUrl string        `yaml:"public_base_url"`
+	Certificate Certificate
+	Database    string
+	Storage     Storage `yaml:"storage"`
+	License     License `yaml:"license"`
+	//PublicBaseUrl string        `yaml:"public_base_url"`
+	LsdBaseUrl    string        `yaml:"lsd_base_url"`
+	LcpBaseUrl    string        `yaml:"lcp_base_url"`
 	Static        Static        `yaml:"static"`
 	LicenseStatus LicenseStatus `yaml:"license_status"`
 	Localization  Localization  `yaml:"localization"`

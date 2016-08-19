@@ -3,7 +3,10 @@ package license
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"time"
+
+	"github.com/readium/readium-lcp-server/config"
 )
 
 var NotFound = errors.New("License not found")
@@ -20,6 +23,14 @@ type Store interface {
 
 type sqlStore struct {
 	db *sql.DB
+}
+
+func notifyLsdServer(l License) {
+	if config.Config.LsdBaseUrl != "" {
+		//notifyLsdServer of new License
+		log.Println("Notify License Status Document Server of new License")
+	}
+
 }
 
 //ListAll, lists all licenses in ante-chronological order
@@ -90,6 +101,7 @@ func (s *sqlStore) UpdateRights(l License) error {
 	return err
 }
 func (s *sqlStore) Add(l License) error {
+	go notifyLsdServer(l)
 	_, err := s.db.Exec("INSERT INTO license VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		l.Id, l.User.Id, l.Provider, l.Issued, nil, l.Rights.Print, l.Rights.Copy, l.Rights.Start,
 		l.Rights.End, l.Encryption.UserKey.Hint, l.Encryption.UserKey.Check,

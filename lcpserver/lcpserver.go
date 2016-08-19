@@ -51,7 +51,7 @@ func main() {
 		port = "8989"
 	}
 
-	publicBaseUrl = config.Config.PublicBaseUrl
+	publicBaseUrl = config.Config.LcpBaseUrl
 	if publicBaseUrl == "" {
 		publicBaseUrl = "http://" + host + ":" + port
 	}

@@ -92,11 +92,10 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	s.handleFunc("/contents/{key}/publications", api.GenerateProtectedPublication).Methods("POST")
 
 	//LICENSES
-	s.handleFunc("/licenses", api.ListLicenses).Methods("GET")                // list licenses, additional get params {page?,per_page?}
-	s.handleFunc("/licenses/", api.ListLicenses).Methods("GET")               // idem
-	s.handleFunc("/licenses/{key}", api.GetLicense).Methods("GET")            //return existing license
-	s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PUT")         //update license
-	s.handleFunc("/licenses/{key}", api.UpdateRightsLicense).Methods("PATCH") //update license rights
+	s.handleFunc("/licenses", api.ListLicenses).Methods("GET")          // list licenses, additional get params {page?,per_page?}
+	s.handleFunc("/licenses/", api.ListLicenses).Methods("GET")         // idem
+	s.handleFunc("/licenses/{key}", api.GetLicense).Methods("GET")      //return existing license
+	s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PATCH") //update license (rights, other)
 
 	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler)
 
