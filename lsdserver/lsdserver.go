@@ -25,7 +25,7 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-	var config_file, host, port, publicBaseUrl, dbURI, static string
+	var config_file, host, port, lsdBaseUrl, dbURI, static string
 	var readonly bool = false
 	var err error
 
@@ -48,9 +48,10 @@ func main() {
 		port = "8990"
 	}
 
-	publicBaseUrl = config.Config.PublicBaseUrl
-	if publicBaseUrl == "" {
-		publicBaseUrl = "http://" + host + ":" + port
+	lsdBaseUrl = config.Config.LsdBaseUrl
+	if lsdBaseUrl == "" {
+		lsdBaseUrl = "http://" + host + ":" + port
+		config.Config.LsdBaseUrl = lsdBaseUrl
 	}
 
 	dbURI = config.Config.Database

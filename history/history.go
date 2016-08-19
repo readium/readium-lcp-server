@@ -3,6 +3,7 @@ package history
 import (
 	"database/sql"
 	"errors"
+	"time"
 )
 
 var NotFound = errors.New("License Status not found")
@@ -30,7 +31,7 @@ func (i dbHistory) Get(id int) (LicenseStatus, error) {
 
 	if records.Next() {
 		ls := LicenseStatus{}
-		err = records.Scan(&ls.Id, &statusDB, &ls.Updated.License, &ls.Updated.Status, &ls.DeviceCount, &ls.PotentialRights.End, &ls.LicenseRef)
+		err = records.Scan(&ls.Id, &statusDB, ls.Updated.License, ls.Updated.Status, &ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
 
 		if err == nil {
 			getStatus(statusDB, &ls.Status)
@@ -68,7 +69,7 @@ func (i dbHistory) List() func() (LicenseStatus, error) {
 		var ls LicenseStatus
 		var err error
 		if rows.Next() {
-			err = rows.Scan(&statusDB, &ls.Updated.License, &ls.Updated.Status, &ls.DeviceCount, &ls.PotentialRights.End, &ls.LicenseRef)
+			err = rows.Scan(&statusDB, ls.Updated.License, ls.Updated.Status, &ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
 
 			if err == nil {
 				getStatus(statusDB, &ls.Status)
@@ -83,22 +84,29 @@ func (i dbHistory) List() func() (LicenseStatus, error) {
 
 func (i dbHistory) GetByLicenseId(licenseFk string) (LicenseStatus, error) {
 	var statusDB int64
+	ls := LicenseStatus{}
 
-	records, err := i.getbylicenseid.Query(licenseFk)
-	defer records.Close()
+	var potentialRightsEnd time.Time
+	var licenseUpdate *time.Time
+	var statusUpdate *time.Time
 
-	if records.Next() {
-		var ls LicenseStatus
-		err = records.Scan(&statusDB, &ls.Updated.License, &ls.Updated.Status, &ls.DeviceCount, &ls.PotentialRights.End, &ls.LicenseRef)
+	row := i.getbylicenseid.QueryRow(licenseFk)
+	err := row.Scan(&ls.Id, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef)
 
-		if err == nil {
-			getStatus(statusDB, &ls.Status)
+	if err == nil {
+		getStatus(statusDB, &ls.Status)
+
+		if !potentialRightsEnd.IsZero() {
+			ls.PotentialRights = new(PotentialRights)
+			ls.PotentialRights.End = potentialRightsEnd
 		}
 
-		return ls, err
+		if licenseUpdate != nil || statusUpdate != nil {
+			*ls.Updated = Updated{Status: statusUpdate, License: licenseUpdate}
+		}
 	}
 
-	return LicenseStatus{}, NotFound
+	return ls, err
 }
 
 func Open(db *sql.DB) (h History, err error) {

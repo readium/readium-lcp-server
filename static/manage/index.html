@@ -167,7 +167,8 @@ function makeLicense() {
 
 function emitLicense(key, license) {
   var req = new XMLHttpRequest();
-  req.onload = function(event) {
+  
+    req.onload = function(event) {
     console.log(JSON.parse(this.responseText));
     console.log(this.responseText);
   }

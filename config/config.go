@@ -12,7 +12,8 @@ type Configuration struct {
 	Database      string
 	Storage       Storage       `yaml:"storage"`
 	License       License       `yaml:"license"`
-	PublicBaseUrl string        `yaml:"public_base_url"`
+	LsdBaseUrl    string        `yaml:"lsd_base_url"`
+	LcpBaseUrl    string        `yaml:"lcp_base_url"`
 	Static        Static        `yaml:"static"`
 	LicenseStatus LicenseStatus `yaml:"license_status"`
 	Localization  Localization  `yaml:"localization"`
@@ -49,6 +50,10 @@ type License struct {
 }
 
 type LicenseStatus struct {
+	Renew       bool `yaml:"renew"`
+	Register    bool `yaml:"register"`
+	Return      bool `yaml:"return"`
+	RentingDays int  `yaml:"renting_days" "default 0"`
 }
 
 type Localization struct {
