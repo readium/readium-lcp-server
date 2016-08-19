@@ -1,5 +1,6 @@
 database: sqlite3://file:test.sqlite?cache=shared&mode=rwc
-lcp_base_url: "127.0.0.1:8989"
+lcp_base_url: "http://127.0.0.1:8989"
+lsd_base_url: "http://127.0.0.1:8990"
 certificate:
              cert: /home/banux/certs/lcp.crt
              private_key: /home/banux/certs/lcp.pem

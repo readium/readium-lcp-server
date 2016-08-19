@@ -2,8 +2,11 @@ package license
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"io"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/readium/readium-lcp-server/config"
@@ -28,7 +31,28 @@ type sqlStore struct {
 func notifyLsdServer(l License) {
 	if config.Config.LsdBaseUrl != "" {
 		//notifyLsdServer of new License
-		log.Println("Notify License Status Document Server of new License")
+		log.Println("Notify License Status Document Server of new License : " + l.Id)
+		var lsdClient = &http.Client{
+			Timeout: time.Second * 10,
+		}
+		pr, pw := io.Pipe()
+		go func() {
+			_ = json.NewEncoder(pw).Encode(l)
+			pw.Close() // signal end writing
+		}()
+		req, err := http.NewRequest("PUT", config.Config.LsdBaseUrl+"/licenses", pr)
+		//req.Header.Add("Authorization", "auth_token=\"XXXXXXX\"")
+		req.Header.Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
+		response, err := lsdClient.Do(req)
+		if err != nil {
+			log.Println("Error Notify LsdServer of new License (" + l.Id + "):" + err.Error())
+		} else {
+			if response.StatusCode == 201 {
+				log.Println("Notify LsdServer of new License ok")
+			} else { //bad request or server error
+				log.Println("Notify LsdServer of new License (" + l.Id + "):" + string(response.StatusCode))
+			}
+		}
 	}
 
 }
