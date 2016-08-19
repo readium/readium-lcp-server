@@ -27,31 +27,32 @@ var statuses = map[int]string{
 }
 
 type Updated struct {
-	License time.Time `json:"license"`
-	Status  time.Time `json:"status"`
+	License *time.Time `json:"license,omitempty"`
+	Status  *time.Time `json:"status,omitempty"`
 }
 
 type Link struct {
-	Href   string `json:"href"`
-	Type   string `json:"type,omitempty"`
-	Size   int64  `json:"length,omitempty"`
-	Digest []byte `json:"hash,omitempty"`
+	Href      string `json:"href"`
+	Type      string `json:"type,omitempty"`
+	Title     string `json:"title,omitempty"`
+	Templated bool   `json:"templated,omitempty" "default false"`
+	Profile   string `json:"profile,omitempty"`
 }
 
 type PotentialRights struct {
-	End time.Time `json:"end"`
+	End time.Time `json:"end,omitempty"`
 }
 
 type LicenseStatus struct {
 	Id              int                  `json:"-"`
 	LicenseRef      string               `json:"id"`
 	Status          string               `json:"status"`
-	Updated         Updated              `json:"updated"`
+	Updated         *Updated             `json:"updated,omitempty"`
 	Message         string               `json:"message"`
-	Links           map[string]Link      `json:"links"`
+	Links           map[string][]Link    `json:"links"`
 	DeviceCount     int                  `json:"device_count"`
-	PotentialRights PotentialRights      `json:"potential_rights"`
-	Events          []transactions.Event `json:"events"`
+	PotentialRights *PotentialRights     `json:"potential_rights,omitempty"`
+	Events          []transactions.Event `json:"events,omitempty"`
 }
 
 func getStatus(statusDB int64, status *string) {

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "ready",
+    "translation":"Готово к использованию"
+  },
+   {
+    "id": "active",
+    "translation":"Активно"
+  },
+   {
+    "id": "cancelled",
+    "translation":"Отменено"
+  },
+   {
+    "id": "expired",
+    "translation":"Истекло"
+  },
+   {
+    "id": "revoked",
+    "translation": "Отозвано"
+  },
+   {
+    "id": "returned",
+    "translation": "Возвращено"
+  }
+]

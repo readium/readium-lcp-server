@@ -84,7 +84,6 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	//API following spec
 	//CONTENTS
 	s.handleFunc("/contents", api.ListContents).Methods("GET")                           //method supported, not in spec
-	s.handleFunc("/contents/", api.ListContents).Methods("GET")                          //idem
 	s.handleFunc("/contents/{key}", api.AddContent).Methods("PUT")                       //lcp spec store data resulting from external encryption
 	s.handleFunc("/contents/{key}/licenses", api.ListLicensesForContent).Methods("GET")  // list licenses for content, additional get params {page?,per_page?}
 	s.handleFunc("/contents/{key}/licenses/", api.ListLicensesForContent).Methods("GET") // idem
@@ -92,12 +91,13 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	s.handleFunc("/contents/{key}/publications", api.GenerateProtectedPublication).Methods("POST")
 
 	//LICENSES
-	s.handleFunc("/licenses", api.ListLicenses).Methods("GET")          // list licenses, additional get params {page?,per_page?}
-	s.handleFunc("/licenses/", api.ListLicenses).Methods("GET")         // idem
-	s.handleFunc("/licenses/{key}", api.GetLicense).Methods("GET")      //return existing license
-	s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PATCH") //update license (rights, other)
+	s.handleFunc("/licenses", api.ListLicenses).Methods("GET")  // list licenses, additional get params {page?,per_page?}
+	s.handleFunc("/licenses/", api.ListLicenses).Methods("GET") // idem
+	//todo s.handleFunc("/licenses/{key}", api.GetLicense).Methods("GET")  //return existing license
+	//todo s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PUT")  //update license
+	//todo s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PATCH")  //update license rights
 
-	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler)
+	r.HandleFunc("/", problem.NotFoundHandler) //	http.NotFoundHandler()
 
 	return s
 }

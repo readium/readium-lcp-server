@@ -19,7 +19,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/sign"
@@ -32,175 +31,11 @@ import (
 //"hint_url": "http://www.imaginaryebookretailer.com/lcp"
 //}
 
-func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
-	vars := mux.Vars(r)
-
-	licenceId := vars["key"]
-	// search existing license using key
-	var ExistingLicense license.License
-	ExistingLicense, e := s.Licenses().Get(licenceId)
-	if e != nil {
-		if e == license.NotFound {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusNotFound)
-		} else {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusBadRequest)
-		}
-		return
-	}
-	var lic license.License
-	err := DecodeJsonLicense(r, &lic)
-	if err != nil { // no or incorrect (json) license found in body
-		// just send partial license
-		//delete some sensitive data from license (todo?)
-		w.Header().Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
-		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
-		w.WriteHeader(http.StatusPartialContent)
-		enc := json.NewEncoder(w)
-		enc.Encode(ExistingLicense)
-
-		return
-	} else {
-		// add information to license and sign (real License)
-		//existing license contains most information
-		//and the licensed passed contains user information
-		ExistingLicense.User = lic.User //TODO what if lic.User is empty ?
-		content, err := s.Index().Get(ExistingLicense.ContentId)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-			return
-		}
-		ExistingLicense.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
-		ExistingLicense.Encryption.ContentKey.Value = encryptKey(content.EncryptionKey, ExistingLicense.Encryption.UserKey.Value) //use old UserKey.Value
-		ExistingLicense.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
-		err = buildKeyCheck(&ExistingLicense, ExistingLicense.Encryption.UserKey.Value)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-			return
-		}
-		err = signLicense(&ExistingLicense, s.Certificate())
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Header().Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
-		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
-		ExistingLicense.Encryption.UserKey.Check = nil
-		enc := json.NewEncoder(w)
-		enc.Encode(ExistingLicense)
-		return
-	}
-}
-
-func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
-	problem.Error(w, r, problem.Problem{Type: "about:blank"}, http.StatusNotImplemented)
-	vars := mux.Vars(r)
-	licenceId := vars["key"]
-	// search existing license using key
-	var ExistingLicense license.License
-	ExistingLicense, e := s.Licenses().Get(licenceId)
-	if e != nil {
-		if e == license.NotFound {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: license.NotFound.Error()}, http.StatusNotFound)
-		} else {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusBadRequest)
-		}
-		return
-	}
-	var lic license.License
-	err := DecodeJsonLicense(r, &lic)
-	if err != nil { // no or incorrect (json) license found in body
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-		return
-	}
-	if lic.Id != licenceId {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "Different license IDs"}, http.StatusNotFound)
-		return
-	}
-	// update rights of license in database
-	// check validity of lic / existingLicense
-	//
-	if lic.Provider != "" {
-		ExistingLicense.Provider = lic.Provider
-	}
-	if lic.Rights.Copy != nil {
-		ExistingLicense.Rights.Copy = lic.Rights.Copy
-	}
-	if lic.Rights.Print != nil {
-		ExistingLicense.Rights.Print = lic.Rights.Print
-	}
-	if lic.Rights.Start != nil {
-		ExistingLicense.Rights.Start = lic.Rights.Start
-	}
-	if lic.Rights.End != nil {
-		ExistingLicense.Rights.End = lic.Rights.End
-	}
-	if lic.Encryption.UserKey.Hint != "" {
-		ExistingLicense.Encryption.UserKey.Hint = lic.Encryption.UserKey.Hint
-	}
-	if lic.ContentId != "" { //change content
-		ExistingLicense.ContentId = lic.ContentId
-	}
-	err = s.Licenses().Update(ExistingLicense)
-	if err != nil { // no or incorrect (json) license found in body
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-		return
-	}
-	// go on and GET license io to return the updated license
-	GetLicense(w, r, s)
-}
-
-func UpdateRightsLicense(w http.ResponseWriter, r *http.Request, s Server) {
-	vars := mux.Vars(r)
-	licenceId := vars["key"]
-	// search existing license using key
-	var ExistingLicense license.License
-	ExistingLicense, e := s.Licenses().Get(licenceId)
-	if e != nil {
-		if e == license.NotFound {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: license.NotFound.Error()}, http.StatusNotFound)
-		} else {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusBadRequest)
-		}
-		return
-	}
-	var lic license.License
-	err := DecodeJsonLicense(r, &lic)
-	if err != nil { // no or incorrect (json) license found in body
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-		return
-	}
-	if lic.Id != licenceId {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "Different license IDs"}, http.StatusNotFound)
-		return
-	}
-	// update rights of license in database
-	if lic.Rights.Copy != nil {
-		ExistingLicense.Rights.Copy = lic.Rights.Copy
-	}
-	if lic.Rights.Print != nil {
-		ExistingLicense.Rights.Print = lic.Rights.Print
-	}
-	if lic.Rights.Start != nil {
-		ExistingLicense.Rights.Start = lic.Rights.Start
-	}
-	if lic.Rights.End != nil {
-		ExistingLicense.Rights.End = lic.Rights.End
-	}
-	err = s.Licenses().UpdateRights(ExistingLicense)
-	if err != nil { // no or incorrect (json) license found in body
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-		return
-	}
-	// go on to GET license io to return the existing license
-	GetLicense(w, r, s)
-}
-
 func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	var lic license.License
 
-	err := DecodeJsonLicense(r, &lic)
+	err := decodeJsonLicense(r, &lic)
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
@@ -236,7 +71,7 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 
 	var lic license.License
 
-	err := DecodeJsonLicense(r, &lic)
+	err := decodeJsonLicense(r, &lic)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -301,8 +136,11 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 	ep.Write(w)
 
 }
-
 func DecodeJsonLicense(r *http.Request, lic *license.License) error {
+	return decodeJsonLicense(r, lic)
+}
+
+func decodeJsonLicense(r *http.Request, lic *license.License) error {
 	var dec *json.Decoder
 
 	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == "application/x-www-form-urlencoded" {
@@ -409,7 +247,6 @@ func encryptKey(key []byte, kek []byte) []byte {
 //ListLicenses returns a JSON struct with information about emitted licenses
 // optional GET parameters are "page" (page number) and "per_page" (items par page)
 func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
-	w.Header().Set("Content-Type", "application/problem+json")
 	page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
 	if err != nil {
 		page = 0 //default starting page
@@ -442,7 +279,6 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 	err = enc.Encode(licenses)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-		return
 	}
 
 }
@@ -453,14 +289,6 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	contentId := vars["key"]
-	w.Header().Set("Content-Type", "application/problem+json")
-
-	//check if license exists
-	_, err := s.Index().Get(contentId)
-	if err == index.NotFound {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusNotFound)
-		return
-	} //other errors pass, but will probably reoccur
 	page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
 	if err != nil {
 		page = 0 //default starting page
@@ -479,7 +307,6 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	log.Println("List(" + contentId + "," + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
 	fn := s.Licenses().List(contentId, int(per_page), int(page))
 	for it, err := fn(); err == nil; it, err = fn() {
-		log.Println("Append license")
 		licenses = append(licenses, it)
 	}
 	if len(licenses) > 0 {
@@ -494,7 +321,6 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	err = enc.Encode(licenses)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-		return
 	}
 
 }

@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/index"
@@ -61,7 +62,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 	size, f, err := writeRequestFileToTemp(r.Body)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -71,7 +72,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 	result := s.Source().Post(t)
 
 	if result.Error != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		http.Error(w, result.Error.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -86,7 +87,6 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 // if contentId is different , url key overrides the contentId in the json payload
 // this method adds ths <protected_content_location>  in the store (of encrypted files)
 // and the needed key in the database in order to create the licenses
-//TODO notify LSDserver (if configured)
 func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	decoder := json.NewDecoder(r.Body)
@@ -96,20 +96,19 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	contentId := vars["key"]
-	if contentId != publication.ContentId {
+	if strings.Compare(contentId, publication.ContentId) != 0 {
 		publication.ContentId = contentId
 	}
 	//read encrypted file from reference
 	file, err := os.Open(publication.Output)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-		return
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	//and add file to storage
 	var storageItem storage.Item
 	storageItem, err = s.Store().Add(publication.ContentId, file)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	var c index.Content
@@ -124,7 +123,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		err = s.Index().Update(c)
 	}
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(200)
@@ -143,7 +142,7 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 	enc := json.NewEncoder(w)
 	err := enc.Encode(contents)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
 }

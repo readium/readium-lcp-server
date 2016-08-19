@@ -1,0 +1,26 @@
+[
+  {
+    "id": "ready",
+    "translation":"Your license is ready for usage"
+  },
+   {
+    "id": "active",
+    "translation":"Your license active and using actively"
+  },
+   {
+    "id": "cancelled",
+    "translation":"It was canсelled"
+  },
+   {
+    "id": "expired",
+    "translation":"It was expired"
+  },
+   {
+    "id": "revoked",
+    "translation": "It was revoked"
+  },
+   {
+    "id": "returned",
+    "translation": "It was returned"
+  }
+]

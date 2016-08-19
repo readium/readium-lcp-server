@@ -12,7 +12,7 @@ type Transactions interface {
 	Get(id int) (Event, error)
 	Add(e Event) error
 	List() func() (Event, error)
-	GetByLicenseStatusId(licenseStatusFk string) func() (Event, error)
+	GetByLicenseStatusId(licenseStatusFk int) func() (Event, error)
 }
 
 type Event struct {
@@ -72,7 +72,7 @@ func (i dbTransactions) List() func() (Event, error) {
 	}
 }
 
-func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk string) func() (Event, error) {
+func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event, error) {
 	rows, err := i.getbylicensestatusid.Query(licenseStatusFk)
 	if err != nil {
 		return func() (Event, error) { return Event{}, err }
