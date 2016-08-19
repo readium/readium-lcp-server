@@ -52,7 +52,7 @@ func New(bindAddr string, tplPath string, readonly bool, hist *history.History, 
 	})
 
 	s.handleFunc("/licenses/{key}/status", api.GenerateLicenseStatusDocument).Methods("POST")
-	s.handleFunc("/licenses/", api.CreateLicenseStatusDocument).Methods("POST")
+	s.handleFunc("/licenses/", api.CreateLicenseStatusDocument).Methods("PUT")
 
 	r.Handle("/", http.NotFoundHandler())
 
