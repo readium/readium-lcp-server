@@ -1,4 +1,4 @@
-package api
+package apilcp
 
 import (
 	"archive/zip"

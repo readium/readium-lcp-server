@@ -1,8 +1,9 @@
-package lsdserver
+package main
 
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -25,6 +26,7 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
+
 	var config_file, host, port, lsdBaseUrl, dbURI, static string
 	var readonly bool = false
 	var err error
@@ -92,9 +94,13 @@ func main() {
 	}
 
 	HandleSignals()
-
 	s := lsdserver.New(":"+port, static, readonly, &hist, &trns)
-	s.ListenAndServe()
+	log.Println("License status server running on port " + port)
+
+	if err := s.ListenAndServe(); err != nil {
+		log.Println("Error " + err.Error())
+	}
+
 }
 
 func HandleSignals() {

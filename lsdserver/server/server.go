@@ -1,12 +1,12 @@
 package lsdserver
 
 import (
-	"html/template"
-	"path/filepath"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/history"
 	"github.com/readium/readium-lcp-server/lsdserver/api"
+	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/transactions"
 	"github.com/technoweenie/grohl"
 
@@ -33,8 +33,10 @@ func New(bindAddr string, tplPath string, readonly bool, hist *history.History, 
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{
-			Handler: r,
-			Addr:    bindAddr,
+			Handler:      r,
+			Addr:         bindAddr,
+			WriteTimeout: 15 * time.Second,
+			ReadTimeout:  15 * time.Second,
 		},
 		readonly: readonly,
 		router:   r,
@@ -42,24 +44,15 @@ func New(bindAddr string, tplPath string, readonly bool, hist *history.History, 
 		trns:     *trns,
 	}
 
-	manageIndex, err := template.ParseFiles(filepath.Join(tplPath, "/manage/index.html"))
-	if err != nil {
-		panic(err)
-	}
-
-	r.HandleFunc("/manage/", func(w http.ResponseWriter, r *http.Request) {
-		manageIndex.Execute(w, map[string]interface{}{})
-	})
-
-	s.handleFunc("/licenses/{key}/status", api.GenerateLicenseStatusDocument).Methods("POST")
-	s.handleFunc("/licenses/", api.CreateLicenseStatusDocument).Methods("PUT")
-
-	r.Handle("/", http.NotFoundHandler())
+	s.handleFunc("/licenses/{key}/status", apilsd.GenerateLicenseStatusDocument).Methods("POST")
+	s.handleFunc("/licenses/", apilsd.CreateLicenseStatusDocument).Methods("PUT")
+	s.handleFunc("/licenses", apilsd.CreateLicenseStatusDocument).Methods("PUT")
+	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
 
 	return s
 }
 
-type HandlerFunc func(w http.ResponseWriter, r *http.Request, s api.Server)
+type HandlerFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
 
 func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

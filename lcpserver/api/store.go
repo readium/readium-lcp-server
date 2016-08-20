@@ -1,4 +1,4 @@
-package api
+package apilcp
 
 import (
 	"crypto/tls"
@@ -116,18 +116,21 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	c, err = s.Index().Get(publication.ContentId)
 	c.EncryptionKey = publication.ContentKey
 	c.Location = storageItem.Key()
+	code := http.StatusCreated
 	if err == index.NotFound { //insert into database
 		c.Id = publication.ContentId
 		err = s.Index().Add(c)
 	} else { //update encryption key for c.Id = publication.ContentId
 		err = s.Index().Update(c)
+		code = http.StatusFound
 	}
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+	if err != nil { //db not updated
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(200)
-	json.NewEncoder(w).Encode(publication.ContentId)
+	w.WriteHeader(code)
+	return
+	//json.NewEncoder(w).Encode(publication.ContentId)
 
 }
 

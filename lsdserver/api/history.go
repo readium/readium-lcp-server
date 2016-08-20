@@ -1,4 +1,4 @@
-package api
+package apilsd
 
 import (
 	"encoding/json"
@@ -11,6 +11,7 @@ import (
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/localization"
+	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/transactions"
 )
 
@@ -25,10 +26,11 @@ type Server interface {
 func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
 	var lic license.License
 
-	err := api.DecodeJsonLicense(r, &lic)
+	err := apilcp.DecodeJsonLicense(r, &lic)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		//http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -39,7 +41,7 @@ func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Serve
 
 	err = s.History().Add(ls)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -53,7 +55,7 @@ func GenerateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Ser
 
 	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -67,7 +69,7 @@ func GenerateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Ser
 	//get events
 	err = getEvents(&licenseStatus, s)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 

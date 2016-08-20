@@ -41,8 +41,9 @@ func notifyLsdServer(l License) {
 			pw.Close() // signal end writing
 		}()
 		req, err := http.NewRequest("PUT", config.Config.LsdBaseUrl+"/licenses", pr)
+		log.Println("PUT " + config.Config.LsdBaseUrl + "/licenses")
 		//req.Header.Add("Authorization", "auth_token=\"XXXXXXX\"")
-		req.Header.Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		response, err := lsdClient.Do(req)
 		if err != nil {
 			log.Println("Error Notify LsdServer of new License (" + l.Id + "):" + err.Error())

@@ -3,6 +3,7 @@ package lcpserver
 import (
 	"crypto/tls"
 	"path/filepath"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/index"
@@ -52,8 +53,10 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{
-			Handler: r,
-			Addr:    bindAddr,
+			Handler:      r,
+			Addr:         bindAddr,
+			WriteTimeout: 15 * time.Second,
+			ReadTimeout:  15 * time.Second,
 		},
 		readonly: readonly,
 		idx:      idx,
@@ -78,31 +81,31 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	r.Handle("/files/{file}", http.StripPrefix("/files/", http.FileServer(http.Dir("files"))))
 
 	if !readonly {
-		s.handleFunc("/api/store/{name}", api.StoreContent).Methods("POST")
+		s.handleFunc("/api/store/{name}", apilcp.StoreContent).Methods("POST")
 	}
 
 	//API following spec
 	//CONTENTS
-	s.handleFunc("/contents", api.ListContents).Methods("GET")                           //method supported, not in spec
-	s.handleFunc("/contents/", api.ListContents).Methods("GET")                          //method supported, not in spec
-	s.handleFunc("/contents/{key}", api.AddContent).Methods("PUT")                       //lcp spec store data resulting from external encryption
-	s.handleFunc("/contents/{key}/licenses", api.ListLicensesForContent).Methods("GET")  // list licenses for content, additional get params {page?,per_page?}
-	s.handleFunc("/contents/{key}/licenses/", api.ListLicensesForContent).Methods("GET") // idem
-	s.handleFunc("/contents/{key}/licenses", api.GenerateLicense).Methods("POST")
-	s.handleFunc("/contents/{key}/publications", api.GenerateProtectedPublication).Methods("POST")
+	s.handleFunc("/contents", apilcp.ListContents).Methods("GET")                           //method supported, not in spec
+	s.handleFunc("/contents/", apilcp.ListContents).Methods("GET")                          //method supported, not in spec
+	s.handleFunc("/contents/{key}", apilcp.AddContent).Methods("PUT")                       //lcp spec store data resulting from external encryption
+	s.handleFunc("/contents/{key}/licenses", apilcp.ListLicensesForContent).Methods("GET")  // list licenses for content, additional get params {page?,per_page?}
+	s.handleFunc("/contents/{key}/licenses/", apilcp.ListLicensesForContent).Methods("GET") // idem
+	s.handleFunc("/contents/{key}/licenses", apilcp.GenerateLicense).Methods("POST")
+	s.handleFunc("/contents/{key}/publications", apilcp.GenerateProtectedPublication).Methods("POST")
 
 	//LICENSES
-	s.handleFunc("/licenses", api.ListLicenses).Methods("GET")          // list licenses, additional get params {page?,per_page?}
-	s.handleFunc("/licenses/", api.ListLicenses).Methods("GET")         // idem
-	s.handleFunc("/licenses/{key}", api.GetLicense).Methods("GET")      //return existing license
-	s.handleFunc("/licenses/{key}", api.UpdateLicense).Methods("PATCH") //update license (rights, other)
+	s.handleFunc("/licenses", apilcp.ListLicenses).Methods("GET")          // list licenses, additional get params {page?,per_page?}
+	s.handleFunc("/licenses/", apilcp.ListLicenses).Methods("GET")         // idem
+	s.handleFunc("/licenses/{key}", apilcp.GetLicense).Methods("GET")      //return existing license
+	s.handleFunc("/licenses/{key}", apilcp.UpdateLicense).Methods("PATCH") //update license (rights, other)
 
 	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
 
 	return s
 }
 
-type HandlerFunc func(w http.ResponseWriter, r *http.Request, s api.Server)
+type HandlerFunc func(w http.ResponseWriter, r *http.Request, s apilcp.Server)
 
 func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
