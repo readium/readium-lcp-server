@@ -12,6 +12,7 @@ import (
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/localization"
 	"github.com/readium/readium-lcp-server/problem"
+	"github.com/readium/readium-lcp-server/status"
 	"github.com/readium/readium-lcp-server/transactions"
 )
 
@@ -53,6 +54,11 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 
 	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
 	if err != nil {
+		if licenseStatus == nil {
+			problem.NotFoundHandler(w, r)
+			return
+		}
+
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
@@ -76,8 +82,49 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 }
 
 func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
-	/*TODO*/
+	vars := mux.Vars(r)
 
+	licenseFk := vars["key"]
+	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
+
+	if err != nil {
+		if licenseStatus == nil {
+			problem.NotFoundHandler(w, r)
+			return
+		}
+
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	/*TODO: check for constraints? what constrains?*/
+	deviceId := r.FormValue("device_id")
+	deviceName := r.FormValue("device_name")
+
+	if licenseStatus.Status == status.STATUS_REVOKED {
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+
+	event := makeEvent(status.STATUS_ACTIVE, deviceName, deviceId, licenseStatus.Id)
+
+	err = s.Transactions().Add(*event)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	licenseStatus.Updated.Status = &event.Timestamp
+	licenseStatus.Status = event.Type
+	licenseStatus.DeviceCount += 1
+
+	err = s.History().Update(*licenseStatus)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func makeLicenseStatus(license license.License, ls *history.LicenseStatus) {
@@ -93,9 +140,9 @@ func makeLicenseStatus(license license.License, ls *history.LicenseStatus) {
 	}
 
 	if registerAvailable {
-		ls.Status = history.STATUS_READY
+		ls.Status = status.STATUS_READY
 	} else {
-		ls.Status = history.STATUS_ACTIVE
+		ls.Status = status.STATUS_ACTIVE
 	}
 
 	ls.Updated = new(history.Updated)
@@ -164,4 +211,15 @@ func createLink(publicBaseUrl string, licenseRef string, page string,
 	}
 
 	return link
+}
+
+func makeEvent(status string, deviceName string, deviceId string, licenseStatusFk int) *transactions.Event {
+	event := transactions.Event{}
+	event.DeviceId = deviceId
+	event.DeviceName = deviceName
+	event.Timestamp = time.Now()
+	event.Type = status
+	event.LicenseStatusFk = licenseStatusFk
+
+	return &event
 }

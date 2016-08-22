@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/readium/readium-lcp-server/status"
 )
 
 var NotFound = errors.New("Event not found")
@@ -19,9 +21,9 @@ type Event struct {
 	Id              int       `json:"-"`
 	DeviceName      string    `json:"name"`
 	Timestamp       time.Time `json:"timestamp"`
-	Type            int       `json:"type"`
+	Type            string    `json:"type"`
 	DeviceId        string    `json:"id"`
-	LicenseStatusFk string    `json:"-"`
+	LicenseStatusFk int       `json:"-"`
 }
 
 type dbTransactions struct {
@@ -34,10 +36,16 @@ type dbTransactions struct {
 
 func (i dbTransactions) Get(id int) (Event, error) {
 	records, err := i.get.Query(id)
+	var typeInt int64
+
 	defer records.Close()
 	if records.Next() {
 		var e Event
-		err = records.Scan(&e.Id, &e.DeviceName, &e.Timestamp, &e.Type, &e.DeviceId, &e.LicenseStatusFk)
+		err = records.Scan(&e.Id, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
+
+		if err == nil {
+			status.GetStatus(typeInt, &e.Type)
+		}
 		return e, err
 	}
 
@@ -46,11 +54,19 @@ func (i dbTransactions) Get(id int) (Event, error) {
 
 func (i dbTransactions) Add(e Event) error {
 	add, err := i.db.Prepare("INSERT INTO event VALUES (?, ?, ?, ?, ?, ?)")
+
 	if err != nil {
 		return err
 	}
+	var typeInt int64
+
+	typeInt, err = status.SetStatus(e.Type)
+	if err != nil {
+		return err
+	}
+
 	defer add.Close()
-	_, err = add.Exec(nil, e.DeviceName, e.Timestamp, e.Type, e.DeviceId, e.LicenseStatusFk)
+	_, err = add.Exec(nil, e.DeviceName, e.Timestamp, typeInt, e.DeviceId, e.LicenseStatusFk)
 	return err
 }
 

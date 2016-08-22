@@ -19,7 +19,7 @@ func TestTransactionCreation(t *testing.T) {
 
 	timestamp := time.Now()
 
-	e := Event{DeviceName: "testdevice", Timestamp: timestamp, Type: 1, DeviceId: "deviceid", LicenseStatusFk: "licensestatusfk"}
+	e := Event{DeviceName: "testdevice", Timestamp: timestamp, Type: 1, DeviceId: "deviceid", LicenseStatusFk: 1}
 	err = trns.Add(e)
 	if err != nil {
 		t.Error(err)

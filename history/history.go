@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/readium/readium-lcp-server/status"
 )
 
 var NotFound = errors.New("License Status not found")
@@ -13,6 +15,7 @@ type History interface {
 	Add(ls LicenseStatus) error
 	List() func() (LicenseStatus, error)
 	GetByLicenseId(id string) (*LicenseStatus, error)
+	Update(ls LicenseStatus) error
 }
 
 type dbHistory struct {
@@ -21,6 +24,7 @@ type dbHistory struct {
 	add            *sql.Stmt
 	list           *sql.Stmt
 	getbylicenseid *sql.Stmt
+	update         *sql.Stmt
 }
 
 func (i dbHistory) Get(id int) (LicenseStatus, error) {
@@ -34,7 +38,7 @@ func (i dbHistory) Get(id int) (LicenseStatus, error) {
 		err = records.Scan(&ls.Id, &statusDB, ls.Updated.License, ls.Updated.Status, &ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
 
 		if err == nil {
-			getStatus(statusDB, &ls.Status)
+			status.GetStatus(statusDB, &ls.Status)
 		}
 
 		return ls, err
@@ -50,7 +54,7 @@ func (i dbHistory) Add(ls LicenseStatus) error {
 	}
 	defer add.Close()
 
-	statusDB, err := setStatus(ls.Status)
+	statusDB, err := status.SetStatus(ls.Status)
 
 	if err == nil {
 		_, err = add.Exec(nil, statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, ls.LicenseRef)
@@ -72,7 +76,7 @@ func (i dbHistory) List() func() (LicenseStatus, error) {
 			err = rows.Scan(&statusDB, ls.Updated.License, ls.Updated.Status, &ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
 
 			if err == nil {
-				getStatus(statusDB, &ls.Status)
+				status.GetStatus(statusDB, &ls.Status)
 			}
 		} else {
 			rows.Close()
@@ -94,15 +98,18 @@ func (i dbHistory) GetByLicenseId(licenseFk string) (*LicenseStatus, error) {
 	err := row.Scan(&ls.Id, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef)
 
 	if err == nil {
-		getStatus(statusDB, &ls.Status)
+		status.GetStatus(statusDB, &ls.Status)
+
+		ls.PotentialRights = new(PotentialRights)
+		ls.Updated = new(Updated)
 
 		if !potentialRightsEnd.IsZero() {
-			ls.PotentialRights = new(PotentialRights)
 			ls.PotentialRights.End = potentialRightsEnd
 		}
 
 		if licenseUpdate != nil || statusUpdate != nil {
-			*ls.Updated = Updated{Status: statusUpdate, License: licenseUpdate}
+			ls.Updated.Status = statusUpdate
+			ls.Updated.License = licenseUpdate
 		}
 	} else {
 		if err == sql.ErrNoRows {
@@ -111,6 +118,25 @@ func (i dbHistory) GetByLicenseId(licenseFk string) (*LicenseStatus, error) {
 	}
 
 	return &ls, err
+}
+
+func (i dbHistory) Update(ls LicenseStatus) error {
+
+	statusInt, err := status.SetStatus(ls.Status)
+	if err != nil {
+		return err
+	}
+
+	var result sql.Result
+	result, err = i.db.Exec("UPDATE license_status SET status=?, license_updated=?, status_updated=?, device_count=?,potential_rights_end=?  WHERE id=?",
+		statusInt, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, ls.Id)
+
+	if err == nil {
+		if r, _ := result.RowsAffected(); r == 0 {
+			return NotFound
+		}
+	}
+	return err
 }
 
 func Open(db *sql.DB) (h History, err error) {
@@ -129,7 +155,7 @@ func Open(db *sql.DB) (h History, err error) {
 	if err != nil {
 		return
 	}
-	h = dbHistory{db, get, nil, list, getbylicenseid}
+	h = dbHistory{db, get, nil, list, getbylicenseid, nil}
 	return
 }
 
