@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -137,7 +138,11 @@ func main() {
 	HandleSignals()
 
 	s := lcpserver.New(":"+port, static, readonly, &idx, &store, &lst, &cert, packager)
-	s.ListenAndServe()
+	log.Println("License server running on port " + port)
+	if err := s.ListenAndServe(); err != nil {
+		log.Println("Error " + err.Error())
+	}
+
 }
 
 func HandleSignals() {
