@@ -14,6 +14,8 @@ import (
 
 var NotFound = errors.New("License not found")
 
+const ContentType string = "application/vnd.readium.lcp.license.1-0+json"
+
 type Store interface {
 	//List() func() (License, error)
 	List(ContentId string, page int, pageNum int) func() (License, error)
@@ -43,7 +45,7 @@ func notifyLsdServer(l License) {
 		req, err := http.NewRequest("PUT", config.Config.LsdBaseUrl+"/licenses", pr)
 		log.Println("PUT " + config.Config.LsdBaseUrl + "/licenses")
 		//req.Header.Add("Authorization", "auth_token=\"XXXXXXX\"")
-		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Content-Type", ContentType)
 		response, err := lsdClient.Do(req)
 		if err != nil {
 			log.Println("Error Notify LsdServer of new License (" + l.Id + "):" + err.Error())

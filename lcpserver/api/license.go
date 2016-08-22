@@ -51,7 +51,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil { // no or incorrect (json) license found in body
 		// just send partial license
 		//delete some sensitive data from license (todo?)
-		w.Header().Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
+		w.Header().Add("Content-Type", license.ContentType)
 		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 		w.WriteHeader(http.StatusPartialContent)
 		enc := json.NewEncoder(w)
@@ -82,7 +82,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Header().Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
+		w.Header().Add("Content-Type", license.ContentType)
 		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 		ExistingLicense.Encryption.UserKey.Check = nil
 		enc := json.NewEncoder(w)
@@ -208,7 +208,7 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 	key := vars["key"]
 
-	w.Header().Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
+	w.Header().Add("Content-Type", license.ContentType)
 	w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 
 	err = completeLicense(&lic, key, s)
@@ -408,7 +408,7 @@ func encryptKey(key []byte, kek []byte) []byte {
 //ListLicenses returns a JSON struct with information about emitted licenses
 // optional GET parameters are "page" (page number) and "per_page" (items par page)
 func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
-	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("Content-Type", "application/json")
 	page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
 	if err != nil {
 		page = 0 //default starting page
@@ -452,7 +452,7 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	contentId := vars["key"]
-	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("Content-Type", "application/json")
 
 	//check if license exists
 	_, err := s.Index().Get(contentId)
