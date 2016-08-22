@@ -24,19 +24,18 @@ type Problem struct {
 }
 
 func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) {
-	//todo add i18n
 	acceptLanguages := r.Header.Get("Accept-Language")
-
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
-
-	if problem.Type == "about:blank" {
-		// lookup Title  statusText should match http status
-		localization.LocalizeMessage(acceptLanguages, &problem.Title, http.StatusText(status))
-
-	}
 	problem.Status = status
+
+	if problem.Type == "about:blank" { // lookup Title  statusText should match http status
+		localization.LocalizeMessage(acceptLanguages, &problem.Title, http.StatusText(status))
+	} else {
+		localization.LocalizeMessage(acceptLanguages, &problem.Title, problem.Title)
+		localization.LocalizeMessage(acceptLanguages, &problem.Detail, problem.Detail)
+	}
 	jsonError, e := json.Marshal(problem)
 	if e != nil {
 		http.Error(w, "{}", problem.Status)
@@ -45,6 +44,6 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 }
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
-	grohl.Log(grohl.Data{"404 : path": r.URL.Path})
+	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path, "status": "404"})
 	Error(w, r, Problem{Type: "about:blank"}, http.StatusNotFound)
 }

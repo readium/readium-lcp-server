@@ -50,19 +50,26 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	err := DecodeJsonLicense(r, &lic)
 	if err != nil { // no or incorrect (json) license found in body
 		// just send partial license
-		//delete some sensitive data from license (todo?)
 		w.Header().Add("Content-Type", license.ContentType)
-		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 		w.WriteHeader(http.StatusPartialContent)
+		//delete some sensitive data from license
+		ExistingLicense.Encryption.UserKey.Check = nil
+		ExistingLicense.Encryption.UserKey.Value = nil
+		ExistingLicense.Encryption.UserKey.Hint = ""
+		ExistingLicense.Encryption.UserKey.ClearValue = ""
+		ExistingLicense.Encryption.UserKey.Key.Algorithm = ""
+		ExistingLicense.Encryption.Profile = ""
+
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
 
 		return
-	} else {
-		// add information to license and sign (real License)
-		//existing license contains most information
-		//and the licensed passed contains user information
-		ExistingLicense.User = lic.User //TODO what if lic.User is empty ?
+	} else { // add information to license , sign and return (real) License
+		if lic.User.Email == "" {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "User information must be passed in INPUT"}, http.StatusBadRequest)
+			return
+		}
+		ExistingLicense.User = lic.User
 		content, err := s.Index().Get(ExistingLicense.ContentId)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
