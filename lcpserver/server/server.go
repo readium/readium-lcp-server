@@ -109,7 +109,7 @@ type HandlerFunc func(w http.ResponseWriter, r *http.Request, s apilcp.Server)
 
 func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-		grohl.Log(grohl.Data{"path": r.URL.Path})
+		grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path})
 
 		// Add CORS
 		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/readium/readium-lcp-server/config"
@@ -31,9 +32,7 @@ type sqlStore struct {
 }
 
 func notifyLsdServer(l License) {
-	if config.Config.LsdBaseUrl != "" {
-		//notifyLsdServer of new License
-		log.Println("Notify License Status Document Server of new License : " + l.Id)
+	if config.Config.LsdBaseUrl != "" { //notifyLsdServer of new License
 		var lsdClient = &http.Client{
 			Timeout: time.Second * 10,
 		}
@@ -43,21 +42,16 @@ func notifyLsdServer(l License) {
 			pw.Close() // signal end writing
 		}()
 		req, err := http.NewRequest("PUT", config.Config.LsdBaseUrl+"/licenses", pr)
-		log.Println("PUT " + config.Config.LsdBaseUrl + "/licenses")
-		//req.Header.Add("Authorization", "auth_token=\"XXXXXXX\"")
 		req.Header.Add("Content-Type", ContentType)
 		response, err := lsdClient.Do(req)
 		if err != nil {
 			log.Println("Error Notify LsdServer of new License (" + l.Id + "):" + err.Error())
 		} else {
-			if response.StatusCode == 201 {
-				log.Println("Notify LsdServer of new License ok")
-			} else { //bad request or server error
-				log.Println("Notify LsdServer of new License (" + l.Id + "):" + string(response.StatusCode))
+			if response.StatusCode != 201 { //bad request or server error
+				log.Println("Notify LsdServer of new License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
 			}
 		}
 	}
-
 }
 
 //ListAll, lists all licenses in ante-chronological order
