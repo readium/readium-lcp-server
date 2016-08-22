@@ -37,18 +37,16 @@ func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Serve
 	var ls history.LicenseStatus
 	makeLicenseStatus(lic, &ls)
 
-	ls.Updated = new(history.Updated)
-
 	err = s.History().Add(ls)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(201)
+	w.WriteHeader(http.StatusCreated)
 }
 
-func GenerateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
+func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 
 	licenseFk := vars["key"]
@@ -60,14 +58,14 @@ func GenerateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Ser
 	}
 
 	//prepare links
-	makeLinks(&licenseStatus)
+	makeLinks(licenseStatus)
 
 	//localize message
 	acceptLanguages := r.Header.Get("Accept-Language")
 	localization.LocalizeMessage(acceptLanguages, &licenseStatus.Message, licenseStatus.Status)
 
 	//get events
-	err = getEvents(&licenseStatus, s)
+	err = getEvents(licenseStatus, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -77,14 +75,20 @@ func GenerateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Ser
 	enc.Encode(licenseStatus)
 }
 
+func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
+	/*TODO*/
+
+}
+
 func makeLicenseStatus(license license.License, ls *history.LicenseStatus) {
 	ls.LicenseRef = license.Id
 
 	registerAvailable := config.Config.LicenseStatus.Register
 	rentingDays := config.Config.LicenseStatus.RentingDays
 
+	ls.PotentialRights = new(history.PotentialRights)
+
 	if rentingDays != 0 {
-		ls.PotentialRights = new(history.PotentialRights)
 		ls.PotentialRights.End = license.Issued.Add(time.Hour * 24 * 7 * time.Duration(rentingDays))
 	}
 
@@ -94,6 +98,7 @@ func makeLicenseStatus(license license.License, ls *history.LicenseStatus) {
 		ls.Status = history.STATUS_ACTIVE
 	}
 
+	ls.Updated = new(history.Updated)
 }
 
 func getEvents(ls *history.LicenseStatus, s Server) error {
