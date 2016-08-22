@@ -12,7 +12,7 @@ type History interface {
 	Get(id int) (LicenseStatus, error)
 	Add(ls LicenseStatus) error
 	List() func() (LicenseStatus, error)
-	GetByLicenseId(id string) (LicenseStatus, error)
+	GetByLicenseId(id string) (*LicenseStatus, error)
 }
 
 type dbHistory struct {
@@ -82,7 +82,7 @@ func (i dbHistory) List() func() (LicenseStatus, error) {
 	}
 }
 
-func (i dbHistory) GetByLicenseId(licenseFk string) (LicenseStatus, error) {
+func (i dbHistory) GetByLicenseId(licenseFk string) (*LicenseStatus, error) {
 	var statusDB int64
 	ls := LicenseStatus{}
 
@@ -104,9 +104,13 @@ func (i dbHistory) GetByLicenseId(licenseFk string) (LicenseStatus, error) {
 		if licenseUpdate != nil || statusUpdate != nil {
 			*ls.Updated = Updated{Status: statusUpdate, License: licenseUpdate}
 		}
+	} else {
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
 	}
 
-	return ls, err
+	return &ls, err
 }
 
 func Open(db *sql.DB) (h History, err error) {
