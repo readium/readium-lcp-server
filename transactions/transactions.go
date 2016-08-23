@@ -15,6 +15,7 @@ type Transactions interface {
 	Add(e Event) error
 	List() func() (Event, error)
 	GetByLicenseStatusId(licenseStatusFk int) func() (Event, error)
+	CheckDeviceStatus(licenseStatusFk int, deviceId string) (string, error)
 }
 
 type Event struct {
@@ -32,6 +33,7 @@ type dbTransactions struct {
 	add                  *sql.Stmt
 	list                 *sql.Stmt
 	getbylicensestatusid *sql.Stmt
+	checkdevicestatus    *sql.Stmt
 }
 
 func (i dbTransactions) Get(id int) (Event, error) {
@@ -106,6 +108,20 @@ func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event,
 	}
 }
 
+func (i dbTransactions) CheckDeviceStatus(licenseStatusFk int, deviceId string) (string, error) {
+	var typeString string
+	var typeInt int64
+
+	row := i.checkdevicestatus.QueryRow(licenseStatusFk, deviceId)
+	err := row.Scan(&typeInt)
+
+	if err != nil {
+		status.GetStatus(typeInt, &typeString)
+	}
+
+	return typeString, err
+}
+
 func Open(db *sql.DB) (t Transactions, err error) {
 	_, err = db.Exec(tableDef)
 	if err != nil {
@@ -119,11 +135,14 @@ func Open(db *sql.DB) (t Transactions, err error) {
 
 	getbylicensestatusid, err := db.Prepare("SELECT * FROM event where license_status_fk = ?")
 
+	checkdevicestatus, err := db.Prepare(`SELECT type FROM event where license_status_fk = ?
+	AND device_id = ? ORDER BY timestamp DESC LIMIT 1`)
+
 	if err != nil {
 		return
 	}
 
-	t = dbTransactions{db, get, nil, list, getbylicensestatusid}
+	t = dbTransactions{db, get, nil, list, getbylicensestatusid, checkdevicestatus}
 	return
 }
 

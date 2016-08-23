@@ -21,6 +21,8 @@ type Server interface {
 	History() history.History
 }
 
+const SERVER_INTERNAL_ERROR = "http://readium.org/license-status-document/error/server"
+
 //without privacy for now
 //make privacy
 //return loc errors
@@ -93,7 +95,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -102,11 +104,136 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	deviceName := r.FormValue("device_name")
 
 	if licenseStatus.Status == status.STATUS_REVOKED {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "http://readium.org/license-status-document/error/registration", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
 	event := makeEvent(status.STATUS_ACTIVE, deviceName, deviceId, licenseStatus.Id)
+
+	err = s.Transactions().Add(*event)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	licenseStatus.Updated.Status = &event.Timestamp
+	licenseStatus.Status = event.Type
+
+	//when register ++1 to device count
+	licenseStatus.DeviceCount += 1
+
+	err = s.History().Update(*licenseStatus)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	//do we need to return a license status here?
+}
+
+func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+
+	licenseFk := vars["key"]
+	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
+
+	if err != nil {
+		if licenseStatus == nil {
+			problem.NotFoundHandler(w, r)
+			return
+		}
+
+		problem.Error(w, r, problem.Problem{Type: SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	/*TODO: need to check constraints here?*/
+	deviceId := r.FormValue("device_id")
+	deviceName := r.FormValue("device_name")
+
+	if licenseStatus.Status == status.STATUS_RETURNED {
+		problem.Error(w, r, problem.Problem{Type: "http://readium.org/license-status-document/error/return/already", Detail: err.Error()}, http.StatusForbidden)
+		return
+	}
+	if licenseStatus.Status == status.STATUS_EXPIRED {
+		problem.Error(w, r, problem.Problem{Type: "http://readium.org/license-status-document/error/return/expired", Detail: err.Error()}, http.StatusForbidden)
+		return
+	}
+
+	//check if device is active in this way?
+	deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	if deviceStatus != status.STATUS_ACTIVE {
+		/*what error to return here?*/
+	}
+
+	event := makeEvent(status.STATUS_RETURNED, deviceName, deviceId, licenseStatus.Id)
+
+	err = s.Transactions().Add(*event)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	licenseStatus.Updated.Status = &event.Timestamp
+	licenseStatus.Updated.License = &event.Timestamp
+
+	//from spec about return
+	if licenseStatus.Status == status.STATUS_READY {
+		licenseStatus.Status = status.STATUS_CANCELLED
+	}
+	if licenseStatus.Status == status.STATUS_ACTIVE {
+		licenseStatus.Status = status.STATUS_RETURNED
+	}
+
+	err = s.History().Update(*licenseStatus)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	/*TODO lcp update rights*/
+
+	w.WriteHeader(http.StatusOK)
+	enc := json.NewEncoder(w)
+	enc.Encode(licenseStatus)
+}
+
+func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+
+	licenseFk := vars["key"]
+	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
+
+	if err != nil {
+		if licenseStatus == nil {
+			problem.NotFoundHandler(w, r)
+			return
+		}
+
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	/*TODO: need to check constraints here?*/
+	deviceId := r.FormValue("device_id")
+	deviceName := r.FormValue("device_name")
+
+	//check if device is active in this way?
+	deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	if deviceStatus != status.STATUS_ACTIVE {
+		/*what error to return here?*/
+	}
+
+	event := makeEvent(status.STATUS_RETURNED, deviceName, deviceId, licenseStatus.Id)
 
 	err = s.Transactions().Add(*event)
 	if err != nil {
@@ -115,8 +242,8 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	licenseStatus.Updated.Status = &event.Timestamp
+	licenseStatus.Updated.License = &event.Timestamp
 	licenseStatus.Status = event.Type
-	licenseStatus.DeviceCount += 1
 
 	err = s.History().Update(*licenseStatus)
 	if err != nil {
@@ -124,7 +251,11 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	/*TODO lcp update rights*/
+
 	w.WriteHeader(http.StatusOK)
+	enc := json.NewEncoder(w)
+	enc.Encode(licenseStatus)
 }
 
 func makeLicenseStatus(license license.License, ls *history.LicenseStatus) {
