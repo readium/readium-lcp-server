@@ -13,7 +13,7 @@ var NotFound = errors.New("License Status not found")
 type History interface {
 	Get(id int) (LicenseStatus, error)
 	Add(ls LicenseStatus) error
-	List() func() (LicenseStatus, error)
+	List(deviceLimit int64, limit int64, offset int64) func() (LicenseStatus, error)
 	GetByLicenseId(id string) (*LicenseStatus, error)
 	Update(ls LicenseStatus) error
 }
@@ -63,17 +63,20 @@ func (i dbHistory) Add(ls LicenseStatus) error {
 	return err
 }
 
-func (i dbHistory) List() func() (LicenseStatus, error) {
-	rows, err := i.list.Query()
+func (i dbHistory) List(deviceLimit int64, limit int64, offset int64) func() (LicenseStatus, error) {
+	rows, err := i.list.Query(deviceLimit, limit, offset)
 	if err != nil {
 		return func() (LicenseStatus, error) { return LicenseStatus{}, err }
 	}
 	return func() (LicenseStatus, error) {
 		var statusDB int64
-		var ls LicenseStatus
+		ls := LicenseStatus{}
+		ls.PotentialRights = new(PotentialRights)
+		ls.Updated = new(Updated)
+
 		var err error
 		if rows.Next() {
-			err = rows.Scan(&statusDB, ls.Updated.License, ls.Updated.Status, &ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
+			err = rows.Scan(&ls.Id, &statusDB, &ls.Updated.License, &ls.Updated.Status, &ls.DeviceCount, &ls.PotentialRights.End, &ls.LicenseRef)
 
 			if err == nil {
 				status.GetStatus(statusDB, &ls.Status)
@@ -148,7 +151,8 @@ func Open(db *sql.DB) (h History, err error) {
 	if err != nil {
 		return
 	}
-	list, err := db.Prepare("SELECT * FROM license_status")
+	/*TODO: by what field order?*/
+	list, err := db.Prepare("SELECT * FROM license_status WHERE device_count > ? LIMIT ? OFFSET ?")
 
 	getbylicenseid, err := db.Prepare("SELECT * FROM license_status where license_ref = ?")
 

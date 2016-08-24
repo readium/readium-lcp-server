@@ -3,6 +3,7 @@ package apilsd
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -80,7 +81,11 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 	}
 
 	enc := json.NewEncoder(w)
-	enc.Encode(licenseStatus)
+	err = enc.Encode(licenseStatus)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
 }
 
 func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
@@ -258,6 +263,76 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	enc.Encode(licenseStatus)
 }
 
+func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
+	w.Header().Set("Content-Type", "application/json")
+
+	devicesLimit, err := strconv.ParseInt(r.FormValue("devices"), 10, 32)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+
+	page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+
+	perPage, err := strconv.ParseInt(r.FormValue("per_page"), 10, 32)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+
+	if (page < 1) || (perPage < 1) || (devicesLimit < 1) {
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "devices, page, per_page must be positive number"}, http.StatusBadRequest)
+		return
+	}
+
+	page -= 1
+
+	licenseStatuses := make([]history.LicenseStatus, 0)
+
+	fn := s.History().List(devicesLimit, perPage, page*perPage)
+	for it, err := fn(); err == nil; it, err = fn() {
+		makeLinks(&it)
+
+		acceptLanguages := r.Header.Get("Accept-Language")
+		localization.LocalizeMessage(acceptLanguages, &it.Message, it.Status)
+
+		err = getEvents(&it, s)
+		licenseStatuses = append(licenseStatuses, it)
+	}
+
+	devices := strconv.Itoa(int(devicesLimit))
+	lsperpage := strconv.Itoa(int(perPage) + 1)
+	var resultLink string
+
+	if len(licenseStatuses) > 0 {
+		nextPage := strconv.Itoa(int(page) + 1)
+		resultLink += "</licenses/?devices=" + devices + "&page=" + nextPage + "&per_page=" + lsperpage + ">; rel=\"next\"; title=\"next\""
+	}
+
+	if page > 0 {
+		previousPage := strconv.Itoa(int(page) - 1)
+		if len(resultLink) > 0 {
+			resultLink += ", "
+		}
+		resultLink += "</licenses/?devices=" + devices + "&page=" + previousPage + "&per_page=" + lsperpage + ">; rel=\"previous\"; title=\"previous\""
+	}
+
+	if len(resultLink) > 0 {
+		w.Header().Set("Link", resultLink)
+	}
+
+	enc := json.NewEncoder(w)
+	err = enc.Encode(licenseStatuses)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+}
+
 func makeLicenseStatus(license license.License, ls *history.LicenseStatus) {
 	ls.LicenseRef = license.Id
 
@@ -337,9 +412,7 @@ func createLink(publicBaseUrl string, licenseRef string, page string,
 	link.Title = title
 	link.Type = typeLink
 
-	if !templated {
-		link.Templated = true
-	}
+	link.Templated = templated
 
 	return link
 }

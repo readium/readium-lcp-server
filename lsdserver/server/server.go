@@ -49,6 +49,7 @@ func New(bindAddr string, tplPath string, readonly bool, hist *history.History, 
 	s.handleFunc("/licenses/{key}/register", apilsd.RegisterDevice).Methods("POST")
 	s.handleFunc("/licenses/{key}/return", apilsd.LendingReturn).Methods("PUT")
 	s.handleFunc("/licenses/{key}/renew", apilsd.LendingRenewal).Methods("PUT")
+	s.handleFunc("/licenses", apilsd.FilterLicenseStatuses).Methods("GET")
 
 	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
 
