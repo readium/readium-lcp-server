@@ -89,6 +89,7 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	s.handleFunc("/contents", apilcp.ListContents).Methods("GET")                           //method supported, not in spec
 	s.handleFunc("/contents/", apilcp.ListContents).Methods("GET")                          //method supported, not in spec
 	s.handleFunc("/contents/{key}", apilcp.AddContent).Methods("PUT")                       //lcp spec store data resulting from external encryption
+	s.handleFunc("/contents/{name}", apilcp.StoreContent).Methods("POST")                   //lcp spec encrypt & store epub file (in BODY)
 	s.handleFunc("/contents/{key}/licenses", apilcp.ListLicensesForContent).Methods("GET")  // list licenses for content, additional get params {page?,per_page?}
 	s.handleFunc("/contents/{key}/licenses/", apilcp.ListLicensesForContent).Methods("GET") // idem
 	s.handleFunc("/contents/{key}/licenses", apilcp.GenerateLicense).Methods("POST")
