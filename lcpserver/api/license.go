@@ -416,30 +416,33 @@ func encryptKey(key []byte, kek []byte) []byte {
 // optional GET parameters are "page" (page number) and "per_page" (items par page)
 func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", "application/json")
-	if (r.FormValue("page")!="") {
-		page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
+	var page int64
+	var per_page int64
+	var err error
+	if r.FormValue("page") != "" {
+		page, err = strconv.ParseInt(r.FormValue("page"), 10, 32)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 	} else {
-		page=1
+		page = 1
 	}
-	if (r.FormValue("per_page")!="") {
-		per_page, err := strconv.ParseInt(r.FormValue("per_page"), 10, 32)
+	if r.FormValue("per_page") != "" {
+		per_page, err = strconv.ParseInt(r.FormValue("per_page"), 10, 32)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
-		}	
+		}
 	} else {
-		per_page=30;
+		per_page = 30
 	}
-	if page > 0 { 
+	if page > 0 {
 		page -= 1 //pagenum starting at 0 in code, but user interface starting at 1
-	} 
+	}
 	if page < 0 {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "page must be positive integer"}, http.StatusBadRequest)
-		return		
+		return
 	}
 	licenses := make([]license.License, 0)
 	log.Println("ListAll(" + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
@@ -468,37 +471,42 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 // optional GET parameters are "page" (page number) and "per_page" (items par page)
 func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
+	var page int64
+	var per_page int64
+	var err error
 	contentId := vars["key"]
 	w.Header().Set("Content-Type", "application/json")
 	//check if license exists
-	_, err := s.Index().Get(contentId)
+	_, err = s.Index().Get(contentId)
 	if err == index.NotFound {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusNotFound)
 		return
 	} //other errors pass, but will probably reoccur
-	if (r.FormValue("page")!="") {
-		page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
+	if r.FormValue("page") != "" {
+		page, err = strconv.ParseInt(r.FormValue("page"), 10, 32)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
+		}
 	} else {
-		page=1
+		page = 1
 	}
-	if (r.FormValue("per_page")!="") {
-		per_page, err := strconv.ParseInt(r.FormValue("per_page"), 10, 32)
+
+	if r.FormValue("per_page") != "" {
+		per_page, err = strconv.ParseInt(r.FormValue("per_page"), 10, 32)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
-		}	
+		}
 	} else {
-		per_page=30;
+		per_page = 30
 	}
-	if page > 0 { 
+	if page > 0 {
 		page -= 1 //pagenum starting at 0 in code, but user interface starting at 1
-	} 
+	}
 	if page < 0 {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "page must be positive integer"}, http.StatusBadRequest)
-		return		
+		return
 	}
 	licenses := make([]license.License, 0)
 	log.Println("List(" + contentId + "," + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
