@@ -416,21 +416,24 @@ func encryptKey(key []byte, kek []byte) []byte {
 // optional GET parameters are "page" (page number) and "per_page" (items par page)
 func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", "application/json")
-	if (r.FormValue("page")!="")
+	if (r.FormValue("page")!="") {
 		page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
-	else page=1
+	} else {
+		page=1
+	}
 	if (r.FormValue("per_page")!="") {
 		per_page, err := strconv.ParseInt(r.FormValue("per_page"), 10, 32)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}	
+	} else {
+		per_page=30;
 	}
-	else per_page=30;
 	if page > 0 { 
 		page -= 1 //pagenum starting at 0 in code, but user interface starting at 1
 	} 
@@ -458,7 +461,6 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-
 }
 
 //ListLicenses returns a JSON struct with information about emitted licenses
@@ -474,21 +476,23 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusNotFound)
 		return
 	} //other errors pass, but will probably reoccur
-	if (r.FormValue("page")!="")
+	if (r.FormValue("page")!="") {
 		page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
-		}
-	else page=1
+	} else {
+		page=1
+	}
 	if (r.FormValue("per_page")!="") {
 		per_page, err := strconv.ParseInt(r.FormValue("per_page"), 10, 32)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}	
+	} else {
+		per_page=30;
 	}
-	else per_page=30;
 	if page > 0 { 
 		page -= 1 //pagenum starting at 0 in code, but user interface starting at 1
 	} 
