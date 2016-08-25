@@ -12,6 +12,10 @@ const (
 	STATUS_RETURNED  = "returned"
 	STATUS_CANCELLED = "cancelled"
 	STATUS_EXPIRED   = "expired"
+
+	TYPE_REGISTER = "register"
+	TYPE_RETURN   = "return"
+	TYPE_RENEW    = "renew"
 )
 
 var statuses = map[int]string{
@@ -21,6 +25,12 @@ var statuses = map[int]string{
 	3: STATUS_RETURNED,
 	4: STATUS_CANCELLED,
 	5: STATUS_EXPIRED,
+}
+
+var Types = map[int]string{
+	1: TYPE_REGISTER,
+	2: TYPE_RETURN,
+	3: TYPE_RENEW,
 }
 
 func GetStatus(statusDB int64, status *string) {

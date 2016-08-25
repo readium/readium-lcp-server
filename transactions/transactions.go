@@ -12,10 +12,21 @@ var NotFound = errors.New("Event not found")
 
 type Transactions interface {
 	Get(id int) (Event, error)
-	Add(e Event) error
-	List() func() (Event, error)
+	Add(e Event, typeEvent int) error
 	GetByLicenseStatusId(licenseStatusFk int) func() (Event, error)
 	CheckDeviceStatus(licenseStatusFk int, deviceId string) (string, error)
+	ListRegisteredDevices(licenseStatusFk int) func() (Device, error)
+}
+
+type RegisteredDevicesList struct {
+	Id      string   `json:"id"`
+	Devices []Device `json:"devices"`
+}
+
+type Device struct {
+	DeviceId   string    `json:"id"`
+	DeviceName string    `json:"name"`
+	Timestamp  time.Time `json:"timestamp"`
 }
 
 type Event struct {
@@ -28,25 +39,24 @@ type Event struct {
 }
 
 type dbTransactions struct {
-	db                   *sql.DB
-	get                  *sql.Stmt
-	add                  *sql.Stmt
-	list                 *sql.Stmt
-	getbylicensestatusid *sql.Stmt
-	checkdevicestatus    *sql.Stmt
+	db                    *sql.DB
+	get                   *sql.Stmt
+	add                   *sql.Stmt
+	getbylicensestatusid  *sql.Stmt
+	checkdevicestatus     *sql.Stmt
+	listregistereddevices *sql.Stmt
 }
 
 func (i dbTransactions) Get(id int) (Event, error) {
 	records, err := i.get.Query(id)
-	var typeInt int64
+	var typeInt int
 
 	defer records.Close()
 	if records.Next() {
 		var e Event
 		err = records.Scan(&e.Id, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
-
 		if err == nil {
-			status.GetStatus(typeInt, &e.Type)
+			e.Type = status.Types[typeInt]
 		}
 		return e, err
 	}
@@ -54,40 +64,16 @@ func (i dbTransactions) Get(id int) (Event, error) {
 	return Event{}, NotFound
 }
 
-func (i dbTransactions) Add(e Event) error {
+func (i dbTransactions) Add(e Event, typeEvent int) error {
 	add, err := i.db.Prepare("INSERT INTO event VALUES (?, ?, ?, ?, ?, ?)")
 
 	if err != nil {
 		return err
 	}
-	var typeInt int64
-
-	typeInt, err = status.SetStatus(e.Type)
-	if err != nil {
-		return err
-	}
 
 	defer add.Close()
-	_, err = add.Exec(nil, e.DeviceName, e.Timestamp, typeInt, e.DeviceId, e.LicenseStatusFk)
+	_, err = add.Exec(nil, e.DeviceName, e.Timestamp, typeEvent, e.DeviceId, e.LicenseStatusFk)
 	return err
-}
-
-func (i dbTransactions) List() func() (Event, error) {
-	rows, err := i.list.Query()
-	if err != nil {
-		return func() (Event, error) { return Event{}, err }
-	}
-	return func() (Event, error) {
-		var e Event
-		var err error
-		if rows.Next() {
-			err = rows.Scan(&e.Id, &e.DeviceName, &e.Timestamp, &e.Type, &e.DeviceId, &e.LicenseStatusFk)
-		} else {
-			rows.Close()
-			err = NotFound
-		}
-		return e, err
-	}
 }
 
 func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event, error) {
@@ -105,6 +91,24 @@ func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event,
 			err = NotFound
 		}
 		return e, err
+	}
+}
+
+func (i dbTransactions) ListRegisteredDevices(licenseStatusFk int) func() (Device, error) {
+	rows, err := i.listregistereddevices.Query(licenseStatusFk)
+	if err != nil {
+		return func() (Device, error) { return Device{}, err }
+	}
+	return func() (Device, error) {
+		var d Device
+		var err error
+		if rows.Next() {
+			err = rows.Scan(&d.DeviceId, &d.DeviceName, &d.Timestamp)
+		} else {
+			rows.Close()
+			err = NotFound
+		}
+		return d, err
 	}
 }
 
@@ -131,25 +135,27 @@ func Open(db *sql.DB) (t Transactions, err error) {
 	if err != nil {
 		return
 	}
-	list, err := db.Prepare("SELECT * FROM event")
 
-	getbylicensestatusid, err := db.Prepare("SELECT * FROM event where license_status_fk = ?")
+	getbylicensestatusid, err := db.Prepare("SELECT * FROM event WHERE license_status_fk = ?")
 
-	checkdevicestatus, err := db.Prepare(`SELECT type FROM event where license_status_fk = ?
+	checkdevicestatus, err := db.Prepare(`SELECT type FROM event WHERE license_status_fk = ?
 	AND device_id = ? ORDER BY timestamp DESC LIMIT 1`)
+
+	listregistereddevices, err := db.Prepare(`SELECT device_id, 
+	device_name, timestamp  FROM event  WHERE license_status_fk = ? AND type = 1`)
 
 	if err != nil {
 		return
 	}
 
-	t = dbTransactions{db, get, nil, list, getbylicensestatusid, checkdevicestatus}
+	t = dbTransactions{db, get, nil, getbylicensestatusid, checkdevicestatus, listregistereddevices}
 	return
 }
 
 const tableDef = `CREATE TABLE IF NOT EXISTS event (
 	id integer PRIMARY KEY, 
-	device_name varchar(255) NOT NULL,
+	device_name varchar(255) DEFAULT NULL,
 	timestamp datetime NOT NULL,
 	type int NOT NULL,
-	device_id varchar(255) NOT NULL,
+	device_id varchar(255) DEFAULT NULL,
 	license_status_fk int(11) NOT NULL )`

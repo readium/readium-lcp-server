@@ -151,8 +151,9 @@ func Open(db *sql.DB) (h History, err error) {
 	if err != nil {
 		return
 	}
-	/*TODO: by what field order?*/
-	list, err := db.Prepare("SELECT * FROM license_status WHERE device_count > ? LIMIT ? OFFSET ?")
+
+	list, err := db.Prepare(`SELECT * FROM license_status WHERE device_count > ? 
+		ORDER BY id DESC LIMIT ? OFFSET ?`)
 
 	getbylicenseid, err := db.Prepare("SELECT * FROM license_status where license_ref = ?")
 

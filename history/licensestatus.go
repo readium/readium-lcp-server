@@ -14,9 +14,7 @@ type Updated struct {
 type Link struct {
 	Href      string `json:"href"`
 	Type      string `json:"type,omitempty"`
-	Title     string `json:"title,omitempty"`
 	Templated bool   `json:"templated,omitempty" "default false"`
-	Profile   string `json:"profile,omitempty"`
 }
 
 type PotentialRights struct {

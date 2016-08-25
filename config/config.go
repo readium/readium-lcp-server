@@ -54,6 +54,7 @@ type LicenseStatus struct {
 	Register    bool `yaml:"register"`
 	Return      bool `yaml:"return"`
 	RentingDays int  `yaml:"renting_days" "default 0"`
+	RenewDays   int  `yaml:"renew_days" "default 0"`
 }
 
 type Localization struct {
