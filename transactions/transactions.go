@@ -114,13 +114,17 @@ func (i dbTransactions) ListRegisteredDevices(licenseStatusFk int) func() (Devic
 
 func (i dbTransactions) CheckDeviceStatus(licenseStatusFk int, deviceId string) (string, error) {
 	var typeString string
-	var typeInt int64
+	var typeInt int
 
 	row := i.checkdevicestatus.QueryRow(licenseStatusFk, deviceId)
 	err := row.Scan(&typeInt)
 
-	if err != nil {
-		status.GetStatus(typeInt, &typeString)
+	if err == nil {
+		typeString = status.Types[typeInt]
+	} else {
+		if err == sql.ErrNoRows {
+			return typeString, nil
+		}
 	}
 
 	return typeString, err

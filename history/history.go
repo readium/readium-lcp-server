@@ -93,7 +93,7 @@ func (i dbHistory) GetByLicenseId(licenseFk string) (*LicenseStatus, error) {
 	var statusDB int64
 	ls := LicenseStatus{}
 
-	var potentialRightsEnd time.Time
+	var potentialRightsEnd *time.Time
 	var licenseUpdate *time.Time
 	var statusUpdate *time.Time
 
@@ -106,7 +106,7 @@ func (i dbHistory) GetByLicenseId(licenseFk string) (*LicenseStatus, error) {
 		ls.PotentialRights = new(PotentialRights)
 		ls.Updated = new(Updated)
 
-		if !potentialRightsEnd.IsZero() {
+		if (potentialRightsEnd != nil) && (!(*potentialRightsEnd).IsZero()) {
 			ls.PotentialRights.End = potentialRightsEnd
 		}
 

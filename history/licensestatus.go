@@ -18,7 +18,7 @@ type Link struct {
 }
 
 type PotentialRights struct {
-	End time.Time `json:"end,omitempty"`
+	End *time.Time `json:"end,omitempty"`
 }
 
 type LicenseStatus struct {
