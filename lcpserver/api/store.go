@@ -71,7 +71,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 	result := s.Source().Post(t)
 
 	if result.Error != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: result.Error.Error()}, http.StatusBadRequest)
 		return
 	}
 
