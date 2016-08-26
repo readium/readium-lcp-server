@@ -6,12 +6,6 @@ files/
 config.yaml
 .vscode/launch.json
 debug
-readium-lcp-server.exe
-lcpencrypt/lcpencrypt.exe
 *.exe
-lcpserver/lcpconfig.yaml
 *.yaml
-lcpserver/lcpconfig.yaml
-*.yaml
-lcpserver/lcpconfig.yaml
-lcpserver/lcpconfig.yaml
+
