@@ -52,7 +52,7 @@ func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPubl
 
 // reads and returns the content of
 // a file on the local filesystem
-// or via a GET if the scheme is http://   or https://
+// or via a GET if the scheme is http:// or https://
 func getInputFile(inputFilename string) ([]byte, error) {
 	url, err := url.Parse(inputFilename)
 	if err != nil {
@@ -74,25 +74,26 @@ func getInputFile(inputFilename string) ([]byte, error) {
 }
 
 func showHelpAndExit() {
-	log.Println("lcpencrypt packs an epub for usage in an lcp environment")
-	log.Println("-input : source file locator.  (file system or http GET)")
+	log.Println("lcpencrypt protects an epub file for usage in an lcp environment")
+	log.Println("-input : source epub file locator (file system or http GET)")
 	log.Println("[-contentid] : optional content identifier, if omitted a new one will be generated")
-	log.Println("[-output] : optional target file for protected content (file system or http PUT)")
-	log.Println("[-lcpsv] : http endpoint of the LCP service for exchange of information")
-	log.Println("[-help] ")
+	log.Println("[-output] : optional target location for protected content (file system or http PUT)")
+	log.Println("[-lcpsv] : optional http endpoint of the LCP server")
+	log.Println("[-help] : help information")
 	os.Exit(0)
 	return
 }
 
 func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel int) {
 	os.Stderr.WriteString(lcpPublication.ErrorMessage)
-	os.Stderr.WriteString(err.Error())
 	os.Stderr.WriteString("\n")
+	os.Stderr.WriteString(err.Error())
 	jsonBody, err := json.MarshalIndent(lcpPublication, " ", "  ")
 	if err != nil {
-		os.Stderr.WriteString("Error writing json to stdout")
+		os.Stderr.WriteString("\nError creating json lpcPublication")
 		os.Exit(errorlevel)
 	}
+	os.Stdout.WriteString("\nlpcPublication:\n")
 	os.Stdout.Write(jsonBody)
 	os.Exit(errorlevel)
 }
@@ -100,10 +101,10 @@ func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel i
 func main() {
 	var err error
 	var addedPublication apilcp.LcpPublication
-	var inputFilename = flag.String("input", "", "source file locator.  (file system or http GET)")
-	var contentid = flag.String("contentid", "", "optional content identifier, if not present a new one is generated")
-	var outputFilename = flag.String("output", "", "optional target file for protected content (file system or http PUT) ")
-	var lcpsv = flag.String("lcpsv", "", "http endpoint of the LCP service for exchange of information ")
+	var inputFilename = flag.String("input", "", "source epub file locator (file system or http GET)")
+	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new one is generated")
+	var outputFilename = flag.String("output", "", "optional target location for protected content (file system or http PUT)")
+	var lcpsv = flag.String("lcpsv", "", "optional http endpoint of the LCP server")
 	var help = flag.Bool("help", false, "shows information")
 
 	if !flag.Parsed() {
@@ -112,9 +113,11 @@ func main() {
 	if *help {
 		showHelpAndExit()
 	}
+
+	// read the epub input file content in memory
 	buf, err := getInputFile(*inputFilename)
 	if err != nil {
-		addedPublication.ErrorMessage = "Error opening input, for more information type \"lcpencrypt -help\""
+		addedPublication.ErrorMessage = "Error opening input file, for more information type 'lcpencrypt -help' "
 		exitWithError(addedPublication, err, 12)
 		return
 	}
@@ -128,7 +131,8 @@ func main() {
 		*outputFilename = strings.Join([]string{workingDir, string(os.PathSeparator), *contentid, ".epub"}, "")
 	}
 	addedPublication.Output = *outputFilename
-	// decode and pack epub file
+
+	// read the epub content from the zipped buffer
 	zr, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
 	if err != nil {
 		addedPublication.ErrorMessage = "Error opening zip/epub"
@@ -137,12 +141,13 @@ func main() {
 	}
 	ep, err := epub.Read(zr)
 	if err != nil {
-		addedPublication.ErrorMessage = "Error reading epub"
+		addedPublication.ErrorMessage = "Error reading epub content"
 		exitWithError(addedPublication, err, 8)
 		os.Exit(3)
 		return
 	}
 
+	// create an output file
 	output, err := os.Create(*outputFilename)
 	if err != nil {
 		addedPublication.ErrorMessage = "Error writing output file"
@@ -150,6 +155,7 @@ func main() {
 		return
 	}
 
+	// pack / encrypt the epub content, fill the output file
 	_, encryptionKey, err := pack.Do(ep, output)
 	output.Close()
 	if err != nil {
@@ -160,6 +166,7 @@ func main() {
 	addedPublication.ContentKey = encryptionKey
 	addedPublication.Output = *outputFilename
 
+	// notify the LCP Server
 	if *lcpsv != "" {
 		err = notifyLcpServer(*lcpsv, *contentid, addedPublication)
 		if err != nil {
@@ -169,12 +176,15 @@ func main() {
 		}
 	}
 
+	// write json message to stdout
 	jsonBody, err := json.Marshal(addedPublication)
 	if err != nil {
-		addedPublication.ErrorMessage = "Error writing json to stdout"
+		addedPublication.ErrorMessage = "Error creating json addedPublication"
 		exitWithError(addedPublication, err, 1)
 		return
 	}
 	os.Stdout.Write(jsonBody)
+	os.Stdout.WriteString("\n")
+
 	os.Exit(0)
 }
