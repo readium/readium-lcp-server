@@ -13,10 +13,18 @@ type Configuration struct {
 	Storage       Storage       `yaml:"storage"`
 	License       License       `yaml:"license"`
 	LsdBaseUrl    string        `yaml:"lsd_base_url"`
-	LcpBaseUrl    string        `yaml:"lcp_base_url"`
+	LcpServer     ServerInfo    `yaml:"lcp"`
 	Static        Static        `yaml:"static"`
 	LicenseStatus LicenseStatus `yaml:"license_status"`
 	Localization  Localization  `yaml:"localization"`
+}
+
+type ServerInfo struct {
+	Host          string `yaml:"host,omitempty"`
+	Port          int    `yaml:"port,omitempty"`
+	ReadOnly      bool   `yaml:"readonly,omitempty"`
+	PublicBaseUrl string `yaml:"public_base_url,omitempty"`
+	Database      string `yaml:"database,omitempty"`
 }
 
 type Certificate struct {

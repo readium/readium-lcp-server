@@ -1,4 +1,3 @@
-database: sqlite3://file:test.sqlite?cache=shared&mode=rwc
 lcp_base_url: "http://127.0.0.1:8989"
 lsd_base_url: "http://127.0.0.1:8990"
 certificate:
@@ -15,6 +14,12 @@ localization:
         languages: ["ru-RU", "en-US"]
         folder: E:\GoProjects\src\github.com\readium\readium-lcp-server\messages\
         default_language: "en-US"
-
-                      
-                      
+static:
+    directory: "../static"
+lcp:
+    host: "localhost"
+    port: 8989
+    readonly: false
+    public_base_url:  "http://127.0.0.1:8989"
+    database: "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
+                 

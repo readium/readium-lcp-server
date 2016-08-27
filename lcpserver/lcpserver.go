@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -29,70 +30,54 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-	var config_file, host, port, publicBaseUrl, dbURI, storagePath, certFile, privKeyFile, static string
+	var config_file, host, publicBaseUrl, dbURI, storagePath, certFile, privKeyFile, static string
 	var readonly bool = false
+	var port int
 	var err error
 
-	if host = os.Getenv("LCP_HOST"); host == "" {
+	if config_file = os.Getenv("READIUM_LCP_CONFIG"); config_file == "" {
+		config_file = "lcpconfig.yaml"
+	}
+	config.ReadConfig(config_file)
+
+	readonly = config.Config.LcpServer.ReadOnly
+	if host = config.Config.LcpServer.Host; host == "" {
 		host, err = os.Hostname()
 		if err != nil {
 			panic(err)
 		}
 	}
-
-	if config_file = os.Getenv("READIUM_LCP_CONFIG"); config_file == "" {
-		config_file = "lcpconfig.yaml"
+	if port = config.Config.LcpServer.Port; port == 0 {
+		port = 8989
+	}
+	if publicBaseUrl = config.Config.LcpServer.PublicBaseUrl; publicBaseUrl == "" {
+		publicBaseUrl = "http://" + host + ":" + strconv.Itoa(port)
 	}
 
-	config.ReadConfig(config_file)
-
-	readonly = os.Getenv("READONLY") != ""
-
-	if port = os.Getenv("LCP_PORT"); port == "" {
-		port = "8989"
-	}
-
-	publicBaseUrl = config.Config.LcpBaseUrl
-	if publicBaseUrl == "" {
-		publicBaseUrl = "http://" + host + ":" + port
-	}
-
-	dbURI = config.Config.Database
-	if dbURI == "" {
-		if dbURI = os.Getenv("LCP_DB"); dbURI == "" {
+	if dbURI = config.Config.LcpServer.Database; dbURI == "" {
+		if dbURI = config.Config.Database; dbURI == "" {
 			dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
 		}
 	}
-
-	storagePath = config.Config.Storage.FileSystem.Directory
-	if storagePath == "" {
-		if storagePath = os.Getenv("STORAGE"); storagePath == "" {
-			storagePath = "files"
-		}
+	if storagePath = config.Config.Storage.FileSystem.Directory; storagePath == "" {
+		storagePath = "files"
 	}
-
-	certFile = config.Config.Certificate.Cert
-	privKeyFile = config.Config.Certificate.PrivateKey
-
-	if certFile == "" {
+	if certFile = config.Config.Certificate.Cert; certFile == "" {
 		if certFile = os.Getenv("CERT"); certFile == "" {
 			panic("Must specify a certificate")
 		}
 	}
-
-	if privKeyFile == "" {
+	if privKeyFile = config.Config.Certificate.PrivateKey; privKeyFile == "" {
 		if privKeyFile = os.Getenv("PRIVATE_KEY"); privKeyFile == "" {
 			panic("Must specify a private key")
 		}
 	}
-
 	cert, err := tls.LoadX509KeyPair(certFile, privKeyFile)
 	if err != nil {
 		panic(err)
 	}
 
 	driver, cnxn := dbFromURI(dbURI)
-
 	db, err := sql.Open(driver, cnxn)
 	if err != nil {
 		panic(err)
@@ -115,7 +100,6 @@ func main() {
 	}
 
 	license.CreateLinks()
-
 	var store storage.Store
 
 	if mode := config.Config.Storage.Mode; mode == "s3" {
@@ -137,8 +121,14 @@ func main() {
 
 	HandleSignals()
 
-	s := lcpserver.New(":"+port, static, readonly, &idx, &store, &lst, &cert, packager)
-	log.Println("License server running on port " + port)
+	s := lcpserver.New(":"+strconv.Itoa(port), static, readonly, &idx, &store, &lst, &cert, packager)
+	if readonly {
+		log.Println("License server running in readonly mode on port " + strconv.Itoa(port))
+	} else {
+		log.Println("License server running on port " + strconv.Itoa(port))
+	}
+	log.Println("using database " + dbURI)
+	log.Println("Public base URL=" + publicBaseUrl)
 	if err := s.ListenAndServe(); err != nil {
 		log.Println("Error " + err.Error())
 	}
