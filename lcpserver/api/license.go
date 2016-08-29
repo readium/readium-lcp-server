@@ -334,10 +334,12 @@ func completeLicense(l *license.License, key string, s Server) error {
 	if _, present := l.Links["hint"]; !present {
 		hint := new(license.Link)
 		hint.Href, present = config.Config.License.Links["hint"]
+		//hint.Type =
 		if !present {
 			return errors.New("No hint link present in partial license nor config")
 		}
 		l.Links["hint"] = *hint
+		
 	}
 
 	if _, present := l.Links["publication"]; !present {
@@ -349,8 +351,17 @@ func completeLicense(l *license.License, key string, s Server) error {
 		}
 		// replace {publication_id} in template link
 		publication.Href = strings.Replace(publication.Href, "{publication_id}", c.Location, 1)
+		//publication.Type = ?? , other information about encrypted file (md5 hash ?)
 		l.Links["publication"] = *publication
 	}
+	if statusLink, present := config.Config.License.Links["status"]; !present {
+		// add status server to License
+		status := new(license.Link)
+		status.Href := statusLink
+		//status.Type = ??
+		l.Links["status"] = *status
+	}
+	
 	var encryptionKey []byte
 	if len(l.Encryption.UserKey.Value) > 0 {
 		encryptionKey = l.Encryption.UserKey.Value

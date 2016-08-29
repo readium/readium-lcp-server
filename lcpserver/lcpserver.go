@@ -36,7 +36,7 @@ func main() {
 	var err error
 
 	if config_file = os.Getenv("READIUM_LICENSE_CONFIG"); config_file == "" {
-		config_file = "lcpconfig.yaml"
+		config_file = "config.yaml"
 	}
 	config.ReadConfig(config_file)
 	log.Println("Reading config " + config_file)
