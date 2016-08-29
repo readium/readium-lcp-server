@@ -34,22 +34,10 @@ Usage
 proxy in front of it*
 
 The server is controlled by a configuration file "config.yaml".  
-This file normally resides in the same directory of the executable but can be changed using the environment variable READIUM_LICENSE_CONFIG. 
+This file normally resides in the same directory of the executable but the path to this configuration file can be changed using the environment variable READIUM_LICENSE_CONFIG. 
 
-See the example file of the config.yaml.sample 
+An example config.yaml file exists with the name config.yaml.sample 
 
-license:
-         links:
-                      hint: "http://example.com/hint" 
-                      status: "http://example.com/licenses/{license_id}/status" 
-					  publication: "http://example.com/contents/{publication_id}" 
-localization: 
-        languages: ["ru-RU", "en-US"]
-        folder: E:\GoProjects\src\github.com\readium\readium-lcp-server\messages\
-        default_language: "en-US"
-static:
-    directory: "../static"
-                 
 "certificate:"				
 - cert: Points to the certificate file (a .crt)
 - private_key: Points to the private key (a .pem)
@@ -61,6 +49,7 @@ static:
 - server:database: the connection string to the database, by default sqlite3://file:lcpserve.sqlite?cache=shared&mode=rwc
 
 static: points to the path where the /manage/index.html can be found
+
 "license"
  - links:
 	"hint" and "publication" default values.  If this value does not exist in the partial license, it will be added using this value.  If no value is present in the configuration file and no value is given to the partial license passed to the server, the server will reply with a 500 Server Error when asking to create a license.
@@ -73,13 +62,16 @@ as well as emit licenses for the currently encrypted EPUBs.
 Executables
 ===========
 
-# [lcpencrypt] 
+# [lcpencrypt]   (todo : wiki ? reference to google doc ? )
 
-encrypts epub file 
+Allows to encrypt an epub file (on a different server) that can be added to the lcpserver 
 
 # [lcpserver]
 
-add content, creates licenses, list licenses
+* encrypts & adds content, 
+* creates licenses, 
+* lists content 
+* lists licenses
 
 # [lsdserver]
 
