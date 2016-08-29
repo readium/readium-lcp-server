@@ -8,8 +8,7 @@ import (
 )
 
 type Configuration struct {
-	Certificate   Certificate `yaml:"certificate"`
-	Database      string
+	Certificate   Certificate   `yaml:"certificate"`
 	Storage       Storage       `yaml:"storage"`
 	License       License       `yaml:"license"`
 	LsdServer     ServerInfo    `yaml:"lsd"`

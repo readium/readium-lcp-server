@@ -56,9 +56,7 @@ func main() {
 	}
 
 	if dbURI = config.Config.LcpServer.Database; dbURI == "" {
-		if dbURI = config.Config.Database; dbURI == "" {
-			dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
-		}
+		dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
 	}
 	if storagePath = config.Config.Storage.FileSystem.Directory; storagePath == "" {
 		storagePath = "files"

@@ -44,18 +44,21 @@ func main() {
 	}
 
 	readonly = config.Config.LsdServer.ReadOnly
-
+	if host = config.Config.LsdServer.Host; host == "" {
+		host, err = os.Hostname()
+		if err != nil {
+			panic(err)
+		}
+	}
 	if port = config.Config.LsdServer.Port; port == 0 {
 		port = 8990
 	}
-	if publicBaseUrl = config.Config.LcpServer.PublicBaseUrl; publicBaseUrl == "" {
+	if publicBaseUrl = config.Config.LsdServer.PublicBaseUrl; publicBaseUrl == "" {
 		publicBaseUrl = "http://" + host + ":" + strconv.Itoa(port)
 	}
 
-	if dbURI = config.Config.LcpServer.Database; dbURI == "" {
-		if dbURI = config.Config.Database; dbURI == "" {
-			dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
-		}
+	if dbURI = config.Config.LsdServer.Database; dbURI == "" {
+		dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
 	}
 
 	driver, cnxn := dbFromURI(dbURI)
@@ -82,7 +85,13 @@ func main() {
 
 	HandleSignals()
 	s := lsdserver.New(":"+strconv.Itoa(port), readonly, &hist, &trns)
-	log.Println("License status server running on port " + strconv.Itoa(port))
+	if readonly {
+		log.Println("License status server running in readonly mode on port " + strconv.Itoa(port))
+	} else {
+		log.Println("License status server running on port " + strconv.Itoa(port))
+	}
+	log.Println("using database " + dbURI)
+	log.Println("Public base URL=" + publicBaseUrl)
 
 	if err := s.ListenAndServe(); err != nil {
 		log.Println("Error " + err.Error())
