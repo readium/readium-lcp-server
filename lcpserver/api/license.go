@@ -339,7 +339,7 @@ func completeLicense(l *license.License, key string, s Server) error {
 			return errors.New("No hint link present in partial license nor config")
 		}
 		l.Links["hint"] = *hint
-		
+
 	}
 
 	if _, present := l.Links["publication"]; !present {
@@ -357,11 +357,11 @@ func completeLicense(l *license.License, key string, s Server) error {
 	if statusLink, present := config.Config.License.Links["status"]; !present {
 		// add status server to License
 		status := new(license.Link)
-		status.Href := statusLink
+		status.Href = statusLink
 		//status.Type = ??
 		l.Links["status"] = *status
 	}
-	
+
 	var encryptionKey []byte
 	if len(l.Encryption.UserKey.Value) > 0 {
 		encryptionKey = l.Encryption.UserKey.Value
