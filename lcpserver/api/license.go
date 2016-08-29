@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -17,6 +18,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
@@ -91,7 +93,6 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Add("Content-Type", license.ContentType)
 		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
-		ExistingLicense.Encryption.UserKey.Check = nil
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
 		return
@@ -123,9 +124,7 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "Different license IDs"}, http.StatusNotFound)
 		return
 	}
-	// update rights of license in database
-	// check validity of lic / existingLicense
-	//
+	// update rights of license in database / verify validity of lic / existingLicense
 	if lic.Provider != "" {
 		ExistingLicense.Provider = lic.Provider
 	}
@@ -231,7 +230,7 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	lic.Encryption.UserKey.Check = nil
+	//lic.Encryption.UserKey.Check = nil
 
 	enc := json.NewEncoder(w)
 	enc.Encode(lic)
@@ -331,7 +330,27 @@ func completeLicense(l *license.License, key string, s Server) error {
 
 	license.Prepare(l)
 	l.ContentId = key
+	//verify that mandatory(hint & publication ) links are present in the License
+	if _, present := l.Links["hint"]; !present {
+		hint := new(license.Link)
+		hint.Href, present = config.Config.License.Links["hint"]
+		if !present {
+			return errors.New("No hint link present in partial license nor config")
+		}
+		l.Links["hint"] = *hint
+	}
 
+	if _, present := l.Links["publication"]; !present {
+		publication := new(license.Link)
+		publication.Href, present = config.Config.License.Links["publication"]
+		if !present {
+			return errors.New("No publication link present in partial license nor config")
+
+		}
+		// replace {publication_id} in template link
+		publication.Href = strings.Replace(publication.Href, "{publication_id}", c.Location, 1)
+		l.Links["publication"] = *publication
+	}
 	var encryptionKey []byte
 	if len(l.Encryption.UserKey.Value) > 0 {
 		encryptionKey = l.Encryption.UserKey.Value

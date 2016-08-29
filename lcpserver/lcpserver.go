@@ -35,10 +35,11 @@ func main() {
 	var port int
 	var err error
 
-	if config_file = os.Getenv("READIUM_LCP_CONFIG"); config_file == "" {
+	if config_file = os.Getenv("READIUM_LICENSE_CONFIG"); config_file == "" {
 		config_file = "lcpconfig.yaml"
 	}
 	config.ReadConfig(config_file)
+	log.Println("Reading config " + config_file)
 
 	readonly = config.Config.LcpServer.ReadOnly
 	if host = config.Config.LcpServer.Host; host == "" {
@@ -63,14 +64,10 @@ func main() {
 		storagePath = "files"
 	}
 	if certFile = config.Config.Certificate.Cert; certFile == "" {
-		if certFile = os.Getenv("CERT"); certFile == "" {
-			panic("Must specify a certificate")
-		}
+		panic("Must specify a certificate")
 	}
 	if privKeyFile = config.Config.Certificate.PrivateKey; privKeyFile == "" {
-		if privKeyFile = os.Getenv("PRIVATE_KEY"); privKeyFile == "" {
-			panic("Must specify a private key")
-		}
+		panic("Must specify a private key")
 	}
 	cert, err := tls.LoadX509KeyPair(certFile, privKeyFile)
 	if err != nil {
@@ -129,6 +126,11 @@ func main() {
 	}
 	log.Println("using database " + dbURI)
 	log.Println("Public base URL=" + publicBaseUrl)
+	log.Println("License links:")
+	for nameOfLink, link := range config.Config.License.Links {
+		log.Println("  " + nameOfLink + " => " + link)
+	}
+
 	if err := s.ListenAndServe(); err != nil {
 		log.Println("Error " + err.Error())
 	}

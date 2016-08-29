@@ -8,7 +8,7 @@ import (
 )
 
 type Configuration struct {
-	Certificate   Certificate
+	Certificate   Certificate `yaml:"certificate"`
 	Database      string
 	Storage       Storage       `yaml:"storage"`
 	License       License       `yaml:"license"`

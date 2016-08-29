@@ -10,6 +10,7 @@ license:
          links:
                       hint: "http://example.com/hint" 
                       status: "http://example.com/licenses/{license_id}/status" 
+					  publication: "http://example.com/contents/{publication_id}" 
 localization: 
         languages: ["ru-RU", "en-US"]
         folder: E:\GoProjects\src\github.com\readium\readium-lcp-server\messages\
