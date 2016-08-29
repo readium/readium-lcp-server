@@ -32,7 +32,7 @@ type sqlStore struct {
 }
 
 func notifyLsdServer(l License) {
-	if config.Config.LsdBaseUrl != "" { //notifyLsdServer of new License
+	if config.Config.LsdServer.PublicBaseUrl != "" { //notifyLsdServer of new License
 		var lsdClient = &http.Client{
 			Timeout: time.Second * 10,
 		}
@@ -41,7 +41,7 @@ func notifyLsdServer(l License) {
 			_ = json.NewEncoder(pw).Encode(l)
 			pw.Close() // signal end writing
 		}()
-		req, err := http.NewRequest("PUT", config.Config.LsdBaseUrl+"/licenses", pr)
+		req, err := http.NewRequest("PUT", config.Config.LsdServer.PublicBaseUrl+"/licenses", pr)
 		req.Header.Add("Content-Type", ContentType)
 		response, err := lsdClient.Do(req)
 		if err != nil {

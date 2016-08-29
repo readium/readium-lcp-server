@@ -12,7 +12,7 @@ type Configuration struct {
 	Database      string
 	Storage       Storage       `yaml:"storage"`
 	License       License       `yaml:"license"`
-	LsdBaseUrl    string        `yaml:"lsd_base_url"`
+	LsdServer     ServerInfo    `yaml:"lsd"`
 	LcpServer     ServerInfo    `yaml:"lcp"`
 	Static        Static        `yaml:"static"`
 	LicenseStatus LicenseStatus `yaml:"license_status"`

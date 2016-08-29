@@ -22,5 +22,18 @@
    {
     "id": "returned",
     "translation": "It was returned"
+  },
+   {
+	"id": "Not Found",
+	"translation": "Page not found"
+  },
+  {
+	"id": "Internal Server Error",
+	"translation": "Internal server error"
+  }
+  ,
+    {
+	"id": "EOF",
+	"translation": "Unexpected end of file"
   }
 ]

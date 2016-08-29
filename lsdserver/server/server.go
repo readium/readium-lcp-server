@@ -29,7 +29,7 @@ func (s *Server) Transactions() transactions.Transactions {
 	return s.trns
 }
 
-func New(bindAddr string, tplPath string, readonly bool, hist *history.History, trns *transactions.Transactions) *Server {
+func New(bindAddr string, readonly bool, hist *history.History, trns *transactions.Transactions) *Server {
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{

@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -16,6 +16,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/history"
+	"github.com/readium/readium-lcp-server/localization"
 	"github.com/readium/readium-lcp-server/lsdserver/server"
 	"github.com/readium/readium-lcp-server/transactions"
 )
@@ -26,17 +27,10 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-
-	var config_file, host, port, lsdBaseUrl, dbURI, static string
+	var config_file, host, publicBaseUrl, dbURI string
 	var readonly bool = false
+	var port int
 	var err error
-
-	if host = os.Getenv("LSD_HOST"); host == "" {
-		host, err = os.Hostname()
-		if err != nil {
-			panic(err)
-		}
-	}
 
 	if config_file = os.Getenv("READIUM_LSD_CONFIG"); config_file == "" {
 		config_file = "lsdconfig.yaml"
@@ -44,27 +38,27 @@ func main() {
 
 	config.ReadConfig(config_file)
 
-	readonly = os.Getenv("READONLY") != ""
-
-	if port = os.Getenv("LSD_PORT"); port == "" {
-		port = "8990"
+	err = localization.InitTranslations()
+	if err != nil {
+		panic(err)
 	}
 
-	lsdBaseUrl = config.Config.LsdBaseUrl
-	if lsdBaseUrl == "" {
-		lsdBaseUrl = "http://" + host + ":" + port
-		config.Config.LsdBaseUrl = lsdBaseUrl
+	readonly = config.Config.LsdServer.ReadOnly
+
+	if port = config.Config.LsdServer.Port; port == 0 {
+		port = 8990
+	}
+	if publicBaseUrl = config.Config.LcpServer.PublicBaseUrl; publicBaseUrl == "" {
+		publicBaseUrl = "http://" + host + ":" + strconv.Itoa(port)
 	}
 
-	dbURI = config.Config.Database
-	if dbURI == "" {
-		if dbURI = os.Getenv("LSD_DB"); dbURI == "" {
+	if dbURI = config.Config.LcpServer.Database; dbURI == "" {
+		if dbURI = config.Config.Database; dbURI == "" {
 			dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
 		}
 	}
 
 	driver, cnxn := dbFromURI(dbURI)
-
 	db, err := sql.Open(driver, cnxn)
 	if err != nil {
 		panic(err)
@@ -86,16 +80,9 @@ func main() {
 		panic(err)
 	}
 
-	static = config.Config.Static.Directory
-	if static == "" {
-		_, file, _, _ := runtime.Caller(0)
-		here := filepath.Dir(file)
-		static = filepath.Join(here, "../static")
-	}
-
 	HandleSignals()
-	s := lsdserver.New(":"+port, static, readonly, &hist, &trns)
-	log.Println("License status server running on port " + port)
+	s := lsdserver.New(":"+strconv.Itoa(port), readonly, &hist, &trns)
+	log.Println("License status server running on port " + strconv.Itoa(port))
 
 	if err := s.ListenAndServe(); err != nil {
 		log.Println("Error " + err.Error())

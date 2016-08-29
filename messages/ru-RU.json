@@ -22,5 +22,13 @@
    {
     "id": "returned",
     "translation": "Возвращено"
+  },
+  {
+	"id": "Not Found",
+	"translation": "Страница не найдена"
+  },
+  {
+	"id": "Internal Server Error",
+	"translation": "Внутренняя ошибка сервера"
   }
 ]
