@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/abbot/go-http-auth"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -83,8 +84,20 @@ func main() {
 		panic(err)
 	}
 
+	pwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	_, err = os.Stat(pwd + "/authentication/passwords.htpasswd")
+	if err != nil {
+		panic(err)
+	}
+
+	htpasswd := auth.HtpasswdFileProvider(pwd + "/authentication/passwords.htpasswd")
+	authenticator := auth.NewBasicAuthenticator("Basic Realm", htpasswd)
+
 	HandleSignals()
-	s := lsdserver.New(":"+strconv.Itoa(port), readonly, &hist, &trns)
+	s := lsdserver.New(":"+strconv.Itoa(port), readonly, &hist, &trns, authenticator)
 	if readonly {
 		log.Println("License status server running in readonly mode on port " + strconv.Itoa(port))
 	} else {

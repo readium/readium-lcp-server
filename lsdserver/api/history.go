@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/history"
@@ -25,14 +26,12 @@ type Server interface {
 	History() history.History
 }
 
-func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
-	/*TODO privacy*/
+func CreateLicenseStatusDocument(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
 	var lic license.License
-
-	err := apilcp.DecodeJsonLicense(r, &lic)
+	err := apilcp.DecodeJsonLicense(&r.Request, &lic)
 
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -41,7 +40,7 @@ func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Serve
 
 	err = s.History().Add(ls)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, &r.Request, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -351,29 +350,29 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
+func FilterLicenseStatuses(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
 	w.Header().Set("Content-Type", "application/json")
 
 	devicesLimit, err := strconv.ParseInt(r.FormValue("devices"), 10, 32)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
 	page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
 	perPage, err := strconv.ParseInt(r.FormValue("per_page"), 10, 32)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
 	if (page < 1) || (perPage < 1) || (devicesLimit < 1) {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "devices, page, per_page must be positive number"}, http.StatusBadRequest)
+		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: "devices, page, per_page must be positive number"}, http.StatusBadRequest)
 		return
 	}
 
@@ -410,25 +409,25 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 	enc := json.NewEncoder(w)
 	err = enc.Encode(licenseStatuses)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 }
 
-func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
+func ListRegisteredDevices(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
 	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(r)
+	vars := mux.Vars(&r.Request)
 
 	licenseFk := vars["key"]
 
 	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
 	if err != nil {
 		if licenseStatus == nil {
-			problem.NotFoundHandler(w, r)
+			problem.NotFoundHandler(w, &r.Request)
 			return
 		}
 
-		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, &r.Request, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -442,31 +441,31 @@ func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 	enc := json.NewEncoder(w)
 	err = enc.Encode(registeredDevicesList)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 }
 
-func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
-	vars := mux.Vars(r)
+func CancelLicenseStatus(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
+	vars := mux.Vars(&r.Request)
 
 	licenseFk := vars["key"]
 	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
 
 	if err != nil {
 		if licenseStatus == nil {
-			problem.NotFoundHandler(w, r)
+			problem.NotFoundHandler(w, &r.Request)
 			return
 		}
 
-		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, &r.Request, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 	var parsedLs history.LicenseStatus
-	err = decodeJsonLicenseStatus(r, &parsedLs)
+	err = decodeJsonLicenseStatus(&r.Request, &parsedLs)
 
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, &r.Request, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -478,7 +477,7 @@ func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
 
 	err = s.History().Update(*licenseStatus)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, &r.Request, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 

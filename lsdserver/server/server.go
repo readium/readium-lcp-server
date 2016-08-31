@@ -3,14 +3,15 @@ package lsdserver
 import (
 	"time"
 
+	"net/http"
+
+	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/history"
 	"github.com/readium/readium-lcp-server/lsdserver/api"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/transactions"
 	"github.com/technoweenie/grohl"
-
-	"net/http"
 )
 
 type Server struct {
@@ -29,7 +30,7 @@ func (s *Server) Transactions() transactions.Transactions {
 	return s.trns
 }
 
-func New(bindAddr string, readonly bool, hist *history.History, trns *transactions.Transactions) *Server {
+func New(bindAddr string, readonly bool, hist *history.History, trns *transactions.Transactions, basicAuth *auth.BasicAuth) *Server {
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{
@@ -45,13 +46,13 @@ func New(bindAddr string, readonly bool, hist *history.History, trns *transactio
 	}
 
 	s.handleFunc("/licenses/{key}/status", apilsd.GetLicenseStatusDocument).Methods("POST")
-	s.handleFunc("/licenses", apilsd.CreateLicenseStatusDocument).Methods("PUT")
 	s.handleFunc("/licenses/{key}/register", apilsd.RegisterDevice).Methods("POST")
 	s.handleFunc("/licenses/{key}/return", apilsd.LendingReturn).Methods("PUT")
 	s.handleFunc("/licenses/{key}/renew", apilsd.LendingRenewal).Methods("PUT")
-	s.handleFunc("/licenses", apilsd.FilterLicenseStatuses).Methods("GET")
-	s.handleFunc("/licenses/{key}/registered", apilsd.ListRegisteredDevices).Methods("GET")
-	s.handleFunc("/licenses/{key}/status", apilsd.CancelLicenseStatus).Methods("PATCH")
+	s.handlePrivateFunc("/licenses", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET")
+	s.handlePrivateFunc("/licenses/{key}/registered", apilsd.ListRegisteredDevices, basicAuth).Methods("GET")
+	s.handlePrivateFunc("/licenses/{key}/status", apilsd.CancelLicenseStatus, basicAuth).Methods("PATCH")
+	s.handlePrivateFunc("/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 
 	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
 
@@ -59,6 +60,7 @@ func New(bindAddr string, readonly bool, hist *history.History, trns *transactio
 }
 
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
+type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s apilsd.Server)
 
 func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
@@ -69,4 +71,14 @@ func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 		w.Header().Add("Access-Control-Allow-Origin", "*")
 		fn(w, r, s)
 	})
+}
+func (s *Server) handlePrivateFunc(route string, fn HandlerPrivateFunc, authenticator *auth.BasicAuth) *mux.Route {
+	return s.router.HandleFunc(route, authenticator.Wrap(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+		grohl.Log(grohl.Data{"path": r.URL.Path})
+
+		// Add CORS
+		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		fn(w, r, s)
+	}))
 }
