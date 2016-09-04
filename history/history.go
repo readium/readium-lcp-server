@@ -165,12 +165,12 @@ func Open(db *sql.DB) (h History, err error) {
 }
 
 const tableDef = `CREATE TABLE IF NOT EXISTS license_status (
-  id integer PRIMARY KEY,
+  id int PRIMARY KEY,
   status int(11) NOT NULL,
   license_updated datetime DEFAULT NULL,
   status_updated datetime DEFAULT NULL,
   device_count int(11) DEFAULT NULL,
   potential_rights_end datetime DEFAULT NULL,
   license_ref varchar(255) NOT NULL,
-  FOREIGN KEY(id) REFERENCES event(license_status_fk)
+  CONSTRAINT license_ref_UNIQUE UNIQUE (license_ref)
 )`

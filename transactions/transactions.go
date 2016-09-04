@@ -157,9 +157,12 @@ func Open(db *sql.DB) (t Transactions, err error) {
 }
 
 const tableDef = `CREATE TABLE IF NOT EXISTS event (
-	id integer PRIMARY KEY, 
+	id int PRIMARY KEY, 
 	device_name varchar(255) DEFAULT NULL,
 	timestamp datetime NOT NULL,
 	type int NOT NULL,
 	device_id varchar(255) DEFAULT NULL,
-	license_status_fk int(11) NOT NULL )`
+	license_status_fk int NOT NULL,
+  	FOREIGN KEY(license_status_fk) REFERENCES license_status(id),
+  	CONSTRAINT license_status_fk_UNIQUE UNIQUE (license_status_fk)
+);`
