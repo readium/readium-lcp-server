@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
@@ -49,7 +50,7 @@ func (s *Server) Source() *pack.ManualSource {
 	return &s.source
 }
 
-func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager) *Server {
+func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager, basicAuth *auth.BasicAuth) *Server {
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{
@@ -86,20 +87,20 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 
 	//API following spec
 	//CONTENTS
-	s.handleFunc("/contents", apilcp.ListContents).Methods("GET")                           //method supported, not in spec
-	s.handleFunc("/contents/", apilcp.ListContents).Methods("GET")                          //method supported, not in spec
-	s.handleFunc("/contents/{key}", apilcp.AddContent).Methods("PUT")                       //lcp spec store data resulting from external encryption
-	s.handleFunc("/contents/{name}", apilcp.StoreContent).Methods("POST")                   //lcp spec encrypt & store epub file (in BODY)
-	s.handleFunc("/contents/{key}/licenses", apilcp.ListLicensesForContent).Methods("GET")  // list licenses for content, additional get params {page?,per_page?}
-	s.handleFunc("/contents/{key}/licenses/", apilcp.ListLicensesForContent).Methods("GET") // idem
-	s.handleFunc("/contents/{key}/licenses", apilcp.GenerateLicense).Methods("POST")
-	s.handleFunc("/contents/{key}/publications", apilcp.GenerateProtectedPublication).Methods("POST")
+	s.handleFunc("/contents", apilcp.ListContents).Methods("GET")                                             //method supported, not in spec
+	s.handleFunc("/contents/", apilcp.ListContents).Methods("GET")                                            //method supported, not in spec
+	s.handlePrivateFunc("/contents/{key}", apilcp.AddContent, basicAuth).Methods("PUT")                       //lcp spec store data resulting from external encryption
+	s.handleFunc("/contents/{name}", apilcp.StoreContent).Methods("POST")                                     //lcp spec encrypt & store epub file (in BODY)
+	s.handlePrivateFunc("/contents/{key}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")  // list licenses for content, additional get params {page?,per_page?}
+	s.handlePrivateFunc("/contents/{key}/licenses/", apilcp.ListLicensesForContent, basicAuth).Methods("GET") // idem
+	s.handlePrivateFunc("/contents/{key}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
+	s.handlePrivateFunc("/contents/{key}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 
 	//LICENSES
-	s.handleFunc("/licenses", apilcp.ListLicenses).Methods("GET")          // list licenses, additional get params {page?,per_page?}
-	s.handleFunc("/licenses/", apilcp.ListLicenses).Methods("GET")         // idem
-	s.handleFunc("/licenses/{key}", apilcp.GetLicense).Methods("GET")      //return existing license
-	s.handleFunc("/licenses/{key}", apilcp.UpdateLicense).Methods("PATCH") //update license (rights, other)
+	s.handlePrivateFunc("/licenses", apilcp.ListLicenses, basicAuth).Methods("GET")          // list licenses, additional get params {page?,per_page?}
+	s.handlePrivateFunc("/licenses/", apilcp.ListLicenses, basicAuth).Methods("GET")         // idem
+	s.handlePrivateFunc("/licenses/{key}", apilcp.GetLicense, basicAuth).Methods("GET")      //return existing license
+	s.handlePrivateFunc("/licenses/{key}", apilcp.UpdateLicense, basicAuth).Methods("PATCH") //update license (rights, other)
 
 	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
 
@@ -107,6 +108,7 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 }
 
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, s apilcp.Server)
+type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s apilcp.Server)
 
 func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
@@ -117,4 +119,15 @@ func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 		w.Header().Add("Access-Control-Allow-Origin", "*")
 		fn(w, r, s)
 	})
+}
+
+func (s *Server) handlePrivateFunc(route string, fn HandlerPrivateFunc, authenticator *auth.BasicAuth) *mux.Route {
+	return s.router.HandleFunc(route, authenticator.Wrap(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+		grohl.Log(grohl.Data{"path": r.URL.Path})
+
+		// Add CORS
+		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		fn(w, r, s)
+	}))
 }
