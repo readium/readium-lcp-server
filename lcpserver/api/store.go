@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
@@ -87,12 +86,9 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 // if contentId is different , url key overrides the contentId in the json payload
 // this method adds ths <protected_content_location>  in the store (of encrypted files)
 // and the needed key in the database in order to create the licenses
-func AddContent(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
-	request := &r.Request
-
-	vars := mux.Vars(request)
-	decoder := json.NewDecoder(request.Body)
-
+func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+	decoder := json.NewDecoder(r.Body)
 	var publication LcpPublication
 	err := decoder.Decode(&publication)
 	if err != nil {
@@ -105,14 +101,14 @@ func AddContent(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
 	//read encrypted file from reference
 	file, err := os.Open(publication.Output)
 	if err != nil {
-		problem.Error(w, request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	//and add file to storage
 	var storageItem storage.Item
 	storageItem, err = s.Store().Add(publication.ContentId, file)
 	if err != nil {
-		problem.Error(w, request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	var c index.Content
@@ -129,7 +125,7 @@ func AddContent(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
 		code = http.StatusFound
 	}
 	if err != nil { //db not updated
-		problem.Error(w, request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(code)

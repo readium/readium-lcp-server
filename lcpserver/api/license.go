@@ -17,7 +17,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/crypto"
@@ -34,8 +33,8 @@ import (
 //"hint": "Enter your email address",
 //"hint_url": "http://www.imaginaryebookretailer.com/lcp"
 //}
-func GetLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
-	vars := mux.Vars(&r.Request)
+func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
 
 	licenceId := vars["key"]
 	// search existing license using key
@@ -43,14 +42,14 @@ func GetLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
 	ExistingLicense, e := s.Licenses().Get(licenceId)
 	if e != nil {
 		if e == license.NotFound {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusNotFound)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusNotFound)
 		} else {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusBadRequest)
 		}
 		return
 	}
 	var lic license.License
-	err := DecodeJsonLicense(&r.Request, &lic)
+	err := DecodeJsonLicense(r, &lic)
 	if err != nil { // no or incorrect (json) license found in body
 		// just send partial license
 		w.Header().Add("Content-Type", license.ContentType)
@@ -69,13 +68,13 @@ func GetLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
 		return
 	} else { // add information to license , sign and return (real) License
 		if lic.User.Email == "" {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: "User information must be passed in INPUT"}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "User information must be passed in INPUT"}, http.StatusBadRequest)
 			return
 		}
 		ExistingLicense.User = lic.User
 		content, err := s.Index().Get(ExistingLicense.ContentId)
 		if err != nil {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 		ExistingLicense.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
@@ -83,12 +82,12 @@ func GetLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
 		ExistingLicense.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 		err = buildKeyCheck(&ExistingLicense, ExistingLicense.Encryption.UserKey.Value)
 		if err != nil {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 		err = signLicense(&ExistingLicense, s.Certificate())
 		if err != nil {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -100,29 +99,29 @@ func GetLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
 	}
 }
 
-func UpdateLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
-	problem.Error(w, &r.Request, problem.Problem{Type: "about:blank"}, http.StatusNotImplemented)
-	vars := mux.Vars(&r.Request)
+func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
+	problem.Error(w, r, problem.Problem{Type: "about:blank"}, http.StatusNotImplemented)
+	vars := mux.Vars(r)
 	licenceId := vars["key"]
 	// search existing license using key
 	var ExistingLicense license.License
 	ExistingLicense, e := s.Licenses().Get(licenceId)
 	if e != nil {
 		if e == license.NotFound {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: license.NotFound.Error()}, http.StatusNotFound)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: license.NotFound.Error()}, http.StatusNotFound)
 		} else {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusBadRequest)
 		}
 		return
 	}
 	var lic license.License
-	err := DecodeJsonLicense(&r.Request, &lic)
+	err := DecodeJsonLicense(r, &lic)
 	if err != nil { // no or incorrect (json) license found in body
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	if lic.Id != licenceId {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: "Different license IDs"}, http.StatusNotFound)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "Different license IDs"}, http.StatusNotFound)
 		return
 	}
 	// update rights of license in database / verify validity of lic / existingLicense
@@ -149,35 +148,35 @@ func UpdateLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server
 	}
 	err = s.Licenses().Update(ExistingLicense)
 	if err != nil { // no or incorrect (json) license found in body
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	// go on and GET license io to return the updated license
 	GetLicense(w, r, s)
 }
 
-func UpdateRightsLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
-	vars := mux.Vars(&r.Request)
+func UpdateRightsLicense(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
 	licenceId := vars["key"]
 	// search existing license using key
 	var ExistingLicense license.License
 	ExistingLicense, e := s.Licenses().Get(licenceId)
 	if e != nil {
 		if e == license.NotFound {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: license.NotFound.Error()}, http.StatusNotFound)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: license.NotFound.Error()}, http.StatusNotFound)
 		} else {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: e.Error()}, http.StatusBadRequest)
 		}
 		return
 	}
 	var lic license.License
-	err := DecodeJsonLicense(&r.Request, &lic)
+	err := DecodeJsonLicense(r, &lic)
 	if err != nil { // no or incorrect (json) license found in body
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	if lic.Id != licenceId {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: "Different license IDs"}, http.StatusNotFound)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "Different license IDs"}, http.StatusNotFound)
 		return
 	}
 	// update rights of license in database
@@ -195,21 +194,21 @@ func UpdateRightsLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s 
 	}
 	err = s.Licenses().UpdateRights(ExistingLicense)
 	if err != nil { // no or incorrect (json) license found in body
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	// go on to GET license io to return the existing license
 	GetLicense(w, r, s)
 }
 
-func GenerateLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
-	vars := mux.Vars(&r.Request)
+func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
 	var lic license.License
 
-	err := DecodeJsonLicense(&r.Request, &lic)
+	err := DecodeJsonLicense(r, &lic)
 
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -221,13 +220,13 @@ func GenerateLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Serv
 	err = completeLicense(&lic, key, s)
 
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
 	err = s.Licenses().Add(lic)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
@@ -237,12 +236,12 @@ func GenerateLicense(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Serv
 	enc.Encode(lic)
 }
 
-func GenerateProtectedPublication(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
-	vars := mux.Vars(&r.Request)
+func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
 
 	var lic license.License
 
-	err := DecodeJsonLicense(&r.Request, &lic)
+	err := DecodeJsonLicense(r, &lic)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -253,38 +252,38 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *auth.AuthenticatedRe
 
 	item, err := s.Store().Get(key)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
 	content, err := s.Index().Get(key)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 	var b bytes.Buffer
 	contents, err := item.Contents()
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
 	io.Copy(&b, contents)
 	zr, err := zip.NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 	ep, err := epub.Read(zr)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 	var buf bytes.Buffer
 
 	err = completeLicense(&lic, key, s)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
@@ -297,7 +296,7 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *auth.AuthenticatedRe
 	err = s.Licenses().Add(lic)
 
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
 
@@ -445,24 +444,24 @@ func encryptKey(key []byte, kek []byte) []byte {
 
 //ListLicenses returns a JSON struct with information about emitted licenses
 // optional GET parameters are "page" (page number) and "per_page" (items par page)
-func ListLicenses(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
+func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", "application/json")
 	var page int64
 	var per_page int64
 	var err error
 	if r.FormValue("page") != "" {
-		page, err = strconv.ParseInt((&r.Request).FormValue("page"), 10, 32)
+		page, err = strconv.ParseInt(r.FormValue("page"), 10, 32)
 		if err != nil {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 	} else {
 		page = 1
 	}
 	if r.FormValue("per_page") != "" {
-		per_page, err = strconv.ParseInt((&r.Request).FormValue("per_page"), 10, 32)
+		per_page, err = strconv.ParseInt(r.FormValue("per_page"), 10, 32)
 		if err != nil {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 	} else {
@@ -472,7 +471,7 @@ func ListLicenses(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server)
 		page -= 1 //pagenum starting at 0 in code, but user interface starting at 1
 	}
 	if page < 0 {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: "page must be positive integer"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "page must be positive integer"}, http.StatusBadRequest)
 		return
 	}
 	licenses := make([]license.License, 0)
@@ -492,7 +491,7 @@ func ListLicenses(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server)
 	enc := json.NewEncoder(w)
 	err = enc.Encode(licenses)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 }
@@ -500,8 +499,8 @@ func ListLicenses(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server)
 //ListLicenses returns a JSON struct with information about emitted licenses
 // content-id is in url
 // optional GET parameters are "page" (page number) and "per_page" (items par page)
-func ListLicensesForContent(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
-	vars := mux.Vars(&r.Request)
+func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
 	var page int64
 	var per_page int64
 	var err error
@@ -510,13 +509,13 @@ func ListLicensesForContent(w http.ResponseWriter, r *auth.AuthenticatedRequest,
 	//check if license exists
 	_, err = s.Index().Get(contentId)
 	if err == index.NotFound {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusNotFound)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusNotFound)
 		return
 	} //other errors pass, but will probably reoccur
 	if r.FormValue("page") != "" {
 		page, err = strconv.ParseInt(r.FormValue("page"), 10, 32)
 		if err != nil {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 	} else {
@@ -524,9 +523,9 @@ func ListLicensesForContent(w http.ResponseWriter, r *auth.AuthenticatedRequest,
 	}
 
 	if r.FormValue("per_page") != "" {
-		per_page, err = strconv.ParseInt((&r.Request).FormValue("per_page"), 10, 32)
+		per_page, err = strconv.ParseInt(r.FormValue("per_page"), 10, 32)
 		if err != nil {
-			problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 	} else {
@@ -536,7 +535,7 @@ func ListLicensesForContent(w http.ResponseWriter, r *auth.AuthenticatedRequest,
 		page -= 1 //pagenum starting at 0 in code, but user interface starting at 1
 	}
 	if page < 0 {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: "page must be positive integer"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "page must be positive integer"}, http.StatusBadRequest)
 		return
 	}
 	licenses := make([]license.License, 0)
@@ -556,7 +555,7 @@ func ListLicensesForContent(w http.ResponseWriter, r *auth.AuthenticatedRequest,
 	enc := json.NewEncoder(w)
 	err = enc.Encode(licenses)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
