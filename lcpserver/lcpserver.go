@@ -126,7 +126,7 @@ func main() {
 	}
 
 	htpasswd := auth.HtpasswdFileProvider(authFile)
-	authenticator := auth.NewBasicAuthenticator("Basic Realm", htpasswd)
+	authenticator := auth.NewBasicAuthenticator("Readium License Content Protection Server", htpasswd)
 
 	HandleSignals()
 
