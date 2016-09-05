@@ -21,6 +21,7 @@ type Configuration struct {
 type ServerInfo struct {
 	Host          string `yaml:"host,omitempty"`
 	Port          int    `yaml:"port,omitempty"`
+	AuthFile      string `yaml:"auth_file"`
 	ReadOnly      bool   `yaml:"readonly,omitempty"`
 	PublicBaseUrl string `yaml:"public_base_url,omitempty"`
 	Database      string `yaml:"database,omitempty"`

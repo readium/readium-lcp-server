@@ -115,16 +115,17 @@ func main() {
 		static = filepath.Join(here, "../static")
 	}
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
+	authFile := config.Config.LcpServer.AuthFile
+	if authFile == "" {
+		panic("Must have passwords file")
 	}
-	_, err = os.Stat(pwd + "/authentication/passwords.htpasswd")
+
+	_, err = os.Stat(authFile)
 	if err != nil {
 		panic(err)
 	}
 
-	htpasswd := auth.HtpasswdFileProvider(pwd + "/authentication/passwords.htpasswd")
+	htpasswd := auth.HtpasswdFileProvider(authFile)
 	authenticator := auth.NewBasicAuthenticator("Basic Realm", htpasswd)
 
 	HandleSignals()
