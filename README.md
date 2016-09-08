@@ -7,36 +7,57 @@ Requirements
 No binaries are currently pre-built, so you need to get a working Golang installation. Please refer to the official documentation for
 installation procedures at https://golang.org/.
 
-In order to keep the content keys for each encrypted EPUB, the server requires a SQL Database. The server currently includes drivers
-for SQLite (the default option, and should be fine for small to medium installations) as well as MySQL and Postgres.
+In order to keep the content keys for each encrypted EPUB, the server requires an SQL Database. The server currently includes drivers
+for SQLite (the default option, which should be fine for small to medium installations) as well as MySQL and Postgres.
 
-If you wish to use the external licenses, where a client gets a simple json file that contains instructions on how to fetch the encrypted EPUBS,
+If you wish to use the external licenses, where a client gets a simple json file that contains instructions on how to fetch the encrypted EPUB file,
 a publicly accessible folder must be made available for the server to store the file.
 
-You must obtain a X.509 certificate through the Readium Foundation in order for your licenses to be accepted by the Reading Systems.
+You must obtain a X.509 certificate through EDRLab in order for your licenses to be accepted by Readium LCP compliant Reading Systems.
 
 Install
 =======
 
-Assuming a working Go installation,
-```sh
-go get github.com/readium/readium-lcp-server
+Assuming a working Go installation, the following will install the three executables that constitute a complete Readium LCP Server.
 
-go build github.com/readium/readium-lcp-server/lcpencrypt
-go build github.com/readium/readium-lcp-server/lcpserver
-go build github.com/readium/readium-lcp-server/lsdserver 
+If you want to use the master branch:
+```sh
+// from the go workspace
+cd $GOPATH
+// get the different packages and their dependencies, then installs the packages
+go get github.com/readium/readium-lcp-server
+```
+
+If you want to use a feature/F branch:
+```sh
+// from the go workspace
+cd $GOPATH
+// create the project repository
+mkdir -p src/github.com/readium/readium-lcp-server
+// clone the repo, selecting the development branch
+git clone -b feature/F https://github.com/readium/readium-lcp-server.git src/github.com/readium/readium-lcp-server
+// move to the project repository
+cd src/github.com/readium/readium-lcp-server
+// get the different packages and their dependencies, then installs the packages (dot / triple dot pattern)
+go get ./...
+```
+
+You may prefer to install only some of the three executables. 
+In such a case, the "go get" command should be called once for each package, e.g. for the lcpserver from the master branch:
+```sh
+// from the go workspace
+cd $GOPATH
+// get the different packages and their dependencies, then installs the packages
+go get github.com/readium/readium-lcp-server/lcpserver
 ```
 
 Usage
 =====
 
-*Please note that the LCP Server currently does not include any authentication. Make sure it is only available to your internal services or add an authenticating
-proxy in front of it*
-
-The server is controlled by a configuration file "config.yaml".  
+The server is controlled by a yaml configuration file (e.g. "config.yaml").  
 This file normally resides in the same directory of the executable but the path to this configuration file can be changed using the environment variable READIUM_LICENSE_CONFIG. 
 
-An example config.yaml file exists with the name config.yaml.sample 
+An example config.yaml file exists with the name config.yaml.sample.
 
 "certificate:"				
 - cert: Points to the certificate file (a .crt)
