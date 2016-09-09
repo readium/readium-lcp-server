@@ -94,6 +94,7 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	s.handlePrivateFunc("/contents/{key}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")  // list licenses for content, additional get params {page?,per_page?}
 	s.handlePrivateFunc("/contents/{key}/licenses/", apilcp.ListLicensesForContent, basicAuth).Methods("GET") // idem
 	s.handlePrivateFunc("/contents/{key}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
+	s.handlePrivateFunc("/contents/{key}/publications/", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 	s.handlePrivateFunc("/contents/{key}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 
 	//LICENSES
@@ -113,7 +114,6 @@ type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest
 func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path})
-
 		// Add CORS
 		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		w.Header().Add("Access-Control-Allow-Origin", "*")
@@ -121,13 +121,20 @@ func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 	})
 }
 
-func (s *Server) handlePrivateFunc(route string, fn HandlerPrivateFunc, authenticator *auth.BasicAuth) *mux.Route {
-	return s.router.HandleFunc(route, authenticator.Wrap(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
-		grohl.Log(grohl.Data{"path": r.URL.Path})
+func (s *Server) handlePrivateFunc(route string, fn HandlerFunc, authenticator *auth.BasicAuth) *mux.Route {
+	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+		var username string
+		if username = authenticator.CheckAuth(r); username == "" {
+			grohl.Log(grohl.Data{"error": "Unauthorized", "method": r.Method, "path": r.URL.Path})
+			w.Header().Set("WWW-Authenticate", `Basic realm="`+authenticator.Realm+`"`)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "User or password do not mach!"}, http.StatusUnauthorized)
+			return
+		}
+		grohl.Log(grohl.Data{"user": username, "method": r.Method, "path": r.URL.Path})
 
 		// Add CORS
 		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		w.Header().Add("Access-Control-Allow-Origin", "*")
 		fn(w, r, s)
-	}))
+	})
 }
