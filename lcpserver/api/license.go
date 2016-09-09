@@ -238,9 +238,6 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	key := vars["key"]
-	for k, v := range vars {
-		fmt.Println("Key:", k, "Value:", v)
-	}
 
 	var lic license.License
 
@@ -345,8 +342,6 @@ func completeLicense(l *license.License, key string, s Server) error {
 		if !present {
 			return errors.New("No hint link present in partial license nor config")
 		}
-		l.Links["hint"] = *hint
-
 	}
 
 	if _, present := l.Links["publication"]; !present {
@@ -354,19 +349,31 @@ func completeLicense(l *license.License, key string, s Server) error {
 		publication.Href, present = config.Config.License.Links["publication"]
 		if !present {
 			return errors.New("No publication link present in partial license nor config")
-
 		}
-		// replace {publication_id} in template link
-		publication.Href = strings.Replace(publication.Href, "{publication_id}", c.Location, 1)
 		//publication.Type = ?? , other information about encrypted file (md5 hash ?)
 		l.Links["publication"] = *publication
 	}
-	if statusLink, present := config.Config.License.Links["status"]; !present {
-		// add status server to License
-		status := new(license.Link)
-		status.Href = statusLink
-		//status.Type = ??
+	// replace {publication_id} in template link
+	publicationLink := strings.Replace(l.Links["publication"].Href, "{publication_id}", c.Id, 1)
+	publicationLink = strings.Replace(publicationLink, "{publication_loc}", c.Location, 1)
+	if publicationLink != l.Links["publication"].Href {
+		publication := new(license.Link)
+		publication.Href = publicationLink
+		l.Links["publication"] = *publication
+	}
+
+	if _, present := config.Config.License.Links["status"]; present { // add status server to License
+		status := new(license.Link) //status.Type = ??
+		status.Href = config.Config.License.Links["status"]
 		l.Links["status"] = *status
+	}
+	if _, present := l.Links["status"]; present {
+		statusLink := strings.Replace(l.Links["status"].Href, "{license_id}", l.Id, 1)
+		if statusLink != l.Links["status"].Href {
+			status := new(license.Link)
+			status.Href = statusLink
+			l.Links["status"] = *status
+		}
 	}
 
 	var encryptionKey []byte
