@@ -18,6 +18,7 @@ import (
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/history"
 	"github.com/readium/readium-lcp-server/localization"
+	"github.com/readium/readium-lcp-server/logging"
 	"github.com/readium/readium-lcp-server/lsdserver/server"
 	"github.com/readium/readium-lcp-server/transactions"
 )
@@ -33,8 +34,8 @@ func main() {
 	var port int
 	var err error
 
-	if config_file = os.Getenv("READIUM_LSD_CONFIG"); config_file == "" {
-		config_file = "lsdconfig.yaml"
+	if config_file = os.Getenv("READIUM_LICENSE_CONFIG"); config_file == "" {
+		config_file = "config.yaml"
 	}
 
 	config.ReadConfig(config_file)
@@ -97,6 +98,13 @@ func main() {
 	htpasswd := auth.HtpasswdFileProvider(authFile)
 	authenticator := auth.NewBasicAuthenticator("Basic Realm", htpasswd)
 
+	complianceMode := config.Config.Logging.ComplianceTestsModeOn
+	logDirectory := config.Config.Logging.LogDirectory
+	err = logging.Init(logDirectory, complianceMode)
+	if err != nil {
+		panic(err)
+	}
+
 	HandleSignals()
 	s := lsdserver.New(":"+strconv.Itoa(port), readonly, &hist, &trns, authenticator)
 	if readonly {
@@ -104,7 +112,7 @@ func main() {
 	} else {
 		log.Println("License status server running on port " + strconv.Itoa(port))
 	}
-	log.Println("using database " + dbURI)
+	log.Println("Using database " + dbURI)
 	log.Println("Public base URL=" + publicBaseUrl)
 
 	if err := s.ListenAndServe(); err != nil {

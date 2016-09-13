@@ -9,10 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/history"
+	"github.com/readium/readium-lcp-server/logging"
+
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/localization"
@@ -26,12 +27,12 @@ type Server interface {
 	History() history.History
 }
 
-func CreateLicenseStatusDocument(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
+func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
 	var lic license.License
-	err := apilcp.DecodeJsonLicense(&r.Request, &lic)
+	err := apilcp.DecodeJsonLicense(r, &lic)
 
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -40,7 +41,7 @@ func CreateLicenseStatusDocument(w http.ResponseWriter, r *auth.AuthenticatedReq
 
 	err = s.History().Add(ls)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -56,10 +57,12 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
+			logging.WriteToFile("error", http.StatusNotFound, logging.BASIC_FUNCTION)
 			return
 		}
 
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.BASIC_FUNCTION)
 		return
 	}
 
@@ -77,6 +80,7 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.BASIC_FUNCTION)
 		return
 	}
 
@@ -84,8 +88,11 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 	err = enc.Encode(licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.BASIC_FUNCTION)
 		return
 	}
+
+	logging.WriteToFile("sucsess", http.StatusOK, logging.BASIC_FUNCTION)
 }
 
 func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
@@ -98,10 +105,12 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
+			logging.WriteToFile("success", http.StatusNotFound, logging.ERRONEOUS_REGISTRATION)
 			return
 		}
 
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
 		return
 	}
 
@@ -113,19 +122,34 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 
 	if (dILen == 0) || (dILen > 255) || (dNLen == 0) || (dNLen > 255) {
 		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: "device_id and device_name are mandatory and maximum lenght is 255 symbols "}, http.StatusBadRequest)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
 		return
 	}
 
 	if (licenseStatus.Status != status.STATUS_ACTIVE) && (licenseStatus.Status != status.STATUS_READY) {
 		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
 		return
 	}
-
+	if deviceId != "" {
+		deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
+			return
+		}
+		if deviceStatus != "" {
+			problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: "Device has been already registered"}, http.StatusBadRequest)
+			logging.WriteToFile("success", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
+			return
+		}
+	}
 	event := makeEvent(status.TYPE_REGISTER, deviceName, deviceId, licenseStatus.Id)
 
 	err = s.Transactions().Add(*event, 1)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
 		return
 	}
 
@@ -142,12 +166,14 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.History().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
 		return
 	}
 
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
 		return
 	}
 
@@ -155,8 +181,10 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	err = enc.Encode(licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
 		return
 	}
+	logging.WriteToFile("success", http.StatusOK, logging.SUCCESS_REGISTRATION)
 }
 
 func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
@@ -169,10 +197,12 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
+			logging.WriteToFile("success", http.StatusNotFound, logging.ERRONEOUS_RETURN)
 			return
 		}
 
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
 		return
 	}
 
@@ -181,15 +211,18 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 
 	if (len(deviceName) > 255) || (len(deviceId) > 255) {
 		problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
+		logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RETURN)
 		return
 	}
 
 	switch licenseStatus.Status {
 	case status.STATUS_RETURNED:
 		problem.Error(w, r, problem.Problem{Type: "http://readium.org/license-status-document/error/return/already", Detail: "License has been already returned"}, http.StatusForbidden)
+		logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RETURN)
 		return
 	case status.STATUS_EXPIRED:
 		problem.Error(w, r, problem.Problem{Type: "http://readium.org/license-status-document/error/return/expired", Detail: "License is expired"}, http.StatusForbidden)
+		logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RETURN)
 		return
 	case status.STATUS_ACTIVE:
 		licenseStatus.Status = status.STATUS_RETURNED
@@ -199,9 +232,11 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		break
 	case status.STATUS_CANCELLED:
 		problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: "License is cancelled"}, http.StatusBadRequest)
+		logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RETURN)
 		return
 	case status.STATUS_REVOKED:
 		problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: "License is revoked"}, http.StatusBadRequest)
+		logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RETURN)
 		return
 	}
 
@@ -210,10 +245,12 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
 			return
 		}
 		if deviceStatus == status.TYPE_RETURN || deviceStatus == "" {
 			problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: "Device is not activated"}, http.StatusBadRequest)
+			logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_RETURN)
 			return
 		}
 	}
@@ -223,6 +260,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.Transactions().Add(*event, 2)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
 		return
 	}
 
@@ -232,6 +270,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.History().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
 		return
 	}
 
@@ -240,6 +279,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
 		return
 	}
 
@@ -248,8 +288,10 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
 		return
 	}
+	logging.WriteToFile("success", http.StatusOK, logging.SUCCESS_RETURN)
 }
 
 func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
@@ -262,10 +304,12 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
+			logging.WriteToFile("success", http.StatusNotFound, logging.ERRONEOUS_RENEW)
 			return
 		}
 
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
 		return
 	}
 
@@ -274,6 +318,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 
 	if (len(deviceName) > 255) || (len(deviceId) > 255) {
 		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
+		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_RENEW)
 		return
 	}
 
@@ -282,20 +327,14 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
 			return
 		}
 		if deviceStatus != status.STATUS_ACTIVE {
 			problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
+			logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_RENEW)
 			return
 		}
-	}
-
-	event := makeEvent(status.TYPE_RENEW, deviceName, deviceId, licenseStatus.Id)
-
-	err = s.Transactions().Add(*event, 3)
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		return
 	}
 
 	timeEndString := r.FormValue("end")
@@ -303,10 +342,12 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		renewDays := config.Config.LicenseStatus.RenewDays
 		if renewDays == 0 {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: "renew_days not found"}, http.StatusInternalServerError)
+			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
 			return
 		}
 		if licenseStatus.PotentialRights.End == nil {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: "potential rights not set"}, http.StatusInternalServerError)
+			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
 			return
 		}
 		end := licenseStatus.PotentialRights.End.Add(time.Hour * 24 * time.Duration(renewDays))
@@ -315,9 +356,18 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		expirationEnd, err := time.Parse(time.RFC3339, timeEndString)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
 			return
 		}
 		licenseStatus.PotentialRights.End = &expirationEnd
+	}
+	event := makeEvent(status.TYPE_RENEW, deviceName, deviceId, licenseStatus.Id)
+
+	err = s.Transactions().Add(*event, 3)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
+		return
 	}
 
 	licenseStatus.Updated.Status = &event.Timestamp
@@ -327,6 +377,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.History().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
 		return
 	}
 
@@ -336,6 +387,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
 		return
 	}
 
@@ -344,35 +396,36 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	logging.WriteToFile("success", http.StatusOK, logging.SUCCESS_RENEW)
 }
 
-func FilterLicenseStatuses(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
+func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", "application/json")
 
 	devicesLimit, err := strconv.ParseInt(r.FormValue("devices"), 10, 32)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
 	page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
 	perPage, err := strconv.ParseInt(r.FormValue("per_page"), 10, 32)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
 	if (page < 1) || (perPage < 1) || (devicesLimit < 1) {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: "devices, page, per_page must be positive number"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "devices, page, per_page must be positive number"}, http.StatusBadRequest)
 		return
 	}
 
@@ -409,25 +462,25 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *auth.AuthenticatedRequest, 
 	enc := json.NewEncoder(w)
 	err = enc.Encode(licenseStatuses)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 }
 
-func ListRegisteredDevices(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
+func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(&r.Request)
 
+	vars := mux.Vars(r)
 	licenseFk := vars["key"]
 
 	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
 	if err != nil {
 		if licenseStatus == nil {
-			problem.NotFoundHandler(w, &r.Request)
+			problem.NotFoundHandler(w, r)
 			return
 		}
 
-		problem.Error(w, &r.Request, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -441,35 +494,36 @@ func ListRegisteredDevices(w http.ResponseWriter, r *auth.AuthenticatedRequest, 
 	enc := json.NewEncoder(w)
 	err = enc.Encode(registeredDevicesList)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 }
 
-func CancelLicenseStatus(w http.ResponseWriter, r *auth.AuthenticatedRequest, s Server) {
-	vars := mux.Vars(&r.Request)
-
+func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
 	licenseFk := vars["key"]
+
 	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
 
 	if err != nil {
 		if licenseStatus == nil {
-			problem.NotFoundHandler(w, &r.Request)
+			problem.NotFoundHandler(w, r)
 			return
 		}
 
-		problem.Error(w, &r.Request, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
-	var parsedLs history.LicenseStatus
-	err = decodeJsonLicenseStatus(&r.Request, &parsedLs)
 
+	var parsedLs history.LicenseStatus
+	err = decodeJsonLicenseStatus(r, &parsedLs)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
 	licenseStatus.Status = parsedLs.Status
+
 	currentTime := time.Now()
 
 	licenseStatus.Updated.Status = &currentTime
@@ -477,7 +531,7 @@ func CancelLicenseStatus(w http.ResponseWriter, r *auth.AuthenticatedRequest, s 
 
 	err = s.History().Update(*licenseStatus)
 	if err != nil {
-		problem.Error(w, &r.Request, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 

@@ -127,7 +127,7 @@ func (s *Server) handlePrivateFunc(route string, fn HandlerFunc, authenticator *
 		if username = authenticator.CheckAuth(r); username == "" {
 			grohl.Log(grohl.Data{"error": "Unauthorized", "method": r.Method, "path": r.URL.Path})
 			w.Header().Set("WWW-Authenticate", `Basic realm="`+authenticator.Realm+`"`)
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "User or password do not mach!"}, http.StatusUnauthorized)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "User or password do not match!"}, http.StatusUnauthorized)
 			return
 		}
 		grohl.Log(grohl.Data{"user": username, "method": r.Method, "path": r.URL.Path})

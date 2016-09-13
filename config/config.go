@@ -16,6 +16,7 @@ type Configuration struct {
 	Static        Static        `yaml:"static"`
 	LicenseStatus LicenseStatus `yaml:"license_status"`
 	Localization  Localization  `yaml:"localization"`
+	Logging       Logging       `yaml:"logging"`
 }
 
 type ServerInfo struct {
@@ -69,6 +70,11 @@ type Localization struct {
 	Languages       []string `yaml:"languages"`
 	Folder          string   `yaml:"folder"`
 	DefaultLanguage string   `yaml:"default_language"`
+}
+
+type Logging struct {
+	LogDirectory          string `yaml:"log_directory"`
+	ComplianceTestsModeOn bool   `yaml:"compliance_tests_mode_on"`
 }
 
 var Config Configuration

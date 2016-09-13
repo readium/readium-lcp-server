@@ -102,7 +102,7 @@ func main() {
 		s3Conf := s3ConfigFromYAML()
 		store, _ = storage.S3(s3Conf)
 	} else {
-		os.Mkdir(storagePath, os.ModePerm) //ignore the error, the folder can already exist
+		os.MkdirAll(storagePath, os.ModePerm) //ignore the error, the folder can already exist
 		store = storage.NewFileSystem(storagePath, publicBaseUrl+"/files")
 	}
 
