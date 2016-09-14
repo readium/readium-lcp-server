@@ -55,12 +55,11 @@ func New(bindAddr string, readonly bool, hist *history.History, trns *transactio
 	s.handlePrivateFunc("/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 
 	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
-
 	return s
 }
 
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
-type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s apilsd.Server)
+type HandlerPrivateFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
 
 func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
@@ -73,12 +72,18 @@ func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
 	})
 }
 func (s *Server) handlePrivateFunc(route string, fn HandlerPrivateFunc, authenticator *auth.BasicAuth) *mux.Route {
-	return s.router.HandleFunc(route, authenticator.Wrap(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+		var username string
+		if username = authenticator.CheckAuth(r); username == "" {
+			grohl.Log(grohl.Data{"error": "Unauthorized", "method": r.Method, "path": r.URL.Path})
+			w.Header().Set("WWW-Authenticate", `Basic realm="`+authenticator.Realm+`"`)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "User or password do not match!"}, http.StatusUnauthorized)
+			return
+		}
 		grohl.Log(grohl.Data{"path": r.URL.Path})
-
 		// Add CORS
 		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		w.Header().Add("Access-Control-Allow-Origin", "*")
 		fn(w, r, s)
-	}))
+	})
 }
