@@ -16,17 +16,13 @@ var (
 )
 
 const (
-	BASIC_FUNCTION         = "2.3.1.1"
-	SUCCESS_REGISTRATION   = "2.3.1.2.1"
-	REJECT_REGISTRATION    = "2.3.1.2.2"
-	ERRONEOUS_REGISTRATION = "2.3.1.2.3"
-	SUCCESS_RETURN         = "2.3.1.3.1"
-	REJECT_RETURN          = "2.3.1.3.2"
-	ERRONEOUS_RETURN       = "2.3.1.3.3"
-	SUCCESS_RENEW          = "2.3.1.4.1"
-	REJECT_RENEW           = "2.3.1.4.2"
-	ERRONEOUS_RENEW        = "2.3.1.4.3"
-	LICENSE_UPDATING       = "2.3.1.6"
+	BASIC_FUNCTION       = "2.3.2.1"
+	SUCCESS_REGISTRATION = "2.3.2.2.1"
+	REJECT_REGISTRATION  = "2.3.2.2.2"
+	SUCCESS_RETURN       = "2.3.2.3.1"
+	REJECT_RETURN        = "2.3.2.3.2"
+	SUCCESS_RENEW        = "2.3.2.4.1"
+	REJECT_RENEW         = "2.3.2.4.2"
 )
 
 func Init(logPath string, cm bool) error {

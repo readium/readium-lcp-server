@@ -105,12 +105,14 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
-			logging.WriteToFile("success", http.StatusNotFound, logging.ERRONEOUS_REGISTRATION)
+			logging.WriteToFile("error", http.StatusNotFound, logging.SUCCESS_REGISTRATION)
+			logging.WriteToFile("error", http.StatusNotFound, logging.REJECT_REGISTRATION)
 			return
 		}
 
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
 		return
 	}
 
@@ -122,25 +124,26 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 
 	if (dILen == 0) || (dILen > 255) || (dNLen == 0) || (dNLen > 255) {
 		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: "device_id and device_name are mandatory and maximum lenght is 255 symbols "}, http.StatusBadRequest)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
+		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_REGISTRATION)
 		return
 	}
 
 	if (licenseStatus.Status != status.STATUS_ACTIVE) && (licenseStatus.Status != status.STATUS_READY) {
 		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
+		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_REGISTRATION)
 		return
 	}
 	if deviceId != "" {
 		deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
 			return
 		}
 		if deviceStatus != "" {
 			problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: "Device has been already registered"}, http.StatusBadRequest)
-			logging.WriteToFile("success", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
+			logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_REGISTRATION)
 			return
 		}
 	}
@@ -149,7 +152,8 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.Transactions().Add(*event, 1)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
 		return
 	}
 
@@ -166,14 +170,16 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.History().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
 		return
 	}
 
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
 		return
 	}
 
@@ -181,7 +187,8 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	err = enc.Encode(licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_REGISTRATION)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
 		return
 	}
 	logging.WriteToFile("success", http.StatusOK, logging.SUCCESS_REGISTRATION)
@@ -197,12 +204,14 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
-			logging.WriteToFile("success", http.StatusNotFound, logging.ERRONEOUS_RETURN)
+			logging.WriteToFile("error", http.StatusNotFound, logging.SUCCESS_RETURN)
+			logging.WriteToFile("error", http.StatusNotFound, logging.REJECT_RETURN)
 			return
 		}
 
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
 		return
 	}
 
@@ -245,7 +254,8 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
 			return
 		}
 		if deviceStatus == status.TYPE_RETURN || deviceStatus == "" {
@@ -260,7 +270,8 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.Transactions().Add(*event, 2)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
 		return
 	}
 
@@ -270,7 +281,8 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.History().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
 		return
 	}
 
@@ -279,7 +291,8 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
 		return
 	}
 
@@ -288,7 +301,8 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RETURN)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
 		return
 	}
 	logging.WriteToFile("success", http.StatusOK, logging.SUCCESS_RETURN)
@@ -304,12 +318,14 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
-			logging.WriteToFile("success", http.StatusNotFound, logging.ERRONEOUS_RENEW)
+			logging.WriteToFile("error", http.StatusNotFound, logging.SUCCESS_RENEW)
+			logging.WriteToFile("error", http.StatusNotFound, logging.REJECT_RENEW)
 			return
 		}
 
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
 		return
 	}
 
@@ -327,7 +343,8 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
 			return
 		}
 		if deviceStatus != status.STATUS_ACTIVE {
@@ -342,12 +359,14 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		renewDays := config.Config.LicenseStatus.RenewDays
 		if renewDays == 0 {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: "renew_days not found"}, http.StatusInternalServerError)
-			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
 			return
 		}
 		if licenseStatus.PotentialRights.End == nil {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: "potential rights not set"}, http.StatusInternalServerError)
-			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
 			return
 		}
 		end := licenseStatus.PotentialRights.End.Add(time.Hour * 24 * time.Duration(renewDays))
@@ -356,7 +375,8 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		expirationEnd, err := time.Parse(time.RFC3339, timeEndString)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-			logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
+			logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
 			return
 		}
 		licenseStatus.PotentialRights.End = &expirationEnd
@@ -366,7 +386,8 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.Transactions().Add(*event, 3)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
 		return
 	}
 
@@ -377,7 +398,8 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.History().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
 		return
 	}
 
@@ -387,7 +409,8 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
 		return
 	}
 
@@ -396,7 +419,8 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("success", http.StatusInternalServerError, logging.ERRONEOUS_RENEW)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
 		return
 	}
 

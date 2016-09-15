@@ -23,7 +23,7 @@ type Store interface {
 	ListAll(page int, pageNum int) func() (License, error)
 	UpdateRights(l License) error
 	Update(l License) error
-	Add(l License) error
+	Add(l License, authorization string) error
 	Get(id string) (License, error)
 }
 
@@ -31,7 +31,7 @@ type sqlStore struct {
 	db *sql.DB
 }
 
-func notifyLsdServer(l License) {
+func notifyLsdServer(l License, authorization string) {
 	if config.Config.LsdServer.PublicBaseUrl != "" { //notifyLsdServer of new License
 		var lsdClient = &http.Client{
 			Timeout: time.Second * 10,
@@ -42,7 +42,10 @@ func notifyLsdServer(l License) {
 			pw.Close() // signal end writing
 		}()
 		req, err := http.NewRequest("PUT", config.Config.LsdServer.PublicBaseUrl+"/licenses", pr)
+
+		req.Header.Add("authorization", authorization)
 		req.Header.Add("Content-Type", ContentType)
+
 		response, err := lsdClient.Do(req)
 		if err != nil {
 			log.Println("Error Notify LsdServer of new License (" + l.Id + "):" + err.Error())
@@ -121,8 +124,8 @@ func (s *sqlStore) UpdateRights(l License) error {
 	}
 	return err
 }
-func (s *sqlStore) Add(l License) error {
-	go notifyLsdServer(l)
+func (s *sqlStore) Add(l License, authorization string) error {
+	go notifyLsdServer(l, authorization)
 	_, err := s.db.Exec("INSERT INTO license VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		l.Id, l.User.Id, l.Provider, l.Issued, nil, l.Rights.Print, l.Rights.Copy, l.Rights.Start,
 		l.Rights.End, l.Encryption.UserKey.Hint, l.Encryption.UserKey.Check,
