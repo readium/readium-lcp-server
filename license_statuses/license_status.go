@@ -1,4 +1,4 @@
-package history
+package licensestatuses
 
 import (
 	"time"

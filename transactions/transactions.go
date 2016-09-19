@@ -47,6 +47,7 @@ type dbTransactions struct {
 	listregistereddevices *sql.Stmt
 }
 
+//Get returns event if it exists in table 'event'
 func (i dbTransactions) Get(id int) (Event, error) {
 	records, err := i.get.Query(id)
 	var typeInt int
@@ -64,6 +65,8 @@ func (i dbTransactions) Get(id int) (Event, error) {
 	return Event{}, NotFound
 }
 
+//Add adds event in database, parameter typeEvent is for field 'type' in table 'event'
+//1 when register device, 2 when return and 3 when renew
 func (i dbTransactions) Add(e Event, typeEvent int) error {
 	add, err := i.db.Prepare("INSERT INTO event VALUES (?, ?, ?, ?, ?, ?)")
 
@@ -76,6 +79,7 @@ func (i dbTransactions) Add(e Event, typeEvent int) error {
 	return err
 }
 
+//GetByLicenseStatusId returns all events by licensestatus id
 func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event, error) {
 	rows, err := i.getbylicensestatusid.Query(licenseStatusFk)
 	if err != nil {
@@ -94,6 +98,7 @@ func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event,
 	}
 }
 
+//ListRegisteredDevices returns all devices which has status 'regitered' by licensestatus id
 func (i dbTransactions) ListRegisteredDevices(licenseStatusFk int) func() (Device, error) {
 	rows, err := i.listregistereddevices.Query(licenseStatusFk)
 	if err != nil {
@@ -112,6 +117,8 @@ func (i dbTransactions) ListRegisteredDevices(licenseStatusFk int) func() (Devic
 	}
 }
 
+//CheckDeviceStatus gets current status of device
+//if there is no device in table 'event' by deviceId, typeString will be the empty string
 func (i dbTransactions) CheckDeviceStatus(licenseStatusFk int, deviceId string) (string, error) {
 	var typeString string
 	var typeInt int
@@ -130,6 +137,7 @@ func (i dbTransactions) CheckDeviceStatus(licenseStatusFk int, deviceId string) 
 	return typeString, err
 }
 
+//Open defines scripts for queries & create table 'event' if not exist
 func Open(db *sql.DB) (t Transactions, err error) {
 	_, err = db.Exec(tableDef)
 	if err != nil {

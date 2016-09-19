@@ -16,7 +16,7 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/history"
+	"github.com/readium/readium-lcp-server/licensestatuses"
 	"github.com/readium/readium-lcp-server/localization"
 	"github.com/readium/readium-lcp-server/logging"
 	"github.com/readium/readium-lcp-server/lsdserver/server"
@@ -75,7 +75,7 @@ func main() {
 		}
 	}
 
-	hist, err := history.Open(db)
+	hist, err := licensestatuses.Open(db)
 	if err != nil {
 		panic(err)
 	}

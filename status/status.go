@@ -33,6 +33,7 @@ var Types = map[int]string{
 	3: TYPE_RENEW,
 }
 
+//GetStatus translate status number to status string
 func GetStatus(statusDB int64, status *string) {
 	resultStr := reverse(strconv.FormatInt(statusDB, 2))
 
@@ -45,6 +46,7 @@ func GetStatus(statusDB int64, status *string) {
 	}
 }
 
+//SetStatus translate status string to status number
 func SetStatus(status string) (int64, error) {
 	reg := make([]string, len(statuses))
 

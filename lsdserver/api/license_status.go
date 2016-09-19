@@ -11,11 +11,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/history"
 	"github.com/readium/readium-lcp-server/logging"
 
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/licensestatuses"
 	"github.com/readium/readium-lcp-server/localization"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/status"
@@ -24,9 +24,10 @@ import (
 
 type Server interface {
 	Transactions() transactions.Transactions
-	History() history.History
+	LicenseStatuses() licensestatuses.LicenseStatuses
 }
 
+//CreateLicenseStatusDocument create license status and add it to database
 func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
 	var lic license.License
 	err := apilcp.DecodeJsonLicense(r, &lic)
@@ -36,10 +37,10 @@ func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Serve
 		return
 	}
 
-	var ls history.LicenseStatus
+	var ls licensestatuses.LicenseStatus
 	makeLicenseStatus(lic, &ls)
 
-	err = s.History().Add(ls)
+	err = s.LicenseStatuses().Add(ls)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -48,12 +49,14 @@ func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Serve
 	w.WriteHeader(http.StatusCreated)
 }
 
+//GetLicenseStatusDocument get license status from database by licese id
+//checks potential_rights_end and fill it
 func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 
 	licenseFk := vars["key"]
 
-	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseFk)
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
@@ -73,7 +76,7 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 
 		if (!licenseStatus.PotentialRights.End.IsZero()) && (diff > 0) && ((licenseStatus.Status == status.STATUS_ACTIVE) || (licenseStatus.Status == status.STATUS_READY)) {
 			licenseStatus.Status = status.STATUS_EXPIRED
-			s.History().Update(*licenseStatus)
+			s.LicenseStatuses().Update(*licenseStatus)
 		}
 	}
 
@@ -98,12 +101,14 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 	logging.WriteToFile("sucsess", http.StatusOK, logging.BASIC_FUNCTION)
 }
 
+//RegisterDevice register device using device_id & device_name request parameters
+//& returns updated and filled license status
 func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", "application/vnd.readium.license.status.v1.0+json")
 	vars := mux.Vars(r)
 
 	licenseFk := vars["key"]
-	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseFk)
 
 	if err != nil {
 		if licenseStatus == nil {
@@ -125,31 +130,35 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	dILen := len(deviceId)
 	dNLen := len(deviceName)
 
+	//check mandatory request parameters
 	if (dILen == 0) || (dILen > 255) || (dNLen == 0) || (dNLen > 255) {
 		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: "device_id and device_name are mandatory and maximum lenght is 255 symbols "}, http.StatusBadRequest)
 		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_REGISTRATION)
 		return
 	}
 
+	//check status of license status
 	if (licenseStatus.Status != status.STATUS_ACTIVE) && (licenseStatus.Status != status.STATUS_READY) {
 		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
 		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_REGISTRATION)
 		return
 	}
-	if deviceId != "" {
-		deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-			logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
-			logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
-			return
-		}
-		if deviceStatus != "" {
-			problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: "Device has been already registered"}, http.StatusBadRequest)
-			logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_REGISTRATION)
-			return
-		}
+
+	//check the existence of device in license status
+	deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
+		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
+		return
 	}
+	if deviceStatus != "" {
+		problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: "Device has been already registered"}, http.StatusBadRequest)
+		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_REGISTRATION)
+		return
+	}
+
+	//make event for register transaction
 	event := makeEvent(status.TYPE_REGISTER, deviceName, deviceId, licenseStatus.Id)
 
 	err = s.Transactions().Add(*event, 1)
@@ -162,6 +171,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 
 	licenseStatus.Updated.Status = &event.Timestamp
 
+	//check & set the status of the license status
 	if licenseStatus.Status == status.STATUS_READY {
 		licenseStatus.Status = status.STATUS_ACTIVE
 		licenseStatus.Updated.License = &event.Timestamp
@@ -170,7 +180,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 
 	licenseStatus.DeviceCount += 1
 
-	err = s.History().Update(*licenseStatus)
+	err = s.LicenseStatuses().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
@@ -178,6 +188,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	//fill license status
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
@@ -197,12 +208,14 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	logging.WriteToFile("success", http.StatusOK, logging.SUCCESS_REGISTRATION)
 }
 
+//LendingReturn checks that the calling device is activated, then modifies
+//the end date associated with the given license & returns updated and filled license status
 func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", "application/vnd.readium.license.status.v1.0+json")
 	vars := mux.Vars(r)
 
 	licenseFk := vars["key"]
-	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseFk)
 
 	if err != nil {
 		if licenseStatus == nil {
@@ -221,12 +234,14 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	deviceId := r.FormValue("device_id")
 	deviceName := r.FormValue("device_name")
 
+	//checks request parameters
 	if (len(deviceName) > 255) || (len(deviceId) > 255) {
 		problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
 		logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RETURN)
 		return
 	}
 
+	//check & set the status of license status according to its current value
 	switch licenseStatus.Status {
 	case status.STATUS_RETURNED:
 		problem.Error(w, r, problem.Problem{Type: "http://readium.org/license-status-document/error/return/already", Detail: "License has been already returned"}, http.StatusForbidden)
@@ -268,6 +283,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		}
 	}
 
+	//create event for lending return
 	event := makeEvent(status.TYPE_RETURN, deviceName, deviceId, licenseStatus.Id)
 
 	err = s.Transactions().Add(*event, 2)
@@ -278,10 +294,11 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	//update licenseStatus
 	licenseStatus.Updated.Status = &event.Timestamp
 	licenseStatus.Updated.License = &event.Timestamp
 
-	err = s.History().Update(*licenseStatus)
+	err = s.LicenseStatuses().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
@@ -289,8 +306,10 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	//update license using LCP Server
 	go updateLicense(event.Timestamp, licenseFk)
 
+	//fill license status
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
@@ -311,12 +330,14 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	logging.WriteToFile("success", http.StatusOK, logging.SUCCESS_RETURN)
 }
 
+//LendingRenewal checks that the calling device is activated, then modifies
+//the end date associated with the license & returns updated and filled license status
 func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", "application/vnd.readium.license.status.v1.0+json")
 	vars := mux.Vars(r)
 
 	licenseFk := vars["key"]
-	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseFk)
 
 	if err != nil {
 		if licenseStatus == nil {
@@ -335,6 +356,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	deviceId := r.FormValue("device_id")
 	deviceName := r.FormValue("device_name")
 
+	//check the request parameters
 	if (len(deviceName) > 255) || (len(deviceId) > 255) {
 		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
 		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_RENEW)
@@ -357,6 +379,8 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		}
 	}
 
+	//set new date for potential_rights_end
+	//if request parameter 'end' is empty, it used renew_days parameter from config
 	timeEndString := r.FormValue("end")
 	if timeEndString == "" {
 		renewDays := config.Config.LicenseStatus.RenewDays
@@ -394,11 +418,12 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	//update license status fields
 	licenseStatus.Updated.Status = &event.Timestamp
 	licenseStatus.Updated.License = &event.Timestamp
 	licenseStatus.Status = status.STATUS_ACTIVE
 
-	err = s.History().Update(*licenseStatus)
+	err = s.LicenseStatuses().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
@@ -406,7 +431,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	/*lcp update rights*/
+	//update license using LCP Server
 	go updateLicense(event.Timestamp, licenseFk)
 
 	err = fillLicenseStatus(licenseStatus, r, s)
@@ -430,6 +455,8 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	logging.WriteToFile("success", http.StatusOK, logging.SUCCESS_RENEW)
 }
 
+//FilterLicenseStatuses returns a sequence of license statuses, in their id order
+//function for detecting licenses which used a lot of devices
 func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -458,9 +485,9 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 
 	page -= 1
 
-	licenseStatuses := make([]history.LicenseStatus, 0)
+	licenseStatuses := make([]licensestatuses.LicenseStatus, 0)
 
-	fn := s.History().List(devicesLimit, perPage, page*perPage)
+	fn := s.LicenseStatuses().List(devicesLimit, perPage, page*perPage)
 	for it, err := fn(); err == nil; it, err = fn() {
 		licenseStatuses = append(licenseStatuses, it)
 	}
@@ -494,13 +521,14 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 }
 
+//ListRegisteredDevices returns data about the use of a given license
 func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
 	licenseFk := vars["key"]
 
-	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseFk)
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
@@ -526,11 +554,12 @@ func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 }
 
+//CancelLicenseStatus cancel or revoke (according to the status) a license
 func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	licenseFk := vars["key"]
 
-	licenseStatus, err := s.History().GetByLicenseId(licenseFk)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseFk)
 
 	if err != nil {
 		if licenseStatus == nil {
@@ -542,7 +571,7 @@ func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	var parsedLs history.LicenseStatus
+	var parsedLs licensestatuses.LicenseStatus
 	err = decodeJsonLicenseStatus(r, &parsedLs)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
@@ -556,22 +585,25 @@ func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
 	licenseStatus.Updated.Status = &currentTime
 	licenseStatus.Updated.License = &currentTime
 
-	err = s.History().Update(*licenseStatus)
+	err = s.LicenseStatuses().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
+	//update license using LCP Server
 	go updateLicense(currentTime, licenseFk)
 }
 
-func makeLicenseStatus(license license.License, ls *history.LicenseStatus) {
+//makeLicenseStatus sets fields of license status according to the config file
+//and creates needed inner objects of license status
+func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatus) {
 	ls.LicenseRef = license.Id
 
 	registerAvailable := config.Config.LicenseStatus.Register
 	rentingDays := config.Config.LicenseStatus.RentingDays
 
-	ls.PotentialRights = new(history.PotentialRights)
+	ls.PotentialRights = new(licensestatuses.PotentialRights)
 
 	if rentingDays != 0 {
 		end := license.Issued.Add(time.Hour * 24 * time.Duration(rentingDays))
@@ -584,10 +616,11 @@ func makeLicenseStatus(license license.License, ls *history.LicenseStatus) {
 		ls.Status = status.STATUS_ACTIVE
 	}
 
-	ls.Updated = new(history.Updated)
+	ls.Updated = new(licensestatuses.Updated)
 }
 
-func getEvents(ls *history.LicenseStatus, s Server) error {
+//getEvents gets the events from database for the license status
+func getEvents(ls *licensestatuses.LicenseStatus, s Server) error {
 	events := make([]transactions.Event, 0)
 
 	fn := s.Transactions().GetByLicenseStatusId(ls.Id)
@@ -605,31 +638,32 @@ func getEvents(ls *history.LicenseStatus, s Server) error {
 	return err
 }
 
-func makeLinks(ls *history.LicenseStatus) {
+//makeLinks creates and adds links to the license status
+func makeLinks(ls *licensestatuses.LicenseStatus) {
 	lsdBaseUrl := config.Config.LsdServer.PublicBaseUrl
 	registerAvailable := config.Config.LicenseStatus.Register
 	returnAvailable := config.Config.LicenseStatus.Return
 	renewAvailable := config.Config.LicenseStatus.Renew
 
-	ls.Links = make(map[string][]history.Link)
-	ls.Links["license"] = make([]history.Link, 1)
+	ls.Links = make(map[string][]licensestatuses.Link)
+	ls.Links["license"] = make([]licensestatuses.Link, 1)
 	ls.Links["license"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "",
 		"application/vnd.readium.lcp.license.v1.0+json", false)
 
 	if registerAvailable {
-		ls.Links["register"] = make([]history.Link, 1)
+		ls.Links["register"] = make([]licensestatuses.Link, 1)
 		ls.Links["register"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/register{?id,name}",
 			"application/vnd.readium.license.status.v1.0+json", true)
 	}
 
 	if returnAvailable {
-		ls.Links["return"] = make([]history.Link, 1)
+		ls.Links["return"] = make([]licensestatuses.Link, 1)
 		ls.Links["return"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/return{?id,name}",
 			"application/vnd.readium.lcp.license-1.0+json", true)
 	}
 
 	if renewAvailable {
-		ls.Links["renew"] = make([]history.Link, 2)
+		ls.Links["renew"] = make([]licensestatuses.Link, 2)
 		ls.Links["renew"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/renew",
 			"text/html", false)
 		ls.Links["renew"][1] = createLink(lsdBaseUrl, ls.LicenseRef, "/renew{?end,id,name}",
@@ -637,13 +671,15 @@ func makeLinks(ls *history.LicenseStatus) {
 	}
 }
 
+//createLink creates a link and fills it
 func createLink(publicBaseUrl string, licenseRef string, page string,
-	typeLink string, templated bool) history.Link {
-	link := history.Link{Href: publicBaseUrl + "/license/" + licenseRef + page,
+	typeLink string, templated bool) licensestatuses.Link {
+	link := licensestatuses.Link{Href: publicBaseUrl + "/license/" + licenseRef + page,
 		Type: typeLink, Templated: templated}
 	return link
 }
 
+//makeEvent creates an event and fill it
 func makeEvent(status string, deviceName string, deviceId string, licenseStatusFk int) *transactions.Event {
 	event := transactions.Event{}
 	event.DeviceId = deviceId
@@ -655,7 +691,8 @@ func makeEvent(status string, deviceName string, deviceId string, licenseStatusF
 	return &event
 }
 
-func decodeJsonLicenseStatus(r *http.Request, ls *history.LicenseStatus) error {
+//decodeJsonLicenseStatus decodes license status json to the object
+func decodeJsonLicenseStatus(r *http.Request, ls *licensestatuses.LicenseStatus) error {
 	var dec *json.Decoder
 
 	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == "application/x-www-form-urlencoded" {
@@ -670,6 +707,7 @@ func decodeJsonLicenseStatus(r *http.Request, ls *history.LicenseStatus) error {
 	return err
 }
 
+//updateLicense updates license using LCP Server
 func updateLicense(timeEnd time.Time, licenseRef string) {
 	l := license.License{Id: licenseRef, Rights: new(license.UserRights)}
 	l.Rights.End = &timeEnd
@@ -697,7 +735,8 @@ func updateLicense(timeEnd time.Time, licenseRef string) {
 	}
 }
 
-func fillLicenseStatus(ls *history.LicenseStatus, r *http.Request, s Server) error {
+//fillLicenseStatus fills object 'links' and field 'message' in license status
+func fillLicenseStatus(ls *licensestatuses.LicenseStatus, r *http.Request, s Server) error {
 	makeLinks(ls)
 
 	acceptLanguages := r.Header.Get("Accept-Language")

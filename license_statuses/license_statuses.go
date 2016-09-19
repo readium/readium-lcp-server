@@ -1,4 +1,4 @@
-package history
+package licensestatuses
 
 import (
 	"database/sql"
@@ -10,7 +10,7 @@ import (
 
 var NotFound = errors.New("License Status not found")
 
-type History interface {
+type LicenseStatuses interface {
 	Get(id int) (LicenseStatus, error)
 	Add(ls LicenseStatus) error
 	List(deviceLimit int64, limit int64, offset int64) func() (LicenseStatus, error)
@@ -18,7 +18,7 @@ type History interface {
 	Update(ls LicenseStatus) error
 }
 
-type dbHistory struct {
+type dbLicenseStatuses struct {
 	db             *sql.DB
 	get            *sql.Stmt
 	add            *sql.Stmt
@@ -27,7 +27,8 @@ type dbHistory struct {
 	update         *sql.Stmt
 }
 
-func (i dbHistory) Get(id int) (LicenseStatus, error) {
+//Get gets license status by id
+func (i dbLicenseStatuses) Get(id int) (LicenseStatus, error) {
 	var statusDB int64
 
 	records, err := i.get.Query(id)
@@ -47,7 +48,8 @@ func (i dbHistory) Get(id int) (LicenseStatus, error) {
 	return LicenseStatus{}, NotFound
 }
 
-func (i dbHistory) Add(ls LicenseStatus) error {
+//Add adds license status to database
+func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
 	add, err := i.db.Prepare("INSERT INTO license_status VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
@@ -63,7 +65,9 @@ func (i dbHistory) Add(ls LicenseStatus) error {
 	return err
 }
 
-func (i dbHistory) List(deviceLimit int64, limit int64, offset int64) func() (LicenseStatus, error) {
+//List gets license statuses which have devices count more than devices limit
+//input parameters: limit - how much license statuses need to get, offset - from what position need to start
+func (i dbLicenseStatuses) List(deviceLimit int64, limit int64, offset int64) func() (LicenseStatus, error) {
 	rows, err := i.list.Query(deviceLimit, limit, offset)
 	if err != nil {
 		return func() (LicenseStatus, error) { return LicenseStatus{}, err }
@@ -89,7 +93,8 @@ func (i dbHistory) List(deviceLimit int64, limit int64, offset int64) func() (Li
 	}
 }
 
-func (i dbHistory) GetByLicenseId(licenseFk string) (*LicenseStatus, error) {
+//GetByLicenseId gets license status by license id
+func (i dbLicenseStatuses) GetByLicenseId(licenseFk string) (*LicenseStatus, error) {
 	var statusDB int64
 	ls := LicenseStatus{}
 
@@ -123,7 +128,8 @@ func (i dbHistory) GetByLicenseId(licenseFk string) (*LicenseStatus, error) {
 	return &ls, err
 }
 
-func (i dbHistory) Update(ls LicenseStatus) error {
+//Update updates license status
+func (i dbLicenseStatuses) Update(ls LicenseStatus) error {
 
 	statusInt, err := status.SetStatus(ls.Status)
 	if err != nil {
@@ -142,7 +148,8 @@ func (i dbHistory) Update(ls LicenseStatus) error {
 	return err
 }
 
-func Open(db *sql.DB) (h History, err error) {
+//Open defines scripts for queries & create table 'licensestatus' if not exist
+func Open(db *sql.DB) (l LicenseStatuses, err error) {
 	_, err = db.Exec(tableDef)
 	if err != nil {
 		return
@@ -160,7 +167,7 @@ func Open(db *sql.DB) (h History, err error) {
 	if err != nil {
 		return
 	}
-	h = dbHistory{db, get, nil, list, getbylicenseid, nil}
+	l = dbLicenseStatuses{db, get, nil, list, getbylicenseid, nil}
 	return
 }
 

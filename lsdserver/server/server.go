@@ -7,7 +7,7 @@ import (
 
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/history"
+	"github.com/readium/readium-lcp-server/licensestatuses"
 	"github.com/readium/readium-lcp-server/lsdserver/api"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/transactions"
@@ -18,19 +18,19 @@ type Server struct {
 	http.Server
 	readonly bool
 	router   *mux.Router
-	hist     history.History
+	lst      licensestatuses.LicenseStatuses
 	trns     transactions.Transactions
 }
 
-func (s *Server) History() history.History {
-	return s.hist
+func (s *Server) LicenseStatuses() licensestatuses.LicenseStatuses {
+	return s.lst
 }
 
 func (s *Server) Transactions() transactions.Transactions {
 	return s.trns
 }
 
-func New(bindAddr string, readonly bool, hist *history.History, trns *transactions.Transactions, basicAuth *auth.BasicAuth) *Server {
+func New(bindAddr string, readonly bool, lst *licensestatuses.LicenseStatuses, trns *transactions.Transactions, basicAuth *auth.BasicAuth) *Server {
 	r := mux.NewRouter()
 	s := &Server{
 		Server: http.Server{
@@ -41,7 +41,7 @@ func New(bindAddr string, readonly bool, hist *history.History, trns *transactio
 		},
 		readonly: readonly,
 		router:   r,
-		hist:     *hist,
+		lst:      *lst,
 		trns:     *trns,
 	}
 

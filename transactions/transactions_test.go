@@ -6,8 +6,10 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/readium/readium-lcp-server/status"
 )
 
+//TestTransactionCreation opens database and tries to add an event to table 'event'
 func TestTransactionCreation(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	trns, err := Open(db)
@@ -19,8 +21,8 @@ func TestTransactionCreation(t *testing.T) {
 
 	timestamp := time.Now()
 
-	e := Event{DeviceName: "testdevice", Timestamp: timestamp, Type: 1, DeviceId: "deviceid", LicenseStatusFk: 1}
-	err = trns.Add(e)
+	e := Event{DeviceName: "testdevice", Timestamp: timestamp, Type: status.Types[1], DeviceId: "deviceid", LicenseStatusFk: 1}
+	err = trns.Add(e, 1)
 	if err != nil {
 		t.Error(err)
 	}

@@ -1,3 +1,4 @@
+//This tool is for testers to control and log the tests
 package main
 
 import (
