@@ -45,7 +45,7 @@ func New(bindAddr string, readonly bool, hist *history.History, trns *transactio
 		trns:     *trns,
 	}
 
-	s.handleFunc("/licenses/{key}/status", apilsd.GetLicenseStatusDocument).Methods("POST")
+	s.handleFunc("/licenses/{key}/status", apilsd.GetLicenseStatusDocument).Methods("GET")
 	s.handleFunc("/licenses/{key}/register", apilsd.RegisterDevice).Methods("POST")
 	s.handleFunc("/licenses/{key}/return", apilsd.LendingReturn).Methods("PUT")
 	s.handleFunc("/licenses/{key}/renew", apilsd.LendingRenewal).Methods("PUT")

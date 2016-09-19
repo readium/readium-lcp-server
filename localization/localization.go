@@ -10,7 +10,7 @@ import (
 //err!=nil  means that one of them can't be opened
 func InitTranslations() error {
 	acceptableLanguages := config.Config.Localization.Languages
-	localizationPath := config.Config.Localization.Folder
+	localizationPath := config.Config.Localization.Folder + "\\"
 
 	var err error
 	for _, value := range acceptableLanguages {

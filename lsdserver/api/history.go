@@ -84,8 +84,11 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/vnd.readium.license.status.v1.0+json")
+
 	enc := json.NewEncoder(w)
 	err = enc.Encode(licenseStatus)
+
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		logging.WriteToFile("error", http.StatusInternalServerError, logging.BASIC_FUNCTION)
