@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -285,14 +286,14 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 	}
 	var buf bytes.Buffer
 
+	//lic.Links["publication"] = license.Link{Href: item.PublicUrl(), Type: "application/epub+zip"}
+	//lic.ContentId = key
+
 	err = completeLicense(&lic, key, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
-
-	lic.Links["publication"] = license.Link{Href: item.PublicUrl(), Type: "application/epub+zip"}
-	lic.ContentId = key
 
 	enc := json.NewEncoder(&buf)
 	enc.Encode(lic)
@@ -389,7 +390,6 @@ func completeLicense(l *license.License, key string, s Server) error {
 
 	l.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
 	l.Encryption.ContentKey.Value = encryptKey(c.EncryptionKey, encryptionKey[:])
-
 	l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 
 	err = encryptFields(l, encryptionKey[:])
@@ -399,6 +399,11 @@ func completeLicense(l *license.License, key string, s Server) error {
 	err = buildKeyCheck(l, encryptionKey[:])
 	if err != nil {
 		return err
+	}
+
+	if l.Signature != nil {
+		log.Println("Signature is NOT nil (it should)")
+		l.Signature = nil
 	}
 	err = signLicense(l, s.Certificate())
 	if err != nil {
