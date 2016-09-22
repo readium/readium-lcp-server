@@ -5,7 +5,7 @@ import (
 	"github.com/readium/readium-lcp-server/config"
 )
 
-//func to load diles with translation according to array in config file
+//InitTranslations loads files with translation according to array in config file
 //need to run in main.go in server
 //err!=nil  means that one of them can't be opened
 func InitTranslations() error {
@@ -20,7 +20,7 @@ func InitTranslations() error {
 	return err
 }
 
-//func to translate message
+//LocalizeMessage translates messages
 //acceptLanguage - Accept-Languages from request header (r.Header.Get("Accept-Language"))
 func LocalizeMessage(acceptLanguage string, message *string, key string) {
 	defaultLanguage := config.Config.Localization.DefaultLanguage

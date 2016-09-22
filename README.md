@@ -68,14 +68,37 @@ An example config.yaml file exists with the name config.yaml.sample.
 - server: host: the public hostname, defaults to `hostname`
 - server:readonly: [true|false] readonly mode for demo purposes, no new file can be packaged
 - server:database: the connection string to the database, by default sqlite3://file:lcpserve.sqlite?cache=shared&mode=rwc
+- auth_file: points to the file with user logins and passwords (a .htpasswd). Passwords should be encrypted using MD5.
+	The source example for creating password is http://www.htaccesstools.com/htpasswd-generator/. 
+	The format of the file is following:
+	```User:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
+	User1:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKM.```
+
 
 static: points to the path where the /manage/index.html can be found
 
 "license"
  - links:
-	"hint" and "publication" default values.  If this value does not exist in the partial license, it will be added using this value.  If no value is present in the configuration file and no value is given to the partial license passed to the server, the server will reply with a 500 Server Error when asking to create a license.
-- status : if present a lsdserver will be used to verify the license
+	"hint" and "publication" default values.  If this value does not exist in the partial license, it will be added using this value.  If no value is present in the configuration file and no value is given to the partial license passed to the server, the server will reply with a 500 Server Error when asking to create a license. 
+	"status" : if present a lsdserver will be used to verify the license
 
+"license_status": 
+- renew: bool parameter accessibility of renew 
+- return: bool parameter accessibility of return 
+- register: bool parameter accessibility of register 
+- renew_days: number of days used when renew a license
+- renting_days: number of days used when create a license, 'duration' of license
+
+"localization": parameters to localize response messages and license status "message" field 
+- languages: array of supported localization languages
+- folder: point to localization files (a .json)
+- default-language: default language for localization
+
+NOTE: list files for localization (ex: 'en-US.json, de-DE.json') must match the array of supported localization languages
+
+"logging": parameters for logging results of API methods
+- log_directory: point to log file (a .log)
+- compliance_tests_mode_on: bool parameter for turning on logging
 
 The server includes a basic web interface that can be reached at http\://HOST:PORT/manage/. You can drag and drop EPUB files to encrypt them,
 as well as emit licenses for the currently encrypted EPUBs.
@@ -96,7 +119,12 @@ Allows to encrypt an epub file (on a different server) that can be added to the 
 
 # [lsdserver]
 
-status document server
+* update license status, 
+* register device, 
+* renew license
+* return license
+* filter licenses by count of devices
+* cancel/revoke license
 
 Contributing
 ============

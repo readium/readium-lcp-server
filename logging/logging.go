@@ -25,6 +25,7 @@ const (
 	REJECT_RENEW         = "2.3.2.4.2"
 )
 
+//Init inits log file and opens it
 func Init(logPath string, cm bool) error {
 	complianceMode = cm
 	if complianceMode == true {
@@ -41,6 +42,7 @@ func Init(logPath string, cm bool) error {
 	return nil
 }
 
+//WriteToFile writes result of function execution in log file
 func WriteToFile(result string, status int, testId string) {
 	if complianceMode == true {
 		currentTime := time.Now().UTC().Format(time.RFC3339)
@@ -53,6 +55,7 @@ func WriteToFile(result string, status int, testId string) {
 	}
 }
 
+//ReadLogs reads logs from file
 func ReadLogs(logPath string) ([]string, error) {
 	var lines []string
 	file, err := os.OpenFile(logPath, os.O_RDONLY, 0666)
@@ -68,6 +71,7 @@ func ReadLogs(logPath string) ([]string, error) {
 	return lines, err
 }
 
+//CountTotal summarize the data in log file
 func CountTotal(lines []string) (string, error) {
 	var total, success, negative int
 	var result string
