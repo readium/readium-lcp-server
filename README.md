@@ -112,7 +112,8 @@ This file normally resides in the bin directory but the path to this configurati
 	The format of the file is:
   ```sh
 	User1:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
-	User2:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKMT```
+	User2:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKMT
+  ```
 
 "storage": parameters related to the storage of the protected publications.
 - "filesystem": parameters related to a file system storage
