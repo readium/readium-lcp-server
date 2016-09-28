@@ -110,10 +110,10 @@ This file normally resides in the bin directory but the path to this configurati
 - "auth_file": mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
 	The source example for creating password is http://www.htaccesstools.com/htpasswd-generator/. 
 	The format of the file is:
-  ```sh
+```sh
 	User1:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
 	User2:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKMT
-  ```
+```
 
 "storage": parameters related to the storage of the protected publications.
 - "filesystem": parameters related to a file system storage
