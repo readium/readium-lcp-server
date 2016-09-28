@@ -43,6 +43,7 @@ func main() {
 	log.Println("Reading config " + config_file)
 
 	readonly = config.Config.LcpServer.ReadOnly
+
 	if host = config.Config.LcpServer.Host; host == "" {
 		host, err = os.Hostname()
 		if err != nil {

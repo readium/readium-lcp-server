@@ -46,6 +46,7 @@ func main() {
 	}
 
 	readonly = config.Config.LsdServer.ReadOnly
+
 	if host = config.Config.LsdServer.Host; host == "" {
 		host, err = os.Hostname()
 		if err != nil {

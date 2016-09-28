@@ -27,7 +27,7 @@ func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPubl
 	//fmt.Printf("lcpsv = %s\n", *lcpsv)
 	var urlBuffer bytes.Buffer
 	urlBuffer.WriteString(lcpService)
-	urlBuffer.WriteString("/content/")
+	urlBuffer.WriteString("/contents/")
 	urlBuffer.WriteString(contentid)
 
 	jsonBody, err := json.Marshal(lcpPublication)
@@ -78,7 +78,7 @@ func showHelpAndExit() {
 	log.Println("-input : source epub file locator (file system or http GET)")
 	log.Println("[-contentid] : optional content identifier, if omitted a new one will be generated")
 	log.Println("[-output] : optional target location for protected content (file system or http PUT)")
-	log.Println("[-lcpsv] : optional http endpoint of the LCP server")
+	log.Println("[-lcpsv] : optional http endpoint for the License server")
 	log.Println("[-help] : help information")
 	os.Exit(0)
 	return
@@ -90,10 +90,10 @@ func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel i
 	os.Stderr.WriteString(err.Error())
 	jsonBody, err := json.MarshalIndent(lcpPublication, " ", "  ")
 	if err != nil {
-		os.Stderr.WriteString("\nError creating json lpcPublication")
+		os.Stderr.WriteString("\nError creating json lcpPublication")
 		os.Exit(errorlevel)
 	}
-	os.Stdout.WriteString("\nlpcPublication:\n")
+	os.Stdout.WriteString("\nlcpPublication:\n")
 	os.Stdout.Write(jsonBody)
 	os.Exit(errorlevel)
 }
@@ -104,7 +104,7 @@ func main() {
 	var inputFilename = flag.String("input", "", "source epub file locator (file system or http GET)")
 	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new one is generated")
 	var outputFilename = flag.String("output", "", "optional target location for protected content (file system or http PUT)")
-	var lcpsv = flag.String("lcpsv", "", "optional http endpoint of the LCP server")
+	var lcpsv = flag.String("lcpsv", "", "optional http endpoint of the License server")
 	var help = flag.Bool("help", false, "shows information")
 
 	if !flag.Parsed() {
@@ -135,13 +135,13 @@ func main() {
 	// read the epub content from the zipped buffer
 	zr, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
 	if err != nil {
-		addedPublication.ErrorMessage = "Error opening zip/epub"
+		addedPublication.ErrorMessage = "Error opening the epub file"
 		exitWithError(addedPublication, err, 10)
 		return
 	}
 	ep, err := epub.Read(zr)
 	if err != nil {
-		addedPublication.ErrorMessage = "Error reading epub content"
+		addedPublication.ErrorMessage = "Error reading the epub content"
 		exitWithError(addedPublication, err, 8)
 		os.Exit(3)
 		return
@@ -159,7 +159,7 @@ func main() {
 	_, encryptionKey, err := pack.Do(ep, output)
 	output.Close()
 	if err != nil {
-		addedPublication.ErrorMessage = "Error packing"
+		addedPublication.ErrorMessage = "Error packaging the publication"
 		exitWithError(addedPublication, err, 6)
 		return
 	}
@@ -170,7 +170,7 @@ func main() {
 	if *lcpsv != "" {
 		err = notifyLcpServer(*lcpsv, *contentid, addedPublication)
 		if err != nil {
-			addedPublication.ErrorMessage = "Error updating LCP-server"
+			addedPublication.ErrorMessage = "Error notifying the License server"
 			exitWithError(addedPublication, err, 1)
 			os.Exit(6)
 		}

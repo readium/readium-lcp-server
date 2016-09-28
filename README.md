@@ -15,6 +15,47 @@ a publicly accessible folder must be made available for the server to store the 
 
 You must obtain a X.509 certificate through EDRLab in order for your licenses to be accepted by Readium LCP compliant Reading Systems.
 
+Executables
+===========
+The server software is composed of three independant parts:
+
+# [lcpencrypt]  
+
+A command line utility for EPUB content encryption. This utility can be included in any processing pipeline. 
+
+* takes one unprotected EPUB 3 file as input and generates an encrypted file as output.
+* notifies the License server of the generation of an encrypted file.
+
+# [lcpserver]
+
+A License server, which implements Readium Licensed Content Protection 1.0.
+
+Private functionalities (authentication needed):
+* Store the data resulting from an external encryption
+* Generate a license
+* Generate a protected publication
+* Update the rights associated with a license
+* Get a set of licenses
+* Get a license
+
+
+# [lsdserver]
+
+A License Status server, which implements Readium License Status Document 1.0.
+
+Public functionalities (accessible from the web):
+* Return a license status document
+* Process a device registration
+* Process a lending return
+* Process a lending renewal
+
+Private functionalities (authentication needed):
+* Create a license status document
+* Filter licenses
+* List all registered devices for a given licence
+* Revoke/cancel a license
+
+
 Install
 =======
 
@@ -51,86 +92,69 @@ cd $GOPATH
 go get github.com/readium/readium-lcp-server/lcpserver
 ```
 
-Usage
-=====
+Server Configuration
+====================
 
 The server is controlled by a yaml configuration file (e.g. "config.yaml").  
-This file normally resides in the same directory of the executable but the path to this configuration file can be changed using the environment variable READIUM_LICENSE_CONFIG. 
+This file normally resides in the bin directory but the path to this configuration file can be changed using the environment variable READIUM_LICENSE_CONFIG.
 
-An example config.yaml file exists with the name config.yaml.sample.
+"certificate":	parameters related to the signature of the licenses	
+- "cert": the provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature.
+- "private_key": the private key (.pem). It will be used for signing  licenses.
 
-"certificate:"				
-- cert: Points to the certificate file (a .crt)
-- private_key: Points to the private key (a .pem)
-
-"lcp:" & "lsd:" have a similar server structure 
-- server:port: where lcpserve will listen, by default 8989
-- server: host: the public hostname, defaults to `hostname`
-- server:readonly: [true|false] readonly mode for demo purposes, no new file can be packaged
-- server:database: the connection string to the database, by default sqlite3://file:lcpserve.sqlite?cache=shared&mode=rwc
-- auth_file: points to the file with user logins and passwords (a .htpasswd). Passwords should be encrypted using MD5.
+"lcp" (License Server) & "lsd" (License Status Server) have an identical structure:
+- "host": the public server hostname, `hostname` by default
+- "port": the listening port, `8989` by default
+- "public_base_url": the public base URL, combination of the host and port values on http by default 
+- "database": the URI formatted connection string to the database, `sqlite3://file:lcpserve.sqlite?cache=shared&mode=rwc` by default
+- "auth_file": mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
 	The source example for creating password is http://www.htaccesstools.com/htpasswd-generator/. 
-	The format of the file is following:
-	```User:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
-	User1:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKM.```
+	The format of the file is:
+	>User:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
+	>User1:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKM.
 
+"storage": parameters related to the storage of the protected publications.
+- "filesystem": parameters related to a file system storage
+  - "directory": absolute path to the directory in which the protected publications are stored.
 
-static: points to the path where the /manage/index.html can be found
+"license": parameters related to static information to be included in all licenses
+- "links": links that will be included in all licenses. "hint" and "publication" links are required in a Readium LCP license.
+  If no such link exists in the partial license passed from the frontend when a new license his requested, 
+  these link values will be inserted in the partial license.  
+  If no value is present in the configuration file and no value is inserted in the partial license, 
+  the License server will reply with a 500 Server Error at license creation.
+  - "hint": required; location where a Reading System can redirect a User looking for additional information about the User Passphrase. 
+  - "publication": required if the license is external to the protected Publication; 
+  location where the Publication associated with the License Document can be downloaded.   
+  - "status" : optional, templated URL; location of the Status Document associated with a License Document.
 
-"license"
- - links:
-	"hint" and "publication" default values.  If this value does not exist in the partial license, it will be added using this value.  If no value is present in the configuration file and no value is given to the partial license passed to the server, the server will reply with a 500 Server Error when asking to create a license. 
-	"status" : if present a lsdserver will be used to verify the license
+NOTE: here is a license section snippet:
+```json
+license:
+    links:
+        hint: "http://www.edrla.org/readiumlcp/hint.html"
+		publication: "http://www.edrla.org/readiumlcp/{license_id}/publication" 
+        status: "http://www.edrla.org/readiumlcp/{license_id}/status" 
+```
 
-"license_status": 
-- renew: bool parameter accessibility of renew 
-- return: bool parameter accessibility of return 
-- register: bool parameter accessibility of register 
-- renew_days: number of days used when renew a license
-- renting_days: number of days used when create a license, 'duration' of license
+"license_status": parameters related to the interactions implemented by the License Status server, if any
+- renting_days: number of days be the license ends.
+- renew: boolean; if `true`, rental renewal is possible. 
+- renew_days: number of days added to the license if renewal is active.
+- return: boolean; if `true`,  early return is possible.  
+- register: boolean; if `true`,  registering a device is possible.
 
-"localization": parameters to localize response messages and license status "message" field 
+"localization": parameters related to the localization of the messages sent by the server
 - languages: array of supported localization languages
-- folder: point to localization files (a .json)
-- default-language: default language for localization
+- folder: point to localization file (a .json)
+- default_language: default language for localization
 
 NOTE: list files for localization (ex: 'en-US.json, de-DE.json') must match the array of supported localization languages
 
 "logging": parameters for logging results of API methods
-- log_directory: point to log file (a .log)
-- compliance_tests_mode_on: bool parameter for turning on logging
-
-The server includes a basic web interface that can be reached at http\://HOST:PORT/manage/. You can drag and drop EPUB files to encrypt them,
-as well as emit licenses for the currently encrypted EPUBs.
-
-Executables
-===========
-
-# [lcpencrypt]   (todo : wiki ? reference to google doc ? )
-
-Allows to encrypt an epub file (on a different server) that can be added to the lcpserver 
-
-# [lcpserver]
-
-* encrypts & adds content, 
-* creates licenses, 
-* lists content 
-* lists licenses
-
-# [lsdserver]
-
-* update license status, 
-* register device, 
-* renew license
-* return license
-* filter licenses by count of devices
-* cancel/revoke license
+- log_directory: point to log file (a .log).
+- compliance_tests_mode_on: boolean; if `true`, logging is turned on.
 
 Contributing
 ============
 Please make a Pull Request with tests at github.com/readium/readium-lcp-server
-
-
-[lcpencrypt]:<https://github.com/readium/readium-lcp-server/wiki>
-[lcpserver]:<https://github.com/readium/readium-lcp-server/wiki>
-[lsdserver]:<https://github.com/readium/readium-lcp-server/wiki>
