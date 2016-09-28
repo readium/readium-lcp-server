@@ -19,14 +19,14 @@ Executables
 ===========
 The server software is composed of three independant parts:
 
-# [lcpencrypt]  
+## [lcpencrypt]  
 
 A command line utility for EPUB content encryption. This utility can be included in any processing pipeline. 
 
 * takes one unprotected EPUB 3 file as input and generates an encrypted file as output.
 * notifies the License server of the generation of an encrypted file.
 
-# [lcpserver]
+## [lcpserver]
 
 A License server, which implements Readium Licensed Content Protection 1.0.
 
@@ -39,7 +39,7 @@ Private functionalities (authentication needed):
 * Get a license
 
 
-# [lsdserver]
+## [lsdserver]
 
 A License Status server, which implements Readium License Status Document 1.0.
 
@@ -110,8 +110,9 @@ This file normally resides in the bin directory but the path to this configurati
 - "auth_file": mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
 	The source example for creating password is http://www.htaccesstools.com/htpasswd-generator/. 
 	The format of the file is:
-	>User:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
-	>User1:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKM.
+  ```sh
+	User1:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
+	User2:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKMT```
 
 "storage": parameters related to the storage of the protected publications.
 - "filesystem": parameters related to a file system storage
