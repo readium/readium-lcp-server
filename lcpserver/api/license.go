@@ -363,6 +363,13 @@ func completeLicense(l *license.License, key string, s Server) error {
 		l.Links["publication"] = *publication
 	}
 
+	// finalize by ensuring type field is correctly set
+	publi := new(license.Link)
+	publi.Href = l.Links["publication"].Href
+	publi.Type = "application/epub+zip"
+	//publi.Templated = false
+	l.Links["publication"] = *publi
+
 	if _, present := config.Config.License.Links["status"]; present { // add status server to License
 		status := new(license.Link) //status.Type = ??
 		status.Href = config.Config.License.Links["status"]
@@ -376,6 +383,13 @@ func completeLicense(l *license.License, key string, s Server) error {
 			l.Links["status"] = *status
 		}
 	}
+	
+	// finalize by ensuring type field is correctly set
+	statu := new(license.Link)
+	statu.Href = l.Links["status"].Href
+	statu.Type = "application/vnd.readium.license.status.v1.0+json"
+	//statu.Templated = false
+	l.Links["status"] = *statu
 
 	var encryptionKey []byte
 	if len(l.Encryption.UserKey.Value) > 0 {
