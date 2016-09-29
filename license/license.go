@@ -37,6 +37,9 @@ type Encryption struct {
 type Link struct {
 	Href   string `json:"href"`
 	Type   string `json:"type,omitempty"`
+	Title   string `json:"title,omitempty"`
+	Profile   string `json:"profile,omitempty"`
+	Templated bool   `json:"templated,omitempty" "default false"`
 	Size   int64  `json:"length,omitempty"`
 	Digest []byte `json:"hash,omitempty"`
 }
