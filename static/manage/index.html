@@ -144,20 +144,20 @@ function handleFileUpload(files,obj) {
 
 function makeLicense() {
   obj = {
-    "provider": "http://example.com",
+    "provider": "http://edrlab.org",
     "user": {
       "id": $('#user_id').val()
     },
     "encryption": {
       "user_key": {
         "clear_value": $('#passphrase').val(),
-         "text_hint": "Enter the email address which authentifies you on imaginaryebookretailer"
+         "text_hint": "Enter passphrase"
       }
     },
      "rights": {
         "print": 10,
         "copy": 2048,
-        "start": "2016-11-04T01:08:15+01:00",
+        "start": "2016-09-01T01:08:15+01:00",
         "end": "2016-11-25T01:08:15+01:00"
     }	
   }
