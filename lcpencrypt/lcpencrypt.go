@@ -118,8 +118,7 @@ func main() {
 	buf, err := getInputFile(*inputFilename)
 	if err != nil {
 		addedPublication.ErrorMessage = "Error opening input file, for more information type 'lcpencrypt -help' "
-		exitWithError(addedPublication, err, 12)
-		return
+		exitWithError(addedPublication, err, 1)
 	}
 	if *contentid == "" { // contentID not set -> generate a new one
 		sha := sha256.Sum256(buf)
@@ -136,15 +135,12 @@ func main() {
 	zr, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
 	if err != nil {
 		addedPublication.ErrorMessage = "Error opening the epub file"
-		exitWithError(addedPublication, err, 10)
-		return
+		exitWithError(addedPublication, err, 2)
 	}
 	ep, err := epub.Read(zr)
 	if err != nil {
 		addedPublication.ErrorMessage = "Error reading the epub content"
-		exitWithError(addedPublication, err, 8)
-		os.Exit(3)
-		return
+		exitWithError(addedPublication, err, 3)
 	}
 
 	// create an output file
@@ -152,7 +148,6 @@ func main() {
 	if err != nil {
 		addedPublication.ErrorMessage = "Error writing output file"
 		exitWithError(addedPublication, err, 4)
-		return
 	}
 
 	// pack / encrypt the epub content, fill the output file
@@ -160,8 +155,7 @@ func main() {
 	output.Close()
 	if err != nil {
 		addedPublication.ErrorMessage = "Error packaging the publication"
-		exitWithError(addedPublication, err, 6)
-		return
+		exitWithError(addedPublication, err, 5)
 	}
 	addedPublication.ContentKey = encryptionKey
 	addedPublication.Output = *outputFilename
@@ -171,8 +165,7 @@ func main() {
 		err = notifyLcpServer(*lcpsv, *contentid, addedPublication)
 		if err != nil {
 			addedPublication.ErrorMessage = "Error notifying the License server"
-			exitWithError(addedPublication, err, 1)
-			os.Exit(6)
+			exitWithError(addedPublication, err, 6)
 		}
 	}
 
@@ -180,8 +173,7 @@ func main() {
 	jsonBody, err := json.Marshal(addedPublication)
 	if err != nil {
 		addedPublication.ErrorMessage = "Error creating json addedPublication"
-		exitWithError(addedPublication, err, 1)
-		return
+		exitWithError(addedPublication, err, 7)
 	}
 	os.Stdout.Write(jsonBody)
 	os.Stdout.WriteString("\n")
