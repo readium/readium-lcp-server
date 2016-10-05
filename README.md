@@ -126,16 +126,18 @@ This file normally resides in the bin directory but the path to this configurati
   If no value is present in the configuration file and no value is inserted in the partial license, 
   the License server will reply with a 500 Server Error at license creation.
   - "hint": required; location where a Reading System can redirect a User looking for additional information about the User Passphrase. 
-  - "publication": required if the license is external to the protected Publication; 
-  location where the Publication associated with the License Document can be downloaded.   
+  - "publication": optional, templated URL; 
+    location where the Publication associated with the License Document can be downloaded.
+    The publication identifier is inserted via the variable {publication_id}.
   - "status" : optional, templated URL; location of the Status Document associated with a License Document.
+    The license identifier is inserted via the variable {license_id}.
 
 NOTE: here is a license section snippet:
 ```json
 license:
     links:
         hint: "http://www.edrla.org/readiumlcp/hint.html"
-		publication: "http://www.edrla.org/readiumlcp/{license_id}/publication" 
+		    publication: "http://www.edrla.org/readiumlcp/{publication_id}/publication" 
         status: "http://www.edrla.org/readiumlcp/{license_id}/status" 
 ```
 

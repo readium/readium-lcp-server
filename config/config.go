@@ -89,6 +89,6 @@ func ReadConfig(configFileName string) {
 
 	err = yaml.Unmarshal(yamlFile, &Config)
 	if err != nil {
-		panic("Can't unmarshal config. " + err.Error())
+		panic("Can't unmarshal config. " + configFileName + " -> " + err.Error())
 	}
 }
