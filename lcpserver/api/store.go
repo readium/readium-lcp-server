@@ -123,7 +123,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		err = s.Index().Add(c)
 	} else { //update encryption key for c.Id = publication.ContentId
 		err = s.Index().Update(c)
-		code = http.StatusFound
+		code = http.StatusOK
 	}
 	if err != nil { //db not updated
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
