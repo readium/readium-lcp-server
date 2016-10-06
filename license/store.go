@@ -19,8 +19,8 @@ const ContentType string = "application/vnd.readium.lcp.license.1-0+json"
 
 type Store interface {
 	//List() func() (License, error)
-	List(ContentId string, page int, pageNum int) func() (License, error)
-	ListAll(page int, pageNum int) func() (License, error)
+	List(ContentId string, page int, pageNum int) func() (LicenseReport, error)
+	ListAll(page int, pageNum int) func() (LicenseReport, error)
 	UpdateRights(l License) error
 	Update(l License) error
 	Add(l License, authorization string) error
@@ -59,17 +59,18 @@ func notifyLsdServer(l License, authorization string) {
 
 //ListAll, lists all licenses in ante-chronological order
 // pageNum starting at 0
-func (s *sqlStore) ListAll(page int, pageNum int) func() (License, error) {
+func (s *sqlStore) ListAll(page int, pageNum int) func() (LicenseReport, error) {
 	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated, 
 	rights_print, rights_copy, rights_start, rights_end, content_fk  
 	FROM license 
 	ORDER BY issued desc LIMIT ? OFFSET ? `, page, pageNum*page)
 	if err != nil {
-		return func() (License, error) { return License{}, err }
+		return func() (LicenseReport, error) { return LicenseReport{}, err }
 	}
-	return func() (License, error) {
-		var l License
-		createForeigns(&l)
+	return func() (LicenseReport, error) {
+		var l LicenseReport
+		l.User = UserInfo{}
+		l.Rights = new(UserRights)
 		if listLicenses.Next() {
 			err := listLicenses.Scan(&l.Id, &l.User.Id, &l.Provider, &l.Issued, &l.Updated,
 				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End, &l.ContentId)
@@ -88,17 +89,18 @@ func (s *sqlStore) ListAll(page int, pageNum int) func() (License, error) {
 
 //List() list licenses for a given ContentId
 //pageNum starting at 0
-func (s *sqlStore) List(ContentId string, page int, pageNum int) func() (License, error) {
+func (s *sqlStore) List(ContentId string, page int, pageNum int) func() (LicenseReport, error) {
 	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated, 
 	rights_print, rights_copy, rights_start, rights_end, content_fk 
 	FROM license  
 	WHERE content_fk=? LIMIT ? OFFSET ? `, ContentId, page, pageNum*page)
 	if err != nil {
-		return func() (License, error) { return License{}, err }
+		return func() (LicenseReport, error) { return LicenseReport{}, err }
 	}
-	return func() (License, error) {
-		var l License
-		createForeigns(&l)
+	return func() (LicenseReport, error) {
+		var l LicenseReport
+		l.User = UserInfo{}
+		l.Rights = new(UserRights)
 		if listLicenses.Next() {
 
 			err := listLicenses.Scan(&l.Id, &l.User.Id, &l.Provider, &l.Issued, &l.Updated,

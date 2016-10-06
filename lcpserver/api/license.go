@@ -383,7 +383,7 @@ func completeLicense(l *license.License, key string, s Server) error {
 			l.Links["status"] = *status
 		}
 	}
-	
+
 	// finalize by ensuring type field is correctly set
 	statu := new(license.Link)
 	statu.Href = l.Links["status"].Href
@@ -507,7 +507,7 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "page must be positive integer"}, http.StatusBadRequest)
 		return
 	}
-	licenses := make([]license.License, 0)
+	licenses := make([]license.LicenseReport, 0)
 	//log.Println("ListAll(" + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
 	fn := s.Licenses().ListAll(int(per_page), int(page))
 	for it, err := fn(); err == nil; it, err = fn() {
@@ -571,7 +571,7 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "page must be positive integer"}, http.StatusBadRequest)
 		return
 	}
-	licenses := make([]license.License, 0)
+	licenses := make([]license.LicenseReport, 0)
 	//log.Println("List(" + contentId + "," + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
 	fn := s.Licenses().List(contentId, int(per_page), int(page))
 	for it, err := fn(); err == nil; it, err = fn() {
