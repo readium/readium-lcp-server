@@ -21,7 +21,7 @@ import (
 )
 
 // notification of newly added content (Publication)
-func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPublication) error {
+func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPublication, username string, password string) error {
 	//exchange encryption key with lcp service/content/<id>,
 	//Payload: {content-encryption-key, protected-content-location}
 	//fmt.Printf("lcpsv = %s\n", *lcpsv)
@@ -38,12 +38,13 @@ func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPubl
 	if err != nil {
 		return err
 	}
+	req.SetBasicAuth(username, password)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
-	if (resp.StatusCode / 100) != 2 {
+	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return errors.New(fmt.Sprintf("lcp server error %d ", resp.StatusCode))
 	}
 
@@ -79,6 +80,8 @@ func showHelpAndExit() {
 	log.Println("[-contentid] : optional content identifier, if omitted a new one will be generated")
 	log.Println("[-output] : optional target location for protected content (file system or http PUT)")
 	log.Println("[-lcpsv] : optional http endpoint for the License server")
+	log.Println("[-login] : optional login (License server) ")
+	log.Println("[-password] : optional password (License server)")
 	log.Println("[-help] : help information")
 	os.Exit(0)
 	return
@@ -93,7 +96,6 @@ func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel i
 		os.Stderr.WriteString("\nError creating json lcpPublication")
 		os.Exit(errorlevel)
 	}
-	os.Stdout.WriteString("\nlcpPublication:\n")
 	os.Stdout.Write(jsonBody)
 	os.Exit(errorlevel)
 }
@@ -105,6 +107,9 @@ func main() {
 	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new one is generated")
 	var outputFilename = flag.String("output", "", "optional target location for protected content (file system or http PUT)")
 	var lcpsv = flag.String("lcpsv", "", "optional http endpoint of the License server")
+	var username = flag.String("login", "", "optional login (License server)")
+	var password = flag.String("password", "", "optional password (License server)")
+
 	var help = flag.Bool("help", false, "shows information")
 
 	if !flag.Parsed() {
@@ -118,7 +123,7 @@ func main() {
 	buf, err := getInputFile(*inputFilename)
 	if err != nil {
 		addedPublication.ErrorMessage = "Error opening input file, for more information type 'lcpencrypt -help' "
-		exitWithError(addedPublication, err, 1)
+		exitWithError(addedPublication, err, 70)
 	}
 	if *contentid == "" { // contentID not set -> generate a new one
 		sha := sha256.Sum256(buf)
@@ -135,19 +140,19 @@ func main() {
 	zr, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
 	if err != nil {
 		addedPublication.ErrorMessage = "Error opening the epub file"
-		exitWithError(addedPublication, err, 2)
+		exitWithError(addedPublication, err, 60)
 	}
 	ep, err := epub.Read(zr)
 	if err != nil {
 		addedPublication.ErrorMessage = "Error reading the epub content"
-		exitWithError(addedPublication, err, 3)
+		exitWithError(addedPublication, err, 50)
 	}
 
 	// create an output file
 	output, err := os.Create(*outputFilename)
 	if err != nil {
 		addedPublication.ErrorMessage = "Error writing output file"
-		exitWithError(addedPublication, err, 4)
+		exitWithError(addedPublication, err, 40)
 	}
 
 	// pack / encrypt the epub content, fill the output file
@@ -155,17 +160,17 @@ func main() {
 	output.Close()
 	if err != nil {
 		addedPublication.ErrorMessage = "Error packaging the publication"
-		exitWithError(addedPublication, err, 5)
+		exitWithError(addedPublication, err, 30)
 	}
 	addedPublication.ContentKey = encryptionKey
 	addedPublication.Output = *outputFilename
 
 	// notify the LCP Server
 	if *lcpsv != "" {
-		err = notifyLcpServer(*lcpsv, *contentid, addedPublication)
+		err = notifyLcpServer(*lcpsv, *contentid, addedPublication, *username, *password)
 		if err != nil {
 			addedPublication.ErrorMessage = "Error notifying the License server"
-			exitWithError(addedPublication, err, 6)
+			exitWithError(addedPublication, err, 20)
 		}
 	}
 
@@ -173,10 +178,8 @@ func main() {
 	jsonBody, err := json.Marshal(addedPublication)
 	if err != nil {
 		addedPublication.ErrorMessage = "Error creating json addedPublication"
-		exitWithError(addedPublication, err, 7)
+		exitWithError(addedPublication, err, 10)
 	}
 	os.Stdout.Write(jsonBody)
-	os.Stdout.WriteString("\n")
-
 	os.Exit(0)
 }
