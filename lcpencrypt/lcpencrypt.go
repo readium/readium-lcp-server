@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/readium/readium-lcp-server/epub"
@@ -136,7 +137,8 @@ func main() {
 		sha := sha256.Sum256(buf)
 		*contentid = fmt.Sprintf("%x", sha)
 	}
-	addedPublication.ContentId = *contentid
+	//addedPublication.ContentId = *contentid
+	addedPublication.ContentId = filepath.Base(*inputFilename)
 	if *outputFilename == "" { //output not set -> "content-id.epub" in working directory
 		workingDir, _ := os.Getwd()
 		*outputFilename = strings.Join([]string{workingDir, string(os.PathSeparator), *contentid, ".epub"}, "")

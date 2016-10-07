@@ -115,22 +115,18 @@ func main() {
 		here := filepath.Dir(file)
 		static = filepath.Join(here, "../static")
 	}
-
 	authFile := config.Config.LcpServer.AuthFile
 	if authFile == "" {
 		panic("Must have passwords file")
 	}
-
 	_, err = os.Stat(authFile)
 	if err != nil {
 		panic(err)
 	}
-
 	htpasswd := auth.HtpasswdFileProvider(authFile)
 	authenticator := auth.NewBasicAuthenticator("Readium License Content Protection Server", htpasswd)
 
 	HandleSignals()
-
 	s := lcpserver.New(":"+strconv.Itoa(port), static, readonly, &idx, &store, &lst, &cert, packager, authenticator)
 	if readonly {
 		log.Println("License server running in readonly mode on port " + strconv.Itoa(port))

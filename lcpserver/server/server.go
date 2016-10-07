@@ -79,16 +79,15 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	})
 	r.Handle("/manage/{file}", http.FileServer(http.Dir("static")))
 
-	r.Handle("/files/{file}", http.StripPrefix("/files/", http.FileServer(http.Dir("files"))))
-
 	if !readonly {
 		s.handleFunc("/api/store/{name}", apilcp.StoreContent).Methods("POST")
 	}
 
 	//API following spec
 	//CONTENTS
-	s.handleFunc("/contents", apilcp.ListContents).Methods("GET")                                             //method supported, not in spec
-	s.handleFunc("/contents/", apilcp.ListContents).Methods("GET")                                            //method supported, not in spec
+	s.handleFunc("/contents", apilcp.ListContents).Methods("GET") //method supported, not in spec
+	s.handleFunc("/contents/", apilcp.ListContents).Methods("GET")
+	s.handleFunc("/contents/{key}", apilcp.GetContent).Methods("GET")                                         //method supported, not in spec
 	s.handlePrivateFunc("/contents/{key}", apilcp.AddContent, basicAuth).Methods("PUT")                       //lcp spec store data resulting from external encryption
 	s.handleFunc("/contents/{name}", apilcp.StoreContent).Methods("POST")                                     //lcp spec encrypt & store epub file (in BODY)
 	s.handlePrivateFunc("/contents/{key}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")  // list licenses for content, additional get params {page?,per_page?}

@@ -96,8 +96,9 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	contentId := vars["key"]
-	if contentId != publication.ContentId {
-		publication.ContentId = contentId
+	if contentId == "" {
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "Content ID must be set in url"}, http.StatusBadRequest)
+		return
 	}
 	//read encrypted file from reference
 	file, err := os.Open(publication.Output)
@@ -106,20 +107,20 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	//and add file to storage
-	var storageItem storage.Item
-	storageItem, err = s.Store().Add(publication.ContentId, file)
+	//var storageItem storage.Item
+	_, err = s.Store().Add(contentId, file)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	var c index.Content
 	// insert row in database if key does not exist
-	c, err = s.Index().Get(publication.ContentId)
+	c, err = s.Index().Get(contentId)
 	c.EncryptionKey = publication.ContentKey
-	c.Location = storageItem.Key()
+	c.Location = publication.ContentId
 	code := http.StatusCreated
 	if err == index.NotFound { //insert into database
-		c.Id = publication.ContentId
+		c.Id = contentId
 		err = s.Index().Add(c)
 	} else { //update encryption key for c.Id = publication.ContentId
 		err = s.Index().Update(c)
@@ -149,6 +150,42 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
+}
+
+func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+	contentId := vars["key"]
+	content, err := s.Index().Get(contentId)
+	if err != nil { //item probably  not found
+		if err == index.NotFound {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusNotFound)
+		} else {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+		}
+		return
+	}
+	item, err := s.Store().Get(contentId)
+	if err != nil { //item probably  not found
+		if err == storage.NotFound {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusNotFound)
+		} else {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+		}
+		return
+	}
+	contentReadCloser, err := item.Contents()
+	defer contentReadCloser.Close()
+	if err != nil { //file probably not found
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+
+	//Send the headers
+	w.Header().Set("Content-Disposition", "attachment; filename="+content.Location)
+	w.Header().Set("Content-Type", "application/epub+zip") //it should be an epub
+	//writer.Header().Set("Content-Length", FileSize)
+	io.Copy(w, contentReadCloser) //'Copy' the file to the client
+	return
 
 }
 
