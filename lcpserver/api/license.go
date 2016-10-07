@@ -305,7 +305,9 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 		return
 	}
 
-	ep.Add("META-INF/license.lcpl", &buf, uint64(buf.Len()))
+	var buf2 bytes.Buffer
+	buf2.Write(bytes.TrimRight(buf.Bytes(), "\n"))
+	ep.Add("META-INF/license.lcpl", &buf2, uint64(buf2.Len()))
 	w.Header().Add("Content-Type", "application/epub+zip")
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, content.Location))
 	ep.Write(w)
