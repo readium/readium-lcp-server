@@ -76,12 +76,12 @@ func getInputFile(inputFilename string) ([]byte, error) {
 
 func showHelpAndExit() {
 	log.Println("lcpencrypt protects an epub file for usage in an lcp environment")
-	log.Println("-input : source epub file locator (file system or http GET)")
-	log.Println("[-contentid] : optional content identifier, if omitted a new one will be generated")
-	log.Println("[-output] : optional target location for protected content (file system or http PUT)")
-	log.Println("[-lcpsv] : optional http endpoint for the License server")
-	log.Println("[-login] : optional login (License server) ")
-	log.Println("[-password] : optional password (License server)")
+	log.Println("-input        source epub file locator (file system or http GET)")
+	log.Println("[-contentid]  optional content identifier, if omitted a new one will be generated")
+	log.Println("[-output]     optional target location for protected content (file system or http PUT)")
+	log.Println("[-lcpsv]      optional http endpoint for the License server")
+	log.Println("    [-login]     login ( needed for License server) ")
+	log.Println("    [-password]  password ( needed for License server)")
 	log.Println("[-help] : help information")
 	os.Exit(0)
 	return
@@ -90,7 +90,9 @@ func showHelpAndExit() {
 func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel int) {
 	os.Stderr.WriteString(lcpPublication.ErrorMessage)
 	os.Stderr.WriteString("\n")
-	os.Stderr.WriteString(err.Error())
+	if err != nil {
+		os.Stderr.WriteString(err.Error())
+	}
 	jsonBody, err := json.MarshalIndent(lcpPublication, " ", "  ")
 	if err != nil {
 		os.Stderr.WriteString("\nError creating json lcpPublication")
@@ -106,9 +108,9 @@ func main() {
 	var inputFilename = flag.String("input", "", "source epub file locator (file system or http GET)")
 	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new one is generated")
 	var outputFilename = flag.String("output", "", "optional target location for protected content (file system or http PUT)")
-	var lcpsv = flag.String("lcpsv", "", "optional http endpoint of the License server")
-	var username = flag.String("login", "", "optional login (License server)")
-	var password = flag.String("password", "", "optional password (License server)")
+	var lcpsv = flag.String("lcpsv", "", "optional http endpoint of the License server (adds content)")
+	var username = flag.String("login", "", "login (License server)")
+	var password = flag.String("password", "", "password (License server)")
 
 	var help = flag.Bool("help", false, "shows information")
 
@@ -117,6 +119,11 @@ func main() {
 	}
 	if *help {
 		showHelpAndExit()
+	}
+
+	if *lcpsv != "" && (*username == "" || *password == "") {
+		addedPublication.ErrorMessage = "incorrect parameters, lcpsv needs login and password, for more information type 'lcpencrypt -help' "
+		exitWithError(addedPublication, nil, 80)
 	}
 
 	// read the epub input file content in memory
