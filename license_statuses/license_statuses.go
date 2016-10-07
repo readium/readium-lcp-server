@@ -50,7 +50,7 @@ func (i dbLicenseStatuses) Get(id int) (LicenseStatus, error) {
 
 //Add adds license status to database
 func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
-	add, err := i.db.Prepare("INSERT INTO license_status VALUES (?, ?, ?, ?, ?, ?, ?)")
+	add, err := i.db.Prepare("INSERT INTO license_status (status, license_updated, status_updated, device_count, potential_rights_end, license_ref) VALUES (?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
 	statusDB, err := status.SetStatus(ls.Status)
 
 	if err == nil {
-		_, err = add.Exec(nil, statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, ls.LicenseRef)
+		_, err = add.Exec(statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, ls.LicenseRef)
 	}
 
 	return err
@@ -159,7 +159,7 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 		return
 	}
 
-	list, err := db.Prepare(`SELECT * FROM license_status WHERE device_count > ? 
+	list, err := db.Prepare(`SELECT * FROM license_status WHERE device_count > ?
 		ORDER BY id DESC LIMIT ? OFFSET ?`)
 
 	getbylicenseid, err := db.Prepare("SELECT * FROM license_status where license_ref = ?")
@@ -172,7 +172,7 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 }
 
 const tableDef = `CREATE TABLE IF NOT EXISTS license_status (
-  id int PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   status int(11) NOT NULL,
   license_updated datetime DEFAULT NULL,
   status_updated datetime DEFAULT NULL,

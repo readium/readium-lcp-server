@@ -68,14 +68,14 @@ func (i dbTransactions) Get(id int) (Event, error) {
 //Add adds event in database, parameter typeEvent is for field 'type' in table 'event'
 //1 when register device, 2 when return and 3 when renew
 func (i dbTransactions) Add(e Event, typeEvent int) error {
-	add, err := i.db.Prepare("INSERT INTO event VALUES (?, ?, ?, ?, ?, ?)")
+	add, err := i.db.Prepare("INSERT INTO event (device_name, timestamp, type, device_id, license_status_fk) VALUES (?, ?, ?, ?, ?)")
 
 	if err != nil {
 		return err
 	}
 
 	defer add.Close()
-	_, err = add.Exec(nil, e.DeviceName, e.Timestamp, typeEvent, e.DeviceId, e.LicenseStatusFk)
+	_, err = add.Exec(e.DeviceName, e.Timestamp, typeEvent, e.DeviceId, e.LicenseStatusFk)
 	return err
 }
 
@@ -153,7 +153,7 @@ func Open(db *sql.DB) (t Transactions, err error) {
 	checkdevicestatus, err := db.Prepare(`SELECT type FROM event WHERE license_status_fk = ?
 	AND device_id = ? ORDER BY timestamp DESC LIMIT 1`)
 
-	listregistereddevices, err := db.Prepare(`SELECT device_id, 
+	listregistereddevices, err := db.Prepare(`SELECT device_id,
 	device_name, timestamp  FROM event  WHERE license_status_fk = ? AND type = 1`)
 
 	if err != nil {
@@ -165,7 +165,7 @@ func Open(db *sql.DB) (t Transactions, err error) {
 }
 
 const tableDef = `CREATE TABLE IF NOT EXISTS event (
-	id int PRIMARY KEY, 
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	device_name varchar(255) DEFAULT NULL,
 	timestamp datetime NOT NULL,
 	type int NOT NULL,
