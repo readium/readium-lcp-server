@@ -23,7 +23,7 @@ type Store interface {
 	ListAll(page int, pageNum int) func() (LicenseReport, error)
 	UpdateRights(l License) error
 	Update(l License) error
-	Add(l License, authorization string) error
+	Add(l License) error
 	Get(id string) (License, error)
 }
 
@@ -31,7 +31,7 @@ type sqlStore struct {
 	db *sql.DB
 }
 
-func notifyLsdServer(l License, authorization string) {
+func notifyLsdServer(l License) {
 	if config.Config.LsdServer.PublicBaseUrl != "" { //notifyLsdServer of new License
 		var lsdClient = &http.Client{
 			Timeout: time.Second * 10,
@@ -43,7 +43,13 @@ func notifyLsdServer(l License, authorization string) {
 		}()
 		req, err := http.NewRequest("PUT", config.Config.LsdServer.PublicBaseUrl+"/licenses", pr)
 
-		req.Header.Add("authorization", authorization)
+		// Set credentials on lsd request
+		notifyAuth := config.Config.LsdServer.NotifyAuth
+
+		if notifyAuth.Username != "" {
+			req.SetBasicAuth(notifyAuth.Username, notifyAuth.Password)
+		}
+
 		req.Header.Add("Content-Type", ContentType)
 
 		response, err := lsdClient.Do(req)
@@ -60,9 +66,9 @@ func notifyLsdServer(l License, authorization string) {
 //ListAll, lists all licenses in ante-chronological order
 // pageNum starting at 0
 func (s *sqlStore) ListAll(page int, pageNum int) func() (LicenseReport, error) {
-	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated, 
-	rights_print, rights_copy, rights_start, rights_end, content_fk  
-	FROM license 
+	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated,
+	rights_print, rights_copy, rights_start, rights_end, content_fk
+	FROM license
 	ORDER BY issued desc LIMIT ? OFFSET ? `, page, pageNum*page)
 	if err != nil {
 		return func() (LicenseReport, error) { return LicenseReport{}, err }
@@ -90,9 +96,9 @@ func (s *sqlStore) ListAll(page int, pageNum int) func() (LicenseReport, error) 
 //List() list licenses for a given ContentId
 //pageNum starting at 0
 func (s *sqlStore) List(ContentId string, page int, pageNum int) func() (LicenseReport, error) {
-	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated, 
-	rights_print, rights_copy, rights_start, rights_end, content_fk 
-	FROM license  
+	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated,
+	rights_print, rights_copy, rights_start, rights_end, content_fk
+	FROM license
 	WHERE content_fk=? LIMIT ? OFFSET ? `, ContentId, page, pageNum*page)
 	if err != nil {
 		return func() (LicenseReport, error) { return LicenseReport{}, err }
@@ -126,8 +132,8 @@ func (s *sqlStore) UpdateRights(l License) error {
 	}
 	return err
 }
-func (s *sqlStore) Add(l License, authorization string) error {
-	go notifyLsdServer(l, authorization)
+func (s *sqlStore) Add(l License) error {
+	go notifyLsdServer(l)
 	_, err := s.db.Exec("INSERT INTO license VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		l.Id, l.User.Id, l.Provider, l.Issued, nil, l.Rights.Print, l.Rights.Copy, l.Rights.Start,
 		l.Rights.End, l.Encryption.UserKey.Hint, l.Encryption.UserKey.Check,
@@ -138,8 +144,8 @@ func (s *sqlStore) Add(l License, authorization string) error {
 
 func (s *sqlStore) Update(l License) error {
 	_, err := s.db.Exec(`UPDATE license SET user_id=?,provider=?,issued=?,updated=?,
-				rights_print=?,	rights_copy=?,	rights_start=?,	rights_end=?,	
-				user_key_hint=?, content_fk =? 
+				rights_print=?,	rights_copy=?,	rights_start=?,	rights_end=?,
+				user_key_hint=?, content_fk =?
 				WHERE id=?`, // user_key_hash=?, user_key_algorithm=?,
 		l.User.Id, l.Provider, l.Issued, time.Now(),
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End,
@@ -154,8 +160,8 @@ func (s *sqlStore) Get(id string) (License, error) {
 	var l License
 	createForeigns(&l)
 
-	row := s.db.QueryRow(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, 
-	rights_start, rights_end, user_key_hint, user_key_hash, user_key_algorithm, content_fk FROM license 
+	row := s.db.QueryRow(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy,
+	rights_start, rights_end, user_key_hint, user_key_hash, user_key_algorithm, content_fk FROM license
 	where id = ?`, id)
 
 	err := row.Scan(&l.Id, &l.User.Id, &l.Provider, &l.Issued, &l.Updated,
@@ -194,6 +200,6 @@ const tableDef = `CREATE TABLE IF NOT EXISTS license (
 	rights_start datetime DEFAULT NULL,
 	rights_end datetime DEFAULT NULL,
 	user_key_hint text NOT NULL,
-  	user_key_hash varchar(64) NOT NULL,
-  	user_key_algorithm varchar(255) NOT NULL,
+	user_key_hash varchar(64) NOT NULL,
+	user_key_algorithm varchar(255) NOT NULL,
 	content_fk varchar(255) NOT NULL)`
