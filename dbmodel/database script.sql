@@ -23,22 +23,25 @@ CREATE TABLE IF NOT EXISTS license (
 );
 
 CREATE TABLE IF NOT EXISTS license_status (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER PRIMARY KEY,
   status int(11) NOT NULL,
-  license_updated datetime DEFAULT NULL,
-  status_updated datetime DEFAULT NULL,
+  license_updated datetime NOT NULL,
+  status_updated datetime NOT NULL,
   device_count int(11) DEFAULT NULL,
   potential_rights_end datetime DEFAULT NULL,
-  license_ref varchar(255) NOT NULL,
-  CONSTRAINT `license_ref_UNIQUE` UNIQUE (`license_ref`)
+  license_ref varchar(255) NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);
+
 CREATE TABLE IF NOT EXISTS event (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	id INTEGER PRIMARY KEY,
 	device_name varchar(255) DEFAULT NULL,
 	timestamp datetime NOT NULL,
 	type int NOT NULL,
 	device_id varchar(255) DEFAULT NULL,
 	license_status_fk int NOT NULL,
-  FOREIGN KEY(license_status_fk) REFERENCES license_status(id),
-  CONSTRAINT license_status_fk_UNIQUE UNIQUE (license_status_fk)
+  FOREIGN KEY(license_status_fk) REFERENCES license_status(id)
 );
+
+CREATE INDEX IF NOT EXISTS license_status_fk_index on event (license_status_fk);

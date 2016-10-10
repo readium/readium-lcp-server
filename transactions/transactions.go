@@ -165,12 +165,13 @@ func Open(db *sql.DB) (t Transactions, err error) {
 }
 
 const tableDef = `CREATE TABLE IF NOT EXISTS event (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	id INTEGER PRIMARY KEY,
 	device_name varchar(255) DEFAULT NULL,
 	timestamp datetime NOT NULL,
 	type int NOT NULL,
 	device_id varchar(255) DEFAULT NULL,
 	license_status_fk int NOT NULL,
-  	FOREIGN KEY(license_status_fk) REFERENCES license_status(id),
-  	CONSTRAINT license_status_fk_UNIQUE UNIQUE (license_status_fk)
-);`
+  	FOREIGN KEY(license_status_fk) REFERENCES license_status(id)
+);
+CREATE INDEX IF NOT EXISTS license_status_fk_index on event (license_status_fk);
+`

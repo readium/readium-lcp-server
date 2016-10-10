@@ -27,6 +27,7 @@ const SERVER_INTERNAL_ERROR = "http://readium.org/license-status-document/error/
 const REGISTRATION_BAD_REQUEST = "http://readium.org/license-status-document/error/registration"
 const RETURN_BAD_REQUEST = "http://readium.org/license-status-document/error/return"
 const RENEW_BAD_REQUEST = "http://readium.org/license-status-document/error/renew"
+const RENEW_REJECT = "http://readium.org/license-status-document/error/renew/date"
 
 func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) {
 	acceptLanguages := r.Header.Get("Accept-Language")

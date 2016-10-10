@@ -12,9 +12,9 @@ type Updated struct {
 }
 
 type Link struct {
-	Href   string `json:"href"`
-	Type   string `json:"type,omitempty"`
-	Title   string `json:"title,omitempty"`
+	Href      string `json:"href"`
+	Type      string `json:"type,omitempty"`
+	Title     string `json:"title,omitempty"`
 	Profile   string `json:"profile,omitempty"`
 	Templated bool   `json:"templated,omitempty" "default false"`
 }
@@ -30,7 +30,7 @@ type LicenseStatus struct {
 	Updated         *Updated             `json:"updated,omitempty"`
 	Message         string               `json:"message"`
 	Links           map[string][]Link    `json:"links"`
-	DeviceCount     int                  `json:"device_count"`
+	DeviceCount     *int                 `json:"device_count,omitempty"`
 	PotentialRights *PotentialRights     `json:"potential_rights,omitempty"`
 	Events          []transactions.Event `json:"events,omitempty"`
 }

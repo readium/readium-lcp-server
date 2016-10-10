@@ -36,7 +36,7 @@ func (i dbLicenseStatuses) Get(id int) (LicenseStatus, error) {
 
 	if records.Next() {
 		ls := LicenseStatus{}
-		err = records.Scan(&ls.Id, &statusDB, ls.Updated.License, ls.Updated.Status, &ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
+		err = records.Scan(&ls.Id, &statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
 
 		if err == nil {
 			status.GetStatus(statusDB, &ls.Status)
@@ -108,10 +108,10 @@ func (i dbLicenseStatuses) GetByLicenseId(licenseFk string) (*LicenseStatus, err
 	if err == nil {
 		status.GetStatus(statusDB, &ls.Status)
 
-		ls.PotentialRights = new(PotentialRights)
 		ls.Updated = new(Updated)
 
 		if (potentialRightsEnd != nil) && (!(*potentialRightsEnd).IsZero()) {
+			ls.PotentialRights = new(PotentialRights)
 			ls.PotentialRights.End = potentialRightsEnd
 		}
 
@@ -136,9 +136,15 @@ func (i dbLicenseStatuses) Update(ls LicenseStatus) error {
 		return err
 	}
 
+	var potentialRightsEnd *time.Time
+
+	if ls.PotentialRights != nil {
+		potentialRightsEnd = ls.PotentialRights.End
+	}
+
 	var result sql.Result
 	result, err = i.db.Exec("UPDATE license_status SET status=?, license_updated=?, status_updated=?, device_count=?,potential_rights_end=?  WHERE id=?",
-		statusInt, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, ls.Id)
+		statusInt, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, potentialRightsEnd, ls.Id)
 
 	if err == nil {
 		if r, _ := result.RowsAffected(); r == 0 {
@@ -159,7 +165,7 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 		return
 	}
 
-	list, err := db.Prepare(`SELECT * FROM license_status WHERE device_count > ?
+	list, err := db.Prepare(`SELECT * FROM license_status WHERE device_count > ? 
 		ORDER BY id DESC LIMIT ? OFFSET ?`)
 
 	getbylicenseid, err := db.Prepare("SELECT * FROM license_status where license_ref = ?")
@@ -172,12 +178,12 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 }
 
 const tableDef = `CREATE TABLE IF NOT EXISTS license_status (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER PRIMARY KEY,
   status int(11) NOT NULL,
-  license_updated datetime DEFAULT NULL,
-  status_updated datetime DEFAULT NULL,
+  license_updated datetime NOT NULL,
+  status_updated datetime NOT NULL,
   device_count int(11) DEFAULT NULL,
   potential_rights_end datetime DEFAULT NULL,
-  license_ref varchar(255) NOT NULL,
-  CONSTRAINT license_ref_UNIQUE UNIQUE (license_ref)
-)`
+  license_ref varchar(255) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);`
