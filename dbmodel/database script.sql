@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS content (
   id varchar(255) PRIMARY KEY NOT NULL,
   encryption_key varchar(64) NOT NULL,
-  location text NOT NULL 
+  location text NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS license (
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS license (
 );
 
 CREATE TABLE IF NOT EXISTS license_status (
-  id int PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   status int(11) NOT NULL,
   license_updated datetime DEFAULT NULL,
   status_updated datetime DEFAULT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS license_status (
   CONSTRAINT `license_ref_UNIQUE` UNIQUE (`license_ref`)
 );
 CREATE TABLE IF NOT EXISTS event (
-	id int PRIMARY KEY, 
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	device_name varchar(255) DEFAULT NULL,
 	timestamp datetime NOT NULL,
 	type int NOT NULL,
