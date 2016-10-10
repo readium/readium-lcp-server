@@ -44,7 +44,7 @@ func notifyLsdServer(l License) {
 		req, err := http.NewRequest("PUT", config.Config.LsdServer.PublicBaseUrl+"/licenses", pr)
 
 		// Set credentials on lsd request
-		notifyAuth := config.Config.LsdServer.NotifyAuth
+		notifyAuth := config.Config.LsdNotifyAuth
 
 		if notifyAuth.Username != "" {
 			req.SetBasicAuth(notifyAuth.Username, notifyAuth.Password)

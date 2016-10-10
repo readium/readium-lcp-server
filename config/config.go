@@ -11,31 +11,22 @@ type Configuration struct {
 	Certificate   Certificate   `yaml:"certificate"`
 	Storage       Storage       `yaml:"storage"`
 	License       License       `yaml:"license"`
-	LsdServer     LsdServerInfo `yaml:"lsd"`
-	LcpServer     LcpServerInfo `yaml:"lcp"`
+	LcpServer     ServerInfo    `yaml:"lcp"`
+	LsdServer     ServerInfo    `yaml:"lsd"`
+	LsdNotifyAuth Auth          `yaml:"lsd_notify_auth"`
 	Static        Static        `yaml:"static"`
 	LicenseStatus LicenseStatus `yaml:"license_status"`
 	Localization  Localization  `yaml:"localization"`
 	Logging       Logging       `yaml:"logging"`
 }
 
-type LcpServerInfo struct {
+type ServerInfo struct {
 	Host          string `yaml:"host,omitempty"`
 	Port          int    `yaml:"port,omitempty"`
 	AuthFile      string `yaml:"auth_file"`
 	ReadOnly      bool   `yaml:"readonly,omitempty"`
 	PublicBaseUrl string `yaml:"public_base_url,omitempty"`
 	Database      string `yaml:"database,omitempty"`
-}
-
-type LsdServerInfo struct {
-	Host          string `yaml:"host,omitempty"`
-	Port          int    `yaml:"port,omitempty"`
-	AuthFile      string `yaml:"auth_file"`
-	ReadOnly      bool   `yaml:"readonly,omitempty"`
-	PublicBaseUrl string `yaml:"public_base_url,omitempty"`
-	Database      string `yaml:"database,omitempty"`
-	NotifyAuth    Auth   `yaml:"notify_auth"`
 }
 
 type Auth struct {
