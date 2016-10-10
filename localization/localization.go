@@ -1,6 +1,7 @@
 package localization
 
 import (
+  "path"
 	"github.com/nicksnyder/go-i18n/i18n"
 	"github.com/readium/readium-lcp-server/config"
 )
@@ -10,11 +11,11 @@ import (
 //err!=nil  means that one of them can't be opened
 func InitTranslations() error {
 	acceptableLanguages := config.Config.Localization.Languages
-	localizationPath := config.Config.Localization.Folder + "\\"
+	localizationPath := config.Config.Localization.Folder
 
 	var err error
 	for _, value := range acceptableLanguages {
-		err = i18n.LoadTranslationFile(localizationPath + value + ".json")
+		err = i18n.LoadTranslationFile(path.Join(localizationPath, value + ".json"))
 	}
 
 	return err
