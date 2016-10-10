@@ -224,7 +224,7 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	err = s.Licenses().Add(lic, r.Header.Get("authorization"))
+	err = s.Licenses().Add(lic)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
@@ -298,7 +298,7 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 	enc := json.NewEncoder(&buf)
 	enc.Encode(lic)
 
-	err = s.Licenses().Add(lic, r.Header.Get("authorization"))
+	err = s.Licenses().Add(lic)
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)

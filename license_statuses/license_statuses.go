@@ -165,7 +165,7 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 		return
 	}
 
-	list, err := db.Prepare(`SELECT * FROM license_status WHERE device_count > ? 
+	list, err := db.Prepare(`SELECT * FROM license_status WHERE device_count >= ?
 		ORDER BY id DESC LIMIT ? OFFSET ?`)
 
 	getbylicenseid, err := db.Prepare("SELECT * FROM license_status where license_ref = ?")

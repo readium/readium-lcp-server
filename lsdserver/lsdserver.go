@@ -86,7 +86,7 @@ func main() {
 		panic(err)
 	}
 
-	authFile := config.Config.LcpServer.AuthFile
+	authFile := config.Config.LsdServer.AuthFile
 	if authFile == "" {
 		panic("Must have passwords file")
 	}

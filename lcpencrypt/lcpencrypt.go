@@ -172,7 +172,6 @@ func main() {
 		exitWithError(addedPublication, err, 30)
 	}
 	addedPublication.ContentKey = encryptionKey
-	addedPublication.Output = *outputFilename
 
 	// notify the LCP Server
 	if *lcpsv != "" {

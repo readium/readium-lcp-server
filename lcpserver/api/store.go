@@ -6,6 +6,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"fmt"
+	"bytes"
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/index"
@@ -183,8 +185,18 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	//Send the headers
 	w.Header().Set("Content-Disposition", "attachment; filename="+content.Location)
 	w.Header().Set("Content-Type", "application/epub+zip") //it should be an epub
-	//writer.Header().Set("Content-Length", FileSize)
-	io.Copy(w, contentReadCloser) //'Copy' the file to the client
+	
+	data, err := ioutil.ReadAll(contentReadCloser)
+    if err != nil {
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+        return
+    }
+	
+	length := len(data)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", length))
+
+	io.Copy(w, bytes.NewReader(data)) //'Copy' the file to the client
+	
 	return
 
 }

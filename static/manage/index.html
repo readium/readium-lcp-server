@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <head>
-    <script src="//code.jquery.com/jquery-2.0.3.min.js" type="text/javascript"></script>
+    <script   src="https://code.jquery.com/jquery-3.1.1.slim.min.js"   integrity="sha256-/SIrNqv8h6QGKDuNoLGA4iret+kyesCkHGzVUUV0shc="   crossorigin="anonymous"></script>
     <link href='http://fonts.googleapis.com/css?family=Lato:400,900' rel='stylesheet' type='text/css'>
 
     <style>
@@ -143,24 +143,22 @@ function handleFileUpload(files,obj) {
 }
 
 function makeLicense() {
-  obj = {
-    "provider": "http://edrlab.org",
-    "user": {
-      "id": $('#user_id').val()
-    },
-    "encryption": {
-      "user_key": {
-        "clear_value": $('#passphrase').val(),
-         "text_hint": "Enter passphrase"
-      }
-    },
-     "rights": {
-        "print": 10,
-        "copy": 2048,
-        "start": "2016-09-01T01:08:15+01:00",
-        "end": "2016-11-25T01:08:15+01:00"
-    }	
+  var obj = JSON.parse($('#licenseJSON').val());
+  
+  if (!obj.user) {
+    obj.user = {};
   }
+  obj.user.id = $('#user_id').val();
+  
+  if (!obj.encryption) {
+    obj.encryption = {};
+  }
+  if (!obj.encryption.user_key) {
+    obj.encryption.user_key = {};
+  }
+  obj.encryption.user_key.clear_value = $('#passphrase').val();
+
+  console.debug(JSON.stringify(obj, null, ' '));
 
   return obj;
 }
@@ -185,13 +183,34 @@ function refreshPackages() {
       $('#packages').append('<li data-key="' + data[i].id + '"><span class="filename">' + data[i].location +
                             ' <span class="key">' + data[i].id + '</span</li>')
     }
-  }
+
+  var defaultLicenseJSON =
+  '{\n\
+    "provider": "http://edrlab.org",\n\
+    "user": {\n\
+      "id": "THIS VALUE WILL BE AUTOMATICALLY SET"\n\
+    },\n\
+    "encryption": {\n\
+      "user_key": {\n\
+        "clear_value": "THIS VALUE WILL BE AUTOMATICALLY SET",\n\
+         "text_hint": "Enter passphrase"\n\
+      }\n\
+    },\n\
+     "rights": {\n\
+        "print": 10,\n\
+        "copy": 2048,\n\
+        "start": "2016-09-01T01:08:15+01:00",\n\
+        "end": "2016-11-25T01:08:15+01:00"\n\
+    }\n\
+  }\n';
+document.getElementById("licenseJSON").value = defaultLicenseJSON;
+  };
   req.open("GET", "/contents");
   req.send();
 }
 $(function() {
-  refreshPackages()
-    })
+  refreshPackages();
+});
     </script>
 
     <h2>Emit a License</h2>
@@ -200,6 +219,9 @@ $(function() {
       <label for="key">Package Identifier:</label><input type="text" id="key" name="key" readonly /></br>
       <label for="passphrase">Passphrase:</label><input type="password" id="passphrase" name="passphrase"/></br>
       <label for="user_id">User identifier:</label><input type="text" id="user_id" name="user_id" /></br>
+
+      <textarea style="width:90%;height:20em;" id="licenseJSON">temp</textarea></br>
+
       <input type="submit" id="license" value="Generate License" /></br>
       <input type="submit"  id="publication" value="Generate protected publication" /></br>
     </form>

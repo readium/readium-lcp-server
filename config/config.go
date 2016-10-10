@@ -11,8 +11,9 @@ type Configuration struct {
 	Certificate   Certificate   `yaml:"certificate"`
 	Storage       Storage       `yaml:"storage"`
 	License       License       `yaml:"license"`
-	LsdServer     ServerInfo    `yaml:"lsd"`
 	LcpServer     ServerInfo    `yaml:"lcp"`
+	LsdServer     ServerInfo    `yaml:"lsd"`
+	LsdNotifyAuth Auth          `yaml:"lsd_notify_auth"`
 	Static        Static        `yaml:"static"`
 	LicenseStatus LicenseStatus `yaml:"license_status"`
 	Localization  Localization  `yaml:"localization"`
@@ -26,6 +27,11 @@ type ServerInfo struct {
 	ReadOnly      bool   `yaml:"readonly,omitempty"`
 	PublicBaseUrl string `yaml:"public_base_url,omitempty"`
 	Database      string `yaml:"database,omitempty"`
+}
+
+type Auth struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 type Certificate struct {

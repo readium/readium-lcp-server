@@ -467,19 +467,35 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", "application/json")
 
-	devicesLimit, err := strconv.ParseInt(r.FormValue("devices"), 10, 32)
+	// Get request parameters. If not defined, set default values
+	rDevices := r.FormValue("devices")
+	if rDevices == "" {
+		rDevices = "1"
+	}
+
+	rPage := r.FormValue("page")
+	if rPage == "" {
+		rPage = "1"
+	}
+
+	rPerPage := r.FormValue("per_page")
+	if rPerPage == "" {
+		rPerPage = "10"
+	}
+
+	devicesLimit, err := strconv.ParseInt(rDevices, 10, 32)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
-	page, err := strconv.ParseInt(r.FormValue("page"), 10, 32)
+	page, err := strconv.ParseInt(rPage, 10, 32)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
-	perPage, err := strconv.ParseInt(r.FormValue("per_page"), 10, 32)
+	perPage, err := strconv.ParseInt(rPerPage, 10, 32)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
@@ -688,7 +704,7 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 //createLink creates a link and fills it
 func createLink(publicBaseUrl string, licenseRef string, page string,
 	typeLink string, templated bool) licensestatuses.Link {
-	link := licensestatuses.Link{Href: publicBaseUrl + "/license/" + licenseRef + page,
+	link := licensestatuses.Link{Href: publicBaseUrl + "/licenses/" + licenseRef + page,
 		Type: typeLink, Templated: templated}
 	return link
 }
