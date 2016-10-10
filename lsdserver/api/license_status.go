@@ -657,13 +657,14 @@ func getEvents(ls *licensestatuses.LicenseStatus, s Server) error {
 //makeLinks creates and adds links to the license status
 func makeLinks(ls *licensestatuses.LicenseStatus) {
 	lsdBaseUrl := config.Config.LsdServer.PublicBaseUrl
+	lcpBaseUrl := config.Config.LcpServer.PublicBaseUrl
 	registerAvailable := config.Config.LicenseStatus.Register
 	returnAvailable := config.Config.LicenseStatus.Return
 	renewAvailable := config.Config.LicenseStatus.Renew
 
 	ls.Links = make(map[string][]licensestatuses.Link)
 	ls.Links["license"] = make([]licensestatuses.Link, 1)
-	ls.Links["license"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "",
+	ls.Links["license"][0] = createLink(lcpBaseUrl, ls.LicenseRef, "",
 		"application/vnd.readium.lcp.license.v1.0+json", false)
 
 	if registerAvailable {
@@ -690,7 +691,7 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 //createLink creates a link and fills it
 func createLink(publicBaseUrl string, licenseRef string, page string,
 	typeLink string, templated bool) licensestatuses.Link {
-	link := licensestatuses.Link{Href: publicBaseUrl + "/license/" + licenseRef + page,
+	link := licensestatuses.Link{Href: publicBaseUrl + "/licenses/" + licenseRef + page,
 		Type: typeLink, Templated: templated}
 	return link
 }
