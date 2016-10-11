@@ -58,6 +58,7 @@ func main() {
 	}
 	if publicBaseUrl = config.Config.LsdServer.PublicBaseUrl; publicBaseUrl == "" {
 		publicBaseUrl = "http://" + host + ":" + strconv.Itoa(port)
+		config.Config.LsdServer.PublicBaseUrl = publicBaseUrl
 	}
 
 	if dbURI = config.Config.LsdServer.Database; dbURI == "" {
