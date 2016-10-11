@@ -75,12 +75,11 @@ func (i dbLicenseStatuses) List(deviceLimit int64, limit int64, offset int64) fu
 	return func() (LicenseStatus, error) {
 		var statusDB int64
 		ls := LicenseStatus{}
-		ls.PotentialRights = new(PotentialRights)
 		ls.Updated = new(Updated)
 
 		var err error
 		if rows.Next() {
-			err = rows.Scan(&ls.Id, &statusDB, &ls.Updated.License, &ls.Updated.Status, &ls.DeviceCount, &ls.PotentialRights.End, &ls.LicenseRef)
+			err = rows.Scan(&statusDB, &ls.Updated.License, &ls.Updated.Status, &ls.DeviceCount, &ls.LicenseRef)
 
 			if err == nil {
 				status.GetStatus(statusDB, &ls.Status)
@@ -165,7 +164,7 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 		return
 	}
 
-	list, err := db.Prepare(`SELECT * FROM license_status WHERE device_count >= ?
+	list, err := db.Prepare(`SELECT status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ?
 		ORDER BY id DESC LIMIT ? OFFSET ?`)
 
 	getbylicenseid, err := db.Prepare("SELECT * FROM license_status where license_ref = ?")
