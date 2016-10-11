@@ -2,16 +2,16 @@ package lsdserver
 
 import (
 	"time"
-
 	"net/http"
 
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
+	"github.com/technoweenie/grohl"
+
 	"github.com/readium/readium-lcp-server/license_statuses"
 	"github.com/readium/readium-lcp-server/lsdserver/api"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/transactions"
-	"github.com/technoweenie/grohl"
 )
 
 type Server struct {

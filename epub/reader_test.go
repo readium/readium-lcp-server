@@ -28,7 +28,7 @@ func TestEpubLoading(t *testing.T) {
 		t.Error("Expected 1 opf, got %d", len(ep.Package))
 	}
 
-	expectedCleartext := []string{"META-INF/container.xml", "OPS/package.opf", "OPS/images/9780316000000.jpg", "OPS/toc.xhtml"}
+	expectedCleartext := []string{ContainerFile, "OPS/package.opf", "OPS/images/9780316000000.jpg", "OPS/toc.xhtml"}
 	sort.Strings(expectedCleartext)
 	if fmt.Sprintf("%v", ep.cleartextResources) != fmt.Sprintf("%v", expectedCleartext) {
 		t.Errorf("Cleartext resources, expected %v, got %v", expectedCleartext, ep.cleartextResources)
@@ -38,7 +38,7 @@ func TestEpubLoading(t *testing.T) {
 		t.Error("Expected a cover to be found")
 	}
 
-	if expected := "application/xhtml+xml"; ep.Resource[2].ContentType != expected {
+	if expected := ContentType_XHTML; ep.Resource[2].ContentType != expected {
 		t.Errorf("Content Type matching, expected %v, got %v", expected, ep.Resource[2].ContentType)
 	}
 }

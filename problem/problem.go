@@ -9,8 +9,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/readium/readium-lcp-server/localization"
 	"github.com/technoweenie/grohl"
+
+	"github.com/readium/readium-lcp-server/localization"
+)
+
+const (
+	ContentType_PROBLEM_JSON = "application/problem+json"
 )
 
 type Problem struct {
@@ -23,15 +28,16 @@ type Problem struct {
 	//Additional members
 }
 
-const SERVER_INTERNAL_ERROR = "http://readium.org/license-status-document/error/server"
-const REGISTRATION_BAD_REQUEST = "http://readium.org/license-status-document/error/registration"
-const RETURN_BAD_REQUEST = "http://readium.org/license-status-document/error/return"
-const RENEW_BAD_REQUEST = "http://readium.org/license-status-document/error/renew"
-const RENEW_REJECT = "http://readium.org/license-status-document/error/renew/date"
+const ERROR_BASE_URL = "http://readium.org/license-status-document/error/"
+const SERVER_INTERNAL_ERROR = ERROR_BASE_URL + "server"
+const REGISTRATION_BAD_REQUEST = ERROR_BASE_URL + "registration"
+const RETURN_BAD_REQUEST = ERROR_BASE_URL + "return"
+const RENEW_BAD_REQUEST = ERROR_BASE_URL + "renew"
+const RENEW_REJECT = ERROR_BASE_URL + "renew/date"
 
 func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) {
 	acceptLanguages := r.Header.Get("Accept-Language")
-	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("Content-Type", ContentType_PROBLEM_JSON)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	problem.Status = status

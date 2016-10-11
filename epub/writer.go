@@ -7,10 +7,6 @@ import (
 	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
-const (
-	mimetype = "application/epub+zip"
-)
-
 type Writer struct {
 	w *zip.Writer
 }
@@ -36,7 +32,7 @@ func (w *Writer) Copy(r *Resource) error {
 }
 
 func (w *Writer) WriteEncryption(enc *xmlenc.Manifest) error {
-	fw, err := w.AddResource("META-INF/encryption.xml", zip.Deflate)
+	fw, err := w.AddResource(EncryptionFile, zip.Deflate)
 	if err != nil {
 		return err
 	}
@@ -97,7 +93,7 @@ func writeMimetype(w *zip.Writer) error {
 		return err
 	}
 
-	wf.Write([]byte(mimetype))
+	wf.Write([]byte(ContentType_EPUB))
 
 	return nil
 }

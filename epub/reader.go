@@ -4,18 +4,15 @@ import (
 	"archive/zip"
 	"encoding/xml"
 	"path/filepath"
-
-	"github.com/readium/readium-lcp-server/epub/opf"
-	"github.com/readium/readium-lcp-server/xmlenc"
-
 	"io"
 	"sort"
 	"strings"
+
+	"github.com/readium/readium-lcp-server/epub/opf"
+	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
 const (
-	ContainerFile   = "META-INF/container.xml"
-	EncryptionFile  = "META-INF/encryption.xml"
 	RootFileElement = "rootfile"
 )
 
@@ -164,7 +161,7 @@ func addCleartextResources(ep *Epub, p opf.Package) {
 	for _, item := range p.Manifest.Items {
 		if strings.Contains(item.Properties, "cover-image") ||
 			strings.Contains(item.Properties, "nav") ||
-			item.MediaType == "application/x-dtbncx+xml" {
+			item.MediaType == ContentType_NCX {
 			ep.addCleartextResource(filepath.Join(p.BasePath, item.Href))
 		}
 	}
