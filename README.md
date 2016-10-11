@@ -115,6 +115,11 @@ This file normally resides in the bin directory but the path to this configurati
 	User2:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKMT
 ```
 
+"lsd_notify_auth": authentication parameters used by the License Server for notifying the License Status Server 
+of a license generation. The notification endpoint is configured in the "lsd" section.
+- "username": mandatory, authentication username
+- "password": mandatory, authentication password
+
 "storage": parameters related to the storage of the protected publications.
 - "filesystem": parameters related to a file system storage
   - "directory": absolute path to the directory in which the protected publications are stored.
@@ -129,7 +134,7 @@ This file normally resides in the bin directory but the path to this configurati
   - "publication": optional, templated URL; 
     location where the Publication associated with the License Document can be downloaded.
     The publication identifier is inserted via the variable {publication_id}.
-  - "status" : optional, templated URL; location of the Status Document associated with a License Document.
+  - "status": optional, templated URL; location of the Status Document associated with a License Document.
     The license identifier is inserted via the variable {license_id}.
 
 NOTE: here is a license section snippet:
