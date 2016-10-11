@@ -10,12 +10,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
 )
 
 var NotFound = errors.New("License not found")
-
-const ContentType string = "application/vnd.readium.lcp.license.1-0+json"
 
 type Store interface {
 	//List() func() (License, error)
@@ -50,7 +49,7 @@ func notifyLsdServer(l License) {
 			req.SetBasicAuth(notifyAuth.Username, notifyAuth.Password)
 		}
 
-		req.Header.Add("Content-Type", ContentType)
+		req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
 
 		response, err := lsdClient.Do(req)
 		if err != nil {

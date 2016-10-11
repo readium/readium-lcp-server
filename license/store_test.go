@@ -3,11 +3,11 @@ package license
 import (
 	"bytes"
 	"database/sql"
+	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	
 	"github.com/readium/readium-lcp-server/sign"
-
-	"testing"
 )
 
 func TestStoreInit(t *testing.T) {

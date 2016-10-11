@@ -3,12 +3,11 @@ package license
 import (
 	"crypto/rand"
 	"fmt"
+	"io"
+	"time"
 
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/sign"
-
-	"io"
-	"time"
 )
 
 type Key struct {

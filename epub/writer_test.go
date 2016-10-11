@@ -39,7 +39,7 @@ const basicPage = `
 
 func createBasicEpub() Epub {
 	var ep Epub
-	ep.Add("META-INF/container.xml", strings.NewReader(containerSpec), uint64(len(containerSpec)))
+	ep.Add(ContainerFile, strings.NewReader(containerSpec), uint64(len(containerSpec)))
 
 	ep.Add("EPUB/package.opf", strings.NewReader(basicOpf), uint64(len(basicOpf)))
 
@@ -79,8 +79,8 @@ func TestWriteBasicEpub(t *testing.T) {
 		}
 	}
 
-	testContentsOfFileInZip(t, zr, zip.Store, "mimetype", "application/epub+zip")
-	testContentsOfFileInZip(t, zr, zip.Deflate, "META-INF/container.xml", containerSpec)
+	testContentsOfFileInZip(t, zr, zip.Store, "mimetype", ContentType_EPUB)
+	testContentsOfFileInZip(t, zr, zip.Deflate, ContainerFile, containerSpec)
 	testContentsOfFileInZip(t, zr, zip.Deflate, "EPUB/package.opf", basicOpf)
 	testContentsOfFileInZip(t, zr, zip.Deflate, "EPUB/page.xhtml", basicPage)
 }
