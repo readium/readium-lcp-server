@@ -4,19 +4,19 @@ import (
 	"crypto/tls"
 	"path/filepath"
 	"time"
+	"html/template"
+	"net/http"
 
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
+	"github.com/technoweenie/grohl"
+	
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/storage"
-	"github.com/technoweenie/grohl"
-
-	"html/template"
-	"net/http"
 )
 
 type Server struct {

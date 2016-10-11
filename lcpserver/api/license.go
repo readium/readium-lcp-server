@@ -13,11 +13,12 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
 	"io"
 	"net/http"
 
 	"github.com/gorilla/mux"
+
+	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
@@ -52,7 +53,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	err := DecodeJsonLicense(r, &lic)
 	if err != nil { // no or incorrect (json) license found in body
 		// just send partial license
-		w.Header().Add("Content-Type", license.ContentType)
+		w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 		w.WriteHeader(http.StatusPartialContent)
 		//delete some sensitive data from license
 		ExistingLicense.Encryption.UserKey.Check = nil
@@ -91,7 +92,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Header().Add("Content-Type", license.ContentType)
+		w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
@@ -214,7 +215,7 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 	key := vars["key"]
 
-	w.Header().Add("Content-Type", license.ContentType)
+	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 	w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 
 	err = completeLicense(&lic, key, s)
@@ -286,7 +287,7 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 	}
 	var buf bytes.Buffer
 
-	//lic.Links["publication"] = license.Link{Href: item.PublicUrl(), Type: "application/epub+zip"}
+	//lic.Links["publication"] = license.Link{Href: item.PublicUrl(), Type: epub.ContentType_EPUB}
 	//lic.ContentId = key
 
 	err = completeLicense(&lic, key, s)
@@ -307,8 +308,8 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 
 	var buf2 bytes.Buffer
 	buf2.Write(bytes.TrimRight(buf.Bytes(), "\n"))
-	ep.Add("META-INF/license.lcpl", &buf2, uint64(buf2.Len()))
-	w.Header().Add("Content-Type", "application/epub+zip")
+	ep.Add(epub.LicenseFile, &buf2, uint64(buf2.Len()))
+	w.Header().Add("Content-Type", epub.ContentType_EPUB)
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, content.Location))
 	ep.Write(w)
 
@@ -317,7 +318,7 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 func DecodeJsonLicense(r *http.Request, lic *license.License) error {
 	var dec *json.Decoder
 
-	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == "application/x-www-form-urlencoded" {
+	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_FORM_URL_ENCODED {
 		buf := bytes.NewBufferString(r.PostFormValue("data"))
 		dec = json.NewDecoder(buf)
 	} else {
@@ -368,7 +369,7 @@ func completeLicense(l *license.License, key string, s Server) error {
 	// finalize by ensuring type field is correctly set
 	publi := new(license.Link)
 	publi.Href = l.Links["publication"].Href
-	publi.Type = "application/epub+zip"
+	publi.Type = epub.ContentType_EPUB
 	//publi.Templated = false
 	l.Links["publication"] = *publi
 
@@ -389,7 +390,7 @@ func completeLicense(l *license.License, key string, s Server) error {
 	// finalize by ensuring type field is correctly set
 	statu := new(license.Link)
 	statu.Href = l.Links["status"].Href
-	statu.Type = "application/vnd.readium.license.status.v1.0+json"
+	statu.Type = api.ContentType_LSD_JSON
 	//statu.Templated = false
 	l.Links["status"] = *statu
 
@@ -480,7 +481,7 @@ func encryptKey(key []byte, kek []byte) []byte {
 //ListLicenses returns a JSON struct with information about emitted licenses
 // optional GET parameters are "page" (page number) and "per_page" (items par page)
 func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", api.ContentType_JSON)
 	var page int64
 	var per_page int64
 	var err error
@@ -540,7 +541,7 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	var per_page int64
 	var err error
 	contentId := vars["key"]
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", api.ContentType_JSON)
 	//check if license exists
 	_, err = s.Index().Get(contentId)
 	if err == index.NotFound {

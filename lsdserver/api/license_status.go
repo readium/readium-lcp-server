@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/logging"
-
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/license_statuses"
@@ -20,6 +21,7 @@ import (
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/status"
 	"github.com/readium/readium-lcp-server/transactions"
+	"github.com/readium/readium-lcp-server/epub"
 )
 
 type Server interface {
@@ -87,7 +89,7 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/vnd.readium.license.status.v1.0+json")
+	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
 
 	licenseStatus.DeviceCount = nil
 	enc := json.NewEncoder(w)
@@ -105,7 +107,7 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 //RegisterDevice register device using device_id & device_name request parameters
 //& returns updated and filled license status
 func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
-	w.Header().Set("Content-Type", "application/vnd.readium.license.status.v1.0+json")
+	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
 	vars := mux.Vars(r)
 
 	licenseFk := vars["key"]
@@ -213,7 +215,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 //LendingReturn checks that the calling device is activated, then modifies
 //the end date associated with the given license & returns updated and filled license status
 func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
-	w.Header().Set("Content-Type", "application/vnd.readium.license.status.v1.0+json")
+	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
 	vars := mux.Vars(r)
 
 	licenseFk := vars["key"]
@@ -336,7 +338,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 //LendingRenewal checks that the calling device is activated, then modifies
 //the end date associated with the license & returns updated and filled license status
 func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
-	w.Header().Set("Content-Type", "application/vnd.readium.license.status.v1.0+json")
+	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
 	vars := mux.Vars(r)
 
 	licenseFk := vars["key"]
@@ -465,7 +467,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 //FilterLicenseStatuses returns a sequence of license statuses, in their id order
 //function for detecting licenses which used a lot of devices
 func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", api.ContentType_JSON)
 
 	// Get request parameters. If not defined, set default values
 	rDevices := r.FormValue("devices")
@@ -546,7 +548,7 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 
 //ListRegisteredDevices returns data about the use of a given license
 func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", api.ContentType_JSON)
 
 	vars := mux.Vars(r)
 	licenseFk := vars["key"]
@@ -678,26 +680,25 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 	ls.Links = make(map[string][]licensestatuses.Link)
 	ls.Links["license"] = make([]licensestatuses.Link, 1)
 	ls.Links["license"][0] = createLink(lcpBaseUrl, ls.LicenseRef, "",
-		"application/vnd.readium.lcp.license.v1.0+json", false)
+		api.ContentType_LCP_JSON, false)
 
 	if registerAvailable {
 		ls.Links["register"] = make([]licensestatuses.Link, 1)
 		ls.Links["register"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/register{?id,name}",
-			"application/vnd.readium.license.status.v1.0+json", true)
+			api.ContentType_LSD_JSON, true)
 	}
 
 	if returnAvailable {
 		ls.Links["return"] = make([]licensestatuses.Link, 1)
 		ls.Links["return"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/return{?id,name}",
-			"application/vnd.readium.lcp.license-1.0+json", true)
+			api.ContentType_LCP_JSON, true)
 	}
 
 	if renewAvailable {
 		ls.Links["renew"] = make([]licensestatuses.Link, 2)
-		ls.Links["renew"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/renew",
-			"text/html", false)
+		ls.Links["renew"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/renew", epub.ContentType_HTML, false)
 		ls.Links["renew"][1] = createLink(lsdBaseUrl, ls.LicenseRef, "/renew{?end,id,name}",
-			"application/vnd.readium.lcp.license-1.0+json", true)
+			api.ContentType_LCP_JSON, true)
 	}
 }
 
@@ -725,7 +726,7 @@ func makeEvent(status string, deviceName string, deviceId string, licenseStatusF
 func decodeJsonLicenseStatus(r *http.Request, ls *licensestatuses.LicenseStatus) error {
 	var dec *json.Decoder
 
-	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == "application/x-www-form-urlencoded" {
+	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_FORM_URL_ENCODED {
 		buf := bytes.NewBufferString(r.PostFormValue("data"))
 		dec = json.NewDecoder(buf)
 	} else {
@@ -753,7 +754,7 @@ func updateLicense(timeEnd time.Time, licenseRef string) {
 			pw.Close()
 		}()
 		req, err := http.NewRequest("PATCH", lcpBaseUrl+"/licenses/"+l.Id, pr)
-		req.Header.Add("Content-Type", "application/vnd.readium.lcp.license.1-0+json")
+		req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
 		response, err := lcpClient.Do(req)
 		if err != nil {
 			log.Println("Error Notify Lcp Server of License (" + l.Id + "):" + err.Error())

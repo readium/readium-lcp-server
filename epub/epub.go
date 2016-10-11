@@ -5,11 +5,23 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"io"
 
 	"github.com/readium/readium-lcp-server/epub/opf"
 	"github.com/readium/readium-lcp-server/xmlenc"
+)
 
-	"io"
+const (
+	ContainerFile   = "META-INF/container.xml"
+	EncryptionFile  = "META-INF/encryption.xml"
+	LicenseFile  = "META-INF/license.lcpl"
+
+	ContentType_XHTML = "application/xhtml+xml"
+	ContentType_HTML = "text/html"
+	
+	ContentType_NCX = "application/x-dtbncx+xml"
+	
+	ContentType_EPUB = "application/epub+zip"
 )
 
 type Epub struct {

@@ -7,10 +7,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/satori/go.uuid"
+	
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/storage"
-	"github.com/satori/go.uuid"
 )
 
 type Source interface {
