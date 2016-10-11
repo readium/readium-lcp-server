@@ -23,11 +23,12 @@ type Problem struct {
 	//Additional members
 }
 
-const SERVER_INTERNAL_ERROR = "http://readium.org/license-status-document/error/server"
-const REGISTRATION_BAD_REQUEST = "http://readium.org/license-status-document/error/registration"
-const RETURN_BAD_REQUEST = "http://readium.org/license-status-document/error/return"
-const RENEW_BAD_REQUEST = "http://readium.org/license-status-document/error/renew"
-const RENEW_REJECT = "http://readium.org/license-status-document/error/renew/date"
+const ERROR_BASE_URL = "http://readium.org/license-status-document/error/"
+const SERVER_INTERNAL_ERROR = ERROR_BASE_URL + "server"
+const REGISTRATION_BAD_REQUEST = ERROR_BASE_URL + "registration"
+const RETURN_BAD_REQUEST = ERROR_BASE_URL + "return"
+const RENEW_BAD_REQUEST = ERROR_BASE_URL + "renew"
+const RENEW_REJECT = ERROR_BASE_URL + "renew/date"
 
 func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) {
 	acceptLanguages := r.Header.Get("Accept-Language")
