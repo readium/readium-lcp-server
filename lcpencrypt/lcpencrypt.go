@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -103,6 +104,16 @@ func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel i
 	os.Exit(errorlevel)
 }
 
+func getChecksum(filename string) string {
+	hasher := sha256.New()
+	s, err := ioutil.ReadFile(filename)
+	hasher.Write(s)
+	if err != nil {
+		return ""
+	}
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
 func main() {
 	var err error
 	var addedPublication apilcp.LcpPublication
@@ -138,10 +149,12 @@ func main() {
 		*contentid = fmt.Sprintf("%x", sha)
 	}
 	//addedPublication.ContentId = *contentid
-	addedPublication.ContentId = filepath.Base(*inputFilename)
 	if *outputFilename == "" { //output not set -> "content-id.epub" in working directory
 		workingDir, _ := os.Getwd()
 		*outputFilename = strings.Join([]string{workingDir, string(os.PathSeparator), *contentid, ".epub"}, "")
+		addedPublication.ContentId = filepath.Base(*outputFilename)
+	} else {
+		addedPublication.ContentId = filepath.Base(*inputFilename)
 	}
 	addedPublication.Output = *outputFilename
 
@@ -166,6 +179,14 @@ func main() {
 
 	// pack / encrypt the epub content, fill the output file
 	_, encryptionKey, err := pack.Do(ep, output)
+
+	stats, err := output.Stat()
+	if err == nil && (stats.Size() > 0) {
+		filesize := stats.Size()
+		cs := getChecksum(*outputFilename)
+		addedPublication.Size = &filesize
+		addedPublication.Checksum = &cs
+	}
 	output.Close()
 	if err != nil {
 		addedPublication.ErrorMessage = "Error packaging the publication"

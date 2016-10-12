@@ -1,23 +1,23 @@
 package apilcp
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
-	"fmt"
-	"bytes"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 
+	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/storage"
-	"github.com/readium/readium-lcp-server/epub"
 )
 
 type Server interface {
@@ -30,10 +30,12 @@ type Server interface {
 
 // struct for communication with lcp-server
 type LcpPublication struct {
-	ContentId    string `json:"content-id"`
-	ContentKey   []byte `json:"content-encryption-key"`
-	Output       string `json:"protected-content-location"`
-	ErrorMessage string `json:"error"`
+	ContentId    string  `json:"content-id"`
+	ContentKey   []byte  `json:"content-encryption-key"`
+	Output       string  `json:"protected-content-location"`
+	Size         *int64  `json:"protected-content-length,omitempty"`
+	Checksum     *string `json:"protected-content-sha256,omitempty"`
+	ErrorMessage string  `json:"error"`
 }
 
 func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
@@ -186,18 +188,18 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	//Send the headers
 	w.Header().Set("Content-Disposition", "attachment; filename="+content.Location)
 	w.Header().Set("Content-Type", epub.ContentType_EPUB) //it should be an epub
-	
+
 	data, err := ioutil.ReadAll(contentReadCloser)
-    if err != nil {
+	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-        return
-    }
-	
+		return
+	}
+
 	length := len(data)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", length))
 
 	io.Copy(w, bytes.NewReader(data)) //'Copy' the file to the client
-	
+
 	return
 
 }
