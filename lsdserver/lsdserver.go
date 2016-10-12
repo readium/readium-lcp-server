@@ -15,7 +15,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
-	
+
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/license_statuses"
 	"github.com/readium/readium-lcp-server/localization"
@@ -30,9 +30,8 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-	var config_file, host, publicBaseUrl, dbURI string
+	var config_file, dbURI string
 	var readonly bool = false
-	var port int
 	var err error
 
 	if config_file = os.Getenv("READIUM_LICENSE_CONFIG"); config_file == "" {
@@ -48,18 +47,9 @@ func main() {
 
 	readonly = config.Config.LsdServer.ReadOnly
 
-	if host = config.Config.LsdServer.Host; host == "" {
-		host, err = os.Hostname()
-		if err != nil {
-			panic(err)
-		}
-	}
-	if port = config.Config.LsdServer.Port; port == 0 {
-		port = 8990
-	}
-	if publicBaseUrl = config.Config.LsdServer.PublicBaseUrl; publicBaseUrl == "" {
-		publicBaseUrl = "http://" + host + ":" + strconv.Itoa(port)
-		config.Config.LsdServer.PublicBaseUrl = publicBaseUrl
+	err = config.SetPublicUrls()
+	if err != nil {
+		panic(err)
 	}
 
 	if dbURI = config.Config.LsdServer.Database; dbURI == "" {
@@ -109,14 +99,16 @@ func main() {
 	}
 
 	HandleSignals()
-	s := lsdserver.New(":"+strconv.Itoa(port), readonly, &hist, &trns, authenticator)
+
+	parsedPort := strconv.Itoa(config.Config.LsdServer.Port)
+	s := lsdserver.New(":"+parsedPort, readonly, &hist, &trns, authenticator)
 	if readonly {
-		log.Println("License status server running in readonly mode on port " + strconv.Itoa(port))
+		log.Println("License status server running in readonly mode on port " + parsedPort)
 	} else {
-		log.Println("License status server running on port " + strconv.Itoa(port))
+		log.Println("License status server running on port " + parsedPort)
 	}
 	log.Println("Using database " + dbURI)
-	log.Println("Public base URL=" + publicBaseUrl)
+	log.Println("Public base URL=" + config.Config.LsdServer.PublicBaseUrl)
 
 	if err := s.ListenAndServe(); err != nil {
 		log.Println("Error " + err.Error())
