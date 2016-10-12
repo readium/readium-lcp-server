@@ -17,7 +17,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
-	
+
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/lcpserver/server"
@@ -32,9 +32,8 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-	var config_file, host, publicBaseUrl, dbURI, storagePath, certFile, privKeyFile, static string
+	var config_file, dbURI, storagePath, certFile, privKeyFile, static string
 	var readonly bool = false
-	var port int
 	var err error
 
 	if config_file = os.Getenv("READIUM_LICENSE_CONFIG"); config_file == "" {
@@ -45,17 +44,9 @@ func main() {
 
 	readonly = config.Config.LcpServer.ReadOnly
 
-	if host = config.Config.LcpServer.Host; host == "" {
-		host, err = os.Hostname()
-		if err != nil {
-			panic(err)
-		}
-	}
-	if port = config.Config.LcpServer.Port; port == 0 {
-		port = 8989
-	}
-	if publicBaseUrl = config.Config.LcpServer.PublicBaseUrl; publicBaseUrl == "" {
-		publicBaseUrl = "http://" + host + ":" + strconv.Itoa(port)
+	err = config.SetPublicUrls()
+	if err != nil {
+		panic(err)
 	}
 
 	if dbURI = config.Config.LcpServer.Database; dbURI == "" {
@@ -105,7 +96,7 @@ func main() {
 		store, _ = storage.S3(s3Conf)
 	} else {
 		os.MkdirAll(storagePath, os.ModePerm) //ignore the error, the folder can already exist
-		store = storage.NewFileSystem(storagePath, publicBaseUrl+"/files")
+		store = storage.NewFileSystem(storagePath, config.Config.LcpServer.PublicBaseUrl+"/files")
 	}
 
 	packager := pack.NewPackager(store, idx, 4)
@@ -128,14 +119,15 @@ func main() {
 	authenticator := auth.NewBasicAuthenticator("Readium License Content Protection Server", htpasswd)
 
 	HandleSignals()
-	s := lcpserver.New(":"+strconv.Itoa(port), static, readonly, &idx, &store, &lst, &cert, packager, authenticator)
+	parsedPort := strconv.Itoa(config.Config.LcpServer.Port)
+	s := lcpserver.New(":"+parsedPort, static, readonly, &idx, &store, &lst, &cert, packager, authenticator)
 	if readonly {
-		log.Println("License server running in readonly mode on port " + strconv.Itoa(port))
+		log.Println("License server running in readonly mode on port " + parsedPort)
 	} else {
-		log.Println("License server running on port " + strconv.Itoa(port))
+		log.Println("License server running on port " + parsedPort)
 	}
 	log.Println("using database " + dbURI)
-	log.Println("Public base URL=" + publicBaseUrl)
+	log.Println("Public base URL=" + config.Config.LcpServer.PublicBaseUrl)
 	log.Println("License links:")
 	for nameOfLink, link := range config.Config.License.Links {
 		log.Println("  " + nameOfLink + " => " + link)

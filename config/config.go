@@ -2,7 +2,9 @@ package config
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/go-yaml/yaml"
 )
@@ -97,4 +99,42 @@ func ReadConfig(configFileName string) {
 	if err != nil {
 		panic("Can't unmarshal config. " + configFileName + " -> " + err.Error())
 	}
+}
+
+func SetPublicUrls() error {
+	var lcpPublicBaseUrl, lsdPublicBaseUrl, lcpHost, lsdHost string
+	var lcpPort, lsdPort int
+	var err error
+
+	if lcpHost = Config.LcpServer.Host; lcpHost == "" {
+		lcpHost, err = os.Hostname()
+		if err != nil {
+			return err
+		}
+	}
+
+	if lsdHost = Config.LsdServer.Host; lsdHost == "" {
+		lsdHost, err = os.Hostname()
+		if err != nil {
+			return err
+		}
+	}
+
+	if lcpPort = Config.LcpServer.Port; lcpPort == 0 {
+		lcpPort = 8989
+	}
+	if lsdPort = Config.LsdServer.Port; lsdPort == 0 {
+		lsdPort = 8990
+	}
+
+	if lcpPublicBaseUrl = Config.LcpServer.PublicBaseUrl; lcpPublicBaseUrl == "" {
+		lcpPublicBaseUrl = "http://" + lcpHost + ":" + strconv.Itoa(lcpPort)
+		Config.LcpServer.PublicBaseUrl = lcpPublicBaseUrl
+	}
+	if lsdPublicBaseUrl = Config.LsdServer.PublicBaseUrl; lsdPublicBaseUrl == "" {
+		lsdPublicBaseUrl = "http://" + lsdHost + ":" + strconv.Itoa(lsdPort)
+		Config.LsdServer.PublicBaseUrl = lsdPublicBaseUrl
+	}
+
+	return err
 }
