@@ -35,6 +35,7 @@ const RETURN_BAD_REQUEST = ERROR_BASE_URL + "return"
 const RENEW_BAD_REQUEST = ERROR_BASE_URL + "renew"
 const RENEW_REJECT = ERROR_BASE_URL + "renew/date"
 const CANCEL_BAD_REQUEST = ERROR_BASE_URL + "cancel"
+const FILTER_BAD_REQUEST = ERROR_BASE_URL + "filter"
 
 func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) {
 	acceptLanguages := r.Header.Get("Accept-Language")

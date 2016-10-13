@@ -487,24 +487,24 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 
 	devicesLimit, err := strconv.ParseInt(rDevices, 10, 32)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: problem.FILTER_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
 	page, err := strconv.ParseInt(rPage, 10, 32)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: problem.FILTER_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
 	perPage, err := strconv.ParseInt(rPerPage, 10, 32)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: problem.FILTER_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
 	if (page < 1) || (perPage < 1) || (devicesLimit < 1) {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "devices, page, per_page must be positive number"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: problem.FILTER_BAD_REQUEST, Detail: "devices, page, per_page must be positive number"}, http.StatusBadRequest)
 		return
 	}
 
@@ -541,7 +541,7 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 	enc := json.NewEncoder(w)
 	err = enc.Encode(licenseStatuses)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 }
@@ -574,7 +574,7 @@ func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 	enc := json.NewEncoder(w)
 	err = enc.Encode(registeredDevicesList)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 }
