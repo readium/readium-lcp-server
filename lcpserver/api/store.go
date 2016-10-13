@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
@@ -148,6 +149,8 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 	for it, err := fn(); err == nil; it, err = fn() {
 		contents = append(contents, it)
 	}
+	
+	w.Header().Set("Content-Type", api.ContentType_JSON)
 
 	enc := json.NewEncoder(w)
 	err := enc.Encode(contents)
