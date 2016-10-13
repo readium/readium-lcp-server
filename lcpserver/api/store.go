@@ -203,7 +203,3 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	return
 
 }
-
-func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
-	problem.Error(w, r, problem.Problem{Type: "about:blank"}, http.StatusNotFound)
-}
