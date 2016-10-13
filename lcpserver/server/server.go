@@ -2,9 +2,7 @@ package lcpserver
 
 import (
 	"crypto/tls"
-	"html/template"
 	"net/http"
-	"path/filepath"
 	"time"
 
 	"github.com/abbot/go-http-auth"
@@ -70,14 +68,8 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 
 	s.source.Feed(packager.Incoming)
 
-	manageIndex, err := template.ParseFiles(filepath.Join(tplPath, "/manage/index.html"))
-	if err != nil {
-		panic(err)
-	}
-	r.HandleFunc("/manage/", func(w http.ResponseWriter, r *http.Request) {
-		manageIndex.Execute(w, map[string]interface{}{})
-	})
-	r.Handle("/manage/{file}", http.FileServer(http.Dir("static")))
+	hfs := http.FileServer(http.Dir(tplPath))
+	r.PathPrefix("/manage").Handler(hfs)
 
 	//API following spec
 	//CONTENTS
