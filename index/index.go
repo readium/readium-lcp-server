@@ -16,10 +16,10 @@ type Index interface {
 
 type Content struct {
 	Id            string `json:"id"`
-	EncryptionKey []byte `json:"encryption_key"`
+	EncryptionKey []byte `json:"-"`
 	Location      string `json:"location"`
-	Length        int64  //not exported in license spec?
-	Sha256        string //not exported in license spec?
+	Length        int64  `json:"length"` //not exported in license spec?
+	Sha256        string `json:"sha256"` //not exported in license spec?
 }
 
 type dbIndex struct {
