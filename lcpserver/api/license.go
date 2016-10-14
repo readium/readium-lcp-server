@@ -9,12 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
-	"io"
-	"net/http"
 
 	"github.com/gorilla/mux"
 
@@ -65,8 +65,8 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
-
 		return
+
 	} else { // add information to license , sign and return (real) License
 		if lic.User.Email == "" {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "User information must be passed in INPUT"}, http.StatusBadRequest)
@@ -214,10 +214,6 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	key := vars["key"]
-
-	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
-	w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
-
 	err = completeLicense(&lic, key, s)
 
 	if err != nil {
@@ -231,7 +227,8 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	//lic.Encryption.UserKey.Check = nil
+	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
+	w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 
 	enc := json.NewEncoder(w)
 	enc.Encode(lic)
@@ -481,7 +478,6 @@ func encryptKey(key []byte, kek []byte) []byte {
 //ListLicenses returns a JSON struct with information about emitted licenses
 // optional GET parameters are "page" (page number) and "per_page" (items par page)
 func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
-	w.Header().Set("Content-Type", api.ContentType_JSON)
 	var page int64
 	var per_page int64
 	var err error
@@ -524,6 +520,8 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 		previousPage := strconv.Itoa(int(page) - 1)
 		w.Header().Set("Link", "</licenses/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
 	}
+	w.Header().Set("Content-Type", api.ContentType_JSON)
+
 	enc := json.NewEncoder(w)
 	err = enc.Encode(licenses)
 	if err != nil {
@@ -541,7 +539,6 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	var per_page int64
 	var err error
 	contentId := vars["key"]
-	w.Header().Set("Content-Type", api.ContentType_JSON)
 	//check if license exists
 	_, err = s.Index().Get(contentId)
 	if err == index.NotFound {
@@ -588,6 +585,7 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 		previousPage := strconv.Itoa(int(page) - 1)
 		w.Header().Set("Link", "</licenses/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
 	}
+	w.Header().Set("Content-Type", api.ContentType_JSON)
 	enc := json.NewEncoder(w)
 	err = enc.Encode(licenses)
 	if err != nil {
