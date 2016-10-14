@@ -6,12 +6,10 @@ import (
 
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
-	"github.com/technoweenie/grohl"
-	"github.com/urfave/negroni"
 
+	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/license_statuses"
 	"github.com/readium/readium-lcp-server/lsdserver/api"
-	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/transactions"
 )
 
@@ -30,75 +28,13 @@ func (s *Server) Transactions() transactions.Transactions {
 	return s.trns
 }
 
-func ExtraLogger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-
-	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path})
-
-// before	
-	next(rw, r)
-// after
-
-	// noop
-}
-
-func CORSHeaders(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-
-	grohl.Log(grohl.Data{"CORS": "yes"})
-	rw.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	rw.Header().Add("Access-Control-Allow-Origin", "*")
-
-// before	
-	next(rw, r)
-// after
-
-	// noop
-}
-
 func New(bindAddr string, readonly bool, lst *licensestatuses.LicenseStatuses, trns *transactions.Transactions, basicAuth *auth.BasicAuth) *Server {
-	r := mux.NewRouter()
 
-	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
-
-	// this demonstrates a panic report
-	r.HandleFunc("/panic", func(w http.ResponseWriter, req *http.Request) {
-		panic("just testing. no worries.")
-	})
-
-	//n := negroni.Classic() == negroni.New(negroni.NewRecovery(), negroni.NewLogger(), negroni.NewStatic(...))
-	n := negroni.New()
-
-	// possibly useful middlewares:
-	// https://github.com/jeffbmartinez/delay
-
-	//https://github.com/urfave/negroni#recovery
-	recovery := negroni.NewRecovery()
-	recovery.PrintStack = true
-	recovery.ErrorHandlerFunc = problem.PanicReport
-	n.Use(recovery)
-
-	//https://github.com/urfave/negroni#logger
-	n.Use(negroni.NewLogger())
-
-	n.Use(negroni.HandlerFunc(ExtraLogger))
+	sr := api.CreateServerRouter("")
 	
-	// FOR FUTURE LSD WEB FRONT END? (to test without CLI)
-	//https://github.com/urfave/negroni#static
-	//n.Use(negroni.NewStatic(http.Dir("static")))
-
-	n.Use(negroni.HandlerFunc(CORSHeaders))
-	// Does not insert CORS headers as intended, depends on Origin check in the HTTP request...we want the same headers, always.
-	// IMPORT "github.com/rs/cors"
-	// //https://github.com/rs/cors#parameters
-	// c := cors.New(cors.Options{
-	// 	AllowedOrigins: []string{"*"},
-	// 	AllowedMethods: []string{"POST", "GET", "OPTIONS", "PUT", "DELETE"},
-	// 	Debug: true,
-	// })
-	// n.Use(c)
-
 	s := &Server{
 		Server: http.Server{
-			Handler:      n,
+			Handler:      sr.N,
 			Addr:         bindAddr,
 			WriteTimeout: 15 * time.Second,
 			ReadTimeout:  15 * time.Second,
@@ -109,14 +45,14 @@ func New(bindAddr string, readonly bool, lst *licensestatuses.LicenseStatuses, t
 		trns:     *trns,
 	}
 
-	licenseRoutes := r.PathPrefix("/licenses").Subrouter().StrictSlash(false)
+	licenseRoutes := sr.R.PathPrefix("/licenses").Subrouter().StrictSlash(false)
 
 	// note that "/licenses" would 301-redirect to "/licenses/" if StrictSlash(true)
 	// note that "/licenses/KEY/" would 301-redirect to "/licenses/KEY" if StrictSlash(true)
 	
 	s.handleFunc(licenseRoutes, "/{key}/status", apilsd.GetLicenseStatusDocument).Methods("GET")
 	
-	s.handlePrivateFunc(r, "/licenses", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
+	s.handlePrivateFunc(sr.R, "/licenses", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
 	s.handlePrivateFunc(licenseRoutes, "/", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET")
 	
 	s.handlePrivateFunc(licenseRoutes, "/{key}/registered", apilsd.ListRegisteredDevices, basicAuth).Methods("GET")
@@ -126,11 +62,9 @@ func New(bindAddr string, readonly bool, lst *licensestatuses.LicenseStatuses, t
 		s.handleFunc(licenseRoutes, "/{key}/renew", apilsd.LendingRenewal).Methods("PUT")
 		s.handlePrivateFunc(licenseRoutes, "/{key}/status", apilsd.CancelLicenseStatus, basicAuth).Methods("PATCH")
 
-		s.handlePrivateFunc(r, "/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
+		s.handlePrivateFunc(sr.R, "/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
 		s.handlePrivateFunc(licenseRoutes, "/", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 	}
-
-	n.UseHandler(r)
 
 	return s
 }
@@ -145,14 +79,8 @@ func (s *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *m
 type HandlerPrivateFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
 func (s *Server) handlePrivateFunc(router *mux.Router, route string, fn HandlerPrivateFunc, authenticator *auth.BasicAuth) *mux.Route {
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-		var username string
-		if username = authenticator.CheckAuth(r); username == "" {
-			grohl.Log(grohl.Data{"error": "Unauthorized", "method": r.Method, "path": r.URL.Path})
-			w.Header().Set("WWW-Authenticate", `Basic realm="`+authenticator.Realm+`"`)
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "User or password do not match!"}, http.StatusUnauthorized)
-			return
+		if api.CheckAuth(authenticator, w, r) {
+			fn(w, r, s)
 		}
-		grohl.Log(grohl.Data{"user": username})
-		fn(w, r, s)
 	})
 }
