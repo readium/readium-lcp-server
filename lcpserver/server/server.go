@@ -2,15 +2,13 @@ package lcpserver
 
 import (
 	"crypto/tls"
-	"path/filepath"
-	"time"
-	"html/template"
 	"net/http"
+	"time"
 
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/technoweenie/grohl"
-	
+
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
@@ -70,37 +68,30 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 
 	s.source.Feed(packager.Incoming)
 
-	manageIndex, err := template.ParseFiles(filepath.Join(tplPath, "/manage/index.html"))
-	if err != nil {
-		panic(err)
-	}
-	r.HandleFunc("/manage/", func(w http.ResponseWriter, r *http.Request) {
-		manageIndex.Execute(w, map[string]interface{}{})
-	})
-	r.Handle("/manage/{file}", http.FileServer(http.Dir("static")))
-
-	if !readonly {
-		s.handleFunc("/api/store/{name}", apilcp.StoreContent).Methods("POST")
-	}
+	hfs := http.FileServer(http.Dir(tplPath))
+	r.PathPrefix("/manage").Handler(hfs)
 
 	//API following spec
 	//CONTENTS
 	s.handleFunc("/contents", apilcp.ListContents).Methods("GET") //method supported, not in spec
 	s.handleFunc("/contents/", apilcp.ListContents).Methods("GET")
 	s.handleFunc("/contents/{key}", apilcp.GetContent).Methods("GET")                                         //method supported, not in spec
-	s.handlePrivateFunc("/contents/{key}", apilcp.AddContent, basicAuth).Methods("PUT")                       //lcp spec store data resulting from external encryption
-	s.handleFunc("/contents/{name}", apilcp.StoreContent).Methods("POST")                                     //lcp spec encrypt & store epub file (in BODY)
 	s.handlePrivateFunc("/contents/{key}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")  // list licenses for content, additional get params {page?,per_page?}
 	s.handlePrivateFunc("/contents/{key}/licenses/", apilcp.ListLicensesForContent, basicAuth).Methods("GET") // idem
-	s.handlePrivateFunc("/contents/{key}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
-	s.handlePrivateFunc("/contents/{key}/publications/", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
-	s.handlePrivateFunc("/contents/{key}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
-
 	//LICENSES
-	s.handlePrivateFunc("/licenses", apilcp.ListLicenses, basicAuth).Methods("GET")          // list licenses, additional get params {page?,per_page?}
-	s.handlePrivateFunc("/licenses/", apilcp.ListLicenses, basicAuth).Methods("GET")         // idem
-	s.handlePrivateFunc("/licenses/{key}", apilcp.GetLicense, basicAuth).Methods("GET")      //return existing license
-	s.handlePrivateFunc("/licenses/{key}", apilcp.UpdateLicense, basicAuth).Methods("PATCH") //update license (rights, other)
+	s.handlePrivateFunc("/licenses", apilcp.ListLicenses, basicAuth).Methods("GET")     // list licenses, additional get params {page?,per_page?}
+	s.handlePrivateFunc("/licenses/", apilcp.ListLicenses, basicAuth).Methods("GET")    // idem
+	s.handlePrivateFunc("/licenses/{key}", apilcp.GetLicense, basicAuth).Methods("GET") //return existing license
+
+	if !readonly {
+		s.handlePrivateFunc("/contents/{key}", apilcp.AddContent, basicAuth).Methods("PUT") //lcp spec store data resulting from external encryption
+		s.handleFunc("/contents/{name}", apilcp.StoreContent).Methods("POST")               //lcp spec encrypt & store epub file (in BODY)
+		s.handlePrivateFunc("/contents/{key}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
+		s.handlePrivateFunc("/contents/{key}/publications/", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
+		s.handlePrivateFunc("/contents/{key}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
+		//LICENSES
+		s.handlePrivateFunc("/licenses/{key}", apilcp.UpdateLicense, basicAuth).Methods("PATCH") //update license (rights, other)
+	}
 
 	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
 
