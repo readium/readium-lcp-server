@@ -47,7 +47,10 @@
         padding-left: 10px;
         cursor: pointer;
       }
-      
+      li.epub {
+        border-top: 2px solid gray;
+        border-bottom: 2px solid gray
+      }
       #key {
         width: 350px;
         font-size: 9px;
@@ -205,7 +208,7 @@ function refreshPackages() {
     for(i in data) {
       idx++;
       var epubID = data[i].id;
-      $('#packages').append('<li data-key="' + epubID + '" id="epub_' + epubID + '">EPUB '+idx+': <span class="filename">' + data[i].location +
+      $('#packages').append('<li class="epub" data-key="' + epubID + '" id="epub_' + epubID + '">EPUB '+idx+': <span class="filename">' + data[i].location +
                             ' <span class="key">' + epubID + '</span> Length: [<span class="size">' + data[i].length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].sha256 + '</span>) <span class="download"><a href="/contents/'+epubID+'">GET</a> (raw)</span> <span class="licenses"><a target="_BLANK" href="/contents/'+epubID+'/licenses">licenses</a></span></li>');
 
 
@@ -229,6 +232,7 @@ function refreshPackages() {
               //var jsonStr = JSON.stringify(data__, null, " ");
               
               var href = data__["links"]["status"]["href"];
+              href = href.replace("{license_id}", this.licID)
               $('#lic_'+this.licID).append(' STATUS: <span><a target="_BLANK" href="'+href+'">'+href+'</a></span>');
           };
           req__.open("GET", "/licenses/" + licID);
@@ -281,15 +285,15 @@ $(function() {
     <h2>Emit a License</h2>
     <form id="license-form" method="POST">
       <input type="hidden" name="data" id="data" />
-      <label for="key">Package Identifier:</label><input type="text" id="key" name="key" readonly /></br>
-      <label for="passphrase">Passphrase:</label><input type="password" id="passphrase" name="passphrase"/></br>
-      <label for="user_id">User identifier:</label><input type="text" id="user_id" name="user_id" /></br>
-      <label for="user_email">User email:</label><input type="text" id="user_email" name="user_email" /></br>
+      <label for="key">Package Identifier:</label><input type="text" id="key" name="key" readonly /><br>
+      <label for="passphrase">Passphrase:</label><input type="password" id="passphrase" name="passphrase"/><br>
+      <label for="user_id">User identifier:</label><input type="text" id="user_id" name="user_id" /><br>
+      <label for="user_email">User email:</label><input type="text" id="user_email" name="user_email" /><br>
+<span>License fragment to send in HTTP request:</span><br>
+      <textarea style="width:90%;height:20em;" id="licenseJSON">temp</textarea><br>
 
-      <textarea style="width:90%;height:20em;" id="licenseJSON">temp</textarea></br>
-
-      <input type="submit" id="license" value="Generate License" /></br>
-      <input type="submit"  id="publication" value="Generate protected publication" /></br>
+      <input type="submit" id="license" value="Generate License" /><br>
+      <input type="submit"  id="publication" value="Generate protected publication" /><br>
     </form>
   </body>
 </html>
