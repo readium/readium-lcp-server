@@ -368,6 +368,10 @@ func completeLicense(l *license.License, key string, s Server) error {
 	publi.Href = l.Links["publication"].Href
 	publi.Type = epub.ContentType_EPUB
 	//publi.Templated = false
+	publi.Size = c.Length
+	publi.Checksum = c.Sha256
+	publi.Title = c.Location
+	
 	l.Links["publication"] = *publi
 
 	if _, present := config.Config.License.Links["status"]; present { // add status server to License

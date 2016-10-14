@@ -40,7 +40,8 @@ type Link struct {
 	Profile   string `json:"profile,omitempty"`
 	Templated bool   `json:"templated,omitempty" "default false"`
 	Size      int64  `json:"length,omitempty"`
-	Digest    []byte `json:"hash,omitempty"`
+	//Digest    []byte `json:"hash,omitempty"`
+	Checksum  string `json:"hash,omitempty"`
 }
 
 type UserInfo struct {
