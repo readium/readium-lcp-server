@@ -1,7 +1,6 @@
 package apilcp
 
 import (
-	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -190,19 +189,12 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	data, err := ioutil.ReadAll(contentReadCloser)
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-		return
-	}
-
 	//Send the headers
 	w.Header().Set("Content-Disposition", "attachment; filename="+content.Location)
-	w.Header().Set("Content-Type", epub.ContentType_EPUB) //it should be an epub
-	length := len(data)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", length))
+	w.Header().Set("Content-Type", epub.ContentType_EPUB)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", content.Length))
 
-	io.Copy(w, bytes.NewReader(data)) //'Copy' the file to the client
+	io.Copy(w, contentReadCloser)
 
 	return
 
