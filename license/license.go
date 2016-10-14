@@ -95,6 +95,22 @@ func CreateLinks() {
 	}
 }
 
+func DefaultLinksCopy () (map[string]Link) {
+	links := make(map[string]Link)
+	for key := range DefaultLinks {
+		links[key] = Link{
+			Href: DefaultLinks[key].Href,
+			Type: DefaultLinks[key].Type,
+			Title: DefaultLinks[key].Title,
+			Profile: DefaultLinks[key].Profile,
+			Templated: DefaultLinks[key].Templated,
+			Size: DefaultLinks[key].Size,
+			Checksum: DefaultLinks[key].Checksum,
+		}
+	}
+	return links
+}
+
 func New() License {
 	l := License{Links: map[string]Link{}}
 	Prepare(&l)
@@ -108,7 +124,7 @@ func Prepare(l *License) {
 	l.Issued = time.Now()
 
 	if l.Links == nil {
-		l.Links = DefaultLinks
+		l.Links = DefaultLinksCopy()
 	}
 
 	if l.Rights == nil {
@@ -125,7 +141,7 @@ func createForeigns(l *License) {
 	l.Rights = new(UserRights)
 	l.Signature = new(sign.Signature)
 
-	l.Links = DefaultLinks
+	l.Links = DefaultLinksCopy()
 	l.Encryption.Profile = DEFAULT_PROFILE
 }
 
