@@ -195,7 +195,7 @@ function refreshPackages() {
     data = JSON.parse(this.response);
     for(i in data) {
       $('#packages').append('<li data-key="' + data[i].id + '"><span class="filename">' + data[i].location +
-                            ' <span class="key">' + data[i].id + '</span> Length: [<span class="size">' + data[i].Length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].Sha256 + '</span>)</li>')
+                            ' <span class="key">' + data[i].id + '</span> Length: [<span class="size">' + data[i].length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].sha256 + '</span>)</li>')
     }
 
   var defaultLicenseJSON =
