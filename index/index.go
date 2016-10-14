@@ -18,6 +18,8 @@ type Content struct {
 	Id            string `json:"id"`
 	EncryptionKey []byte `json:"encryption_key"`
 	Location      string `json:"location"`
+	Length        int64  //not exported in license spec?
+	Sha256        string //not exported in license spec?
 }
 
 type dbIndex struct {
@@ -32,7 +34,7 @@ func (i dbIndex) Get(id string) (Content, error) {
 	defer records.Close()
 	if records.Next() {
 		var c Content
-		err = records.Scan(&c.Id, &c.EncryptionKey, &c.Location)
+		err = records.Scan(&c.Id, &c.EncryptionKey, &c.Location, &c.Length, &c.Sha256)
 		return c, err
 	}
 
@@ -40,24 +42,25 @@ func (i dbIndex) Get(id string) (Content, error) {
 }
 
 func (i dbIndex) Add(c Content) error {
-	add, err := i.db.Prepare("INSERT INTO content VALUES (?, ?, ?)")
+	add, err := i.db.Prepare("INSERT INTO content (id,encryption_key,location,length,sha256) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(c.Id, c.EncryptionKey, c.Location)
+	_, err = add.Exec(c.Id, c.EncryptionKey, c.Location, c.Length, c.Sha256)
 	return err
 }
 
 func (i dbIndex) Update(c Content) error {
-	add, err := i.db.Prepare("UPDATE content SET encryption_key=? , location=? WHERE id=?")
+	add, err := i.db.Prepare("UPDATE content SET encryption_key=? , location=?, length=?,sha256=? WHERE id=?")
 	if err != nil {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(c.EncryptionKey, c.Location, c.Id)
+	_, err = add.Exec(c.EncryptionKey, c.Location, c.Length, c.Sha256, c.Id)
 	return err
 }
+
 func (i dbIndex) List() func() (Content, error) {
 	rows, err := i.list.Query()
 	if err != nil {
@@ -67,7 +70,7 @@ func (i dbIndex) List() func() (Content, error) {
 		var c Content
 		var err error
 		if rows.Next() {
-			err = rows.Scan(&c.Id, &c.EncryptionKey, &c.Location)
+			err = rows.Scan(&c.Id, &c.EncryptionKey, &c.Location, &c.Length, &c.Sha256)
 		} else {
 			rows.Close()
 			err = NotFound
@@ -77,15 +80,21 @@ func (i dbIndex) List() func() (Content, error) {
 }
 
 func Open(db *sql.DB) (i Index, err error) {
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS content (id varchar(255) PRIMARY KEY, encryption_key varchar(64) NOT NULL, location text NOT NULL, FOREIGN KEY(id) REFERENCES license(content_fk))")
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS content (
+	id varchar(255) PRIMARY KEY, 
+	encryption_key varchar(64) NOT NULL, 
+	location text NOT NULL, 
+	length bigint,
+	sha256 varchar(64),
+	FOREIGN KEY(id) REFERENCES license(content_fk))`)
 	if err != nil {
 		return
 	}
-	get, err := db.Prepare("SELECT * FROM content WHERE id = ? LIMIT 1")
+	get, err := db.Prepare("SELECT id,encryption_key,location,length,sha256 FROM content WHERE id = ? LIMIT 1")
 	if err != nil {
 		return
 	}
-	list, err := db.Prepare("SELECT * FROM content")
+	list, err := db.Prepare("SELECT id,encryption_key,location,length,sha256 FROM content")
 	if err != nil {
 		return
 	}
