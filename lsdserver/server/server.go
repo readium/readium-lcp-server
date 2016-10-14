@@ -7,6 +7,7 @@ import (
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/technoweenie/grohl"
+	"github.com/urfave/negroni"
 
 	"github.com/readium/readium-lcp-server/license_statuses"
 	"github.com/readium/readium-lcp-server/lsdserver/api"
@@ -17,7 +18,6 @@ import (
 type Server struct {
 	http.Server
 	readonly bool
-	router   *mux.Router
 	lst      licensestatuses.LicenseStatuses
 	trns     transactions.Transactions
 }
@@ -30,51 +30,121 @@ func (s *Server) Transactions() transactions.Transactions {
 	return s.trns
 }
 
+func ExtraLogger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+
+	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path})
+
+// before	
+	next(rw, r)
+// after
+
+	// noop
+}
+
+func CORSHeaders(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+
+	grohl.Log(grohl.Data{"CORS": "yes"})
+	rw.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	rw.Header().Add("Access-Control-Allow-Origin", "*")
+
+// before	
+	next(rw, r)
+// after
+
+	// noop
+}
+
 func New(bindAddr string, readonly bool, lst *licensestatuses.LicenseStatuses, trns *transactions.Transactions, basicAuth *auth.BasicAuth) *Server {
 	r := mux.NewRouter()
+
+	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
+
+	// this demonstrates a panic report
+	r.HandleFunc("/panic", func(w http.ResponseWriter, req *http.Request) {
+		panic("just testing. no worries.")
+	})
+
+	//n := negroni.Classic() == negroni.New(negroni.NewRecovery(), negroni.NewLogger(), negroni.NewStatic(...))
+	n := negroni.New()
+
+	// possibly useful middlewares:
+	// https://github.com/jeffbmartinez/delay
+
+	//https://github.com/urfave/negroni#recovery
+	recovery := negroni.NewRecovery()
+	recovery.PrintStack = true
+	recovery.ErrorHandlerFunc = problem.PanicReport
+	n.Use(recovery)
+
+	//https://github.com/urfave/negroni#logger
+	n.Use(negroni.NewLogger())
+
+	n.Use(negroni.HandlerFunc(ExtraLogger))
+	
+	// FOR FUTURE LSD WEB FRONT END? (to test without CLI)
+	//https://github.com/urfave/negroni#static
+	//n.Use(negroni.NewStatic(http.Dir("static")))
+
+	n.Use(negroni.HandlerFunc(CORSHeaders))
+	// Does not insert CORS headers as intended, depends on Origin check in the HTTP request...we want the same headers, always.
+	// IMPORT "github.com/rs/cors"
+	// //https://github.com/rs/cors#parameters
+	// c := cors.New(cors.Options{
+	// 	AllowedOrigins: []string{"*"},
+	// 	AllowedMethods: []string{"POST", "GET", "OPTIONS", "PUT", "DELETE"},
+	// 	Debug: true,
+	// })
+	// n.Use(c)
+
 	s := &Server{
 		Server: http.Server{
-			Handler:      r,
+			Handler:      n,
 			Addr:         bindAddr,
 			WriteTimeout: 15 * time.Second,
 			ReadTimeout:  15 * time.Second,
+			MaxHeaderBytes: 1 << 20,
 		},
 		readonly: readonly,
-		router:   r,
 		lst:      *lst,
 		trns:     *trns,
 	}
 
-	s.handleFunc("/licenses/{key}/status", apilsd.GetLicenseStatusDocument).Methods("GET")
-	s.handlePrivateFunc("/licenses", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET")
-	s.handlePrivateFunc("/licenses/{key}/registered", apilsd.ListRegisteredDevices, basicAuth).Methods("GET")
+	licenseRoutes := r.PathPrefix("/licenses").Subrouter().StrictSlash(false)
+
+	// note that "/licenses" would 301-redirect to "/licenses/" if StrictSlash(true)
+	// note that "/licenses/KEY/" would 301-redirect to "/licenses/KEY" if StrictSlash(true)
+	
+	s.handleFunc(licenseRoutes, "/{key}/status", apilsd.GetLicenseStatusDocument).Methods("GET")
+	
+	s.handlePrivateFunc(r, "/licenses", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
+	s.handlePrivateFunc(licenseRoutes, "/", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET")
+	
+	s.handlePrivateFunc(licenseRoutes, "/{key}/registered", apilsd.ListRegisteredDevices, basicAuth).Methods("GET")
 	if !readonly {
-		s.handleFunc("/licenses/{key}/register", apilsd.RegisterDevice).Methods("POST")
-		s.handleFunc("/licenses/{key}/return", apilsd.LendingReturn).Methods("PUT")
-		s.handleFunc("/licenses/{key}/renew", apilsd.LendingRenewal).Methods("PUT")
-		s.handlePrivateFunc("/licenses/{key}/status", apilsd.CancelLicenseStatus, basicAuth).Methods("PATCH")
-		s.handlePrivateFunc("/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
+		s.handleFunc(licenseRoutes, "/{key}/register", apilsd.RegisterDevice).Methods("POST")
+		s.handleFunc(licenseRoutes, "/{key}/return", apilsd.LendingReturn).Methods("PUT")
+		s.handleFunc(licenseRoutes, "/{key}/renew", apilsd.LendingRenewal).Methods("PUT")
+		s.handlePrivateFunc(licenseRoutes, "/{key}/status", apilsd.CancelLicenseStatus, basicAuth).Methods("PATCH")
+
+		s.handlePrivateFunc(r, "/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
+		s.handlePrivateFunc(licenseRoutes, "/", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 	}
 
-	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
+	n.UseHandler(r)
+
 	return s
 }
 
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
-type HandlerPrivateFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
-
-func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
-	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-		grohl.Log(grohl.Data{"path": r.URL.Path})
-
-		// Add CORS
-		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Add("Access-Control-Allow-Origin", "*")
+func (s *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *mux.Route {
+	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		fn(w, r, s)
 	})
 }
-func (s *Server) handlePrivateFunc(route string, fn HandlerPrivateFunc, authenticator *auth.BasicAuth) *mux.Route {
-	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+
+type HandlerPrivateFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
+func (s *Server) handlePrivateFunc(router *mux.Router, route string, fn HandlerPrivateFunc, authenticator *auth.BasicAuth) *mux.Route {
+	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		var username string
 		if username = authenticator.CheckAuth(r); username == "" {
 			grohl.Log(grohl.Data{"error": "Unauthorized", "method": r.Method, "path": r.URL.Path})
@@ -82,10 +152,7 @@ func (s *Server) handlePrivateFunc(route string, fn HandlerPrivateFunc, authenti
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "User or password do not match!"}, http.StatusUnauthorized)
 			return
 		}
-		grohl.Log(grohl.Data{"path": r.URL.Path})
-		// Add CORS
-		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Add("Access-Control-Allow-Origin", "*")
+		grohl.Log(grohl.Data{"user": username})
 		fn(w, r, s)
 	})
 }

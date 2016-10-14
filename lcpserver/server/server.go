@@ -130,10 +130,15 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	}
 
 
-	contentRoutes := r.PathPrefix("/contents").Subrouter().StrictSlash(true)
+	contentRoutes := r.PathPrefix("/contents").Subrouter().StrictSlash(false)
+	
+	// note that "/contents" would 301-redirect to "/contents/" if StrictSlash(true)
+	// note that "/contents/KEY/" would 301-redirect to "/contents/KEY" if StrictSlash(true)
+	
+	s.handleFunc(r, "/contents", apilcp.ListContents).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates 
+	s.handleFunc(contentRoutes, "/", apilcp.ListContents).Methods("GET")
 
-	s.handleFunc(contentRoutes, "/", apilcp.ListContents).Methods("GET") // note that "/contents" 301 redirects to "/contents/" because of StrictSlash(true) 
-	s.handleFunc(contentRoutes, "/{key}", apilcp.GetContent).Methods("GET") // note that "/contents/KEY/" 301 redirects to "/contents/KEY" because of StrictSlash(true)
+	s.handleFunc(contentRoutes, "/{key}", apilcp.GetContent).Methods("GET")
 	s.handlePrivateFunc(contentRoutes, "/{key}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")
 	if !readonly {
 		s.handleFunc(contentRoutes, "/{name}", apilcp.StoreContent).Methods("POST")
@@ -142,10 +147,12 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 		s.handlePrivateFunc(contentRoutes, "/{key}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 	}
 
-	licenseRoutes := r.PathPrefix("/licenses").Subrouter().StrictSlash(true)
+	licenseRoutes := r.PathPrefix("/licenses").Subrouter().StrictSlash(false)
 
-	s.handlePrivateFunc(licenseRoutes, "/", apilcp.ListLicenses, basicAuth).Methods("GET") // note that "/licenses" 301 redirects to "/licenses/" because of StrictSlash(true)
-	s.handlePrivateFunc(licenseRoutes, "/{key}", apilcp.GetLicense, basicAuth).Methods("GET") // note that "/licenses/KEY/" 301 redirects to "/licenses/KEY" because of StrictSlash(true)
+	s.handlePrivateFunc(r, "/licenses", apilcp.ListLicenses, basicAuth).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
+	s.handlePrivateFunc(licenseRoutes, "/", apilcp.ListLicenses, basicAuth).Methods("GET")
+
+	s.handlePrivateFunc(licenseRoutes, "/{key}", apilcp.GetLicense, basicAuth).Methods("GET")
 	if !readonly {
 		s.handlePrivateFunc(licenseRoutes, "/{key}", apilcp.UpdateLicense, basicAuth).Methods("PATCH")
 	}
