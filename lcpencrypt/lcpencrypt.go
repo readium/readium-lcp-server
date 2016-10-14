@@ -148,14 +148,16 @@ func main() {
 		sha := sha256.Sum256(buf)
 		*contentid = fmt.Sprintf("%x", sha)
 	}
-	//addedPublication.ContentId = *contentid
+	var basefilename string
+	addedPublication.ContentId = *contentid
 	if *outputFilename == "" { //output not set -> "content-id.epub" in working directory
 		workingDir, _ := os.Getwd()
 		*outputFilename = strings.Join([]string{workingDir, string(os.PathSeparator), *contentid, ".epub"}, "")
-		addedPublication.ContentId = filepath.Base(*inputFilename)
+		basefilename = filepath.Base(*inputFilename)
 	} else {
-		addedPublication.ContentId = filepath.Base(*outputFilename)
+		basefilename = filepath.Base(*outputFilename)
 	}
+	addedPublication.ContentDisposition = &basefilename
 	addedPublication.Output = *outputFilename
 
 	// read the epub content from the zipped buffer

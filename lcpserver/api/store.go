@@ -30,12 +30,13 @@ type Server interface {
 
 // struct for communication with lcp-server
 type LcpPublication struct {
-	ContentId    string  `json:"content-id"`
-	ContentKey   []byte  `json:"content-encryption-key"`
-	Output       string  `json:"protected-content-location"`
-	Size         *int64  `json:"protected-content-length,omitempty"`
-	Checksum     *string `json:"protected-content-sha256,omitempty"`
-	ErrorMessage string  `json:"error"`
+	ContentId          string  `json:"content-id"`
+	ContentKey         []byte  `json:"content-encryption-key"`
+	Output             string  `json:"protected-content-location"`
+	Size               *int64  `json:"protected-content-length,omitempty"`
+	Checksum           *string `json:"protected-content-sha256,omitempty"`
+	ContentDisposition *string `json:"protected-content-disposition,omitempty"`
+	ErrorMessage       string  `json:"error"`
 }
 
 func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
@@ -123,7 +124,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	// insert row in database if key does not exist
 	c, err = s.Index().Get(contentId)
 	c.EncryptionKey = publication.ContentKey
-	c.Location = publication.ContentId
+	c.Location = *publication.ContentDisposition
 	c.Length = *publication.Size
 	c.Sha256 = *publication.Checksum
 	//todo? check hash & length
