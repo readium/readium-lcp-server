@@ -48,14 +48,25 @@
         cursor: pointer;
       }
       
-      li .key {
-        color: #555;
-        font-size: 10px;
-      }
-
       #key {
         width: 350px;
         font-size: 9px;
+      }
+      
+      .key {
+        font-size: 9px;
+        color: silver;
+        font-weight: bold;
+      }
+      .size {
+        font-size: 9px;
+        color: blue;
+        font-weight: bold;
+      }
+      .sha {
+        font-size: 9px;
+        color: green;
+        font-weight: bold;
       }
 
       #license-form {
@@ -151,6 +162,7 @@ function makeLicense() {
     obj.user = {};
   }
   obj.user.id = $('#user_id').val();
+  obj.user.email = $('#user_email').val();
   
   if (!obj.encryption) {
     obj.encryption = {};
@@ -183,14 +195,15 @@ function refreshPackages() {
     data = JSON.parse(this.response);
     for(i in data) {
       $('#packages').append('<li data-key="' + data[i].id + '"><span class="filename">' + data[i].location +
-                            ' <span class="key">' + data[i].id + '</span</li>')
+                            ' <span class="key">' + data[i].id + '</span> Length: [<span class="size">' + data[i].Length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].Sha256 + '</span>)</li>')
     }
 
   var defaultLicenseJSON =
   '{\n\
     "provider": "http://edrlab.org",\n\
     "user": {\n\
-      "id": "THIS VALUE WILL BE AUTOMATICALLY SET"\n\
+      "id": "THIS VALUE WILL BE AUTOMATICALLY SET",\n\
+      "email": "THIS VALUE WILL BE AUTOMATICALLY SET"\n\
     },\n\
     "encryption": {\n\
       "user_key": {\n\
@@ -221,6 +234,7 @@ $(function() {
       <label for="key">Package Identifier:</label><input type="text" id="key" name="key" readonly /></br>
       <label for="passphrase">Passphrase:</label><input type="password" id="passphrase" name="passphrase"/></br>
       <label for="user_id">User identifier:</label><input type="text" id="user_id" name="user_id" /></br>
+      <label for="user_email">User email:</label><input type="text" id="user_email" name="user_email" /></br>
 
       <textarea style="width:90%;height:20em;" id="licenseJSON">temp</textarea></br>
 
