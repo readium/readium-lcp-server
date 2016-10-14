@@ -152,9 +152,9 @@ func main() {
 	if *outputFilename == "" { //output not set -> "content-id.epub" in working directory
 		workingDir, _ := os.Getwd()
 		*outputFilename = strings.Join([]string{workingDir, string(os.PathSeparator), *contentid, ".epub"}, "")
-		addedPublication.ContentId = filepath.Base(*outputFilename)
-	} else {
 		addedPublication.ContentId = filepath.Base(*inputFilename)
+	} else {
+		addedPublication.ContentId = filepath.Base(*outputFilename)
 	}
 	addedPublication.Output = *outputFilename
 

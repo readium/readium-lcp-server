@@ -111,6 +111,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
+	defer file.Close()
 	//and add file to storage
 	//var storageItem storage.Item
 	_, err = s.Store().Add(contentId, file)
@@ -123,6 +124,9 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	c, err = s.Index().Get(contentId)
 	c.EncryptionKey = publication.ContentKey
 	c.Location = publication.ContentId
+	c.Length = *publication.Size
+	c.Sha256 = *publication.Checksum
+	//todo? check hash & length
 	code := http.StatusCreated
 	if err == index.NotFound { //insert into database
 		c.Id = contentId
