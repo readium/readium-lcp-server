@@ -61,3 +61,20 @@ func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
 	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path, "status": "404"})
 	Error(w, r, Problem{Type: "about:blank"}, http.StatusNotFound)
 }
+
+func PanicReport(err interface{}) {
+	switch t := err.(type) {
+		case error:
+			errorr, found := err.(error)
+			if found { // should always be true
+				grohl.Log(grohl.Data{"panic recovery (error)": errorr.Error()})
+			}
+		case string:
+			errorr, found := err.(string)
+			if found { // should always be true
+				grohl.Log(grohl.Data{"panic recovery (string)": errorr})
+			}
+		default:
+			grohl.Log(grohl.Data{"panic recovery (other type)": t})
+	}
+}

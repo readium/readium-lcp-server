@@ -6,18 +6,16 @@ import (
 
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
-	"github.com/technoweenie/grohl"
 
+	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/license_statuses"
 	"github.com/readium/readium-lcp-server/lsdserver/api"
-	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/transactions"
 )
 
 type Server struct {
 	http.Server
 	readonly bool
-	router   *mux.Router
 	lst      licensestatuses.LicenseStatuses
 	trns     transactions.Transactions
 }
@@ -31,61 +29,58 @@ func (s *Server) Transactions() transactions.Transactions {
 }
 
 func New(bindAddr string, readonly bool, lst *licensestatuses.LicenseStatuses, trns *transactions.Transactions, basicAuth *auth.BasicAuth) *Server {
-	r := mux.NewRouter()
+
+	sr := api.CreateServerRouter("")
+	
 	s := &Server{
 		Server: http.Server{
-			Handler:      r,
+			Handler:      sr.N,
 			Addr:         bindAddr,
 			WriteTimeout: 15 * time.Second,
 			ReadTimeout:  15 * time.Second,
+			MaxHeaderBytes: 1 << 20,
 		},
 		readonly: readonly,
-		router:   r,
 		lst:      *lst,
 		trns:     *trns,
 	}
 
-	s.handleFunc("/licenses/{key}/status", apilsd.GetLicenseStatusDocument).Methods("GET")
-	s.handlePrivateFunc("/licenses", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET")
-	s.handlePrivateFunc("/licenses/{key}/registered", apilsd.ListRegisteredDevices, basicAuth).Methods("GET")
+	licenseRoutes := sr.R.PathPrefix("/licenses").Subrouter().StrictSlash(false)
+
+	// note that "/licenses" would 301-redirect to "/licenses/" if StrictSlash(true)
+	// note that "/licenses/KEY/" would 301-redirect to "/licenses/KEY" if StrictSlash(true)
+	
+	s.handleFunc(licenseRoutes, "/{key}/status", apilsd.GetLicenseStatusDocument).Methods("GET")
+	
+	s.handlePrivateFunc(sr.R, "/licenses", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
+	s.handlePrivateFunc(licenseRoutes, "/", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET")
+	
+	s.handlePrivateFunc(licenseRoutes, "/{key}/registered", apilsd.ListRegisteredDevices, basicAuth).Methods("GET")
 	if !readonly {
-		s.handleFunc("/licenses/{key}/register", apilsd.RegisterDevice).Methods("POST")
-		s.handleFunc("/licenses/{key}/return", apilsd.LendingReturn).Methods("PUT")
-		s.handleFunc("/licenses/{key}/renew", apilsd.LendingRenewal).Methods("PUT")
-		s.handlePrivateFunc("/licenses/{key}/status", apilsd.CancelLicenseStatus, basicAuth).Methods("PATCH")
-		s.handlePrivateFunc("/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
+		s.handleFunc(licenseRoutes, "/{key}/register", apilsd.RegisterDevice).Methods("POST")
+		s.handleFunc(licenseRoutes, "/{key}/return", apilsd.LendingReturn).Methods("PUT")
+		s.handleFunc(licenseRoutes, "/{key}/renew", apilsd.LendingRenewal).Methods("PUT")
+		s.handlePrivateFunc(licenseRoutes, "/{key}/status", apilsd.CancelLicenseStatus, basicAuth).Methods("PATCH")
+
+		s.handlePrivateFunc(sr.R, "/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
+		s.handlePrivateFunc(licenseRoutes, "/", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 	}
 
-	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
 	return s
 }
 
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
-type HandlerPrivateFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
-
-func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
-	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-		grohl.Log(grohl.Data{"path": r.URL.Path})
-
-		// Add CORS
-		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Add("Access-Control-Allow-Origin", "*")
+func (s *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *mux.Route {
+	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		fn(w, r, s)
 	})
 }
-func (s *Server) handlePrivateFunc(route string, fn HandlerPrivateFunc, authenticator *auth.BasicAuth) *mux.Route {
-	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-		var username string
-		if username = authenticator.CheckAuth(r); username == "" {
-			grohl.Log(grohl.Data{"error": "Unauthorized", "method": r.Method, "path": r.URL.Path})
-			w.Header().Set("WWW-Authenticate", `Basic realm="`+authenticator.Realm+`"`)
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "User or password do not match!"}, http.StatusUnauthorized)
-			return
+
+type HandlerPrivateFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
+func (s *Server) handlePrivateFunc(router *mux.Router, route string, fn HandlerPrivateFunc, authenticator *auth.BasicAuth) *mux.Route {
+	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+		if api.CheckAuth(authenticator, w, r) {
+			fn(w, r, s)
 		}
-		grohl.Log(grohl.Data{"path": r.URL.Path})
-		// Add CORS
-		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Add("Access-Control-Allow-Origin", "*")
-		fn(w, r, s)
 	})
 }
