@@ -60,13 +60,21 @@
       }
       .size {
         font-size: 9px;
-        color: blue;
+        color: red;
         font-weight: bold;
       }
       .sha {
         font-size: 9px;
         color: green;
         font-weight: bold;
+      }
+      .download {
+        color: blue;
+        font-weight: bold;
+      }
+      .licenses {
+        color: blue;
+        font-size: 9px;
       }
 
       #license-form {
@@ -193,9 +201,51 @@ function refreshPackages() {
   req.onload =  function() {
     $('#packages').html('');
     data = JSON.parse(this.response);
+    var idx = 0;
     for(i in data) {
-      $('#packages').append('<li data-key="' + data[i].id + '"><span class="filename">' + data[i].location +
-                            ' <span class="key">' + data[i].id + '</span> Length: [<span class="size">' + data[i].length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].sha256 + '</span>)</li>')
+      idx++;
+      var epubID = data[i].id;
+      $('#packages').append('<li data-key="' + epubID + '" id="epub_' + epubID + '">EPUB '+idx+': <span class="filename">' + data[i].location +
+                            ' <span class="key">' + epubID + '</span> Length: [<span class="size">' + data[i].length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].sha256 + '</span>) <span class="download"><a href="/contents/'+epubID+'">GET</a> (raw)</span> <span class="licenses"><a target="_BLANK" href="/contents/'+epubID+'/licenses">licenses</a></span></li>');
+
+
+  var req_ = new XMLHttpRequest();
+  req_.onload =  function() {
+    
+    data_ = JSON.parse(this.response);
+    var list = "<ul>";
+      var index = 0;
+    for(i_ in data_) {
+      index++;
+      var licID = data_[i_].id;
+      //var jsonStr = JSON.stringify(data_[i_], null, " ");
+      list += '<li id="lic_'+licID+'">LICENSE '+index+': <span>['+data_[i_].user.id+']</span> <span><a target="_BLANK" href="/licenses/'+licID+'">'+licID+'</a></span> </li>';
+
+          var req__ = new XMLHttpRequest();
+          req__.onload =  function() {
+            
+            data__ = JSON.parse(this.response);
+            
+              //var jsonStr = JSON.stringify(data__, null, " ");
+              
+              var href = data__["links"]["status"]["href"];
+              $('#lic_'+this.licID).append(' STATUS: <span><a target="_BLANK" href="'+href+'">'+href+'</a></span>');
+          };
+          req__.open("GET", "/licenses/" + licID);
+          req__.licID = licID;
+          req__.send();
+    }
+
+      list += "</ul>";
+      $('#epub_'+this.epubID).append(list);
+  };
+  req_.open("GET", "/contents/" + epubID + "/licenses");
+  req_.epubID = epubID;
+  req_.send();
+
+
+
+
     }
 
   var defaultLicenseJSON =
