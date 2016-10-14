@@ -8,7 +8,8 @@ import (
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/technoweenie/grohl"
-
+	"github.com/urfave/negroni"
+	
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
@@ -23,7 +24,6 @@ type Server struct {
 	idx      *index.Index
 	st       *storage.Store
 	lst      *license.Store
-	router   *mux.Router
 	cert     *tls.Certificate
 	source   pack.ManualSource
 }
@@ -48,83 +48,132 @@ func (s *Server) Source() *pack.ManualSource {
 	return &s.source
 }
 
+func ExtraLogger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+
+	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path})
+
+// before	
+	next(rw, r)
+// after
+
+	// noop
+}
+
+func CORSHeaders(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+
+	grohl.Log(grohl.Data{"CORS": "yes"})
+	rw.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	rw.Header().Add("Access-Control-Allow-Origin", "*")
+
+// before	
+	next(rw, r)
+// after
+
+	// noop
+}
+
 func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager, basicAuth *auth.BasicAuth) *Server {
 	r := mux.NewRouter()
+
+	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
+
+	// this demonstrates a panic report
+	r.HandleFunc("/panic", func(w http.ResponseWriter, req *http.Request) {
+		panic("just testing. no worries.")
+	})
+
+	//n := negroni.Classic() == negroni.New(negroni.NewRecovery(), negroni.NewLogger(), negroni.NewStatic(...))
+	n := negroni.New()
+
+	// possibly useful middlewares:
+	// https://github.com/jeffbmartinez/delay
+
+	//https://github.com/urfave/negroni#recovery
+	recovery := negroni.NewRecovery()
+	recovery.PrintStack = true
+	recovery.ErrorHandlerFunc = problem.PanicReport
+	n.Use(recovery)
+
+	//https://github.com/urfave/negroni#logger
+	n.Use(negroni.NewLogger())
+
+	n.Use(negroni.HandlerFunc(ExtraLogger))
+	
+	//https://github.com/urfave/negroni#static
+	n.Use(negroni.NewStatic(http.Dir(tplPath)))
+
+	n.Use(negroni.HandlerFunc(CORSHeaders))
+	// Does not insert CORS headers as intended, depends on Origin check in the HTTP request...we want the same headers, always.
+	// IMPORT "github.com/rs/cors"
+	// //https://github.com/rs/cors#parameters
+	// c := cors.New(cors.Options{
+	// 	AllowedOrigins: []string{"*"},
+	// 	AllowedMethods: []string{"POST", "GET", "OPTIONS", "PUT", "DELETE"},
+	// 	Debug: true,
+	// })
+	// n.Use(c)
+
 	s := &Server{
 		Server: http.Server{
-			Handler:      r,
+			Handler:      n,
 			Addr:         bindAddr,
 			WriteTimeout: 15 * time.Second,
 			ReadTimeout:  15 * time.Second,
+			MaxHeaderBytes: 1 << 20,
 		},
 		readonly: readonly,
 		idx:      idx,
 		st:       st,
 		lst:      lst,
 		cert:     cert,
-		router:   r,
 		source:   pack.ManualSource{},
 	}
 
-	s.source.Feed(packager.Incoming)
 
-	hfs := http.FileServer(http.Dir(tplPath))
-	r.PathPrefix("/manage").Handler(hfs)
+	contentRoutes := r.PathPrefix("/contents").Subrouter().StrictSlash(true)
 
-	//API following spec
-	//CONTENTS
-	s.handleFunc("/contents", apilcp.ListContents).Methods("GET") //method supported, not in spec
-	s.handleFunc("/contents/", apilcp.ListContents).Methods("GET")
-	s.handleFunc("/contents/{key}", apilcp.GetContent).Methods("GET")                                         //method supported, not in spec
-	s.handlePrivateFunc("/contents/{key}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")  // list licenses for content, additional get params {page?,per_page?}
-	s.handlePrivateFunc("/contents/{key}/licenses/", apilcp.ListLicensesForContent, basicAuth).Methods("GET") // idem
-	//LICENSES
-	s.handlePrivateFunc("/licenses", apilcp.ListLicenses, basicAuth).Methods("GET")     // list licenses, additional get params {page?,per_page?}
-	s.handlePrivateFunc("/licenses/", apilcp.ListLicenses, basicAuth).Methods("GET")    // idem
-	s.handlePrivateFunc("/licenses/{key}", apilcp.GetLicense, basicAuth).Methods("GET") //return existing license
-
+	s.handleFunc(contentRoutes, "/", apilcp.ListContents).Methods("GET") // note that "/contents" 301 redirects to "/contents/" because of StrictSlash(true) 
+	s.handleFunc(contentRoutes, "/{key}", apilcp.GetContent).Methods("GET") // note that "/contents/KEY/" 301 redirects to "/contents/KEY" because of StrictSlash(true)
+	s.handlePrivateFunc(contentRoutes, "/{key}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")
 	if !readonly {
-		s.handlePrivateFunc("/contents/{key}", apilcp.AddContent, basicAuth).Methods("PUT") //lcp spec store data resulting from external encryption
-		s.handleFunc("/contents/{name}", apilcp.StoreContent).Methods("POST")               //lcp spec encrypt & store epub file (in BODY)
-		s.handlePrivateFunc("/contents/{key}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
-		s.handlePrivateFunc("/contents/{key}/publications/", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
-		s.handlePrivateFunc("/contents/{key}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
-		//LICENSES
-		s.handlePrivateFunc("/licenses/{key}", apilcp.UpdateLicense, basicAuth).Methods("PATCH") //update license (rights, other)
+		s.handleFunc(contentRoutes, "/{name}", apilcp.StoreContent).Methods("POST")
+		s.handlePrivateFunc(contentRoutes, "/{key}", apilcp.AddContent, basicAuth).Methods("PUT")
+		s.handlePrivateFunc(contentRoutes, "/{key}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
+		s.handlePrivateFunc(contentRoutes, "/{key}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 	}
 
-	r.NotFoundHandler = http.HandlerFunc(problem.NotFoundHandler) //handle all other requests 404
+	licenseRoutes := r.PathPrefix("/licenses").Subrouter().StrictSlash(true)
 
+	s.handlePrivateFunc(licenseRoutes, "/", apilcp.ListLicenses, basicAuth).Methods("GET") // note that "/licenses" 301 redirects to "/licenses/" because of StrictSlash(true)
+	s.handlePrivateFunc(licenseRoutes, "/{key}", apilcp.GetLicense, basicAuth).Methods("GET") // note that "/licenses/KEY/" 301 redirects to "/licenses/KEY" because of StrictSlash(true)
+	if !readonly {
+		s.handlePrivateFunc(licenseRoutes, "/{key}", apilcp.UpdateLicense, basicAuth).Methods("PATCH")
+	}
+
+	n.UseHandler(r)
+
+	s.source.Feed(packager.Incoming)
 	return s
 }
 
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, s apilcp.Server)
-type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s apilcp.Server)
-
-func (s *Server) handleFunc(route string, fn HandlerFunc) *mux.Route {
-	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-		grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path})
-		// Add CORS
-		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Add("Access-Control-Allow-Origin", "*")
+func (s *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *mux.Route {
+	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		fn(w, r, s)
 	})
 }
 
-func (s *Server) handlePrivateFunc(route string, fn HandlerFunc, authenticator *auth.BasicAuth) *mux.Route {
-	return s.router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s apilcp.Server)
+func (s *Server) handlePrivateFunc(router *mux.Router, route string, fn HandlerFunc, authenticator *auth.BasicAuth) *mux.Route {
+	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		var username string
 		if username = authenticator.CheckAuth(r); username == "" {
-			grohl.Log(grohl.Data{"error": "Unauthorized", "method": r.Method, "path": r.URL.Path})
+			grohl.Log(grohl.Data{"error": "Unauthorized"})
 			w.Header().Set("WWW-Authenticate", `Basic realm="`+authenticator.Realm+`"`)
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "User or password do not match!"}, http.StatusUnauthorized)
 			return
 		}
-		grohl.Log(grohl.Data{"user": username, "method": r.Method, "path": r.URL.Path})
-
-		// Add CORS
-		w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Add("Access-Control-Allow-Origin", "*")
+		grohl.Log(grohl.Data{"user": username})
 		fn(w, r, s)
 	})
 }
