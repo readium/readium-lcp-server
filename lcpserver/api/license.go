@@ -9,12 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
-	"io"
-	"net/http"
 
 	"github.com/gorilla/mux"
 
@@ -338,62 +338,35 @@ func completeLicense(l *license.License, key string, s Server) error {
 
 	license.Prepare(l)
 	l.ContentId = key
-	//verify that mandatory(hint & publication ) links are present in the License
-	if _, present := l.Links["hint"]; !present {
-		hint := new(license.Link)
-		hint.Href, present = config.Config.License.Links["hint"]
-		//hint.Type =
-		if !present {
-			return errors.New("No hint link present in partial license nor config")
-		}
+	links := new([]license.Link)
+
+	//verify that mandatory (hint & publication) links are present in the License
+	if value, present := license.DefaultLinks["hint"]; present {
+		hint := license.Link{Href: value, Rel: "hint"}
+		*links = append(*links, hint)
+	} else {
+		return errors.New("No hint link present in config")
 	}
 
-	if _, present := l.Links["publication"]; !present {
-		publication := new(license.Link)
-		publication.Href, present = config.Config.License.Links["publication"]
-		if !present {
-			return errors.New("No publication link present in partial license nor config")
-		}
-		//publication.Type = ?? , other information about encrypted file (md5 hash ?)
-		l.Links["publication"] = *publication
-	}
-	// replace {publication_id} in template link
-	publicationLink := strings.Replace(l.Links["publication"].Href, "{publication_id}", c.Id, 1)
-	publicationLink = strings.Replace(publicationLink, "{publication_loc}", c.Location, 1)
-	if publicationLink != l.Links["publication"].Href {
-		publication := new(license.Link)
-		publication.Href = publicationLink
-		l.Links["publication"] = *publication
+	if value, present := license.DefaultLinks["publication"]; present {
+		// replace {publication_id} in template link
+		publicationLink := strings.Replace(value, "{publication_id}", c.Id, 1)
+		publicationLink = strings.Replace(publicationLink, "{publication_loc}", c.Location, 1)
+
+		publication := license.Link{Href: publicationLink, Rel: "publication", Type: epub.ContentType_EPUB}
+		*links = append(*links, publication)
+	} else {
+		return errors.New("No publication link present in config")
 	}
 
-	// finalize by ensuring type field is correctly set
-	publi := new(license.Link)
-	publi.Href = l.Links["publication"].Href
-	publi.Type = epub.ContentType_EPUB
-	//publi.Templated = false
-	l.Links["publication"] = *publi
+	if value, present := config.Config.License.Links["status"]; present { // add status server to License
+		statusLink := strings.Replace(value, "{license_id}", l.Id, 1)
 
-	if _, present := config.Config.License.Links["status"]; present { // add status server to License
-		status := new(license.Link) //status.Type = ??
-		status.Href = config.Config.License.Links["status"]
-		l.Links["status"] = *status
-	}
-	if _, present := l.Links["status"]; present {
-		statusLink := strings.Replace(l.Links["status"].Href, "{license_id}", l.Id, 1)
-		if statusLink != l.Links["status"].Href {
-			status := new(license.Link)
-			status.Href = statusLink
-			l.Links["status"] = *status
-		}
+		status := license.Link{Href: statusLink, Rel: "status", Type: api.ContentType_LSD_JSON} //status.Type = ??
+		*links = append(*links, status)
 	}
 
-	// finalize by ensuring type field is correctly set
-	statu := new(license.Link)
-	statu.Href = l.Links["status"].Href
-	statu.Type = api.ContentType_LSD_JSON
-	//statu.Templated = false
-	l.Links["status"] = *statu
-
+	l.Links = *links
 	var encryptionKey []byte
 	if len(l.Encryption.UserKey.Value) > 0 {
 		encryptionKey = l.Encryption.UserKey.Value

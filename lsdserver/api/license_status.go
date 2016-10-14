@@ -13,7 +13,6 @@ import (
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/license_statuses"
@@ -680,36 +679,33 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 	registerAvailable := config.Config.LicenseStatus.Register
 	returnAvailable := config.Config.LicenseStatus.Return
 	renewAvailable := config.Config.LicenseStatus.Renew
+	links := new([]licensestatuses.Link)
 
-	ls.Links = make(map[string][]licensestatuses.Link)
-	ls.Links["license"] = make([]licensestatuses.Link, 1)
-	ls.Links["license"][0] = createLink(lcpBaseUrl, ls.LicenseRef, "",
-		api.ContentType_LCP_JSON, false)
+	*links = append(*links, createLink(lcpBaseUrl, "license", ls.LicenseRef, "",
+		api.ContentType_LCP_JSON, false))
 
 	if registerAvailable {
-		ls.Links["register"] = make([]licensestatuses.Link, 1)
-		ls.Links["register"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/register{?id,name}",
-			api.ContentType_LSD_JSON, true)
+		*links = append(*links, createLink(lsdBaseUrl, "register", ls.LicenseRef, "/register{?id,name}",
+			api.ContentType_LSD_JSON, true))
 	}
 
 	if returnAvailable {
-		ls.Links["return"] = make([]licensestatuses.Link, 1)
-		ls.Links["return"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/return{?id,name}",
-			api.ContentType_LCP_JSON, true)
+		*links = append(*links, createLink(lsdBaseUrl, "return", ls.LicenseRef, "/return{?id,name}",
+			api.ContentType_LCP_JSON, true))
 	}
 
 	if renewAvailable {
-		ls.Links["renew"] = make([]licensestatuses.Link, 2)
-		ls.Links["renew"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/renew", epub.ContentType_HTML, false)
-		ls.Links["renew"][1] = createLink(lsdBaseUrl, ls.LicenseRef, "/renew{?end,id,name}",
-			api.ContentType_LCP_JSON, true)
+		*links = append(*links, createLink(lsdBaseUrl, "renew", ls.LicenseRef, "/renew{?end,id,name}",
+			api.ContentType_LCP_JSON, true))
 	}
+
+	ls.Links = *links
 }
 
 //createLink creates a link and fills it
-func createLink(publicBaseUrl string, licenseRef string, page string,
+func createLink(publicBaseUrl string, rel string, licenseRef string, page string,
 	typeLink string, templated bool) licensestatuses.Link {
-	link := licensestatuses.Link{Href: publicBaseUrl + "/licenses/" + licenseRef + page,
+	link := licensestatuses.Link{Href: publicBaseUrl + "/licenses/" + licenseRef + page, Rel: rel,
 		Type: typeLink, Templated: templated}
 	return link
 }
