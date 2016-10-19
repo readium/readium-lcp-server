@@ -54,6 +54,8 @@ func New(bindAddr string, readonly bool, lst *licensestatuses.LicenseStatuses, t
 	
 	s.handlePrivateFunc(sr.R, "/licenses", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
 	s.handlePrivateFunc(licenseRoutes, "/", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET")
+
+	s.handleFunc(sr.R, "/compliancetest", apilsd.AddLogToFile).Methods("GET")
 	
 	s.handlePrivateFunc(licenseRoutes, "/{key}/registered", apilsd.ListRegisteredDevices, basicAuth).Methods("GET")
 	if !readonly {

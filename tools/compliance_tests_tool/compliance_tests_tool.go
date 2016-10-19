@@ -4,45 +4,62 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
+	"strconv"
 	"strings"
-
-	"github.com/readium/readium-lcp-server/logging"
+	"time"
 )
 
 func main() {
-	logFilePath := flag.String("logfilepath", "", "path to .log file")
+	lsdPublicBaseUrl := flag.String("lsdPublicBaseUrl", "", "public base url of lsd server")
 	flag.Parse()
 
-	var input string
+	var testNumber string
 	var result string
 
 	for {
-		err := logging.Init(*logFilePath, true)
-		if err != nil {
-			panic(err)
-		}
+		fmt.Println("Enter the number of test, 'q' for quit the tool")
+		fmt.Scanln(&testNumber)
 
-		fmt.Println("Enter the number of tests, 'q' for quit the tool")
-		fmt.Scanln(&input)
-
-		if strings.EqualFold(input, "q") {
+		if strings.EqualFold(testNumber, "q") {
 			os.Exit(0)
 		}
 
+		notifyLsdServer(testNumber, "", "start", *lsdPublicBaseUrl)
+
 		for {
-			fmt.Println("Enter the result of test ('f' if test failed, 's' if test has success)")
+			fmt.Println("Enter the result of test ('e' if test has errors, 's' if test has success)")
 			fmt.Scanln(&result)
 
-			if strings.EqualFold(result, "f") {
-				logging.WriteToFile("error", 0, input)
+			if strings.EqualFold(result, "e") || strings.EqualFold(result, "s") {
+				notifyLsdServer(testNumber, result, "end", *lsdPublicBaseUrl)
 				break
 			}
+		}
+	}
+}
 
-			if strings.EqualFold(result, "s") {
-				logging.WriteToFile("success", 0, input)
-				break
-			}
+func notifyLsdServer(testNumber string, result string, testStage string, publicBaseUrl string) {
+	var lsdClient = &http.Client{
+		Timeout: time.Second * 10,
+	}
+
+	req, err := http.NewRequest("GET", publicBaseUrl+"/compliancetest", nil)
+	q := req.URL.Query()
+	q.Add("test_stage", testStage)
+	q.Add("test_number", testNumber)
+	q.Add("test_result", result)
+	req.URL.RawQuery = q.Encode()
+
+	response, err := lsdClient.Do(req)
+
+	if err != nil {
+		log.Println("Error Notify LsdServer of compliancetest: " + err.Error())
+	} else {
+		if response.StatusCode != 200 {
+			log.Println("Notify LsdServer of compliancetest  = " + strconv.Itoa(response.StatusCode))
 		}
 	}
 }
