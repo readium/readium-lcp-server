@@ -230,8 +230,19 @@ function refreshPackages() {
             data__ = JSON.parse(this.response);
             
               //var jsonStr = JSON.stringify(data__, null, " ");
-              
-              var href = data__["links"]["status"]["href"];
+              var links = data__["links"];
+              var statusLink = links["status"];
+              if (!statusLink) {
+                for (var j = 0; j < links.length; j++) {
+                  var link = links[j];
+                  if (link.rel == "status") {
+                    statusLink = link;
+                    break;
+                  }
+                }
+              }
+
+              var href = statusLink["href"];
               href = href.replace("{license_id}", this.licID)
               $('#lic_'+this.licID).append(' STATUS: <span><a target="_BLANK" href="'+href+'">'+href+'</a></span>');
           };
