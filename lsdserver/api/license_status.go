@@ -61,12 +61,12 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
-			logging.WriteToFile("error", http.StatusNotFound, logging.BASIC_FUNCTION)
+			logging.WriteToFile(complianceTestNumber, LICENSE_STATUS, strconv.Itoa(http.StatusNotFound))
 			return
 		}
 
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.BASIC_FUNCTION)
+		logging.WriteToFile(complianceTestNumber, LICENSE_STATUS, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -77,14 +77,19 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 
 		if (!licenseStatus.PotentialRights.End.IsZero()) && (diff > 0) && ((licenseStatus.Status == status.STATUS_ACTIVE) || (licenseStatus.Status == status.STATUS_READY)) {
 			licenseStatus.Status = status.STATUS_EXPIRED
-			s.LicenseStatuses().Update(*licenseStatus)
+			err = s.LicenseStatuses().Update(*licenseStatus)
+			if err != nil {
+				problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
+				logging.WriteToFile(complianceTestNumber, LICENSE_STATUS, strconv.Itoa(http.StatusInternalServerError))
+				return
+			}
 		}
 	}
 
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.BASIC_FUNCTION)
+		logging.WriteToFile(complianceTestNumber, LICENSE_STATUS, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -96,11 +101,11 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.BASIC_FUNCTION)
+		logging.WriteToFile(complianceTestNumber, LICENSE_STATUS, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
-	logging.WriteToFile("sucsess", http.StatusOK, logging.BASIC_FUNCTION)
+	logging.WriteToFile(complianceTestNumber, LICENSE_STATUS, strconv.Itoa(http.StatusOK))
 }
 
 //RegisterDevice register device using device_id & device_name request parameters
@@ -115,14 +120,12 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
-			logging.WriteToFile("error", http.StatusNotFound, logging.SUCCESS_REGISTRATION)
-			logging.WriteToFile("error", http.StatusNotFound, logging.REJECT_REGISTRATION)
+			logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusNotFound))
 			return
 		}
 
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
+		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -135,14 +138,14 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	//check mandatory request parameters
 	if (dILen == 0) || (dILen > 255) || (dNLen == 0) || (dNLen > 255) {
 		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: "device_id and device_name are mandatory and maximum lenght is 255 symbols "}, http.StatusBadRequest)
-		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_REGISTRATION)
+		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusBadRequest))
 		return
 	}
 
 	//check status of license status
 	if (licenseStatus.Status != status.STATUS_ACTIVE) && (licenseStatus.Status != status.STATUS_READY) {
 		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: "License is not active"}, http.StatusBadRequest)
-		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_REGISTRATION)
+		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusBadRequest))
 		return
 	}
 
@@ -150,13 +153,12 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
+		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 	if deviceStatus != "" {
 		problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: "Device has been already registered"}, http.StatusBadRequest)
-		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_REGISTRATION)
+		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusBadRequest))
 		return
 	}
 
@@ -166,8 +168,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.Transactions().Add(*event, 1)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
+		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -177,7 +178,6 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	if licenseStatus.Status == status.STATUS_READY {
 		licenseStatus.Status = status.STATUS_ACTIVE
 		licenseStatus.Updated.License = &event.Timestamp
-
 	}
 
 	*licenseStatus.DeviceCount += 1
@@ -185,8 +185,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.LicenseStatuses().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
+		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -194,8 +193,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
+		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -204,11 +202,10 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	err = enc.Encode(licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_REGISTRATION)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_REGISTRATION)
+		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
-	logging.WriteToFile("success", http.StatusOK, logging.SUCCESS_REGISTRATION)
+	logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusOK))
 }
 
 //LendingReturn checks that the calling device is activated, then modifies
@@ -223,14 +220,12 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
-			logging.WriteToFile("error", http.StatusNotFound, logging.SUCCESS_RETURN)
-			logging.WriteToFile("error", http.StatusNotFound, logging.REJECT_RETURN)
+			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusNotFound))
 			return
 		}
 
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -240,7 +235,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	//checks request parameters
 	if (len(deviceName) > 255) || (len(deviceId) > 255) {
 		problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
-		logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RETURN)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusForbidden))
 		return
 	}
 
@@ -248,11 +243,11 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	switch licenseStatus.Status {
 	case status.STATUS_RETURNED:
 		problem.Error(w, r, problem.Problem{Type: "http://readium.org/license-status-document/error/return/already", Detail: "License has been already returned"}, http.StatusForbidden)
-		logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RETURN)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusForbidden))
 		return
 	case status.STATUS_EXPIRED:
 		problem.Error(w, r, problem.Problem{Type: "http://readium.org/license-status-document/error/return/expired", Detail: "License is expired"}, http.StatusForbidden)
-		logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RETURN)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusForbidden))
 		return
 	case status.STATUS_ACTIVE:
 		licenseStatus.Status = status.STATUS_RETURNED
@@ -262,11 +257,11 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		break
 	case status.STATUS_CANCELLED:
 		problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: "License is cancelled"}, http.StatusBadRequest)
-		logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RETURN)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusForbidden))
 		return
 	case status.STATUS_REVOKED:
 		problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: "License is revoked"}, http.StatusBadRequest)
-		logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RETURN)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusForbidden))
 		return
 	}
 
@@ -275,13 +270,12 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-			logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
-			logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
+			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 			return
 		}
 		if deviceStatus == status.TYPE_RETURN || deviceStatus == "" {
 			problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: "Device is not activated"}, http.StatusBadRequest)
-			logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_RETURN)
+			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusBadRequest))
 			return
 		}
 	}
@@ -292,8 +286,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.Transactions().Add(*event, 2)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -304,8 +297,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.LicenseStatuses().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -316,8 +308,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -327,11 +318,11 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RETURN)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RETURN)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
-	logging.WriteToFile("success", http.StatusOK, logging.SUCCESS_RETURN)
+
+	logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusOK))
 }
 
 //LendingRenewal checks that the calling device is activated, then modifies
@@ -346,14 +337,11 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
-			logging.WriteToFile("error", http.StatusNotFound, logging.SUCCESS_RENEW)
-			logging.WriteToFile("error", http.StatusNotFound, logging.REJECT_RENEW)
+			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusNotFound))
 			return
 		}
-
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -363,13 +351,13 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	//check the request parameters
 	if (len(deviceName) > 255) || (len(deviceId) > 255) {
 		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
-		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_RENEW)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusBadRequest))
 		return
 	}
 
 	if (licenseStatus.Status != status.STATUS_ACTIVE) && (licenseStatus.Status != status.STATUS_READY) {
 		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: "License is not active"}, http.StatusBadRequest)
-		logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_RENEW)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusBadRequest))
 		return
 	}
 
@@ -378,13 +366,12 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-			logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
-			logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
+			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 			return
 		}
 		if deviceStatus != status.TYPE_REGISTER {
 			problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: "The device is not active for this license"}, http.StatusBadRequest)
-			logging.WriteToFile("success", http.StatusBadRequest, logging.REJECT_RENEW)
+			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusBadRequest))
 			return
 		}
 	}
@@ -396,12 +383,12 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		renewDays := config.Config.LicenseStatus.RenewDays
 		if renewDays == 0 {
 			problem.Error(w, r, problem.Problem{Type: problem.RENEW_REJECT, Detail: "renew_days not found"}, http.StatusInternalServerError)
-			logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RENEW)
+			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusForbidden))
 			return
 		}
 		if licenseStatus.PotentialRights == nil {
 			problem.Error(w, r, problem.Problem{Type: problem.RENEW_REJECT, Detail: "potential rights not set"}, http.StatusInternalServerError)
-			logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RENEW)
+			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusForbidden))
 			return
 		}
 		end := licenseStatus.PotentialRights.End.Add(time.Hour * 24 * time.Duration(renewDays))
@@ -410,7 +397,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		expirationEnd, err := time.Parse(time.RFC3339, timeEndString)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: problem.RENEW_REJECT, Detail: err.Error()}, http.StatusInternalServerError)
-			logging.WriteToFile("success", http.StatusForbidden, logging.REJECT_RENEW)
+			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusForbidden))
 			return
 		}
 		licenseStatus.PotentialRights.End = &expirationEnd
@@ -420,8 +407,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.Transactions().Add(*event, 3)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -433,8 +419,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	err = s.LicenseStatuses().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -444,8 +429,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
@@ -455,12 +439,11 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: problem.SERVER_INTERNAL_ERROR, Detail: err.Error()}, http.StatusInternalServerError)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.SUCCESS_RENEW)
-		logging.WriteToFile("error", http.StatusInternalServerError, logging.REJECT_RENEW)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
-	logging.WriteToFile("success", http.StatusOK, logging.SUCCESS_RENEW)
+	logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusOK))
 }
 
 //FilterLicenseStatuses returns a sequence of license statuses, in their id order

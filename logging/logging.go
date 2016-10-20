@@ -43,15 +43,11 @@ func Init(logPath string, cm bool) error {
 }
 
 //WriteToFile writes result of function execution in log file
-func WriteToFile(result string, status int, testId string) {
+func WriteToFile(testId string, status string, result string) {
 	if complianceMode == true {
 		currentTime := time.Now().UTC().Format(time.RFC3339)
 
-		var parsedStatus string
-		if status != 0 {
-			parsedStatus = strconv.Itoa(status)
-		}
-		LogFile.Println(result + "   " + currentTime + "   " + parsedStatus + "   " + testId)
+		LogFile.Println(currentTime + "\t" + testId + " \t" + status + "\t" + result)
 	}
 }
 
@@ -73,21 +69,23 @@ func ReadLogs(logPath string) ([]string, error) {
 
 //CountTotal summarize the data in log file
 func CountTotal(lines []string) (string, error) {
-	var total, success, negative int
+	var total, positive, negative int
 	var result string
 
 	for _, value := range lines {
-		splitted := strings.Split(value, "   ")
+		splitted := strings.Split(value, "\t")
 
-		if splitted[0] == "error" {
+		if splitted[3] == "error" {
 			negative++
-		} else {
-			success++
 		}
+		if splitted[3] == "success" {
+			positive++
+		}
+
 
 		total++
 	}
 
-	result = "Total count: " + strconv.Itoa(total) + "; ended successfully: " + strconv.Itoa(success) + "; ended with error: " + strconv.Itoa(negative)
+	result = "Total count: " + strconv.Itoa(total) + "; ended successfully: " + strconv.Itoa(positive) + "; ended with error: " + strconv.Itoa(negative)
 	return result, nil
 }

@@ -2,13 +2,15 @@ package pack
 
 import (
 	"archive/zip"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"io/ioutil"
 	"os"
 	"time"
 
 	"github.com/satori/go.uuid"
-	
+
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/storage"
@@ -23,6 +25,12 @@ type Task struct {
 	Body io.ReaderAt
 	Size int64
 	done chan Result
+}
+
+type EncryptedFileInfo struct {
+	File   *os.File
+	Size   int64
+	Sha256 string
 }
 
 func NewTask(name string, body io.ReaderAt, size int64) *Task {
@@ -71,8 +79,8 @@ func (p Packager) work() {
 		zr := p.readZip(&r, t.Body, t.Size)
 		epub := p.readEpub(&r, zr)
 		encrypted, key := p.encrypt(&r, epub)
-		p.addToStore(&r, encrypted)
-		p.addToIndex(&r, key, t.Name)
+		p.addToStore(&r, encrypted.File)
+		p.addToIndex(&r, key, t.Name, encrypted.Size, encrypted.Sha256)
 
 		t.Done(r)
 	}
@@ -107,24 +115,33 @@ func (p Packager) readEpub(r *Result, zr *zip.Reader) epub.Epub {
 	return ep
 }
 
-func (p Packager) encrypt(r *Result, ep epub.Epub) (*os.File, []byte) {
+func (p Packager) encrypt(r *Result, ep epub.Epub) (*EncryptedFileInfo, []byte) {
 	if r.Error != nil {
 		return nil, nil
 	}
-
-	file, err := ioutil.TempFile(os.TempDir(), "out-readium-lcp")
-
+	tmpFile, err := ioutil.TempFile(os.TempDir(), "out-readium-lcp")
 	if err != nil {
 		r.Error = err
 		return nil, nil
 	}
-
-	_, key, err := Do(ep, file)
+	_, key, err := Do(ep, tmpFile)
 	r.Error = err
+	var encryptedFileInfo EncryptedFileInfo
+	encryptedFileInfo.File = tmpFile
+	//get file length & hash (sha256)
+	hasher := sha256.New()
+	encryptedFileInfo.File.Seek(0, 0)
+	written, err := io.Copy(hasher, encryptedFileInfo.File)
+	//hasher.Write(s)
+	if err != nil {
+		r.Error = err
+		return nil, nil
+	}
+	encryptedFileInfo.Size = written
+	encryptedFileInfo.Sha256 = hex.EncodeToString(hasher.Sum(nil))
 
-	file.Seek(0, 0)
-
-	return file, key
+	encryptedFileInfo.File.Seek(0, 0)
+	return &encryptedFileInfo, key
 }
 
 func (p Packager) addToStore(r *Result, f *os.File) {
@@ -138,12 +155,12 @@ func (p Packager) addToStore(r *Result, f *os.File) {
 	os.Remove(f.Name())
 }
 
-func (p Packager) addToIndex(r *Result, key []byte, name string) {
+func (p Packager) addToIndex(r *Result, key []byte, name string, contentSize int64, contentHash string) {
 	if r.Error != nil {
 		return
 	}
 
-	r.Error = p.idx.Add(index.Content{r.Id, key, name})
+	r.Error = p.idx.Add(index.Content{r.Id, key, name, contentSize, contentHash})
 }
 
 func NewPackager(store storage.Store, idx index.Index, concurrency int) *Packager {

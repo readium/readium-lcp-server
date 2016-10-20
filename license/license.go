@@ -41,7 +41,8 @@ type Link struct {
 	Profile   string `json:"profile,omitempty"`
 	Templated bool   `json:"templated,omitempty" "default false"`
 	Size      int64  `json:"length,omitempty"`
-	Digest    []byte `json:"hash,omitempty"`
+	//Digest    []byte `json:"hash,omitempty"`
+	Checksum string `json:"hash,omitempty"`
 }
 
 type UserInfo struct {
@@ -95,6 +96,15 @@ func CreateLinks() {
 	}
 }
 
+func DefaultLinksCopy() []Link {
+	links := new([]Link)
+	for key := range DefaultLinks {
+		link := Link{Href: DefaultLinks[key], Rel: key}
+		*links = append(*links, link)
+	}
+	return *links
+}
+
 func New() License {
 	l := License{}
 	Prepare(&l)
@@ -105,7 +115,11 @@ func Prepare(l *License) {
 	uuid, _ := newUUID()
 	l.Id = uuid
 
-	l.Issued = time.Now()	
+	l.Issued = time.Now()
+
+	if l.Links == nil {
+		l.Links = DefaultLinksCopy()
+	}
 
 	if l.Rights == nil {
 		l.Rights = new(UserRights)
@@ -120,6 +134,8 @@ func createForeigns(l *License) {
 	l.User = UserInfo{}
 	l.Rights = new(UserRights)
 	l.Signature = new(sign.Signature)
+
+	l.Links = DefaultLinksCopy()
 	l.Encryption.Profile = DEFAULT_PROFILE
 }
 

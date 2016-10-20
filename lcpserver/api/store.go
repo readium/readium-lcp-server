@@ -1,7 +1,6 @@
 package apilcp
 
 import (
-	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
-
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
@@ -31,12 +29,13 @@ type Server interface {
 
 // struct for communication with lcp-server
 type LcpPublication struct {
-	ContentId    string  `json:"content-id"`
-	ContentKey   []byte  `json:"content-encryption-key"`
-	Output       string  `json:"protected-content-location"`
-	Size         *int64  `json:"protected-content-length,omitempty"`
-	Checksum     *string `json:"protected-content-sha256,omitempty"`
-	ErrorMessage string  `json:"error"`
+	ContentId          string  `json:"content-id"`
+	ContentKey         []byte  `json:"content-encryption-key"`
+	Output             string  `json:"protected-content-location"`
+	Size               *int64  `json:"protected-content-length,omitempty"`
+	Checksum           *string `json:"protected-content-sha256,omitempty"`
+	ContentDisposition *string `json:"protected-content-disposition,omitempty"`
+	ErrorMessage       string  `json:"error"`
 }
 
 func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
@@ -112,6 +111,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
+	defer file.Close()
 	//and add file to storage
 	//var storageItem storage.Item
 	_, err = s.Store().Add(contentId, file)
@@ -123,7 +123,10 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	// insert row in database if key does not exist
 	c, err = s.Index().Get(contentId)
 	c.EncryptionKey = publication.ContentKey
-	c.Location = publication.ContentId
+	c.Location = *publication.ContentDisposition
+	c.Length = *publication.Size
+	c.Sha256 = *publication.Checksum
+	//todo? check hash & length
 	code := http.StatusCreated
 	if err == index.NotFound { //insert into database
 		c.Id = contentId
@@ -149,15 +152,15 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 	for it, err := fn(); err == nil; it, err = fn() {
 		contents = append(contents, it)
 	}
-	
-	w.Header().Set("Content-Type", api.ContentType_JSON)
 
+	w.Header().Set("Content-Type", api.ContentType_JSON)
 	enc := json.NewEncoder(w)
 	err := enc.Encode(contents)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
+
 }
 
 func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
@@ -190,18 +193,10 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 	//Send the headers
 	w.Header().Set("Content-Disposition", "attachment; filename="+content.Location)
-	w.Header().Set("Content-Type", epub.ContentType_EPUB) //it should be an epub
+	w.Header().Set("Content-Type", epub.ContentType_EPUB)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", content.Length))
 
-	data, err := ioutil.ReadAll(contentReadCloser)
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
-		return
-	}
-
-	length := len(data)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", length))
-
-	io.Copy(w, bytes.NewReader(data)) //'Copy' the file to the client
+	io.Copy(w, contentReadCloser)
 
 	return
 
