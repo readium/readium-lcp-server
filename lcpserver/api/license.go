@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package apilcp
 
@@ -78,6 +78,13 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	err := DecodeJsonLicense(r, &lic)
 	if err != nil { // no or incorrect (json) license found in body
 		// just send partial license
+
+		err = prepareLinks(ExistingLicense, s)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 		w.WriteHeader(http.StatusPartialContent)
 		//delete some sensitive data from license
@@ -103,6 +110,16 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
+
+		if lic.Links == nil {
+			lic.Links = license.DefaultLinksCopy()
+		}
+		err = prepareLinks(lic, s)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+			return
+		}
+
 		ExistingLicense.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
 		ExistingLicense.Encryption.ContentKey.Value = encryptKey(content.EncryptionKey, ExistingLicense.Encryption.UserKey.Value) //use old UserKey.Value
 		ExistingLicense.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
@@ -116,6 +133,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
+
 		w.WriteHeader(http.StatusOK)
 		w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
@@ -374,8 +392,7 @@ func completeLicense(l *license.License, key string, s Server) error {
 		// replace {publication_id} in template link
 		publicationLink := strings.Replace(value, "{publication_id}", c.Id, 1)
 		publicationLink = strings.Replace(publicationLink, "{publication_loc}", c.Location, 1)
-
-		publication := license.Link{Href: publicationLink, Rel: "publication", Type: epub.ContentType_EPUB}
+		publication := license.Link{Href: publicationLink, Rel: "publication", Type: epub.ContentType_EPUB, Size: c.Length, Title: c.Location, Checksum: c.Sha256}
 		*links = append(*links, publication)
 	} else {
 		return errors.New("No publication link present in config")
@@ -591,4 +608,22 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+}
+
+func prepareLinks(license license.License, s Server) error {
+	for i := 0; i < len(license.Links); i++ {
+		if license.Links[i].Rel == "publication" {
+			item, err := s.Index().Get(license.ContentId)
+			if err != nil {
+				return err
+			}
+			license.Links[i].Href = strings.Replace(license.Links[i].Href, "{publication_id}", license.ContentId, 1)
+			license.Links[i].Href = strings.Replace(license.Links[i].Href, "{publication_loc}", item.Location, 1)
+		}
+
+		if license.Links[i].Rel == "status" {
+			license.Links[i].Href = strings.Replace(license.Links[i].Href, "{license_id}", license.Id, 1)
+		}
+	}
+	return nil
 }
