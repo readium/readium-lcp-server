@@ -391,7 +391,6 @@ func completeLicense(l *license.License, key string, s Server) error {
 	if value, present := license.DefaultLinks["publication"]; present {
 		// replace {publication_id} in template link
 		publicationLink := strings.Replace(value, "{publication_id}", c.Id, 1)
-		publicationLink = strings.Replace(publicationLink, "{publication_loc}", c.Location, 1)
 		publication := license.Link{Href: publicationLink, Rel: "publication", Type: epub.ContentType_EPUB, Size: c.Length, Title: c.Location, Checksum: c.Sha256}
 		*links = append(*links, publication)
 	} else {
