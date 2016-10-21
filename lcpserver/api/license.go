@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package apilcp
 
@@ -381,7 +381,6 @@ func completeLicense(l *license.License, key string, s Server) error {
 	}
 	// replace {publication_id} in template link
 	publicationLink := strings.Replace(l.Links["publication"].Href, "{publication_id}", c.Id, 1)
-	publicationLink = strings.Replace(publicationLink, "{publication_loc}", c.Location, 1)
 	if publicationLink != l.Links["publication"].Href {
 		publication := new(license.Link)
 		publication.Href = publicationLink
@@ -396,7 +395,7 @@ func completeLicense(l *license.License, key string, s Server) error {
 	publi.Size = c.Length
 	publi.Checksum = c.Sha256
 	publi.Title = c.Location
-	
+
 	l.Links["publication"] = *publi
 
 	if _, present := config.Config.License.Links["status"]; present { // add status server to License
