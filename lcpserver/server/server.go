@@ -115,6 +115,7 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 	s.handlePrivateFunc(licenseRoutes, "/", apilcp.ListLicenses, basicAuth).Methods("GET")
 
 	s.handlePrivateFunc(licenseRoutes, "/{key}", apilcp.GetLicense, basicAuth).Methods("GET")
+	s.handlePrivateFunc(licenseRoutes, "/{key}", apilcp.GetLicense, basicAuth).Methods("POST")
 	if !readonly {
 		s.handlePrivateFunc(licenseRoutes, "/{key}", apilcp.UpdateLicense, basicAuth).Methods("PATCH")
 	}
