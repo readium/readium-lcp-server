@@ -111,10 +111,10 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 
-		if lic.Links == nil {
-			lic.Links = license.DefaultLinksCopy()
+		if ExistingLicense.Links == nil {
+			ExistingLicense.Links = license.DefaultLinksCopy()
 		}
-		err = prepareLinks(lic, s)
+		err = prepareLinks(ExistingLicense, s)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
 			return
