@@ -59,6 +59,7 @@ type Encryption struct {
 }
 
 type Link struct {
+	Rel       string `json:"rel"`
 	Href      string `json:"href"`
 	Type      string `json:"type,omitempty"`
 	Title     string `json:"title,omitempty"`
@@ -66,7 +67,7 @@ type Link struct {
 	Templated bool   `json:"templated,omitempty" "default false"`
 	Size      int64  `json:"length,omitempty"`
 	//Digest    []byte `json:"hash,omitempty"`
-	Checksum  string `json:"hash,omitempty"`
+	Checksum string `json:"hash,omitempty"`
 }
 
 type UserInfo struct {
@@ -85,7 +86,7 @@ type UserRights struct {
 
 const DEFAULT_PROFILE = "http://readium.org/lcp/profile-1.0"
 
-var DefaultLinks map[string]Link
+var DefaultLinks map[string]string
 
 type License struct {
 	Provider   string          `json:"provider"`
@@ -93,7 +94,7 @@ type License struct {
 	Issued     time.Time       `json:"issued"`
 	Updated    *time.Time      `json:"updated,omitempty"`
 	Encryption Encryption      `json:"encryption"`
-	Links      map[string]Link `json:"links"`
+	Links      []Link          `json:"links"`
 	User       UserInfo        `json:"user"`
 	Rights     *UserRights     `json:"rights,omitempty"`
 	Signature  *sign.Signature `json:"signature,omitempty"`
@@ -113,31 +114,24 @@ type LicenseReport struct {
 func CreateLinks() {
 	var configLinks map[string]string = config.Config.License.Links
 
-	DefaultLinks = make(map[string]Link)
+	DefaultLinks = make(map[string]string)
 
 	for key := range configLinks {
-		DefaultLinks[key] = Link{Href: configLinks[key]}
+		DefaultLinks[key] = configLinks[key]
 	}
 }
 
-func DefaultLinksCopy () (map[string]Link) {
-	links := make(map[string]Link)
+func DefaultLinksCopy() []Link {
+	links := new([]Link)
 	for key := range DefaultLinks {
-		links[key] = Link{
-			Href: DefaultLinks[key].Href,
-			Type: DefaultLinks[key].Type,
-			Title: DefaultLinks[key].Title,
-			Profile: DefaultLinks[key].Profile,
-			Templated: DefaultLinks[key].Templated,
-			Size: DefaultLinks[key].Size,
-			Checksum: DefaultLinks[key].Checksum,
-		}
+		link := Link{Href: DefaultLinks[key], Rel: key}
+		*links = append(*links, link)
 	}
-	return links
+	return *links
 }
 
 func New() License {
-	l := License{Links: map[string]Link{}}
+	l := License{}
 	Prepare(&l)
 	return l
 }

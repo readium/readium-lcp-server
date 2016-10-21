@@ -37,6 +37,7 @@ type Updated struct {
 }
 
 type Link struct {
+	Rel       string `json:"rel"`
 	Href      string `json:"href"`
 	Type      string `json:"type,omitempty"`
 	Title     string `json:"title,omitempty"`
@@ -54,7 +55,7 @@ type LicenseStatus struct {
 	Status          string               `json:"status"`
 	Updated         *Updated             `json:"updated,omitempty"`
 	Message         string               `json:"message"`
-	Links           map[string][]Link    `json:"links,omitempty"`
+	Links           []Link               `json:"links,omitempty"`
 	DeviceCount     *int                 `json:"device_count,omitempty"`
 	PotentialRights *PotentialRights     `json:"potential_rights,omitempty"`
 	Events          []transactions.Event `json:"events,omitempty"`

@@ -78,6 +78,13 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	err := DecodeJsonLicense(r, &lic)
 	if err != nil { // no or incorrect (json) license found in body
 		// just send partial license
+
+		err = prepareLinks(ExistingLicense, s)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 		w.WriteHeader(http.StatusPartialContent)
 		//delete some sensitive data from license
@@ -103,6 +110,16 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
+
+		if lic.Links == nil {
+			lic.Links = license.DefaultLinksCopy()
+		}
+		err = prepareLinks(lic, s)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+			return
+		}
+
 		ExistingLicense.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
 		ExistingLicense.Encryption.ContentKey.Value = encryptKey(content.EncryptionKey, ExistingLicense.Encryption.UserKey.Value) //use old UserKey.Value
 		ExistingLicense.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
@@ -116,6 +133,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
+
 		w.WriteHeader(http.StatusOK)
 		w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
@@ -360,65 +378,33 @@ func completeLicense(l *license.License, key string, s Server) error {
 
 	license.Prepare(l)
 	l.ContentId = key
-	//verify that mandatory(hint & publication ) links are present in the License
-	if _, present := l.Links["hint"]; !present {
-		hint := new(license.Link)
-		hint.Href, present = config.Config.License.Links["hint"]
-		//hint.Type =
-		if !present {
-			return errors.New("No hint link present in partial license nor config")
-		}
+	links := new([]license.Link)
+
+	//verify that mandatory (hint & publication) links are present in the License
+	if value, present := license.DefaultLinks["hint"]; present {
+		hint := license.Link{Href: value, Rel: "hint"}
+		*links = append(*links, hint)
+	} else {
+		return errors.New("No hint link present in config")
 	}
 
-	if _, present := l.Links["publication"]; !present {
-		publication := new(license.Link)
-		publication.Href, present = config.Config.License.Links["publication"]
-		if !present {
-			return errors.New("No publication link present in partial license nor config")
-		}
-		//publication.Type = ?? , other information about encrypted file (md5 hash ?)
-		l.Links["publication"] = *publication
-	}
-	// replace {publication_id} in template link
-	publicationLink := strings.Replace(l.Links["publication"].Href, "{publication_id}", c.Id, 1)
-	if publicationLink != l.Links["publication"].Href {
-		publication := new(license.Link)
-		publication.Href = publicationLink
-		l.Links["publication"] = *publication
+	if value, present := license.DefaultLinks["publication"]; present {
+		// replace {publication_id} in template link
+		publicationLink := strings.Replace(value, "{publication_id}", c.Id, 1)
+		publication := license.Link{Href: publicationLink, Rel: "publication", Type: epub.ContentType_EPUB, Size: c.Length, Title: c.Location, Checksum: c.Sha256}
+		*links = append(*links, publication)
+	} else {
+		return errors.New("No publication link present in config")
 	}
 
-	// finalize by ensuring type field is correctly set
-	publi := new(license.Link)
-	publi.Href = l.Links["publication"].Href
-	publi.Type = epub.ContentType_EPUB
-	//publi.Templated = false
-	publi.Size = c.Length
-	publi.Checksum = c.Sha256
-	publi.Title = c.Location
+	if value, present := config.Config.License.Links["status"]; present { // add status server to License
+		statusLink := strings.Replace(value, "{license_id}", l.Id, 1)
 
-	l.Links["publication"] = *publi
-
-	if _, present := config.Config.License.Links["status"]; present { // add status server to License
-		status := new(license.Link) //status.Type = ??
-		status.Href = config.Config.License.Links["status"]
-		l.Links["status"] = *status
-	}
-	if _, present := l.Links["status"]; present {
-		statusLink := strings.Replace(l.Links["status"].Href, "{license_id}", l.Id, 1)
-		if statusLink != l.Links["status"].Href {
-			status := new(license.Link)
-			status.Href = statusLink
-			l.Links["status"] = *status
-		}
+		status := license.Link{Href: statusLink, Rel: "status", Type: api.ContentType_LSD_JSON} //status.Type = ??
+		*links = append(*links, status)
 	}
 
-	// finalize by ensuring type field is correctly set
-	statu := new(license.Link)
-	statu.Href = l.Links["status"].Href
-	statu.Type = api.ContentType_LSD_JSON
-	//statu.Templated = false
-	l.Links["status"] = *statu
-
+	l.Links = *links
 	var encryptionKey []byte
 	if len(l.Encryption.UserKey.Value) > 0 {
 		encryptionKey = l.Encryption.UserKey.Value
@@ -621,4 +607,22 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+}
+
+func prepareLinks(license license.License, s Server) error {
+	for i := 0; i < len(license.Links); i++ {
+		if license.Links[i].Rel == "publication" {
+			item, err := s.Index().Get(license.ContentId)
+			if err != nil {
+				return err
+			}
+			license.Links[i].Href = strings.Replace(license.Links[i].Href, "{publication_id}", license.ContentId, 1)
+			license.Links[i].Href = strings.Replace(license.Links[i].Href, "{publication_loc}", item.Location, 1)
+		}
+
+		if license.Links[i].Rel == "status" {
+			license.Links[i].Href = strings.Replace(license.Links[i].Href, "{license_id}", license.Id, 1)
+		}
+	}
+	return nil
 }
