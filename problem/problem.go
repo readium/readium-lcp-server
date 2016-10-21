@@ -33,6 +33,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 
 	"github.com/technoweenie/grohl"
 
@@ -80,6 +81,9 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 		http.Error(w, "{}", problem.Status)
 	}
 	fmt.Fprintln(w, string(jsonError))
+	
+	// TODO: is there a "debug" mode so we can opt-in to activate this additional verbose debug console log? 
+	debug.PrintStack()
 }
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
