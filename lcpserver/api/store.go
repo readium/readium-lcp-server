@@ -105,7 +105,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(result.Id)
 }
 
