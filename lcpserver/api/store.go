@@ -148,9 +148,23 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	// insert row in database if key does not exist
 	c, err = s.Index().Get(contentId)
 	c.EncryptionKey = publication.ContentKey
-	c.Location = *publication.ContentDisposition
-	c.Length = *publication.Size
-	c.Sha256 = *publication.Checksum
+	if publication.ContentDisposition != nil {
+		c.Location = *publication.ContentDisposition
+	} else {
+		c.Location = ""
+	}
+
+	if publication.Size != nil {
+		c.Length = *publication.Size
+	} else {
+		c.Length = -1
+	}
+
+	if publication.Checksum != nil {
+		c.Sha256 = *publication.Checksum
+	} else {
+		c.Sha256 = ""
+	}
 	//todo? check hash & length
 	code := http.StatusCreated
 	if err == index.NotFound { //insert into database
