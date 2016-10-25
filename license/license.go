@@ -1,3 +1,28 @@
+// Copyright (c) 2016 Readium Foundation
+//
+// Redistribution and use in source and binary forms, with or without modification,
+// are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation and/or
+//    other materials provided with the distribution.
+// 3. Neither the name of the organization nor the names of its contributors may be
+//    used to endorse or promote products derived from this software without specific
+//    prior written permission
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+
 package license
 
 import (
@@ -34,6 +59,7 @@ type Encryption struct {
 }
 
 type Link struct {
+	Rel       string `json:"rel"`
 	Href      string `json:"href"`
 	Type      string `json:"type,omitempty"`
 	Title     string `json:"title,omitempty"`
@@ -41,7 +67,7 @@ type Link struct {
 	Templated bool   `json:"templated,omitempty" "default false"`
 	Size      int64  `json:"length,omitempty"`
 	//Digest    []byte `json:"hash,omitempty"`
-	Checksum  string `json:"hash,omitempty"`
+	Checksum string `json:"hash,omitempty"`
 }
 
 type UserInfo struct {
@@ -60,7 +86,7 @@ type UserRights struct {
 
 const DEFAULT_PROFILE = "http://readium.org/lcp/profile-1.0"
 
-var DefaultLinks map[string]Link
+var DefaultLinks map[string]string
 
 type License struct {
 	Provider   string          `json:"provider"`
@@ -68,7 +94,7 @@ type License struct {
 	Issued     time.Time       `json:"issued"`
 	Updated    *time.Time      `json:"updated,omitempty"`
 	Encryption Encryption      `json:"encryption"`
-	Links      map[string]Link `json:"links"`
+	Links      []Link          `json:"links"`
 	User       UserInfo        `json:"user"`
 	Rights     *UserRights     `json:"rights,omitempty"`
 	Signature  *sign.Signature `json:"signature,omitempty"`
@@ -88,31 +114,24 @@ type LicenseReport struct {
 func CreateLinks() {
 	var configLinks map[string]string = config.Config.License.Links
 
-	DefaultLinks = make(map[string]Link)
+	DefaultLinks = make(map[string]string)
 
 	for key := range configLinks {
-		DefaultLinks[key] = Link{Href: configLinks[key]}
+		DefaultLinks[key] = configLinks[key]
 	}
 }
 
-func DefaultLinksCopy () (map[string]Link) {
-	links := make(map[string]Link)
+func DefaultLinksCopy() []Link {
+	links := new([]Link)
 	for key := range DefaultLinks {
-		links[key] = Link{
-			Href: DefaultLinks[key].Href,
-			Type: DefaultLinks[key].Type,
-			Title: DefaultLinks[key].Title,
-			Profile: DefaultLinks[key].Profile,
-			Templated: DefaultLinks[key].Templated,
-			Size: DefaultLinks[key].Size,
-			Checksum: DefaultLinks[key].Checksum,
-		}
+		link := Link{Href: DefaultLinks[key], Rel: key}
+		*links = append(*links, link)
 	}
-	return links
+	return *links
 }
 
 func New() License {
-	l := License{Links: map[string]Link{}}
+	l := License{}
 	Prepare(&l)
 	return l
 }

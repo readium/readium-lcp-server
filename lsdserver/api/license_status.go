@@ -1,3 +1,28 @@
+// Copyright (c) 2016 Readium Foundation
+//
+// Redistribution and use in source and binary forms, with or without modification,
+// are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation and/or
+//    other materials provided with the distribution.
+// 3. Neither the name of the organization nor the names of its contributors may be
+//    used to endorse or promote products derived from this software without specific
+//    prior written permission
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+
 package apilsd
 
 import (
@@ -13,7 +38,6 @@ import (
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/license_statuses"
@@ -663,36 +687,33 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 	registerAvailable := config.Config.LicenseStatus.Register
 	returnAvailable := config.Config.LicenseStatus.Return
 	renewAvailable := config.Config.LicenseStatus.Renew
+	links := new([]licensestatuses.Link)
 
-	ls.Links = make(map[string][]licensestatuses.Link)
-	ls.Links["license"] = make([]licensestatuses.Link, 1)
-	ls.Links["license"][0] = createLink(lcpBaseUrl, ls.LicenseRef, "",
-		api.ContentType_LCP_JSON, false)
+	*links = append(*links, createLink(lcpBaseUrl, "license", ls.LicenseRef, "",
+		api.ContentType_LCP_JSON, false))
 
 	if registerAvailable {
-		ls.Links["register"] = make([]licensestatuses.Link, 1)
-		ls.Links["register"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/register{?id,name}",
-			api.ContentType_LSD_JSON, true)
+		*links = append(*links, createLink(lsdBaseUrl, "register", ls.LicenseRef, "/register{?id,name}",
+			api.ContentType_LSD_JSON, true))
 	}
 
 	if returnAvailable {
-		ls.Links["return"] = make([]licensestatuses.Link, 1)
-		ls.Links["return"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/return{?id,name}",
-			api.ContentType_LCP_JSON, true)
+		*links = append(*links, createLink(lsdBaseUrl, "return", ls.LicenseRef, "/return{?id,name}",
+			api.ContentType_LCP_JSON, true))
 	}
 
 	if renewAvailable {
-		ls.Links["renew"] = make([]licensestatuses.Link, 2)
-		ls.Links["renew"][0] = createLink(lsdBaseUrl, ls.LicenseRef, "/renew", epub.ContentType_HTML, false)
-		ls.Links["renew"][1] = createLink(lsdBaseUrl, ls.LicenseRef, "/renew{?end,id,name}",
-			api.ContentType_LCP_JSON, true)
+		*links = append(*links, createLink(lsdBaseUrl, "renew", ls.LicenseRef, "/renew{?end,id,name}",
+			api.ContentType_LCP_JSON, true))
 	}
+
+	ls.Links = *links
 }
 
 //createLink creates a link and fills it
-func createLink(publicBaseUrl string, licenseRef string, page string,
+func createLink(publicBaseUrl string, rel string, licenseRef string, page string,
 	typeLink string, templated bool) licensestatuses.Link {
-	link := licensestatuses.Link{Href: publicBaseUrl + "/licenses/" + licenseRef + page,
+	link := licensestatuses.Link{Href: publicBaseUrl + "/licenses/" + licenseRef + page, Rel: rel,
 		Type: typeLink, Templated: templated}
 	return link
 }
