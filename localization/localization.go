@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package localization
 
@@ -29,12 +29,12 @@ import (
 	"path"
 
 	"github.com/nicksnyder/go-i18n/i18n"
-	
+
 	"github.com/readium/readium-lcp-server/config"
 )
 
-//InitTranslations loads files with translation according to array in config file
-//need to run in main.go in server
+//InitTranslations loads files with translation according to array in config file.
+//Needs to run in the server main.go.
 //err!=nil  means that one of them can't be opened
 func InitTranslations() error {
 	acceptableLanguages := config.Config.Localization.Languages
@@ -42,13 +42,13 @@ func InitTranslations() error {
 
 	var err error
 	for _, value := range acceptableLanguages {
-		err = i18n.LoadTranslationFile(path.Join(localizationPath, value + ".json"))
+		err = i18n.LoadTranslationFile(path.Join(localizationPath, value+".json"))
 	}
 
 	return err
 }
 
-//LocalizeMessage translates messages
+//LocalizeMessage translates messages.
 //acceptLanguage - Accept-Languages from request header (r.Header.Get("Accept-Language"))
 func LocalizeMessage(acceptLanguage string, message *string, key string) {
 	defaultLanguage := config.Config.Localization.DefaultLanguage
