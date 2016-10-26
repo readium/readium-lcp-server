@@ -107,9 +107,9 @@ func showHelpAndExit() {
 	log.Println("[-contentid]  optional content identifier, if omitted a new one will be generated")
 	log.Println("[-output]     optional target location for protected content (file system or http PUT)")
 	log.Println("[-lcpsv]      optional http endpoint for the License server")
-	log.Println("    [-login]     login ( needed for License server) ")
-	log.Println("    [-password]  password ( needed for License server)")
-	log.Println("[-help] : help information")
+	log.Println("[-login]      login ( needed for License server) ")
+	log.Println("[-password]   password ( needed for License server)")
+	log.Println("[-help] :     help information")
 	os.Exit(0)
 	return
 }
@@ -144,7 +144,7 @@ func main() {
 	var addedPublication apilcp.LcpPublication
 	var inputFilename = flag.String("input", "", "source epub file locator (file system or http GET)")
 	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new one is generated")
-	var outputFilename = flag.String("output", "", "optional target location for protected content (file system or http PUT)")
+	var outputFilename = flag.String("output", "", "optional target location for the encrypted content (file system or http PUT)")
 	var lcpsv = flag.String("lcpsv", "", "optional http endpoint of the License server (adds content)")
 	var username = flag.String("login", "", "login (License server)")
 	var password = flag.String("password", "", "password (License server)")
@@ -175,7 +175,7 @@ func main() {
 	}
 	var basefilename string
 	addedPublication.ContentId = *contentid
-	if *outputFilename == "" { //output not set -> "content-id.epub" in working directory
+	if *outputFilename == "" { //output not set -> "content-id.epub" in the working directory
 		workingDir, _ := os.Getwd()
 		*outputFilename = strings.Join([]string{workingDir, string(os.PathSeparator), *contentid, ".epub"}, "")
 		basefilename = filepath.Base(*inputFilename)

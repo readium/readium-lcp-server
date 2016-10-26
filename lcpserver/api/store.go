@@ -91,7 +91,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 	size, f, err := writeRequestFileToTemp(r.Body)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -101,11 +101,11 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 	result := s.Source().Post(t)
 
 	if result.Error != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: result.Error.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: result.Error.Error()}, http.StatusBadRequest)
 		return
 	}
 
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(result.Id)
 }
 
@@ -127,13 +127,13 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	contentId := vars["key"]
 	if contentId == "" {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "Content ID must be set in url"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "Content ID must be set in url"}, http.StatusBadRequest)
 		return
 	}
 	//read encrypted file from reference
 	file, err := os.Open(publication.Output)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
@@ -141,16 +141,30 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	//var storageItem storage.Item
 	_, err = s.Store().Add(contentId, file)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	var c index.Content
 	// insert row in database if key does not exist
 	c, err = s.Index().Get(contentId)
 	c.EncryptionKey = publication.ContentKey
-	c.Location = *publication.ContentDisposition
-	c.Length = *publication.Size
-	c.Sha256 = *publication.Checksum
+	if publication.ContentDisposition != nil {
+		c.Location = *publication.ContentDisposition
+	} else {
+		c.Location = ""
+	}
+
+	if publication.Size != nil {
+		c.Length = *publication.Size
+	} else {
+		c.Length = -1
+	}
+
+	if publication.Checksum != nil {
+		c.Sha256 = *publication.Checksum
+	} else {
+		c.Sha256 = ""
+	}
 	//todo? check hash & length
 	code := http.StatusCreated
 	if err == index.NotFound { //insert into database
@@ -161,7 +175,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		code = http.StatusOK
 	}
 	if err != nil { //db not updated
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(code)
@@ -182,7 +196,7 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 	enc := json.NewEncoder(w)
 	err := enc.Encode(contents)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -194,25 +208,25 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	content, err := s.Index().Get(contentId)
 	if err != nil { //item probably  not found
 		if err == index.NotFound {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusNotFound)
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		} else {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
 		return
 	}
 	item, err := s.Store().Get(contentId)
 	if err != nil { //item probably  not found
 		if err == storage.NotFound {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusNotFound)
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		} else {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusInternalServerError)
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
 		return
 	}
 	contentReadCloser, err := item.Contents()
 	defer contentReadCloser.Close()
 	if err != nil { //file probably not found
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 

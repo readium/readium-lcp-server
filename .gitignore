@@ -11,3 +11,6 @@ debug
 
 *.htpasswd
 lcpserver/test.sqllite
+.DS_Store
+lcpencrypt/.DS_Store
+lcpserver/.DS_Store
