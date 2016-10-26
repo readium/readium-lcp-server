@@ -51,6 +51,7 @@ import (
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/sign"
+	"github.com/readium/readium-lcp-server/storage"
 )
 
 //{
@@ -107,7 +108,11 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		ExistingLicense.User = lic.User
 		content, err := s.Index().Get(ExistingLicense.ContentId)
 		if err != nil {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+			if err == index.NotFound {
+				problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusNotFound)
+			} else {
+				problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
+			}
 			return
 		}
 
@@ -260,8 +265,13 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	err = completeLicense(&lic, key, s)
 
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		if err == storage.NotFound || err == index.NotFound {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusNotFound)
+		} else {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		}
 		return
+
 	}
 
 	err = s.Licenses().Add(lic)
@@ -289,7 +299,6 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-
 	if key == "" {
 		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "No content id", Instance: key}, http.StatusBadRequest)
 
@@ -298,13 +307,23 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 
 	item, err := s.Store().Get(key)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
-		return
+		if err == storage.NotFound {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusNotFound)
+			return
+
+		} else {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	content, err := s.Index().Get(key)
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		if err == index.NotFound {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusNotFound)
+		} else {
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		}
 		return
 	}
 	var b bytes.Buffer
