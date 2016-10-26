@@ -21,11 +21,11 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package problem
 
-// rfc 7807
+// rfc 7807 : https://tools.ietf.org/html/rfc7807
 // problem.Type should be an URI
 // for example http://readium.org/readium/[lcpserver|lsdserver]/<code>
 // for standard http error messages use "about:blank" status in json equals http status
@@ -45,7 +45,7 @@ const (
 )
 
 type Problem struct {
-	Type string `json:"type"`
+	Type string `json:"type,omitempty"`
 	//optionnal
 	Title    string `json:"title,omitempty"`
 	Status   int    `json:"status,omitempty"` //if present = http response code
@@ -70,7 +70,7 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 	w.WriteHeader(status)
 	problem.Status = status
 
-	if problem.Type == "about:blank" { // lookup Title  statusText should match http status
+	if problem.Type == "about:blank" || problem.Type == "" { // lookup Title  statusText should match http status
 		localization.LocalizeMessage(acceptLanguages, &problem.Title, http.StatusText(status))
 	} else {
 		localization.LocalizeMessage(acceptLanguages, &problem.Title, problem.Title)
@@ -81,29 +81,29 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 		http.Error(w, "{}", problem.Status)
 	}
 	fmt.Fprintln(w, string(jsonError))
-	
-	// TODO: is there a "debug" mode so we can opt-in to activate this additional verbose debug console log? 
+
+	// TODO: is there a "debug" mode so we can opt-in to activate this additional verbose debug console log?
 	debug.PrintStack()
 }
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
 	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path, "status": "404"})
-	Error(w, r, Problem{Type: "about:blank"}, http.StatusNotFound)
+	Error(w, r, Problem{}, http.StatusNotFound)
 }
 
 func PanicReport(err interface{}) {
 	switch t := err.(type) {
-		case error:
-			errorr, found := err.(error)
-			if found { // should always be true
-				grohl.Log(grohl.Data{"panic recovery (error)": errorr.Error()})
-			}
-		case string:
-			errorr, found := err.(string)
-			if found { // should always be true
-				grohl.Log(grohl.Data{"panic recovery (string)": errorr})
-			}
-		default:
-			grohl.Log(grohl.Data{"panic recovery (other type)": t})
+	case error:
+		errorr, found := err.(error)
+		if found { // should always be true
+			grohl.Log(grohl.Data{"panic recovery (error)": errorr.Error()})
+		}
+	case string:
+		errorr, found := err.(string)
+		if found { // should always be true
+			grohl.Log(grohl.Data{"panic recovery (string)": errorr})
+		}
+	default:
+		grohl.Log(grohl.Data{"panic recovery (other type)": t})
 	}
 }
