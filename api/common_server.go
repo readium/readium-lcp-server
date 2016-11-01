@@ -31,7 +31,7 @@ import (
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/urfave/negroni"
-
+	"github.com/jeffbmartinez/delay"
 	"github.com/technoweenie/grohl"
 
 	"github.com/readium/readium-lcp-server/problem"
@@ -64,6 +64,11 @@ func CreateServerRouter(tplPath string) ServerRouter {
 
 	//n := negroni.Classic() == negroni.New(negroni.NewRecovery(), negroni.NewLogger(), negroni.NewStatic(...))
 	n := negroni.New()
+
+	// HTTP client can emit requests with custom header: 
+	//X-Add-Delay: 300ms
+	//X-Add-Delay: 2.5s
+	n.Use(delay.Middleware{})
 
 	// possibly useful middlewares:
 	// https://github.com/jeffbmartinez/delay
