@@ -693,17 +693,17 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 		api.ContentType_LCP_JSON, false))
 
 	if registerAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "register", ls.LicenseRef, "/register{?id,name}",
+		*links = append(*links, createLink(lsdBaseUrl, "register", ls.LicenseRef, "/register{?device_id,device_name}",
 			api.ContentType_LSD_JSON, true))
 	}
 
 	if returnAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "return", ls.LicenseRef, "/return{?id,name}",
+		*links = append(*links, createLink(lsdBaseUrl, "return", ls.LicenseRef, "/return{?device_id,device_name}",
 			api.ContentType_LCP_JSON, true))
 	}
 
 	if renewAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "renew", ls.LicenseRef, "/renew{?end,id,name}",
+		*links = append(*links, createLink(lsdBaseUrl, "renew", ls.LicenseRef, "/renew{?end,device_id,device_name}",
 			api.ContentType_LCP_JSON, true))
 	}
 
