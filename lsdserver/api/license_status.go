@@ -162,7 +162,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 
 	//check mandatory request parameters
 	if (dILen == 0) || (dILen > 255) || (dNLen == 0) || (dNLen > 255) {
-		problem.Error(w, r, problem.Problem{Detail: "device_id and device_name are mandatory and maximum lenght is 255 symbols "}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "device_id and device_name are mandatory and maximum length is 255 symbols "}, http.StatusBadRequest)
 		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusBadRequest))
 		return
 	}
