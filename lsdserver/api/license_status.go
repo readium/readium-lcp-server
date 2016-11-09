@@ -133,7 +133,7 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 	logging.WriteToFile(complianceTestNumber, LICENSE_STATUS, strconv.Itoa(http.StatusOK))
 }
 
-//RegisterDevice register device using device_id & device_name request parameters
+//RegisterDevice register device using device id & device name request parameters
 //& returns updated and filled license status
 func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
@@ -154,15 +154,15 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	deviceId := r.FormValue("device_id")
-	deviceName := r.FormValue("device_name")
+	deviceId := r.FormValue("id")
+	deviceName := r.FormValue("name")
 
 	dILen := len(deviceId)
 	dNLen := len(deviceName)
 
 	//check mandatory request parameters
 	if (dILen == 0) || (dILen > 255) || (dNLen == 0) || (dNLen > 255) {
-		problem.Error(w, r, problem.Problem{Detail: "device_id and device_name are mandatory and maximum length is 255 symbols "}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "device id and device name are mandatory and maximum length is 255 symbols "}, http.StatusBadRequest)
 		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusBadRequest))
 		return
 	}
@@ -254,8 +254,8 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	deviceId := r.FormValue("device_id")
-	deviceName := r.FormValue("device_name")
+	deviceId := r.FormValue("id")
+	deviceName := r.FormValue("name")
 
 	//checks request parameters
 	if (len(deviceName) > 255) || (len(deviceId) > 255) {
@@ -370,8 +370,8 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	deviceId := r.FormValue("device_id")
-	deviceName := r.FormValue("device_name")
+	deviceId := r.FormValue("id")
+	deviceName := r.FormValue("name")
 
 	//check the request parameters
 	if (len(deviceName) > 255) || (len(deviceId) > 255) {
@@ -693,17 +693,17 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 		api.ContentType_LCP_JSON, false))
 
 	if registerAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "register", ls.LicenseRef, "/register{?device_id,device_name}",
+		*links = append(*links, createLink(lsdBaseUrl, "register", ls.LicenseRef, "/register{?id,name}",
 			api.ContentType_LSD_JSON, true))
 	}
 
 	if returnAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "return", ls.LicenseRef, "/return{?device_id,device_name}",
+		*links = append(*links, createLink(lsdBaseUrl, "return", ls.LicenseRef, "/return{?id,name}",
 			api.ContentType_LCP_JSON, true))
 	}
 
 	if renewAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "renew", ls.LicenseRef, "/renew{?end,device_id,device_name}",
+		*links = append(*links, createLink(lsdBaseUrl, "renew", ls.LicenseRef, "/renew{?end,id,name}",
 			api.ContentType_LCP_JSON, true))
 	}
 
