@@ -65,9 +65,13 @@ const FILTER_BAD_REQUEST = ERROR_BASE_URL + "filter"
 
 func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) {
 	acceptLanguages := r.Header.Get("Accept-Language")
+	
 	w.Header().Set("Content-Type", ContentType_PROBLEM_JSON)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	
+	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(status)
+
 	problem.Status = status
 
 	if problem.Type == "about:blank" || problem.Type == "" { // lookup Title  statusText should match http status
