@@ -26,6 +26,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/abbot/go-http-auth"
@@ -112,13 +113,19 @@ func CreateServerRouter(tplPath string) ServerRouter {
 
 func ExtraLogger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 
+	log.Print(" << -------------------")
+
 	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path})
+
+	log.Printf("REQUEST headers: %#v", r.Header)
 
 	// before
 	next(rw, r)
 	// after
 
-	// noop
+	log.Printf("RESPONSE headers: %#v", rw.Header())
+	
+	log.Print(" >> -------------------")
 }
 
 func CORSHeaders(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
