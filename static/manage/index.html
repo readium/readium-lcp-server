@@ -296,7 +296,7 @@ $(function() {
     </script>
 
     <h2>Emit a License</h2>
-    <form id="license-form" method="POST">
+    <form id="license-form" method="POST" target="_blank">
       <input type="hidden" name="data" id="data" />
       <label for="key">Package Identifier:</label><input type="text" id="key" name="key" readonly /><br>
       <label for="passphrase">Passphrase:</label><input type="password" id="passphrase" name="passphrase"/><br>
@@ -305,8 +305,8 @@ $(function() {
 <span>License fragment to send in HTTP request:</span><br>
       <textarea style="width:90%;height:20em;" id="licenseJSON">temp</textarea><br>
 
-      <input type="submit" id="license" value="Generate License" /><br>
-      <input type="submit"  id="publication" value="Generate protected publication" /><br>
+      <input type="submit" id="license" value="Generate License" formtarget="_blank" /><br>
+      <input type="submit"  id="publication" value="Generate protected publication" formtarget="_blank" /><br>
     </form>
   </body>
 </html>
