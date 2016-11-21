@@ -15,6 +15,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/pack"
 )
@@ -157,7 +158,8 @@ func main() {
 		return
 	}
 
-	_, encryptionKey, err := pack.Do(ep, output)
+	encrypter := crypto.NewAESCBCEncrypter()
+	_, encryptionKey, err := pack.Do(encrypter, ep, output)
 	output.Close()
 	if err != nil {
 		addedPublication.ErrorMessage = "Error packing"

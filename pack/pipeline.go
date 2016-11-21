@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/storage"
@@ -57,10 +58,11 @@ func (s *ManualSource) Post(t *Task) Result {
 }
 
 type Packager struct {
-	Incoming chan *Task
-	done     chan struct{}
-	store    storage.Store
-	idx      index.Index
+	Incoming  chan *Task
+	done      chan struct{}
+	store     storage.Store
+	idx       index.Index
+	encrypter crypto.Encrypter
 }
 
 func (p Packager) work() {
@@ -118,7 +120,7 @@ func (p Packager) encrypt(r *Result, ep epub.Epub) (*os.File, []byte) {
 		return nil, nil
 	}
 
-	_, key, err := Do(ep, file)
+	_, key, err := Do(p.encrypter, ep, file)
 	r.Error = err
 
 	file.Seek(0, 0)
@@ -147,10 +149,11 @@ func (p Packager) addToIndex(r *Result, key []byte, name string) {
 
 func NewPackager(store storage.Store, idx index.Index, concurrency int) *Packager {
 	packager := Packager{
-		Incoming: make(chan *Task),
-		done:     make(chan struct{}),
-		store:    store,
-		idx:      idx,
+		Incoming:  make(chan *Task),
+		done:      make(chan struct{}),
+		store:     store,
+		idx:       idx,
+		encrypter: crypto.NewAESCBCEncrypter(),
 	}
 
 	for i := 0; i < concurrency; i++ {

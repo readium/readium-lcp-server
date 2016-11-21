@@ -110,7 +110,7 @@ func GrantLicense(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 func grantLicense(l *license.License, key string, embedded bool, s Server, w io.Writer) error {
-	p, err := s.Index().Get(key)
+	content, err := s.Index().Get(key)
 	if err != nil {
 		return err
 	}
@@ -121,6 +121,8 @@ func grantLicense(l *license.License, key string, embedded bool, s Server, w io.
 	}
 
 	license.Prepare(l)
+
+	encrypter := s.Encrypter()
 
 	var encryptionKey []byte
 	if len(l.Encryption.UserKey.Value) > 0 {
@@ -133,8 +135,8 @@ func grantLicense(l *license.License, key string, embedded bool, s Server, w io.
 		encryptionKey = hash[:]
 	}
 
-	l.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
-	l.Encryption.ContentKey.Value = encryptKey(p.EncryptionKey, encryptionKey[:])
+	l.Encryption.ContentKey.Algorithm = encrypter.Signature()
+	l.Encryption.ContentKey.Value = encryptKey(encrypter, content.EncryptionKey, encryptionKey[:])
 
 	l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 	l.Encryption.UserKey.Hint = "Enter your passphrase"
@@ -143,11 +145,11 @@ func grantLicense(l *license.License, key string, embedded bool, s Server, w io.
 		l.Links["publication"] = license.Link{Href: item.PublicUrl(), Type: "application/epub+zip"}
 	}
 
-	err = encryptFields(l, encryptionKey[:])
+	err = encryptFields(encrypter, l, encryptionKey[:])
 	if err != nil {
 		return err
 	}
-	err = buildKeyCheck(l, encryptionKey[:])
+	err = buildKeyCheck(encrypter, l, encryptionKey[:])
 	if err != nil {
 		return err
 	}
@@ -162,9 +164,9 @@ func grantLicense(l *license.License, key string, embedded bool, s Server, w io.
 	return nil
 }
 
-func buildKeyCheck(l *license.License, key []byte) error {
+func buildKeyCheck(encrypter crypto.Encrypter, l *license.License, key []byte) error {
 	var out bytes.Buffer
-	err := crypto.Encrypt(key, bytes.NewBufferString(l.Id), &out)
+	err := encrypter.Encrypt(key, bytes.NewBufferString(l.Id), &out)
 	if err != nil {
 		return err
 	}
@@ -172,11 +174,11 @@ func buildKeyCheck(l *license.License, key []byte) error {
 	return nil
 }
 
-func encryptFields(l *license.License, key []byte) error {
+func encryptFields(encrypter crypto.Encrypter, l *license.License, key []byte) error {
 	for _, toEncrypt := range l.User.Encrypted {
 		var out bytes.Buffer
 		field := getField(&l.User, toEncrypt)
-		err := crypto.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
+		err := encrypter.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
 		if err != nil {
 			return err
 		}
@@ -204,9 +206,9 @@ func signLicense(l *license.License, cert *tls.Certificate) error {
 	return nil
 }
 
-func encryptKey(key []byte, kek []byte) []byte {
+func encryptKey(encrypter crypto.Encrypter, key []byte, kek []byte) []byte {
 	var out bytes.Buffer
 	in := bytes.NewReader(key)
-	crypto.Encrypt(kek[:], in, &out)
+	encrypter.Encrypt(kek[:], in, &out)
 	return out.Bytes()
 }
