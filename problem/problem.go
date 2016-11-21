@@ -30,6 +30,8 @@ package problem
 // for example http://readium.org/readium/[lcpserver|lsdserver]/<code>
 // for standard http error messages use "about:blank" status in json equals http status
 import (
+	"strings"
+	"log"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -86,8 +88,27 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 	}
 	fmt.Fprintln(w, string(jsonError))
 
-	// TODO: is there a "debug" mode so we can opt-in to activate this additional verbose debug console log?
-	debug.PrintStack()
+	PrintStack()
+
+	log.Print(string(jsonError))
+}
+
+func PrintStack() {
+	log.Print("####################")
+
+	//debug.PrintStack()
+
+	b := debug.Stack()
+	s := string(b[:])
+	l := strings.Index(s, "ServeHTTP")
+	if l > 0 {	
+		ss := s[0:l]
+		log.Print(ss + " [...]")
+	} else {
+		log.Print(s)
+	}
+
+	log.Print("####################")
 }
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) {

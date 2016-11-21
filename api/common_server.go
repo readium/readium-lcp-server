@@ -123,6 +123,11 @@ func ExtraLogger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc)
 	next(rw, r)
 	// after
 
+	contentType := rw.Header().Get("Content-Type");
+	if contentType == problem.ContentType_PROBLEM_JSON {
+		log.Print("^^^^ " + problem.ContentType_PROBLEM_JSON + " ^^^^")
+	}
+
 	log.Printf("RESPONSE headers: %#v", rw.Header())
 	
 	log.Print(" >> -------------------")
