@@ -96,7 +96,10 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		}
 
 		w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
+
+		// must come *after* w.Header().Add()/Set(), but before w.Write()
 		w.WriteHeader(http.StatusPartialContent)
+
 		//delete some sensitive data from license
 		ExistingLicense.Encryption.UserKey.Check = nil
 		ExistingLicense.Encryption.UserKey.Value = nil
@@ -130,9 +133,12 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 		
-		w.WriteHeader(http.StatusOK)
 		w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
+		
+		// must come *after* w.Header().Add()/Set(), but before w.Write()
+		w.WriteHeader(http.StatusOK)
+
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
 		return
@@ -140,7 +146,10 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
+	
+	// TODO: is this StatusNotImplemented error meant to be here? (there is implementation code below!) 
 	problem.Error(w, r, problem.Problem{Type: "about:blank"}, http.StatusNotImplemented)
+	
 	vars := mux.Vars(r)
 	licenceId := vars["key"]
 	// search existing license using key
@@ -195,6 +204,7 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	GetLicense(w, r, s)
 }
 
+// TODO: the UpdateRightsLicense function appears to be unused?
 func UpdateRightsLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	licenceId := vars["key"]
@@ -271,9 +281,12 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusCreated)
+
 	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 	w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
+
+	// must come *after* w.Header().Add()/Set(), but before w.Write()
+	w.WriteHeader(http.StatusCreated)
 
 	enc := json.NewEncoder(w)
 	enc.Encode(lic)
@@ -358,9 +371,13 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 	var buf2 bytes.Buffer
 	buf2.Write(bytes.TrimRight(buf.Bytes(), "\n"))
 	ep.Add(epub.LicenseFile, &buf2, uint64(buf2.Len()))
-	w.WriteHeader(http.StatusCreated)
+	
 	w.Header().Add("Content-Type", epub.ContentType_EPUB)
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, content.Location))
+	
+	// must come *after* w.Header().Add()/Set(), but before w.Write()
+	w.WriteHeader(http.StatusCreated)
+
 	ep.Write(w)
 
 }

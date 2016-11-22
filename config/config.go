@@ -41,6 +41,7 @@ type Configuration struct {
 	LcpServer     ServerInfo    `yaml:"lcp"`
 	LsdServer     ServerInfo    `yaml:"lsd"`
 	LsdNotifyAuth Auth          `yaml:"lsd_notify_auth"`
+	LcpUpdateAuth Auth          `yaml:"lcp_update_auth"`
 	Static        Static        `yaml:"static"`
 	LicenseStatus LicenseStatus `yaml:"license_status"`
 	Localization  Localization  `yaml:"localization"`

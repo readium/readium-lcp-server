@@ -105,7 +105,9 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusCreated)
+
 	json.NewEncoder(w).Encode(result.Id)
 }
 
@@ -178,7 +180,10 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
+
+	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(code)
+
 	return
 	//json.NewEncoder(w).Encode(publication.ContentId)
 

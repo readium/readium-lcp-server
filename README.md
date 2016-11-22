@@ -100,8 +100,8 @@ The License Server and License Status Server will search their configuration fil
 but the path to this file can be changed using the environment variable READIUM_LICENSE_CONFIG.
 The License Server and License Status Server may share the same configuration file (if they are both executed on the same server)
 or they can have their own configucation file. In the first case, the htpasswd file and database may also be shared.
-In the latter case, the License Server will have a "lcp" section and a "lsd_notify_auth" section; the License Status Server will
-have a "lsd" section.     
+In the latter case, the License Server will have a "lcp" section and a "lsd_notify_auth" section;
+the License Status Server will have a "lsd" section and a "lcp_update_auth" section.
 
 "certificate":	parameters related to the signature of the licenses	
 - "cert": the provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature.
@@ -122,6 +122,11 @@ have a "lsd" section.
 
 "lsd_notify_auth": authentication parameters used by the License Server for notifying the License Status Server 
 of a license generation. The notification endpoint is configured in the "lsd" section.
+- "username": mandatory, authentication username
+- "password": mandatory, authentication password
+
+"lcp_update_auth": authentication parameters used by the License Status Server for updating a license via the License Server.
+The notification endpoint is configured in the "lcp" section.
 - "username": mandatory, authentication username
 - "password": mandatory, authentication password
 
