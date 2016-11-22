@@ -763,6 +763,13 @@ func updateLicense(timeEnd time.Time, licenseRef string) {
 			pw.Close()
 		}()
 		req, err := http.NewRequest("PATCH", lcpBaseUrl+"/licenses/"+l.Id, pr)
+		
+		updateAuth := config.Config.LcpUpdateAuth
+
+		if updateAuth.Username != "" {
+			req.SetBasicAuth(updateAuth.Username, updateAuth.Password)
+		}
+
 		req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
 		response, err := lcpClient.Do(req)
 		if err != nil {
