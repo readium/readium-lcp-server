@@ -28,6 +28,8 @@ package crypto
 import (
 	"crypto/aes"
 	"io"
+
+	"github.com/readium/readium-lcp-server/config"
 )
 
 type Encrypter interface {
@@ -38,6 +40,22 @@ type Encrypter interface {
 
 type Decrypter interface {
 	Decrypt(key ContentKey, r io.Reader, w io.Writer) error
+}
+
+func NewAESEncrypter_CONTENT() Encrypter {
+	if config.Config.AES256_CONTENT == "GCM" {
+		return NewAESGCMEncrypter()
+	} else { // default to CBC
+		return NewAESCBCEncrypter()
+	}
+}
+
+func NewAESEncrypter_KEYS() Encrypter {
+	if config.Config.AES256_KEYS == "GCM" {
+		return NewAESGCMEncrypter()
+	} else { // default to CBC
+		return NewAESCBCEncrypter()
+	}
 }
 
 var (

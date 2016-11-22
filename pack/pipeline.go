@@ -96,7 +96,6 @@ type Packager struct {
 	done      chan struct{}
 	store     storage.Store
 	idx       index.Index
-	encrypter crypto.Encrypter
 }
 
 func (p Packager) work() {
@@ -151,7 +150,8 @@ func (p Packager) encrypt(r *Result, ep epub.Epub) (*EncryptedFileInfo, []byte) 
 		r.Error = err
 		return nil, nil
 	}
-	_, key, err := Do(p.encrypter, ep, tmpFile)
+	encrypter := crypto.NewAESEncrypter_CONTENT()
+	_, key, err := Do(encrypter, ep, tmpFile)
 	r.Error = err
 	var encryptedFileInfo EncryptedFileInfo
 	encryptedFileInfo.File = tmpFile
@@ -196,7 +196,6 @@ func NewPackager(store storage.Store, idx index.Index, concurrency int) *Package
 		done:      make(chan struct{}),
 		store:     store,
 		idx:       idx,
-		encrypter: crypto.NewAESCBCEncrypter(),
 	}
 
 	for i := 0; i < concurrency; i++ {

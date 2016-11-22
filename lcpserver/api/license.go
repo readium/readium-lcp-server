@@ -128,7 +128,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 		
-		encrypter := s.Encrypter()
+		encrypter := crypto.NewAESEncrypter_KEYS()
 
 		ExistingLicense.Encryption.ContentKey.Algorithm = encrypter.Signature()
 		ExistingLicense.Encryption.ContentKey.Value = encryptKey(encrypter, content.EncryptionKey, ExistingLicense.Encryption.UserKey.Value) //use old UserKey.Value
@@ -412,8 +412,6 @@ func completeLicense(l *license.License, key string, s Server) error {
 		return err
 	}
 
-	encrypter := s.Encrypter()
-
 	license.Prepare(l)
 	l.ContentId = key
 	links := new([]license.Link)
@@ -453,6 +451,8 @@ func completeLicense(l *license.License, key string, s Server) error {
 		hash := sha256.Sum256([]byte(passphrase))
 		encryptionKey = hash[:]
 	}
+
+	encrypter := crypto.NewAESEncrypter_KEYS()
 
 	l.Encryption.ContentKey.Algorithm = encrypter.Signature()
 	l.Encryption.ContentKey.Value = encryptKey(encrypter, c.EncryptionKey, encryptionKey[:])
