@@ -1,8 +1,12 @@
 <!doctype html>
 <html>
   <head>
-    <script src="//code.jquery.com/jquery-2.0.3.min.js" type="text/javascript"></script>
+    <!-- script   src="https://code.jquery.com/jquery-3.1.1.slim.min.js"   integrity="sha256-/SIrNqv8h6QGKDuNoLGA4iret+kyesCkHGzVUUV0shc="   crossorigin="anonymous"></script -->
+    <script src="jquery-3.1.1.slim.min.js"></script>
+    
     <link href='http://fonts.googleapis.com/css?family=Lato:400,900' rel='stylesheet' type='text/css'>
+
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
 
     <style>
       body {
@@ -45,14 +49,36 @@
         padding-left: 10px;
         cursor: pointer;
       }
-      
-      li .key {
-        color: #555;
-        font-size: 10px;
+      li.epub {
+        border-top: 2px solid gray;
+        border-bottom: 2px solid gray
       }
-
       #key {
         width: 350px;
+        font-size: 9px;
+      }
+      
+      .key {
+        font-size: 9px;
+        color: silver;
+        font-weight: bold;
+      }
+      .size {
+        font-size: 9px;
+        color: red;
+        font-weight: bold;
+      }
+      .sha {
+        font-size: 9px;
+        color: green;
+        font-weight: bold;
+      }
+      .download {
+        color: blue;
+        font-weight: bold;
+      }
+      .licenses {
+        color: blue;
         font-size: 9px;
       }
 
@@ -90,11 +116,18 @@ $('#packages').on('click', 'li', function() {
     $('#key').val($(this).data("key"));
     }); 
 
-$(document).on('submit', '#license-form', function() {
+$(document).on('click', '#license', function() {
     var lic = makeLicense();
-    $(this).attr('action', "/api/packages/" + $('#key').val() + "/licenses");
+    $("#license-form").attr('action', "/contents/" + $('#key').val() + "/licenses");
     $("#data").val(JSON.stringify(lic));
-    });
+});
+
+$(document).on('click', '#publication', function() {
+    var lic = makeLicense();
+    $("#license-form").attr('action', "/contents/" + $('#key').val() + "/publications");
+    $("#data").val(JSON.stringify(lic));
+});
+
 
 $(document).on('dragenter', function (e) {
     $('#dropzone').addClass("dropping")
@@ -117,7 +150,7 @@ function handleFileUpload(files,obj) {
   
   for (var i = 0; i < files.length; i++) {
     $('#dropzone').css('background', '-webkit-linear-gradient(left, #0074D9 0%,#0074D9 0%,transparent 0%)')
-    var uploadURL ="/api/store/" + files[i].name; //Upload URL
+    var uploadURL ="/contents/" + files[i].name; //Upload URL
     var req = new XMLHttpRequest();
     req.upload.onprogress = function(e) {
       if (e.lengthComputable) {
@@ -136,33 +169,35 @@ function handleFileUpload(files,obj) {
 }
 
 function makeLicense() {
-  obj = {
-    "provider": "http://example.com",
-	"links": {
-		"hint":{
-			"href": "http://example.com/hint" 
-			}
-		},
-    "user": {
-      "id": $('#user_id').val()
-    },
-    "encryption": {
-      "user_key": {
-        "clear_value": $('#passphrase').val()
-      }
-    }	
+  var obj = JSON.parse($('#licenseJSON').val());
+  
+  if (!obj.user) {
+    obj.user = {};
   }
+  obj.user.id = $('#user_id').val();
+  obj.user.email = $('#user_email').val();
+  
+  if (!obj.encryption) {
+    obj.encryption = {};
+  }
+  if (!obj.encryption.user_key) {
+    obj.encryption.user_key = {};
+  }
+  obj.encryption.user_key.clear_value = $('#passphrase').val();
+
+  console.debug(JSON.stringify(obj, null, ' '));
 
   return obj;
 }
 
 function emitLicense(key, license) {
   var req = new XMLHttpRequest();
-  req.onload = function(event) {
+  
+    req.onload = function(event) {
     console.log(JSON.parse(this.responseText));
     console.log(this.responseText);
   }
-  req.open("POST", "/api/packages/" + key + "/licenses", true);
+  req.open("GET", "/contents/" + key + "/licenses", true);
   req.send(JSON.stringify(license));
 }
 
@@ -171,28 +206,107 @@ function refreshPackages() {
   req.onload =  function() {
     $('#packages').html('');
     data = JSON.parse(this.response);
+    var idx = 0;
     for(i in data) {
-      $('#packages').append('<li data-key="' + data[i].key + '"><span class="filename">' + data[i].filename +
-                            ' <span class="key">' + data[i].key + '</span</li>')
+      idx++;
+      var epubID = data[i].id;
+      $('#packages').append('<li class="epub" data-key="' + epubID + '" id="epub_' + epubID + '">EPUB '+idx+': <span class="filename">' + data[i].location +
+                            ' <span class="key">' + epubID + '</span> Length: [<span class="size">' + data[i].length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].sha256 + '</span>) <span class="download"><a href="/contents/'+epubID+'">GET</a> (raw)</span> <span class="licenses"><a target="_BLANK" href="/contents/'+epubID+'/licenses">licenses</a></span></li>');
+
+
+  var req_ = new XMLHttpRequest();
+  req_.onload =  function() {
+    
+    data_ = JSON.parse(this.response);
+    var list = "<ul>";
+      var index = 0;
+    for(i_ in data_) {
+      index++;
+      var licID = data_[i_].id;
+      //var jsonStr = JSON.stringify(data_[i_], null, " ");
+      list += '<li id="lic_'+licID+'">LICENSE '+index+': <span>['+data_[i_].user.id+']</span> <span><a target="_BLANK" href="/licenses/'+licID+'">'+licID+'</a></span> </li>';
+
+          var req__ = new XMLHttpRequest();
+          req__.onload =  function() {
+            
+            data__ = JSON.parse(this.response);
+            
+              //var jsonStr = JSON.stringify(data__, null, " ");
+              var links = data__["links"];
+              var statusLink = links["status"];
+              if (!statusLink) {
+                for (var j = 0; j < links.length; j++) {
+                  var link = links[j];
+                  if (link.rel == "status") {
+                    statusLink = link;
+                    break;
+                  }
+                }
+              }
+
+              var href = statusLink["href"];
+              href = href.replace("{license_id}", this.licID)
+              $('#lic_'+this.licID).append(' STATUS: <span><a target="_BLANK" href="'+href+'">'+href+'</a></span>');
+          };
+          req__.open("GET", "/licenses/" + licID);
+          req__.licID = licID;
+          req__.send();
     }
-  }
-  req.open("GET", "/api/packages");
+
+      list += "</ul>";
+      $('#epub_'+this.epubID).append(list);
+  };
+  req_.open("GET", "/contents/" + epubID + "/licenses");
+  req_.epubID = epubID;
+  req_.send();
+
+
+
+
+    }
+
+  var defaultLicenseJSON =
+  '{\n\
+    "provider": "http://edrlab.org",\n\
+    "user": {\n\
+      "id": "THIS VALUE WILL BE AUTOMATICALLY SET",\n\
+      "email": "THIS VALUE WILL BE AUTOMATICALLY SET"\n\
+    },\n\
+    "encryption": {\n\
+      "user_key": {\n\
+        "clear_value": "THIS VALUE WILL BE AUTOMATICALLY SET",\n\
+         "text_hint": "Enter passphrase"\n\
+      }\n\
+    },\n\
+     "rights": {\n\
+        "print": 10,\n\
+        "copy": 2048,\n\
+        "start": "2016-09-01T01:08:15+01:00",\n\
+        "end": "2016-11-25T01:08:15+01:00"\n\
+    }\n\
+  }\n';
+document.getElementById("licenseJSON").value = defaultLicenseJSON;
+  };
+  req.open("GET", "/contents");
   req.send();
 }
 $(function() {
-  refreshPackages()
-    })
+  refreshPackages();
+});
     </script>
 
     <h2>Emit a License</h2>
-    <form id="license-form" method="POST">
+    <form id="license-form" method="POST" target="_blank">
       <input type="hidden" name="data" id="data" />
-      <label for="key">Package Identifier:</label><input type="text" id="key" name="key" readonly /></br>
-      <label for="passphrase">Passphrase:</label><input type="password" id="passphrase" name="passphrase"/></br>
-      <label for="user_id">User identifier:</label><input type="text" id="user_id" name="user_id" /></br>
-      <label><input type="radio" checked name="type" value="external"/>External</label></br>
-      <label><input type="radio" name="type" value="embedded"/>Embedded</label></br>
-      <input type="submit" value="Emit License" /></br>
+      <label for="key">Package Identifier:</label><input type="text" id="key" name="key" readonly /><br>
+      <label for="passphrase">Passphrase:</label><input type="password" id="passphrase" name="passphrase"/><br>
+      <label for="user_id">User identifier:</label><input type="text" id="user_id" name="user_id" /><br>
+      <label for="user_email">User email:</label><input type="text" id="user_email" name="user_email" /><br>
+<span>License fragment to send in HTTP request:</span><br>
+      <textarea style="width:90%;height:20em;" id="licenseJSON">temp</textarea><br>
+
+      <input type="submit" id="license" value="Generate License" formtarget="_blank" /><br>
+      <input type="submit"  id="publication" value="Generate protected publication" formtarget="_blank" /><br>
     </form>
   </body>
 </html>
