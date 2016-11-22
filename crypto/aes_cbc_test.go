@@ -37,7 +37,9 @@ func TestSimpleEncrypt(t *testing.T) {
 	var output bytes.Buffer
 	var key [32]byte //not a safe key to have
 
-	err := Encrypt(key[:], input, &output)
+	cbc := NewAESCBCEncrypter()
+
+	err := cbc.Encrypt(key[:], input, &output)
 
 	if err != nil {
 		t.Log(err)
@@ -56,7 +58,9 @@ func TestConsecutiveEncrypts(t *testing.T) {
 	var output bytes.Buffer
 	var key [32]byte //not a safe key to have
 
-	err := Encrypt(key[:], input, &output)
+	cbc := NewAESCBCEncrypter()
+
+	err := cbc.Encrypt(key[:], input, &output)
 
 	if err != nil {
 		t.Log(err)
@@ -66,7 +70,7 @@ func TestConsecutiveEncrypts(t *testing.T) {
 	input = bytes.NewBufferString("1234")
 	var output2 bytes.Buffer
 
-	err = Encrypt(key[:], input, &output2)
+	err = cbc.Encrypt(key[:], input, &output2)
 
 	if err != nil {
 		t.Log(err)
@@ -81,7 +85,10 @@ func TestConsecutiveEncrypts(t *testing.T) {
 func TestFailingReaderForEncryption(t *testing.T) {
 	var output bytes.Buffer
 	var key [32]byte //not a safe key to have
-	err := Encrypt(key[:], failingReader{}, &output)
+
+	cbc := NewAESCBCEncrypter()
+
+	err := cbc.Encrypt(key[:], failingReader{}, &output)
 
 	if err == nil {
 		t.Error("expected an error from the reader")
@@ -93,12 +100,14 @@ func TestDecrypt(t *testing.T) {
 	key := sha256.Sum256([]byte("password"))
 	var cipher bytes.Buffer
 
-	err := Encrypt(key[:], clear, &cipher)
+	cbc := &cbcEncrypter{}
+	err := cbc.Encrypt(key[:], clear, &cipher)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	var res bytes.Buffer
-	err = Decrypt(key[:], &cipher, &res)
+	err = cbc.Decrypt(key[:], &cipher, &res)
 	if err != nil {
 		t.Fatal(err)
 	}

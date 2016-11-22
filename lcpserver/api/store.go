@@ -35,6 +35,8 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
+
+	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
@@ -50,6 +52,7 @@ type Server interface {
 	Licenses() license.Store
 	Certificate() *tls.Certificate
 	Source() *pack.ManualSource
+	Encrypter() crypto.Encrypter
 }
 
 // struct for communication with lcp-server

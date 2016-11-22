@@ -60,7 +60,8 @@ func TestPacking(t *testing.T) {
 	inputRes.Contents = bytes.NewReader(inputBytes)
 
 	buf := new(bytes.Buffer)
-	encryption, key, err := Do(input, buf)
+	encrypter := crypto.NewAESCBCEncrypter()
+	encryption, key, err := Do(encrypter, input, buf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,13 +118,16 @@ func TestPacking(t *testing.T) {
 		}
 
 		var buf bytes.Buffer
-		crypto.Decrypt(key, res.Contents, &buf)
-		if outputBytes, err := ioutil.ReadAll(flate.NewReader(&buf)); err != nil {
-			t.Fatalf("Could not decompress data from %s", htmlFilePath)
+		if decrypter, ok := encrypter.(crypto.Decrypter); !ok {
+			t.Errorf("Could not decrypt file")
 		} else {
-
-			if !bytes.Equal(inputBytes, outputBytes) {
-				t.Errorf("Expected the files to be equal before and after")
+			decrypter.Decrypt(key, res.Contents, &buf)
+			if outputBytes, err := ioutil.ReadAll(flate.NewReader(&buf)); err != nil {
+				t.Fatalf("Could not decompress data from %s", htmlFilePath)
+			} else {
+				if !bytes.Equal(inputBytes, outputBytes) {
+					t.Errorf("Expected the files to be equal before and after")
+				}
 			}
 		}
 	}

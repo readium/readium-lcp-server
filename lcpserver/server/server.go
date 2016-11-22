@@ -33,6 +33,7 @@ import (
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	
+	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
@@ -69,6 +70,10 @@ func (s *Server) Certificate() *tls.Certificate {
 
 func (s *Server) Source() *pack.ManualSource {
 	return &s.source
+}
+
+func (s *Server) Encrypter() crypto.Encrypter {
+	return crypto.NewAESCBCEncrypter()
 }
 
 func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager, basicAuth *auth.BasicAuth) *Server {
