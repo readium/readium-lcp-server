@@ -156,9 +156,6 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	
-	// TODO: is this StatusNotImplemented error meant to be here? (there is implementation code below!) 
-	problem.Error(w, r, problem.Problem{Type: "about:blank"}, http.StatusNotImplemented)
-	
 	vars := mux.Vars(r)
 	licenceId := vars["key"]
 	// search existing license using key
