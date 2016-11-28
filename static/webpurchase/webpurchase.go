@@ -26,10 +26,14 @@
 package webpurchase
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"net/http"
 	"time"
 
+	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/static/webuser"
 )
 
@@ -41,14 +45,30 @@ type WebPurchase interface {
 	Update(p Purchase) error
 }
 
-//User struct defines a user in json and database
+//Purchase struct defines a user in json and database
 type Purchase struct {
 	User            webuser.User `json:"user"`
-	PurchaseID      int          `json:"purchaseID"`
+	PurchaseID      int64        `json:"purchaseID"`
 	Resource        string       `json:"resource"`
 	Label           string       `json:"label"`
 	TransactionDate time.Time    `json:"transactionDate"`
 	PartialLicense  string       `json:"partialLicense"`
+}
+
+//DecodeJSONPurchase transforms a json string to a Purchase struct
+func DecodeJSONPurchase(r *http.Request, purchase *Purchase) error {
+	var dec *json.Decoder
+
+	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_JSON {
+		buf := bytes.NewBufferString(r.PostFormValue("data"))
+		dec = json.NewDecoder(buf)
+	} else {
+		dec = json.NewDecoder(r.Body)
+	}
+
+	err := dec.Decode(&purchase)
+
+	return err
 }
 
 type dbPurchase struct {
@@ -72,8 +92,8 @@ func (purchase dbPurchase) Get(id int64) (Purchase, error) {
 	return Purchase{}, ErrNotFound
 }
 
-func (user dbPurchase) Add(p Purchase) error {
-	add, err := user.db.Prepare("INSERT INTO purchase ( purchase_id, user_id, resource, label, transaction_date, partialLicense) VALUES (?, ?, ?, ?, ?, ?)")
+func (purchase dbPurchase) Add(p Purchase) error {
+	add, err := purchase.db.Prepare("INSERT INTO purchase ( purchase_id, user_id, resource, label, transaction_date, partialLicense) VALUES (?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
@@ -82,8 +102,8 @@ func (user dbPurchase) Add(p Purchase) error {
 	return err
 }
 
-func (user dbPurchase) Update(changedPurchase Purchase) error {
-	add, err := user.db.Prepare("UPDATE purchase SET user_id=?, resource=?, label=?, transaction_date=?, partialLicense=? WHERE purchase_id=?")
+func (purchase dbPurchase) Update(changedPurchase Purchase) error {
+	add, err := purchase.db.Prepare("UPDATE purchase SET user_id=?, resource=?, label=?, transaction_date=?, partialLicense=? WHERE purchase_id=?")
 	if err != nil {
 		return err
 	}

@@ -26,55 +26,30 @@
 package staticapi
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/problem"
+	"github.com/readium/readium-lcp-server/static/webpurchase"
 	"github.com/readium/readium-lcp-server/static/webuser"
 )
 
-//GetUserByEmail searches a client by his email
-func GetUserByEmail(w http.ResponseWriter, r *http.Request, s IServer) {
+/*TODO searches purchases for a client
+func GetPurchasesForUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
-	var email string
-	email = vars["email"]
-	if user, err := s.UserAPI().GetByEmail(email); err == nil {
-		enc := json.NewEncoder(w)
-		if err = enc.Encode(user); err == nil {
-			// send json of correctly encoded user info
-			w.Header().Set("Content-Type", api.ContentType_JSON)
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-	} else {
-		switch err {
-		case webuser.ErrNotFound:
-			{
-				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
-			}
-		default:
-			{
-				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-			}
-		}
-	}
-	return
 }
+*/
 
-//CreateUser creates a user in the database
-func CreateUser(w http.ResponseWriter, r *http.Request, s IServer) {
-	var user webuser.User
-
-	if err := webuser.DecodeJSONUser(r, &user); err != nil {
+//CreatePurchase creates a purchase in the database
+func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
+	var purchase webpurchase.Purchase
+	if err := webpurchase.DecodeJSONPurchase(r, &purchase); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-	//user ok
-	if err := s.UserAPI().Add(user); err != nil {
+	//purchase in PUT  data  ok
+	if err := s.PurchaseAPI().Add(purchase); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
@@ -82,39 +57,36 @@ func CreateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-//UpdateUser updates an identified user (id) in the database
-func UpdateUser(w http.ResponseWriter, r *http.Request, s IServer) {
-	var user webuser.User
+//UpdatePurchase updates a purchase in the database
+func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
+	var purchase webpurchase.Purchase
 	vars := mux.Vars(r)
 	var id int
 	var err error
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
-		problem.Error(w, r, problem.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
 	}
 	//ID is a number, check user (json)
-	if err := webuser.DecodeJSONUser(r, &user); err != nil {
+	if err := webpurchase.DecodeJSONPurchase(r, &purchase); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 	}
-	// user ok, id is a number, search user to update
-	if _, err := s.UserAPI().Get(int64(id)); err == nil {
-		// client is found!
-		if err := s.UserAPI().Update(webuser.User{UserID: int64(id), Alias: user.Alias, Email: user.Email, Password: user.Password}); err != nil {
+	// user ok, id is a number, search purchase to update
+	if _, err := s.PurchaseAPI().Get(int64(id)); err == nil {
+		// purchase found!
+
+		if err := s.PurchaseAPI().Update(webpurchase.Purchase{PurchaseID: int64(id), User: webuser.User{UserID: purchase.User.UserID}, Resource: purchase.Resource, TransactionDate: purchase.TransactionDate, PartialLicense: purchase.PartialLicense}); err != nil {
 			//update failed!
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
-
 		w.WriteHeader(http.StatusOK)
-		return
+		//return
+	} else {
+		switch err {
+		case webpurchase.ErrNotFound:
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+		default:
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		}
 	}
-
-	if err := webuser.DecodeJSONUser(r, &user); err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-	}
-	//user ok
-	if err := s.UserAPI().Add(user); err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-	}
-	// user added to db
-	w.WriteHeader(http.StatusCreated)
 }

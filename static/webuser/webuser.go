@@ -48,13 +48,14 @@ type WebUser interface {
 
 //User struct defines a user
 type User struct {
-	UserID   int    `json:"userID"`
-	Alias    int    `json:"alias"`
+	UserID   int64  `json:"userID"`
+	Alias    string `json:"alias"`
 	Email    string `json:"email"`
 	Password string `json:"-"`
 }
 
-func DecodeJsonUser(r *http.Request, user *User) error {
+//DecodeJSONUser transforms a json string to a User struct
+func DecodeJSONUser(r *http.Request, user *User) error {
 	var dec *json.Decoder
 
 	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_JSON {
