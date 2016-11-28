@@ -1,0 +1,10 @@
+// Placez vos paramètres dans ce fichier pour remplacer les paramètres par défaut et les paramètres utilisateur.
+{
+     //go
+     "go.useCodeSnippetsOnFunctionSuggest": true,
+      // Specifies the GOPATH to use when no environment variable is set.
+     "go.gopath": "C:\\Users\\snemegeer\\Documents\\GitHub",
+
+     // Specifies the GOROOT to use when no environment variable is set.
+     "go.goroot": "c:\\go"
+}
