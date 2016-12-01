@@ -3,6 +3,7 @@
   <head>
     <!-- script   src="https://code.jquery.com/jquery-3.1.1.slim.min.js"   integrity="sha256-/SIrNqv8h6QGKDuNoLGA4iret+kyesCkHGzVUUV0shc="   crossorigin="anonymous"></script -->
     <script src="jquery-3.1.1.slim.min.js"></script>
+    <script src="config.js"></script>
     
     <link href='http://fonts.googleapis.com/css?family=Lato:400,900' rel='stylesheet' type='text/css'>
 
@@ -73,7 +74,7 @@ function handleFileUpload(files,obj) {
   
   for (var i = 0; i < files.length; i++) {
     $('#dropzone').css('background', '-webkit-linear-gradient(left, #0074D9 0%,#0074D9 0%,transparent 0%)')
-    var uploadURL ="/contents/" + files[i].name; //Upload URL
+    var uploadURL =  Config.lcp.url + "/contents/" + files[i].name; //Upload URL
     var req = new XMLHttpRequest();
     req.upload.onprogress = function(e) {
       if (e.lengthComputable) {
@@ -120,7 +121,7 @@ function emitLicense(key, license) {
     console.log(JSON.parse(this.responseText));
     console.log(this.responseText);
   }
-  req.open("GET", "/contents/" + key + "/licenses", true);
+  req.open("GET", Config.lcp.url + "/contents/" + key + "/licenses", true);
   req.send(JSON.stringify(license));
 }
 
@@ -171,7 +172,7 @@ function refreshPackages() {
               href = href.replace("{license_id}", this.licID)
               $('#lic_'+this.licID).append(' STATUS: <span><a target="_BLANK" href="'+href+'">'+href+'</a></span>');
           };
-          req__.open("GET", "/licenses/" + licID);
+          req__.open("GET", Config.lcp.url+"/licenses/" + licID);
           req__.licID = licID;
           req__.send();
     }
@@ -179,7 +180,7 @@ function refreshPackages() {
       list += "</ul>";
       $('#epub_'+this.epubID).append(list);
   };
-  req_.open("GET", "/contents/" + epubID + "/licenses");
+  req_.open("GET",  Config.lcp.url+ "/contents/" + epubID + "/licenses");
   req_.epubID = epubID;
   req_.send();
 
@@ -210,7 +211,7 @@ function refreshPackages() {
   }\n';
 document.getElementById("licenseJSON").value = defaultLicenseJSON;
   };
-  req.open("GET", "/contents");
+  req.open("GET",  Config.lcp.url + "/contents");
   req.send();
 }
 $(function() {

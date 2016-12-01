@@ -97,24 +97,22 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 	}
 	// user ok, id is a number, search user to update
-	if _, err := s.UserAPI().Get(int64(id)); err == nil {
+	if _, err := s.UserAPI().Get(int64(id)); err != nil {
+		switch err {
+		case webuser.ErrNotFound:
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+		default:
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		}
+	} else {
 		// client is found!
 		if err := s.UserAPI().Update(webuser.User{UserID: int64(id), Alias: user.Alias, Email: user.Email, Password: user.Password}); err != nil {
 			//update failed!
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
-
+		//database update ok
 		w.WriteHeader(http.StatusOK)
-		return
+		//return
 	}
 
-	if err := webuser.DecodeJSONUser(r, &user); err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-	}
-	//user ok
-	if err := s.UserAPI().Add(user); err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-	}
-	// user added to db
-	w.WriteHeader(http.StatusCreated)
 }

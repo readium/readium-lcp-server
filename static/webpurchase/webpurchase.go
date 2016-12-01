@@ -37,8 +37,10 @@ import (
 	"github.com/readium/readium-lcp-server/static/webuser"
 )
 
-var ErrNotFound = errors.New("User not found")
+//ErrNotFound Error is trown when a purchase is not found
+var ErrNotFound = errors.New("Purchase not found")
 
+//WebPurchase defines possible interactions with DB
 type WebPurchase interface {
 	Get(id int64) (Purchase, error)
 	Add(p Purchase) error
@@ -114,22 +116,22 @@ func (purchase dbPurchase) Update(changedPurchase Purchase) error {
 
 func Open(db *sql.DB) (i WebPurchase, err error) {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS purchase (
-	purchase_id varchar(255) PRIMARY KEY, 
-	user_id int NOT NULL, 
+	purchase_id integer NOT NULL, 
+	user_id integer NOT NULL, 
 	resource varchar(64) NOT NULL, 
 	label varchar(64) NOT NULL, 
     transaction_date datetime,
-    partialLicense varchar(8192)
-	constraint pk_purchase  primary key(id),
-    constraint fk_purchase_user foreign key (user_id) references user(id)
+    partialLicense varchar(8192),
+	constraint pk_purchase  primary key(purchase_id),
+    constraint fk_purchase_user foreign key (user_id) references user(user_id)
 	)`)
 	if err != nil {
+
 		return
 	}
-	get, err := db.Prepare(`SELECT 
-      purchase_id, resource, label, transaction_date, user_id, alias, email, password 
+	get, err := db.Prepare(`SELECT purchase_id, resource, label, transaction_date, p.user_id, alias, email, password 
     FROM purchase p 
-    inner join user u on (p.user_id=u.id) 
+    inner join user u on (p.user_id=u.user_id) 
     WHERE purchase_id = ? LIMIT 1`)
 	if err != nil {
 		return

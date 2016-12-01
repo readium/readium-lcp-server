@@ -125,7 +125,7 @@ func (user dbUser) Update(changedUser User) error {
 //Open  returns a WebUser interface (db interaction)
 func Open(db *sql.DB) (i WebUser, err error) {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS user (
-	user_id integer PRIMARY KEY, 
+	user_id integer NOT NULL, 
 	alias varchar(64) NOT NULL, 
 	email varchar(64) NOT NULL, 
 	password varchar(64) NOT NULL, 
