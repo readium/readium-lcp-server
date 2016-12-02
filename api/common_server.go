@@ -34,6 +34,7 @@ import (
 	"github.com/urfave/negroni"
 	"github.com/jeffbmartinez/delay"
 	"github.com/technoweenie/grohl"
+	"github.com/rs/cors"
 
 	"github.com/readium/readium-lcp-server/problem"
 )
@@ -94,12 +95,13 @@ func CreateServerRouter(tplPath string) ServerRouter {
 	// Does not insert CORS headers as intended, depends on Origin check in the HTTP request...we want the same headers, always.
 	// IMPORT "github.com/rs/cors"
 	// //https://github.com/rs/cors#parameters
-	// c := cors.New(cors.Options{
-	// 	AllowedOrigins: []string{"*"},
-	// 	AllowedMethods: []string{"POST", "GET", "OPTIONS", "PUT", "DELETE"},
-	// 	Debug: true,
-	// })
-	// n.Use(c)
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"PATCH", "HEAD", "POST", "GET", "OPTIONS", "PUT", "DELETE"},
+		AllowedHeaders: []string{"Range", "Content-Type", "Origin", "X-Requested-With", "Accept", "Accept-Language", "Content-Language", "Authorization"},
+		Debug: true,
+	})
+	n.Use(c)
 
 	n.UseHandler(r)
 
@@ -136,8 +138,10 @@ func ExtraLogger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc)
 func CORSHeaders(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 
 	grohl.Log(grohl.Data{"CORS": "yes"})
-	rw.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	rw.Header().Add("Access-Control-Allow-Methods", "PATCH, HEAD, POST, GET, OPTIONS, PUT, DELETE")
+	rw.Header().Add("Access-Control-Allow-Credentials", "true")
 	rw.Header().Add("Access-Control-Allow-Origin", "*")
+	rw.Header().Add("Access-Control-Allow-Headers", "Range, Content-Type, Origin, X-Requested-With, Accept, Accept-Language, Content-Language, Authorization")
 
 	// before
 	next(rw, r)
