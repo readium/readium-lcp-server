@@ -42,13 +42,13 @@ $('#packages').on('click', 'li', function() {
 
 $(document).on('click', '#license', function() {
     var lic = makeLicense();
-    $("#license-form").attr('action', "/contents/" + $('#key').val() + "/licenses");
+    $("#license-form").attr('action', Config.lcp.url + "/contents/" + $('#key').val() + "/licenses");
     $("#data").val(JSON.stringify(lic));
 });
 
 $(document).on('click', '#publication', function() {
     var lic = makeLicense();
-    $("#license-form").attr('action', "/contents/" + $('#key').val() + "/publications");
+    $("#license-form").attr('action', Config.lcp.url + "/contents/" + $('#key').val() + "/publications");
     $("#data").val(JSON.stringify(lic));
 });
 
@@ -87,6 +87,7 @@ function handleFileUpload(files,obj) {
       refreshPackages();
     }
     req.open("POST", uploadURL, true);
+    req.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
     req.send(files[i]);
     
   }
@@ -122,6 +123,7 @@ function emitLicense(key, license) {
     console.log(this.responseText);
   }
   req.open("GET", Config.lcp.url + "/contents/" + key + "/licenses", true);
+  req.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
   req.send(JSON.stringify(license));
 }
 
@@ -135,7 +137,7 @@ function refreshPackages() {
       idx++;
       var epubID = data[i].id;
       $('#packages').append('<li class="epub" data-key="' + epubID + '" id="epub_' + epubID + '">EPUB '+idx+': <span class="filename">' + data[i].location +
-                            ' <span class="key">' + epubID + '</span> Length: [<span class="size">' + data[i].length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].sha256 + '</span>) <span class="download"><a href="/contents/'+epubID+'">GET</a> (raw)</span> <span class="licenses"><a target="_BLANK" href="/contents/'+epubID+'/licenses">licenses</a></span></li>');
+                            ' <span class="key">' + epubID + '</span> Length: [<span class="size">' + data[i].length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].sha256 + '</span>) <span class="download"><a href="' + Config.lcp.url + '/contents/'+epubID+'">GET</a> (raw)</span> <span class="licenses"><a target="_BLANK" href="'+ Config.lcp.url + '/contents/'+epubID+'/licenses">licenses</a></span></li>');
 
 
   var req_ = new XMLHttpRequest();
@@ -148,7 +150,7 @@ function refreshPackages() {
       index++;
       var licID = data_[i_].id;
       //var jsonStr = JSON.stringify(data_[i_], null, " ");
-      list += '<li id="lic_'+licID+'">LICENSE '+index+': <span>['+data_[i_].user.id+']</span> <span><a target="_BLANK" href="/licenses/'+licID+'">'+licID+'</a></span> </li>';
+      list += '<li id="lic_'+licID+'">LICENSE '+index+': <span>['+data_[i_].user.id+']</span> <span><a target="_BLANK" href="'+ Config.lcp.url + '/licenses/'+licID+'">'+licID+'</a></span> </li>';
 
           var req__ = new XMLHttpRequest();
           req__.onload =  function() {
@@ -173,6 +175,7 @@ function refreshPackages() {
               $('#lic_'+this.licID).append(' STATUS: <span><a target="_BLANK" href="'+href+'">'+href+'</a></span>');
           };
           req__.open("GET", Config.lcp.url+"/licenses/" + licID);
+          req__.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
           req__.licID = licID;
           req__.send();
     }
@@ -181,6 +184,7 @@ function refreshPackages() {
       $('#epub_'+this.epubID).append(list);
   };
   req_.open("GET",  Config.lcp.url+ "/contents/" + epubID + "/licenses");
+  req_.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
   req_.epubID = epubID;
   req_.send();
 
@@ -206,12 +210,13 @@ function refreshPackages() {
         "print": 10,\n\
         "copy": 2048,\n\
         "start": "2016-09-01T01:08:15+01:00",\n\
-        "end": "2016-11-25T01:08:15+01:00"\n\
+        "end": "2017-11-25T01:08:15+01:00"\n\
     }\n\
   }\n';
 document.getElementById("licenseJSON").value = defaultLicenseJSON;
   };
   req.open("GET",  Config.lcp.url + "/contents");
+  req.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
   req.send();
 }
 $(function() {
