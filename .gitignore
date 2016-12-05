@@ -8,9 +8,11 @@ config.yaml
 debug
 *.exe
 *.yaml
+static/manage/node_modules/*
 
 *.htpasswd
 lcpserver/test.sqllite
 .DS_Store
+.vscode
 lcpencrypt/.DS_Store
 lcpserver/.DS_Store

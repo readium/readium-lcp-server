@@ -1,241 +1,25 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
-    <!-- script   src="https://code.jquery.com/jquery-3.1.1.slim.min.js"   integrity="sha256-/SIrNqv8h6QGKDuNoLGA4iret+kyesCkHGzVUUV0shc="   crossorigin="anonymous"></script -->
-    <script src="jquery-3.1.1.slim.min.js"></script>
-    <script src="config.js"></script>
-    
-    <link href='http://fonts.googleapis.com/css?family=Lato:400,900' rel='stylesheet' type='text/css'>
+    <title>testing LCP / LSD server</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="style.css">
 
-    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="stylesheet" type="text/css" href="style.css" />
-    
-  </head>
-  <body>
-    <h1>LCPServer test Admin</h1>
-    <div id="dropzone">&nbsp;</div>
-    <h2>Packages</h2>
-    <ul id="packages"></ul>
-    <script language="javascript" type="text/javascript">
-      var obj = $("#dropzone");
-      obj.on('dragenter', function (e) {
-          console.log(this);
-          $(this).addClass("dropping")
-          e.stopPropagation();
-          e.preventDefault();
-      });
-      obj.on('dragover', function (e) {
-          e.stopPropagation();
-          e.preventDefault();
-          });
-    obj.on('drop', function (e) {
-        $(this).removeClass("dropping")
-        e.preventDefault();
-        var files = e.originalEvent.dataTransfer.files;
-        //We need to send dropped files to Server
-        handleFileUpload(files,obj);
-    });
+    <!-- Polyfill(s) for older browsers -->
+    <script src="node_modules/core-js/client/shim.min.js"></script>
 
-$('#packages').on('click', 'li', function() {
-    $('#key').val($(this).data("key"));
-    }); 
+    <script src="node_modules/zone.js/dist/zone.js"></script>
+    <script src="node_modules/reflect-metadata/Reflect.js"></script>
+    <script src="node_modules/systemjs/dist/system.src.js"></script>
 
-$(document).on('click', '#license', function() {
-    var lic = makeLicense();
-    $("#license-form").attr('action', Config.lcp.url + "/contents/" + $('#key').val() + "/licenses");
-    $("#data").val(JSON.stringify(lic));
-});
-
-$(document).on('click', '#publication', function() {
-    var lic = makeLicense();
-    $("#license-form").attr('action', Config.lcp.url + "/contents/" + $('#key').val() + "/publications");
-    $("#data").val(JSON.stringify(lic));
-});
-
-
-$(document).on('dragenter', function (e) {
-    $('#dropzone').addClass("dropping")
-    e.stopPropagation();
-    e.preventDefault();
-    });
-$(document).on('dragover', function (e) {
-    e.stopPropagation();
-    e.preventDefault();
-    });
-$(document).on('drop', function (e) {
-    $(this).removeClass("dropping")
-    e.preventDefault();
-    var files = e.originalEvent.dataTransfer.files;
-    handleFileUpload(files,obj);
-    });
-
-
-function handleFileUpload(files,obj) {
-  
-  for (var i = 0; i < files.length; i++) {
-    $('#dropzone').css('background', '-webkit-linear-gradient(left, #0074D9 0%,#0074D9 0%,transparent 0%)')
-    var uploadURL =  Config.lcp.url + "/contents/" + files[i].name; //Upload URL
-    var req = new XMLHttpRequest();
-    req.upload.onprogress = function(e) {
-      if (e.lengthComputable) {
-        var prog = Math.ceil((e.loaded / e.total) * 100);
-        $('#dropzone').css('background', '-webkit-linear-gradient(left, #0074D9 ' + prog + '%,#0074D9 ' + prog + '%,transparent 0%)');
-      }
-    }
-    req.onload = function(event) {
-      $('#dropzone').css('background', 'transparent');
-      refreshPackages();
-    }
-    req.open("POST", uploadURL, true);
-    req.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
-    req.send(files[i]);
-    
-  }
-}
-
-function makeLicense() {
-  var obj = JSON.parse($('#licenseJSON').val());
-  
-  if (!obj.user) {
-    obj.user = {};
-  }
-  obj.user.id = $('#user_id').val();
-  obj.user.email = $('#user_email').val();
-  
-  if (!obj.encryption) {
-    obj.encryption = {};
-  }
-  if (!obj.encryption.user_key) {
-    obj.encryption.user_key = {};
-  }
-  obj.encryption.user_key.clear_value = $('#passphrase').val();
-
-  console.debug(JSON.stringify(obj, null, ' '));
-
-  return obj;
-}
-
-function emitLicense(key, license) {
-  var req = new XMLHttpRequest();
-  
-    req.onload = function(event) {
-    console.log(JSON.parse(this.responseText));
-    console.log(this.responseText);
-  }
-  req.open("GET", Config.lcp.url + "/contents/" + key + "/licenses", true);
-  req.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
-  req.send(JSON.stringify(license));
-}
-
-function refreshPackages() {
-  var req = new XMLHttpRequest();
-  req.onload =  function() {
-    $('#packages').html('');
-    data = JSON.parse(this.response);
-    var idx = 0;
-    for(i in data) {
-      idx++;
-      var epubID = data[i].id;
-      $('#packages').append('<li class="epub" data-key="' + epubID + '" id="epub_' + epubID + '">EPUB '+idx+': <span class="filename">' + data[i].location +
-                            ' <span class="key">' + epubID + '</span> Length: [<span class="size">' + data[i].length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].sha256 + '</span>) <span class="download"><a href="' + Config.lcp.url + '/contents/'+epubID+'">GET</a> (raw)</span> <span class="licenses"><a target="_BLANK" href="'+ Config.lcp.url + '/contents/'+epubID+'/licenses">licenses</a></span></li>');
-
-
-  var req_ = new XMLHttpRequest();
-  req_.onload =  function() {
-    
-    data_ = JSON.parse(this.response);
-    var list = "<ul>";
-      var index = 0;
-    for(i_ in data_) {
-      index++;
-      var licID = data_[i_].id;
-      //var jsonStr = JSON.stringify(data_[i_], null, " ");
-      list += '<li id="lic_'+licID+'">LICENSE '+index+': <span>['+data_[i_].user.id+']</span> <span><a target="_BLANK" href="'+ Config.lcp.url + '/licenses/'+licID+'">'+licID+'</a></span> </li>';
-
-          var req__ = new XMLHttpRequest();
-          req__.onload =  function() {
-            
-            data__ = JSON.parse(this.response);
-            
-              //var jsonStr = JSON.stringify(data__, null, " ");
-              var links = data__["links"];
-              var statusLink = links["status"];
-              if (!statusLink) {
-                for (var j = 0; j < links.length; j++) {
-                  var link = links[j];
-                  if (link.rel == "status") {
-                    statusLink = link;
-                    break;
-                  }
-                }
-              }
-
-              var href = statusLink["href"];
-              href = href.replace("{license_id}", this.licID)
-              $('#lic_'+this.licID).append(' STATUS: <span><a target="_BLANK" href="'+href+'">'+href+'</a></span>');
-          };
-          req__.open("GET", Config.lcp.url+"/licenses/" + licID);
-          req__.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
-          req__.licID = licID;
-          req__.send();
-    }
-
-      list += "</ul>";
-      $('#epub_'+this.epubID).append(list);
-  };
-  req_.open("GET",  Config.lcp.url+ "/contents/" + epubID + "/licenses");
-  req_.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
-  req_.epubID = epubID;
-  req_.send();
-
-
-
-
-    }
-
-  var defaultLicenseJSON =
-  '{\n\
-    "provider": "http://edrlab.org",\n\
-    "user": {\n\
-      "id": "THIS VALUE WILL BE AUTOMATICALLY SET",\n\
-      "email": "THIS VALUE WILL BE AUTOMATICALLY SET"\n\
-    },\n\
-    "encryption": {\n\
-      "user_key": {\n\
-        "clear_value": "THIS VALUE WILL BE AUTOMATICALLY SET",\n\
-         "text_hint": "Enter passphrase"\n\
-      }\n\
-    },\n\
-     "rights": {\n\
-        "print": 10,\n\
-        "copy": 2048,\n\
-        "start": "2016-09-01T01:08:15+01:00",\n\
-        "end": "2017-11-25T01:08:15+01:00"\n\
-    }\n\
-  }\n';
-document.getElementById("licenseJSON").value = defaultLicenseJSON;
-  };
-  req.open("GET",  Config.lcp.url + "/contents");
-  req.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
-  req.send();
-}
-$(function() {
-  refreshPackages();
-});
+    <script src="systemjs.config.js"></script>
+    <script>
+      System.import('app').catch(function(err){ console.error(err); });
     </script>
+  </head>
 
-    <h2>Emit a License</h2>
-    <form id="license-form" method="POST" target="_blank">
-      <input type="hidden" name="data" id="data" />
-      <label for="key">Package Identifier:</label><input type="text" id="key" name="key" readonly /><br>
-      <label for="passphrase">Passphrase:</label><input type="password" id="passphrase" name="passphrase"/><br>
-      <label for="user_id">User identifier:</label><input type="text" id="user_id" name="user_id" /><br>
-      <label for="user_email">User email:</label><input type="text" id="user_email" name="user_email" /><br>
-<span>License fragment to send in HTTP request:</span><br>
-      <textarea style="width:90%;height:20em;" id="licenseJSON">temp</textarea><br>
-
-      <input type="submit" id="license" value="Generate License" formtarget="_blank" /><br>
-      <input type="submit"  id="publication" value="Generate protected publication" formtarget="_blank" /><br>
-    </form>
+  <body>
+    <lcp-test-app>Loading...</lcp-test-app>
   </body>
 </html>

@@ -1,10 +1,23 @@
 // Placez vos paramètres dans ce fichier pour remplacer les paramètres par défaut et les paramètres utilisateur.
 {
      //go
-     "go.useCodeSnippetsOnFunctionSuggest": true,
+     "go.useCodeSnippetsOnFunctionSuggest": false,
       // Specifies the GOPATH to use when no environment variable is set.
      "go.gopath": "C:\\Users\\snemegeer\\Documents\\GitHub",
 
      // Specifies the GOROOT to use when no environment variable is set.
-     "go.goroot": "c:\\go"
+     "go.goroot": "c:\\go",
+     "go.buildOnSave": true,
+     "go.lintOnSave": true,
+     "go.vetOnSave": true,
+     "go.buildTags": "",
+     "go.buildFlags": [],
+     "go.lintTool": "golint",
+     "go.lintFlags": [],
+     "go.vetFlags": [],
+     "go.coverOnSave": false,
+     "go.formatOnSave": true, 
+     "go.formatTool": "goreturns",
+     "go.formatFlags": [],
+     "go.gocodeAutoBuild": false
 }

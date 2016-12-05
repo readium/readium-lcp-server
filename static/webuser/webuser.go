@@ -26,13 +26,8 @@
 package webuser
 
 import (
-	"bytes"
 	"database/sql"
-	"encoding/json"
 	"errors"
-	"net/http"
-
-	"github.com/readium/readium-lcp-server/api"
 )
 
 //ErrNotFound error trown when user is not found
@@ -44,6 +39,7 @@ type WebUser interface {
 	GetByEmail(email string) (User, error)
 	Add(c User) error
 	Update(c User) error
+	ListUsers(page int, pageNum int) func() (User, error)
 }
 
 //User struct defines a user
@@ -52,22 +48,6 @@ type User struct {
 	Alias    string `json:"alias"`
 	Email    string `json:"email"`
 	Password string `json:"-"`
-}
-
-//DecodeJSONUser transforms a json string to a User struct
-func DecodeJSONUser(r *http.Request, user *User) error {
-	var dec *json.Decoder
-
-	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_JSON {
-		buf := bytes.NewBufferString(r.PostFormValue("data"))
-		dec = json.NewDecoder(buf)
-	} else {
-		dec = json.NewDecoder(r.Body)
-	}
-
-	err := dec.Decode(&user)
-
-	return err
 }
 
 type dbUser struct {
@@ -103,7 +83,7 @@ func (user dbUser) GetByEmail(email string) (User, error) {
 }
 
 func (user dbUser) Add(newUser User) error {
-	add, err := user.db.Prepare("INSERT INTO user (user_id,alias,email,password) VALUES (?, ?, ?, ?, ?)")
+	add, err := user.db.Prepare("INSERT INTO user (user_id,alias,email,password) VALUES ( ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
@@ -120,6 +100,30 @@ func (user dbUser) Update(changedUser User) error {
 	defer add.Close()
 	_, err = add.Exec(changedUser.Alias, changedUser.Email, changedUser.Password, changedUser.UserID)
 	return err
+}
+
+func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
+	listUsers, err := user.db.Query(`SELECT user_id, alias, email, password
+	FROM user
+	ORDER BY email desc LIMIT ? OFFSET ? `, page, pageNum*page)
+	if err != nil {
+		return func() (User, error) { return User{}, err }
+	}
+	return func() (User, error) {
+		var u User
+		if listUsers.Next() {
+			err := listUsers.Scan(&u.UserID, &u.Alias, &u.Email, &u.Password)
+
+			if err != nil {
+				return u, err
+			}
+
+		} else {
+			listUsers.Close()
+			err = ErrNotFound
+		}
+		return u, err
+	}
 }
 
 //Open  returns a WebUser interface (db interaction)

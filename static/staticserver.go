@@ -81,7 +81,7 @@ func main() {
 
 	HandleSignals()
 
-	s := staticserver.New(":80", static, &userDB, &purchaseDB)
+	s := staticserver.New(":80", static, userDB, purchaseDB)
 	log.Println("Test webserver for LCP running on port 80")
 	log.Println("using database " + dbURI)
 

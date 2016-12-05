@@ -36,6 +36,60 @@ import (
 	"github.com/readium/readium-lcp-server/static/webuser"
 )
 
+//GetUsers returns a list of users
+func GetUsers(w http.ResponseWriter, r *http.Request, s IServer) {
+	var page int64
+	var perPage int64
+	var err error
+	if r.FormValue("page") != "" {
+		page, err = strconv.ParseInt((r).FormValue("page"), 10, 32)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			return
+		}
+	} else {
+		page = 1
+	}
+	if r.FormValue("per_page") != "" {
+		perPage, err = strconv.ParseInt((r).FormValue("per_page"), 10, 32)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			return
+		}
+	} else {
+		perPage = 30
+	}
+	if page > 0 {
+		page-- //pagenum starting at 0 in code, but user interface starting at 1
+	}
+	if page < 0 {
+		problem.Error(w, r, problem.Problem{Detail: "page must be positive integer"}, http.StatusBadRequest)
+		return
+	}
+	users := make([]webuser.User, 0)
+	//log.Println("ListAll(" + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
+	fn := s.UserAPI().ListUsers(int(perPage), int(page))
+	for it, err := fn(); err == nil; it, err = fn() {
+		users = append(users, it)
+	}
+	if len(users) > 0 {
+		nextPage := strconv.Itoa(int(page) + 1)
+		w.Header().Set("Link", "</users/?page="+nextPage+">; rel=\"next\"; title=\"next\"")
+	}
+	if page > 1 {
+		previousPage := strconv.Itoa(int(page) - 1)
+		w.Header().Set("Link", "</users/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
+	}
+	w.Header().Set("Content-Type", api.ContentType_JSON)
+
+	enc := json.NewEncoder(w)
+	err = enc.Encode(users)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+}
+
 //GetUserByEmail searches a client by his email
 func GetUserByEmail(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
@@ -65,11 +119,22 @@ func GetUserByEmail(w http.ResponseWriter, r *http.Request, s IServer) {
 	return
 }
 
+//DecodeJSONUser transforms a json string to a User struct
+func DecodeJSONUser(r *http.Request) (webuser.User, error) {
+	var dec *json.Decoder
+	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_JSON {
+		dec = json.NewDecoder(r.Body)
+	}
+	user := webuser.User{}
+	err := dec.Decode(&user)
+	return user, err
+}
+
 //CreateUser creates a user in the database
 func CreateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	var user webuser.User
-
-	if err := webuser.DecodeJSONUser(r, &user); err != nil {
+	var err error
+	if user, err = DecodeJSONUser(r); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
@@ -84,16 +149,16 @@ func CreateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 
 //UpdateUser updates an identified user (id) in the database
 func UpdateUser(w http.ResponseWriter, r *http.Request, s IServer) {
-	var user webuser.User
 	vars := mux.Vars(r)
 	var id int
 	var err error
+	var user webuser.User
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
 		problem.Error(w, r, problem.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
 	}
 	//ID is a number, check user (json)
-	if err := webuser.DecodeJSONUser(r, &user); err != nil {
+	if user, err = DecodeJSONUser(r); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 	}
 	// user ok, id is a number, search user to update

@@ -1,0 +1,19 @@
+<h2>User list</h2>
+<div>
+    <label>Alias:</label><input #alias />
+    <label>Email:</label><input #email />
+    <label>Password:</label><input #password />
+    <button (click)="add(alias.value, email.value, password.value);alias.value='';email.value='';password.value='';">
+        add
+    </button>
+</div>
+<ul class="users">
+    <li *ngFor="let user of users" (click)="onSelect(user)" [class.selected]="user === selectedUser">
+    <span class="badge">{{user.id}}</span> {{user.alias}}
+    <button class="delete" (click)="delete(user); $event.stopPropagation()">x</button>
+    </li>
+</ul>  
+<div *ngIf="selectedUser">
+    <h2>Current user = {{selectedUser.User | uppercase }}</h2>
+    <button (click)="gotoDetail()">View Details</button>
+</div>      

@@ -2,6 +2,6 @@
 // it must pass the webserver script that wil contact the server 
 // TODO : change this
 var Config = {
-    lcp: {url: 'http://localhost:8989', user:'', password: ''},
-    lsd: {url: 'http://localhost:8990', user:'', password: ''}
+    lcp: {url: 'http://localhost:8989', user:'Stefaan', password: 'testlcpserver'},
+    lsd: {url: 'http://localhost:8990', user:'Stefaan', password: 'testlcpserver'},    
 }

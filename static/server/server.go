@@ -52,7 +52,7 @@ type HandlerFunc func(w http.ResponseWriter, r *http.Request, s staticapi.IServe
 //type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s staticapi.IServer)
 
 // New creates a new webserver (basic user interface)
-func New(bindAddr string, tplPath string, users *webuser.WebUser, purchases *webpurchase.WebPurchase) *Server {
+func New(bindAddr string, tplPath string, userAPI webuser.WebUser, purchaseAPI webpurchase.WebPurchase) *Server {
 
 	sr := api.CreateServerRouter(tplPath)
 	s := &Server{
@@ -63,17 +63,21 @@ func New(bindAddr string, tplPath string, users *webuser.WebUser, purchases *web
 			ReadTimeout:    15 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
-	}
+		users:     userAPI,
+		purchases: purchaseAPI}
 	//user functions
-	s.handleFunc(sr.R, "/user/{email}", staticapi.GetUserByEmail).Methods("GET")
-	s.handleFunc(sr.R, "/user/", staticapi.CreateUser).Methods("PUT")
-	s.handleFunc(sr.R, "/user/{id}", staticapi.UpdateUser).Methods("POST")
-	/* purchases
-	s.handleFunc(sr.R, "/user/{id}/purchase", staticapi.UpdateUser).Methods("GET")
-	s.handleFunc(sr.R, "/user/{user_id}/purchase/{purchase_id}", staticapi.UpdateUser).Methods("GET")
-	s.handleFunc(sr.R, "/user/{id}/purchase", staticapi.UpdateUser).Methods("PUT")
-	s.handleFunc(sr.R, "/user/{id}/purchase", staticapi.UpdateUser).Methods("POST")
-	*/
+	s.handleFunc(sr.R, "/users/{email}", staticapi.GetUserByEmail).Methods("GET")
+	s.handleFunc(sr.R, "/users", staticapi.GetUsers).Methods("GET")
+	s.handleFunc(sr.R, "/users", staticapi.CreateUser).Methods("PUT")
+	s.handleFunc(sr.R, "/users/{id}", staticapi.UpdateUser).Methods("POST")
+	// purchases
+	s.handleFunc(sr.R, "/users/{user_id}/purchase", staticapi.GetPurchasesForUser).Methods("GET")           // get purchases for a user
+	s.handleFunc(sr.R, "/users/{user_id}/purchase", staticapi.CreatePurchase).Methods("PUT")                //add purchase
+	s.handleFunc(sr.R, "/users/{user_id}/purchase/{purchase_id}", staticapi.GetPurchase).Methods("GET")     // get purchase
+	s.handleFunc(sr.R, "/users/{user_id}/purchase/{purchase_id}", staticapi.UpdatePurchase).Methods("POST") // update purchase
+	// license update
+	s.handleFunc(sr.R, "/licenses/{id}", staticapi.RenewLicenseByLicenseID).Methods("GET") // get license by licenseID
+
 	return s
 }
 
