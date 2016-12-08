@@ -71,10 +71,10 @@ func New(bindAddr string, tplPath string, userAPI webuser.WebUser, purchaseAPI w
 	s.handleFunc(sr.R, "/users", staticapi.CreateUser).Methods("PUT")
 	s.handleFunc(sr.R, "/users/{id}", staticapi.UpdateUser).Methods("POST")
 	// purchases
-	s.handleFunc(sr.R, "/users/{user_id}/purchase", staticapi.GetPurchasesForUser).Methods("GET")           // get purchases for a user
-	s.handleFunc(sr.R, "/users/{user_id}/purchase", staticapi.CreatePurchase).Methods("PUT")                //add purchase
-	s.handleFunc(sr.R, "/users/{user_id}/purchase/{purchase_id}", staticapi.GetPurchase).Methods("GET")     // get purchase
-	s.handleFunc(sr.R, "/users/{user_id}/purchase/{purchase_id}", staticapi.UpdatePurchase).Methods("POST") // update purchase
+	s.handleFunc(sr.R, "/users/{user_id}/purchases", staticapi.GetPurchasesForUser).Methods("GET")           // get purchases for a user
+	s.handleFunc(sr.R, "/users/{user_id}/purchases", staticapi.CreatePurchase).Methods("PUT")                //add purchase
+	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}", staticapi.GetPurchase).Methods("GET")     // get purchase
+	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}", staticapi.UpdatePurchase).Methods("POST") // update purchase
 	// license update
 	s.handleFunc(sr.R, "/licenses/{id}", staticapi.RenewLicenseByLicenseID).Methods("GET") // get license by licenseID
 

@@ -41,6 +41,17 @@ import (
 	"github.com/readium/readium-lcp-server/static/webuser"
 )
 
+//DecodeJSONPurchase transforms a json string to a User struct
+func DecodeJSONPurchase(r *http.Request) (webpurchase.Purchase, error) {
+	var dec *json.Decoder
+	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_JSON {
+		dec = json.NewDecoder(r.Body)
+	}
+	purchase := webpurchase.Purchase{}
+	err := dec.Decode(&purchase)
+	return purchase, err
+}
+
 //GetPurchasesForUser searches all purchases for a client
 func GetPurchasesForUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	//TODO
@@ -51,9 +62,22 @@ func GetPurchasesForUser(w http.ResponseWriter, r *http.Request, s IServer) {
 func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	var purchase webpurchase.Purchase
 	if err := webpurchase.DecodeJSONPurchase(r, &purchase); err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "Decode JSON error: " + err.Error()}, http.StatusBadRequest)
 		return
 	}
+	//check user
+	vars := mux.Vars(r)
+	var id int64
+	var err error
+	if id, err = strconv.ParseInt(vars["user_id"], 10, 64); err != nil {
+		// id is not a number
+		problem.Error(w, r, problem.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
+	} else {
+		if id != purchase.User.UserID {
+			problem.Error(w, r, problem.Problem{Detail: "User ID must correpond with userID in purchase"}, http.StatusBadRequest)
+		}
+	}
+
 	//purchase in PUT  data  ok
 	if err := s.PurchaseAPI().Add(purchase); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)

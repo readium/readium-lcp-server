@@ -26,15 +26,11 @@
 package webpurchase
 
 import (
-	"bytes"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"log"
-	"net/http"
 	"time"
 
-	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/static/webuser"
 )
 
@@ -53,28 +49,12 @@ type WebPurchase interface {
 //Purchase struct defines a user in json and database
 type Purchase struct {
 	User            webuser.User `json:"user"`
-	PurchaseID      int64        `json:"purchaseID"`
-	Resource        string       `json:"resource"`
+	PurchaseID      int64        `json:"purchaseID, omitempty"`
+	Resource        string       `json:"resource, omitempty"`
 	Label           string       `json:"label,omitempty"`
 	LicenseID       string       `json:"licenseID,omitempty"`
-	TransactionDate time.Time    `json:"transactionDate"`
-	PartialLicense  string       `json:"partialLicense"`
-}
-
-//DecodeJSONPurchase transforms a json string to a Purchase struct
-func DecodeJSONPurchase(r *http.Request, purchase *Purchase) error {
-	var dec *json.Decoder
-
-	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_JSON {
-		buf := bytes.NewBufferString(r.PostFormValue("data"))
-		dec = json.NewDecoder(buf)
-	} else {
-		dec = json.NewDecoder(r.Body)
-	}
-
-	err := dec.Decode(&purchase)
-
-	return err
+	TransactionDate time.Time    `json:"transactionDate, omitempty"`
+	PartialLicense  string       `json:"partialLicense, omitempty"`
 }
 
 type dbPurchase struct {

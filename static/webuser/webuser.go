@@ -45,9 +45,9 @@ type WebUser interface {
 //User struct defines a user
 type User struct {
 	UserID   int64  `json:"userID"`
-	Alias    string `json:"alias"`
-	Email    string `json:"email"`
-	Password string `json:"-"`
+	Alias    string `json:"alias,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 type dbUser struct {
