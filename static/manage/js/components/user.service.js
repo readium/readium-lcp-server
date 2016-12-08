@@ -14,13 +14,20 @@ require('rxjs/add/operator/toPromise');
 var UserService = (function () {
     function UserService(http) {
         this.http = http;
-        this.usersUrl = 'http://localhost/users';
+        this.usersUrl = 'http://localhost/users'; // THIS SHOULD BE EQUAL TO THE URL of the static webserver (or just /)
         this.headers = new http_1.Headers({ 'Content-Type': 'application/json' });
     }
     UserService.prototype.getUsers = function () {
         return this.http.get(this.usersUrl)
             .toPromise()
-            .then(function (response) { return response.json().data; })
+            .then(function (response) {
+            var users = [];
+            for (var _i = 0, _a = response.json(); _i < _a.length; _i++) {
+                var jsonUser = _a[_i];
+                users[users.length] = { userID: jsonUser.userID, alias: jsonUser.alias, email: jsonUser.email, password: null };
+            }
+            return users;
+        })
             .catch(this.handleError);
     };
     UserService.prototype.create = function (alias, email, password) {
@@ -43,10 +50,10 @@ var UserService = (function () {
     };
     UserService.prototype.getUser = function (id) {
         return this.getUsers()
-            .then(function (users) { return users.find(function (user) { return user.id == id; }); });
+            .then(function (users) { return users.find(function (user) { return user.userID === id; }); });
     };
     UserService.prototype.update = function (user) {
-        var url = this.usersUrl + "/" + user.id;
+        var url = this.usersUrl + "/" + user.userID;
         return this.http
             .put(url, JSON.stringify(user), { headers: this.headers })
             .toPromise()

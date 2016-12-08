@@ -1,5 +1,5 @@
-import {Component} from '@angular/core';
-import { OnInit } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
+
 import { Router } from '@angular/router';
 import { User } from './user';
 import { UserService } from './user.service';
@@ -8,7 +8,7 @@ import { UserService } from './user.service';
 @Component({
     moduleId: module.id,
     selector: 'users',
-    templateUrl: '/app/components/users.html',
+    templateUrl: '/app/components/user-list.html',
     // styleUrls: ['user.css'],
     providers: [UserService]
 })
@@ -17,12 +17,19 @@ import { UserService } from './user.service';
 export class UsersComponent implements OnInit {
     users: User[];
     selectedUser: User;
+    @Input() alias: string;
+    @Input() email: string;
+    @Input() password: string;
 
     constructor(private UserService: UserService, private router: Router) { }
 
 
-    getUseres(): void {
+    getUsers(): void {
+        console.log('Get Users in UsersComponent');
         this.UserService.getUsers().then(Users => this.users = Users);
+        if (this.users) {
+            console.log(this.users.length + ' users found');
+        }
     }
 
     add(alias: string, email: string, password: string): void {
@@ -35,19 +42,20 @@ export class UsersComponent implements OnInit {
             });
     }
 
-    delete(User: User): void {
+    delete(user: User): void {
+        console.log('delete user ' + user.alias + ' ' + user.email + ' ' + user.userID);
         this.UserService
-            .delete(User.id)
+            .delete(user.userID)
             .then(() => {
-                this.users = this.users.filter(h => h !== User );
-                if (this.selectedUser === User ) {
+                this.users = this.users.filter(h => h !== user );
+                if (this.selectedUser === user ) {
                     this.selectedUser = null;
                 }
             });
     }
 
     ngOnInit(): void {
-        this.getUseres();
+        this.getUsers();
     }
 
     onSelect(User: User): void {
@@ -55,6 +63,6 @@ export class UsersComponent implements OnInit {
     }
 
     gotoDetail(): void {
-        this.router.navigate(['/detail', this.selectedUser.id]);
+        this.router.navigate(['/detail', this.selectedUser.userID]);
     }
 }

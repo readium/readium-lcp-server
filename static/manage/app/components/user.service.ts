@@ -5,14 +5,20 @@ import { User } from './user';
 
 @Injectable()
 export class UserService {
-  private usersUrl = 'http://localhost/users';
+  private usersUrl = 'http://localhost/users';  // THIS SHOULD BE EQUAL TO THE URL of the static webserver (or just /)
   private headers = new Headers ({'Content-Type': 'application/json'});
 
   constructor (private http: Http) { }
   getUsers(): Promise<User[]> {
     return this.http.get(this.usersUrl)
       .toPromise()
-      .then(response => response.json().data as User[])
+      .then(function (response) {
+        let users: User[] = [];
+        for (let jsonUser of response.json()) {
+          users[users.length] = {userID: jsonUser.userID, alias: jsonUser.alias, email: jsonUser.email, password: null};
+        }
+        return users;
+      })
       .catch(this.handleError);
   }
 
@@ -39,10 +45,10 @@ export class UserService {
   }
   getUser(id: number): Promise<User> {
       return this.getUsers()
-      .then(users => users.find(user => user.id === id));
+      .then(users => users.find(user => user.userID === id));
   }
   update(user: User): Promise<User> {
-    const url = `${this.usersUrl}/${user.id}`;
+    const url = `${this.usersUrl}/${user.userID}`;
     return this.http
       .put(url, JSON.stringify(user), {headers: this.headers})
       .toPromise()

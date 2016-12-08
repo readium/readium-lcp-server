@@ -16,9 +16,13 @@ var UsersComponent = (function () {
         this.UserService = UserService;
         this.router = router;
     }
-    UsersComponent.prototype.getUseres = function () {
+    UsersComponent.prototype.getUsers = function () {
         var _this = this;
+        console.log('Get Users in UsersComponent');
         this.UserService.getUsers().then(function (Users) { return _this.users = Users; });
+        if (this.users) {
+            console.log(this.users.length + ' users found');
+        }
     };
     UsersComponent.prototype.add = function (alias, email, password) {
         var _this = this;
@@ -33,31 +37,44 @@ var UsersComponent = (function () {
             _this.selectedUser = null;
         });
     };
-    UsersComponent.prototype.delete = function (User) {
+    UsersComponent.prototype.delete = function (user) {
         var _this = this;
+        console.log('delete user ' + user.alias + ' ' + user.email + ' ' + user.userID);
         this.UserService
-            .delete(User.id)
+            .delete(user.userID)
             .then(function () {
-            _this.users = _this.users.filter(function (h) { return h !== User; });
-            if (_this.selectedUser === User) {
+            _this.users = _this.users.filter(function (h) { return h !== user; });
+            if (_this.selectedUser === user) {
                 _this.selectedUser = null;
             }
         });
     };
     UsersComponent.prototype.ngOnInit = function () {
-        this.getUseres();
+        this.getUsers();
     };
     UsersComponent.prototype.onSelect = function (User) {
         this.selectedUser = User;
     };
     UsersComponent.prototype.gotoDetail = function () {
-        this.router.navigate(['/detail', this.selectedUser.id]);
+        this.router.navigate(['/detail', this.selectedUser.userID]);
     };
+    __decorate([
+        core_1.Input(), 
+        __metadata('design:type', String)
+    ], UsersComponent.prototype, "alias", void 0);
+    __decorate([
+        core_1.Input(), 
+        __metadata('design:type', String)
+    ], UsersComponent.prototype, "email", void 0);
+    __decorate([
+        core_1.Input(), 
+        __metadata('design:type', String)
+    ], UsersComponent.prototype, "password", void 0);
     UsersComponent = __decorate([
         core_1.Component({
             moduleId: module.id,
             selector: 'users',
-            templateUrl: '/app/components/users.html',
+            templateUrl: '/app/components/user-list.html',
             // styleUrls: ['user.css'],
             providers: [user_service_1.UserService]
         }), 

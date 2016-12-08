@@ -1,6 +1,6 @@
 export class User {
-    id:   number;
+    userID:   number;
     alias:    string;
     email:    string;
-    password: string;
+    password: string | undefined | null ;
 }
