@@ -61,14 +61,14 @@ func GetPurchasesForUser(w http.ResponseWriter, r *http.Request, s IServer) {
 //CreatePurchase creates a purchase in the database
 func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	var purchase webpurchase.Purchase
-	if err := webpurchase.DecodeJSONPurchase(r, &purchase); err != nil {
+	var err error
+	if purchase, err = DecodeJSONPurchase(r); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: "Decode JSON error: " + err.Error()}, http.StatusBadRequest)
 		return
 	}
 	//check user
 	vars := mux.Vars(r)
 	var id int64
-	var err error
 	if id, err = strconv.ParseInt(vars["user_id"], 10, 64); err != nil {
 		// id is not a number
 		problem.Error(w, r, problem.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
@@ -85,6 +85,133 @@ func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 	// user added to db
 	w.WriteHeader(http.StatusCreated)
+}
+
+//GetLcpResource forwards a request to obtain the encrypted content to the lcp server
+// this could be an ftp server or other service instead
+func GetLcpResource(w http.ResponseWriter, r *http.Request, s IServer) {
+	if config.Config.LcpServer.PublicBaseUrl != "" { // get encrypted content (resource)from lcp server
+		vars := mux.Vars(r)
+		var lcpClient = &http.Client{
+			Timeout: time.Second * 15,
+		}
+		pr, pw := io.Pipe()
+		defer pr.Close()
+		pw.Close() // signal end writing partial license (POST)
+		req, err := http.NewRequest("GET", config.Config.LcpServer.PublicBaseUrl+"/contents/"+vars["content_id"], pr)
+		Auth := config.Config.LcpUpdateAuth
+		if Auth.Username != "" {
+			req.SetBasicAuth(Auth.Username, Auth.Password)
+		}
+		req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
+		response, err := lcpClient.Do(req)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server :" + err.Error()}, http.StatusInternalServerError)
+		} else {
+			defer req.Body.Close()
+			defer response.Body.Close()
+			switch response.StatusCode {
+			case 200, 201:
+				{
+					// got resource, return it
+					// should optimise this (pipe result to output)
+					w.Header().Set("Content-Type", response.Header.Get("Content-Type"))
+					io.Copy(w, response.Body)
+					return
+				}
+			case 404:
+				problem.Error(w, r, problem.Problem{Detail: "Resource not found on LCP server"}, http.StatusNotFound)
+			default: //other error ?
+				{
+					var pb problem.Problem
+					var dec *json.Decoder
+					dec = json.NewDecoder(response.Body)
+					err := dec.Decode(&pb)
+					if err == nil {
+						problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server :" + pb.Title}, http.StatusInternalServerError)
+					} else {
+						problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server :"}, http.StatusInternalServerError)
+					}
+				}
+			}
+		}
+	} else { // incorrect config
+		problem.Error(w, r, problem.Problem{Detail: "No LCP server defined to contact for a new license, check your configuration!"}, http.StatusInternalServerError)
+	}
+}
+
+//GetPurchaseLicense contacts LCP server and asks a license for the purchase using the partial license and resourceID
+func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
+	var purchase webpurchase.Purchase
+	vars := mux.Vars(r)
+	var id int
+	var err error
+	if id, err = strconv.Atoi(vars["purchase_id"]); err != nil {
+		// id is not a number
+		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
+	}
+	purchase.User = *new(webuser.User)
+	if purchase, err = s.PurchaseAPI().Get(int64(id)); err != nil {
+		switch err {
+		case webpurchase.ErrNotFound:
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+		default:
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		}
+	}
+	// purchase found -> ask license in lcpserver
+
+	//////TODO
+	if config.Config.LcpServer.PublicBaseUrl != "" { // get updated License from lcp server
+		var lcpClient = &http.Client{
+			Timeout: time.Second * 5,
+		}
+		pr, pw := io.Pipe()
+		defer pr.Close()
+		go func() {
+			_ = json.NewEncoder(pw).Encode(purchase.PartialLicense)
+			pw.Close() // signal end writing partial license (POST)
+		}()
+		req, err := http.NewRequest("POST", config.Config.LcpServer.PublicBaseUrl+"/contents/"+purchase.Resource+"/licenses/", pr)
+		Auth := config.Config.LcpUpdateAuth
+		if Auth.Username != "" {
+			req.SetBasicAuth(Auth.Username, Auth.Password)
+		}
+		req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
+		response, err := lcpClient.Do(req)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server :" + err.Error()}, http.StatusInternalServerError)
+		} else {
+			defer req.Body.Close()
+			defer response.Body.Close()
+			switch response.StatusCode {
+			case 200, 201:
+				{
+					// got new  license, return license
+					w.Header().Set("Content-Type", response.Header.Get("Content-Type"))
+					io.Copy(w, response.Body)
+					return
+				}
+			case 404:
+				problem.Error(w, r, problem.Problem{Detail: "License not found on LCP server"}, http.StatusNotFound)
+			default: //other error ?
+				{
+					var pb problem.Problem
+					var dec *json.Decoder
+					dec = json.NewDecoder(response.Body)
+					err := dec.Decode(&pb)
+					if err == nil {
+						problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server :" + pb.Title}, http.StatusInternalServerError)
+					} else {
+						problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server :"}, http.StatusInternalServerError)
+					}
+				}
+			}
+
+		}
+	} else { // incorrect config
+		problem.Error(w, r, problem.Problem{Detail: "No LCP server defined to contact for a new license, check your configuration!"}, http.StatusInternalServerError)
+	}
 }
 
 //GetPurchase gets a purchase by its ID in the database
@@ -228,7 +355,7 @@ func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
 	}
 	//ID is a number, check user (json)
-	if err := webpurchase.DecodeJSONPurchase(r, &purchase); err != nil {
+	if purchase, err = DecodeJSONPurchase(r); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 	}
 	// user ok, id is a number, search purchase to update
