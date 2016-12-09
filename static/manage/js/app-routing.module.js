@@ -13,9 +13,9 @@ var router_1 = require('@angular/router');
 var user_list_component_1 = require('./components/user-list-component');
 var user_component_1 = require('./components/user-component');
 var routes = [
-    { path: '', redirectTo: '/users', pathMatch: 'full' },
-    { path: 'users', component: user_list_component_1.UsersComponent },
-    { path: 'users/:id', component: user_component_1.UserComponent }
+    { path: '', redirectTo: 'userlist', pathMatch: 'full' },
+    { path: 'userlist', component: user_list_component_1.UsersComponent },
+    { path: 'userdetail/:id', component: user_component_1.UserComponent }
 ];
 var AppRoutingModule = (function () {
     function AppRoutingModule() {

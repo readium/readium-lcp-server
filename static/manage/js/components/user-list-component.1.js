@@ -78,4 +78,4 @@ var UsersComponent = (function () {
     return UsersComponent;
 }());
 exports.UsersComponent = UsersComponent;
-//# sourceMappingURL=user-list-component.js.map
+//# sourceMappingURL=user-list-component.1.js.map

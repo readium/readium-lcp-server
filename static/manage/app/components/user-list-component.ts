@@ -9,7 +9,7 @@ import { UserService } from './user.service';
     moduleId: module.id,
     selector: 'users',
     templateUrl: '/app/components/user-list.html',
-    // styleUrls: ['user.css'],
+    styleUrls: ['/app/components/user.css'],
     providers: [UserService]
 })
 
@@ -25,11 +25,7 @@ export class UsersComponent implements OnInit {
 
 
     getUsers(): void {
-        console.log('Get Users in UsersComponent');
         this.UserService.getUsers().then(Users => this.users = Users);
-        if (this.users) {
-            console.log(this.users.length + ' users found');
-        }
     }
 
     add(alias: string, email: string, password: string): void {
@@ -37,8 +33,7 @@ export class UsersComponent implements OnInit {
         if (!email) { return; };
         this.UserService.create(alias, email, password)
             .then(User => {
-                this.users.push(User);
-                this.selectedUser = null;
+                this.getUsers(); // refresh user list 
             });
     }
 
@@ -63,6 +58,6 @@ export class UsersComponent implements OnInit {
     }
 
     gotoDetail(): void {
-        this.router.navigate(['/detail', this.selectedUser.userID]);
+        this.router.navigate(['/userdetail', this.selectedUser.userID]);
     }
 }

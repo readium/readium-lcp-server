@@ -22,12 +22,18 @@ export class UserService {
       .catch(this.handleError);
   }
 
-  create(alias: string, email: string, password: string): Promise<User> {
+  create(newAlias: string, newEmail: string, newPassword: string): Promise<User> {
+    let user: User = {userID: null, alias: newAlias, email: newEmail, password: newPassword};
     return this.http
-      .post(this.usersUrl, JSON.stringify(
-          {'alias': alias, 'email': email, 'password': password}), {headers: this.headers})
+      .put(this.usersUrl, JSON.stringify(user), {headers: this.headers})
       .toPromise()
-      .then(res => res.json().data)
+      .then(function (response) {
+          if (response.status === 201) {
+            return user;
+          } else {
+            throw 'Error creating user ' + response.text;
+          }
+      })
       .catch(this.handleError);
   }
 

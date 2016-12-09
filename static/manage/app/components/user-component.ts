@@ -7,8 +7,9 @@ import { UserService } from './user.service';
 @Component({
     moduleId: module.id,
     selector: 'user',
-    templateUrl: '/app/components/user.html'
-    // styleUrls: ['user.css']
+    templateUrl: '/app/components/user.html',
+    styleUrls: ['/app/components/user.css'],
+    providers: [UserService]
 })
 
 export class UserComponent implements OnInit {

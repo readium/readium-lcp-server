@@ -135,7 +135,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	var user webuser.User
 	var err error
 	if user, err = DecodeJSONUser(r); err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "incorrect JSON User " + err.Error()}, http.StatusBadRequest)
 		return
 	}
 	//user ok
@@ -153,7 +153,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	var id int
 	var err error
 	var user webuser.User
-	if id, err = strconv.Atoi(vars["id"]); err != nil {
+	if id, err = strconv.Atoi(vars["user_id"]); err != nil {
 		// id is not a number
 		problem.Error(w, r, problem.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
 	}
@@ -180,4 +180,19 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 		//return
 	}
 
+}
+
+//DeleteUser creates a user in the database
+func DeleteUser(w http.ResponseWriter, r *http.Request, s IServer) {
+	vars := mux.Vars(r)
+	uid, err := strconv.ParseInt(vars["user_id"], 10, 64)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+	}
+	if err := s.UserAPI().DeleteUser(uid); err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	// user added to db
+	w.WriteHeader(http.StatusOK)
 }

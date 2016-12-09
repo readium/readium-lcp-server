@@ -69,7 +69,8 @@ func New(bindAddr string, tplPath string, userAPI webuser.WebUser, purchaseAPI w
 	s.handleFunc(sr.R, "/users/{email}", staticapi.GetUserByEmail).Methods("GET")
 	s.handleFunc(sr.R, "/users", staticapi.GetUsers).Methods("GET")
 	s.handleFunc(sr.R, "/users", staticapi.CreateUser).Methods("PUT")
-	s.handleFunc(sr.R, "/users/{id}", staticapi.UpdateUser).Methods("POST")
+	s.handleFunc(sr.R, "/users/{user_id}", staticapi.UpdateUser).Methods("POST")
+	s.handleFunc(sr.R, "/users/{user_id}", staticapi.DeleteUser).Methods("DELETE")
 	// purchases
 	s.handleFunc(sr.R, "/users/{user_id}/purchases", staticapi.GetPurchasesForUser).Methods("GET")                      // get purchases for a user
 	s.handleFunc(sr.R, "/users/{user_id}/purchases", staticapi.CreatePurchase).Methods("PUT")                           //add purchase

@@ -1,0 +1,16 @@
+.anID {
+    width: 50;
+    color: goldenrod;
+}
+.aLabel {
+    width:200;
+    color: black;
+}
+
+.delete {
+    background-color: red;
+}
+
+.selectedUser {
+    background-color: blue;
+}

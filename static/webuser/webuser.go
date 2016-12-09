@@ -39,6 +39,7 @@ type WebUser interface {
 	GetByEmail(email string) (User, error)
 	Add(c User) error
 	Update(c User) error
+	DeleteUser(UserID int64) error
 	ListUsers(page int, pageNum int) func() (User, error)
 }
 
@@ -54,8 +55,6 @@ type dbUser struct {
 	db         *sql.DB
 	getUser    *sql.Stmt
 	getByEmail *sql.Stmt
-	addUser    *sql.Stmt
-	listUser   *sql.Stmt
 }
 
 func (user dbUser) Get(id int64) (User, error) {
@@ -83,12 +82,12 @@ func (user dbUser) GetByEmail(email string) (User, error) {
 }
 
 func (user dbUser) Add(newUser User) error {
-	add, err := user.db.Prepare("INSERT INTO user (user_id,alias,email,password) VALUES ( ?, ?, ?, ?)")
+	add, err := user.db.Prepare("INSERT INTO user (alias,email,password) VALUES ( ?, ?, ?)")
 	if err != nil {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(newUser.UserID, newUser.Alias, newUser.Email, newUser.Password)
+	_, err = add.Exec(newUser.Alias, newUser.Email, newUser.Password)
 	return err
 }
 
@@ -99,6 +98,16 @@ func (user dbUser) Update(changedUser User) error {
 	}
 	defer add.Close()
 	_, err = add.Exec(changedUser.Alias, changedUser.Email, changedUser.Password, changedUser.UserID)
+	return err
+}
+
+func (user dbUser) DeleteUser(userID int64) error {
+	query, err := user.db.Prepare("DELETE FROM user WHERE user_id=?")
+	if err != nil {
+		return err
+	}
+	defer query.Close()
+	_, err = query.Exec(userID)
 	return err
 }
 
@@ -146,6 +155,6 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	if err != nil {
 		return
 	}
-	i = dbUser{db, get, getByEmail, nil, nil}
+	i = dbUser{db, get, getByEmail}
 	return
 }

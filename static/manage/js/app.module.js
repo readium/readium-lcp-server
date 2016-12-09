@@ -14,6 +14,7 @@ var forms_1 = require('@angular/forms');
 var app_component_1 = require('./components/app.component');
 var user_list_component_1 = require('./components/user-list-component');
 var user_component_1 = require('./components/user-component');
+var resource_list_component_1 = require('./components/resource-list-component');
 var http_1 = require('@angular/http');
 var app_routing_module_1 = require('./app-routing.module');
 var AppModule = (function () {
@@ -22,7 +23,7 @@ var AppModule = (function () {
     AppModule = __decorate([
         core_1.NgModule({
             imports: [platform_browser_1.BrowserModule, forms_1.FormsModule, http_1.HttpModule, app_routing_module_1.AppRoutingModule],
-            declarations: [app_component_1.AppComponent, user_list_component_1.UsersComponent, user_component_1.UserComponent],
+            declarations: [app_component_1.AppComponent, user_list_component_1.UsersComponent, user_component_1.UserComponent, resource_list_component_1.ResourcesComponent],
             bootstrap: [app_component_1.AppComponent]
         }), 
         __metadata('design:paramtypes', [])
