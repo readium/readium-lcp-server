@@ -1,10 +1,25 @@
+.users {
+    width: 50%;
+    margin-left:16px;    
+}
 .anID {
     width: 50;
-    color: goldenrod;
+    margin-left: 8px;
+    padding: 8px;
+    border-radius: 10px;
+    border: 3px solid black;     
 }
 .aLabel {
     width:200;
     color: black;
+    background-color: gray;
+    border-radius: 10px;
+    border: 3px solid black; 
+    text-align: left;
+    padding: 8px;
+}
+.selected {
+    background-color: blue; 
 }
 
 .delete {
@@ -12,5 +27,6 @@
 }
 
 .selectedUser {
-    background-color: blue;
+    
 }
+

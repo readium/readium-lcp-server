@@ -1,21 +1,23 @@
-<h2>1. Subscribe or select user</h2>
+<h2 class="step">1. Subscribe and/or select user in the list below</h2>
 <div>
-    <label>Alias:</label><input #alias />
-    <label>Email:</label><input #email />
-    <label>Password:</label><input #password />
+    <h3>Add User</h3>
+    <span><label>Alias:</label><input #alias /></span>
+    <span><label>Email:</label><input #email /></span>
+    <span><label>Password:</label><input #password /></span>
     <button (click)="add(alias.value, email.value, password.value);alias.value='';email.value='';password.value='';">
-        add
+        add user
     </button>
 </div>
 <h3>User list</h3>
-<ul class="users">
-    <li *ngFor="let user of users" (click)="onSelect(user)" [class.selected]="user === selectedUser">
-    <span class="anID">{{user.userID}}</span> <span class="aLabel">{{user.alias}}</span>
-    <button class="delete" (click)="delete(user); $event.stopPropagation()">x</button>
-    </li>
-</ul>  
+<table class="users">
+    <tr *ngFor="let user of users" >
+        <td class="anID" [class.selected]="user === selectedUser" >{{user.userID}}</td>
+        <td class="aLabel" (click)="onSelect(user)" >{{user.alias}}</td>
+        <td><button class="delete" (click)="delete(user); $event.stopPropagation()">x</button></td>
+    </tr>
+</table> 
 <div class="selectedUser" *ngIf="selectedUser">
     <h2>2. Select item for license</h2>
-    <h3>Current user = {{selectedUser.alias | uppercase }} <button (click)="gotoDetail()">View Details</button> </h3>
-    <resources></resources>    
+    <h3>Current user = {{selectedUser.alias | uppercase }} <button (click)="gotoDetail()">Details</button> </h3>
+    <resources [user]=selectedUser></resources>    
 </div>      

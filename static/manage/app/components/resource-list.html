@@ -1,4 +1,4 @@
-<h3 class="lcpResource">Listing of LCP Resources</h3>
+<h3 class="lcpResource" class="step">Listing of LCP Resources (please choose one)</h3>
 <ul class="resources">
     <li *ngFor="let resource of resources" (click)="onSelect(resource)" [class.selected]="resource === selectedResource">
     <span class="anID">{{resource.id}}</span> <span class="aLabel">{{resource.location}}</span>
@@ -6,8 +6,7 @@
     </li>
 </ul>  
 <div class="selectedResource" *ngIf="selectedResource">
-    <h2>2. Select item for license</h2>
-    <h3>Selected Book : {{selectedResource.location }}  ( {{selectedResource.id }} ) </h3>
-    <button class="lcpBuy">Buy link</button>
-    <button class="lcpLoan">Loan for 3 weeks</button>
+    <h3>{{selectedResource.location }}  <span class="anID"> ( {{selectedResource.id }} ) </span> </h3>
+    <button class="lcpBuy" (click)="onBuy(selectedResource)">Buy link</button>
+    <button class="lcpLoan" (click)="onLoan(selectedResource)">Loan for 3 weeks</button>
 </div>      

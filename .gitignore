@@ -9,7 +9,10 @@ debug
 *.exe
 *.yaml
 static/manage/node_modules/*
-
+static/node_modules/*
+static/manage/js/*
+static/manage/js/components/*
+*.map
 *.htpasswd
 lcpserver/test.sqllite
 .DS_Store

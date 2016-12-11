@@ -10,5 +10,6 @@
         <input [(ngModel)]="user.password" placeholder="password"/>
         <button (click)="save()">Save</button>
     </div>
+    <purchases [user]="user"></purchases>    
     <button (click)="goBack()">Back</button>
 </div>

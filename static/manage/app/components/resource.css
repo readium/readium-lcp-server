@@ -1,0 +1,49 @@
+.lcpResource {
+   
+}
+.resources {
+   padding: 16px;
+   margin-left: 24px;
+}
+
+.selectedResource {
+    position: absolute;
+    top: 60px;
+    right: 0;
+    z-index: 0;
+    width: 40%;
+    float: right;
+    
+    background-color: blue;
+    border-radius: 10px;
+    border: 3px solid midnightblue;     
+    margin:8px 48px ;    
+    padding:8px;
+}
+
+.anID {
+  font-size: 9px;
+  color: silver;
+  font-weight: bold;
+}
+.aLength {
+  font-size: 9px;
+  color: red;
+  font-weight: bold;
+}
+.aSha256 {
+  font-size: 9px;
+  color: green;
+  font-weight: bold;
+}
+
+
+.aLabel {
+
+}
+.lcpBuy {
+
+}
+.lcpLoan {
+
+}

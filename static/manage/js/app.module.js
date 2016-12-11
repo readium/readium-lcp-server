@@ -8,27 +8,28 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var core_1 = require('@angular/core');
-var platform_browser_1 = require('@angular/platform-browser');
-var forms_1 = require('@angular/forms');
-var app_component_1 = require('./components/app.component');
-var user_list_component_1 = require('./components/user-list-component');
-var user_component_1 = require('./components/user-component');
-var resource_list_component_1 = require('./components/resource-list-component');
-var http_1 = require('@angular/http');
-var app_routing_module_1 = require('./app-routing.module');
+var core_1 = require("@angular/core");
+var platform_browser_1 = require("@angular/platform-browser");
+var forms_1 = require("@angular/forms");
+var app_component_1 = require("./components/app.component");
+var user_list_component_1 = require("./components/user-list-component");
+var user_component_1 = require("./components/user-component");
+var purchase_list_component_1 = require("./components/purchase-list-component");
+var resource_list_component_1 = require("./components/resource-list-component");
+var http_1 = require("@angular/http");
+var app_routing_module_1 = require("./app-routing.module");
 var AppModule = (function () {
     function AppModule() {
     }
-    AppModule = __decorate([
-        core_1.NgModule({
-            imports: [platform_browser_1.BrowserModule, forms_1.FormsModule, http_1.HttpModule, app_routing_module_1.AppRoutingModule],
-            declarations: [app_component_1.AppComponent, user_list_component_1.UsersComponent, user_component_1.UserComponent, resource_list_component_1.ResourcesComponent],
-            bootstrap: [app_component_1.AppComponent]
-        }), 
-        __metadata('design:paramtypes', [])
-    ], AppModule);
     return AppModule;
 }());
+AppModule = __decorate([
+    core_1.NgModule({
+        imports: [platform_browser_1.BrowserModule, forms_1.FormsModule, http_1.HttpModule, app_routing_module_1.AppRoutingModule],
+        declarations: [app_component_1.AppComponent, user_list_component_1.UsersComponent, user_component_1.UserComponent, resource_list_component_1.ResourcesComponent, purchase_list_component_1.PurchasesComponent],
+        bootstrap: [app_component_1.AppComponent]
+    }),
+    __metadata("design:paramtypes", [])
+], AppModule);
 exports.AppModule = AppModule;
 //# sourceMappingURL=app.module.js.map

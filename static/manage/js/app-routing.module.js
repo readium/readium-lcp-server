@@ -8,10 +8,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var core_1 = require('@angular/core');
-var router_1 = require('@angular/router');
-var user_list_component_1 = require('./components/user-list-component');
-var user_component_1 = require('./components/user-component');
+var core_1 = require("@angular/core");
+var router_1 = require("@angular/router");
+var user_list_component_1 = require("./components/user-list-component");
+var user_component_1 = require("./components/user-component");
 var routes = [
     { path: '', redirectTo: 'userlist', pathMatch: 'full' },
     { path: 'userlist', component: user_list_component_1.UsersComponent },
@@ -20,14 +20,14 @@ var routes = [
 var AppRoutingModule = (function () {
     function AppRoutingModule() {
     }
-    AppRoutingModule = __decorate([
-        core_1.NgModule({
-            imports: [router_1.RouterModule.forRoot(routes)],
-            exports: [router_1.RouterModule]
-        }), 
-        __metadata('design:paramtypes', [])
-    ], AppRoutingModule);
     return AppRoutingModule;
 }());
+AppRoutingModule = __decorate([
+    core_1.NgModule({
+        imports: [router_1.RouterModule.forRoot(routes)],
+        exports: [router_1.RouterModule]
+    }),
+    __metadata("design:paramtypes", [])
+], AppRoutingModule);
 exports.AppRoutingModule = AppRoutingModule;
 //# sourceMappingURL=app-routing.module.js.map

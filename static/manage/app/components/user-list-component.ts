@@ -9,7 +9,7 @@ import { UserService } from './user.service';
     moduleId: module.id,
     selector: 'users',
     templateUrl: '/app/components/user-list.html',
-    styleUrls: ['/app/components/user.css'],
+    styleUrls: ['../../app/components/user.css'],
     providers: [UserService]
 })
 
