@@ -60,7 +60,7 @@ func TestPacking(t *testing.T) {
 	inputRes.Contents = bytes.NewReader(inputBytes)
 
 	buf := new(bytes.Buffer)
-	encrypter := crypto.NewAESEncrypter_CONTENT()
+	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
 	encryption, key, err := Do(encrypter, input, buf)
 	if err != nil {
 		t.Fatal(err)

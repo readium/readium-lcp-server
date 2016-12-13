@@ -42,20 +42,27 @@ type Decrypter interface {
 	Decrypt(key ContentKey, r io.Reader, w io.Writer) error
 }
 
-func NewAESEncrypter_CONTENT() Encrypter {
-	if config.Config.AES256_CONTENT == "GCM" {
+func NewAESEncrypter_PUBLICATION_RESOURCES() Encrypter {
+	if config.Config.AES256_CBC_OR_GCM == "GCM" {
 		return NewAESGCMEncrypter()
 	} else { // default to CBC
 		return NewAESCBCEncrypter()
 	}
 }
 
-func NewAESEncrypter_KEYS() Encrypter {
-	if config.Config.AES256_KEYS == "GCM" {
-		return NewAESGCMEncrypter()
-	} else { // default to CBC
-		return NewAESCBCEncrypter()
-	}
+func NewAESEncrypter_CONTENT_KEY() Encrypter {
+	// default to CBC
+	return NewAESCBCEncrypter()
+}
+
+func NewAESEncrypter_USER_KEY_CHECK() Encrypter {
+	// default to CBC
+	return NewAESCBCEncrypter()
+}
+
+func NewAESEncrypter_FIELDS() Encrypter {
+	// default to CBC
+	return NewAESCBCEncrypter()
 }
 
 var (

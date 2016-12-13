@@ -128,12 +128,23 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 		
-		encrypter := crypto.NewAESEncrypter_KEYS()
+		encrypter_content_key := crypto.NewAESEncrypter_CONTENT_KEY()
 
-		ExistingLicense.Encryption.ContentKey.Algorithm = encrypter.Signature()
-		ExistingLicense.Encryption.ContentKey.Value = encryptKey(encrypter, content.EncryptionKey, ExistingLicense.Encryption.UserKey.Value) //use old UserKey.Value
+		ExistingLicense.Encryption.ContentKey.Algorithm = encrypter_content_key.Signature()
+		ExistingLicense.Encryption.ContentKey.Value = encryptKey(encrypter_content_key, content.EncryptionKey, ExistingLicense.Encryption.UserKey.Value) //use old UserKey.Value
 		ExistingLicense.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
-		err = buildKeyCheck(encrypter, &ExistingLicense, ExistingLicense.Encryption.UserKey.Value)
+
+		encrypter_fields := crypto.NewAESEncrypter_FIELDS()
+
+		err = encryptFields(encrypter_fields, &ExistingLicense, ExistingLicense.Encryption.UserKey.Value)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			return
+		}
+
+		encrypter_user_key_check := crypto.NewAESEncrypter_USER_KEY_CHECK()
+
+		err = buildKeyCheck(encrypter_user_key_check, &ExistingLicense, ExistingLicense.Encryption.UserKey.Value)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
@@ -452,17 +463,22 @@ func completeLicense(l *license.License, key string, s Server) error {
 		encryptionKey = hash[:]
 	}
 
-	encrypter := crypto.NewAESEncrypter_KEYS()
+	encrypter_content_key := crypto.NewAESEncrypter_CONTENT_KEY()
 
-	l.Encryption.ContentKey.Algorithm = encrypter.Signature()
-	l.Encryption.ContentKey.Value = encryptKey(encrypter, c.EncryptionKey, encryptionKey[:])
+	l.Encryption.ContentKey.Algorithm = encrypter_content_key.Signature()
+	l.Encryption.ContentKey.Value = encryptKey(encrypter_content_key, c.EncryptionKey, encryptionKey[:])
 	l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 
-	err = encryptFields(encrypter, l, encryptionKey[:])
+	encrypter_fields := crypto.NewAESEncrypter_FIELDS()
+
+	err = encryptFields(encrypter_fields, l, encryptionKey[:])
 	if err != nil {
 		return err
 	}
-	err = buildKeyCheck(encrypter, l, encryptionKey[:])
+
+	encrypter_user_key_check := crypto.NewAESEncrypter_USER_KEY_CHECK()
+	
+	err = buildKeyCheck(encrypter_user_key_check, l, encryptionKey[:])
 	if err != nil {
 		return err
 	}

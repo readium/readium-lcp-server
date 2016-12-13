@@ -206,7 +206,7 @@ func main() {
 	}
 
 	// pack / encrypt the epub content, fill the output file
-	encrypter := crypto.NewAESEncrypter_CONTENT()
+	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
 	_, encryptionKey, err := pack.Do(encrypter, ep, output)
 
 	stats, err := output.Stat()

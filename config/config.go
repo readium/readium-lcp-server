@@ -46,8 +46,7 @@ type Configuration struct {
 	LicenseStatus LicenseStatus `yaml:"license_status"`
 	Localization  Localization  `yaml:"localization"`
 	Logging       Logging       `yaml:"logging"`
-	AES256_CONTENT string       `yaml:"aes256_content,omitempty"`
-	AES256_KEYS    string       `yaml:"aes256_keys,omitempty"`
+	AES256_CBC_OR_GCM string    `yaml:"aes256_cbc_or_gcm,omitempty"`
 }
 
 type ServerInfo struct {
