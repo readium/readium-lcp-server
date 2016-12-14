@@ -57,12 +57,12 @@ func NewAESEncrypter_CONTENT_KEY() Encrypter {
 
 func NewAESEncrypter_USER_KEY_CHECK() Encrypter {
 	// default to CBC
-	return NewAESCBCEncrypter()
+	return NewAESEncrypter_CONTENT_KEY()
 }
 
 func NewAESEncrypter_FIELDS() Encrypter {
 	// default to CBC
-	return NewAESCBCEncrypter()
+	return NewAESEncrypter_CONTENT_KEY()
 }
 
 var (
