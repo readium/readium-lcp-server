@@ -35,6 +35,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"reflect"
@@ -78,8 +79,10 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	var lic license.License
 	err := DecodeJsonLicense(r, &lic)
 	if err != nil { // no or incorrect (json) license found in body
-		// just send partial license
-
+		// just send partial licens
+		log.Println("PARTIAL CONTENT:(error: " + err.Error() + ")")
+		body, _ := ioutil.ReadAll(r.Body)
+		log.Println("BODY=" + string(body))
 		err = prepareLinks(ExistingLicense, s)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)

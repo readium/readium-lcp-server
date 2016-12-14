@@ -34,15 +34,18 @@ import (
 	"github.com/readium/readium-lcp-server/static/webuser"
 )
 
-//ErrNotFound Error is trown when a purchase is not found
+//ErrNotFound Error is thrown when a purchase is not found
 var ErrNotFound = errors.New("Purchase not found")
+
+//ErrNoChange is thrown when an update action does not change any rows (not found)
+var ErrNoChange = errors.New("No lines were updated")
 
 //WebPurchase defines possible interactions with DB
 type WebPurchase interface {
 	Get(id int64) (Purchase, error)
 	GetByLicenseID(licenseID string) (Purchase, error)
 	GetForUser(userID int64, page int, pageNum int) func() (Purchase, error)
-	Add(p Purchase) error
+	Add(p Purchase) (int64, error)
 	Update(p Purchase) error
 }
 
@@ -68,26 +71,39 @@ func (purchase dbPurchase) Get(id int64) (Purchase, error) {
 	records, err := purchase.get.Query(id)
 	defer records.Close()
 	if records.Next() {
-		var p Purchase
-		p.User = webuser.User{}
-		err = records.Scan(&p.PurchaseID, &p.Resource, &p.Label, &p.LicenseID, &p.TransactionDate, &p.PartialLicense, &p.User.UserID, &p.User.Alias, &p.User.Email, &p.User.Password)
-		return p, err
+		var PurchaseID, UserID *int64
+		var Resource, Label, LicenseID, PartialLicense, Alias, Email, Password *string
+		var TransactionDate *time.Time
+
+		if err = records.Scan(&PurchaseID, &Resource, &Label, &LicenseID, &TransactionDate, &PartialLicense, &UserID, &Alias, &Email, &Password);err!=nil {
+			return Purchase{},err
+		}
+		user:= webuser.User{UserID:*UserID,Email:*Email,Password:*Password}
+		return Purchase{PurchaseID:*PurchaseID, Resource:*Resource, Label:*Label, LicenseID:*LicenseID, TransactionDate:*TransactionDate, User:user },err
+		
 	}
 
 	return Purchase{}, ErrNotFound
 }
 
-func (purchase dbPurchase) GetByLicenseID(licenseID string) (Purchase, error) {
+func (purchase dbPurchase) GetByLicenseID(licenseID string) (Purchase, error)  {
 	records, err := purchase.getByLicenseID.Query(licenseID)
 	defer records.Close()
 	if records.Next() {
-		var p Purchase
-		p.User = webuser.User{}
-		// purchase_id, user_id, resource, label, transaction_date, user_id, alias, email, password
-		err = records.Scan(&p.PurchaseID, &p.Resource, &p.Label, &p.LicenseID, &p.TransactionDate, &p.User.UserID, &p.User.Alias, &p.User.Email, &p.User.Password)
-		return p, err
-	}
+		var PurchaseID, UserID *int64
+		var Resource, Label, LicenseID, PartialLicense, Alias, Email, Password *string
+		var TransactionDate *time.Time
 
+		if err = records.Scan(&PurchaseID, &Resource, &Label, &LicenseID, &TransactionDate, &PartialLicense, &UserID, &Alias, &Email, &Password);err!=nil {
+			log.Println("error in SCAN",err)
+			return Purchase{},err
+		}
+		user:=webuser.User{UserID: *UserID, Alias:*Alias, Email:*Email, Password:*Password}
+		p:= Purchase{PurchaseID:*PurchaseID, Resource:*Resource, Label:*Label, LicenseID:*LicenseID, PartialLicense:*PartialLicense, TransactionDate:*TransactionDate, User:user }
+		log.Println("purchase found")
+		log.Println(p)
+		return p,err
+	}
 	return Purchase{}, ErrNotFound
 }
 
@@ -118,25 +134,34 @@ func (purchase dbPurchase) GetForUser(userID int64, page int, pageNum int) func(
 
 }
 
-func (purchase dbPurchase) Add(p Purchase) error {
+func (purchase dbPurchase) Add(p Purchase) (int64, error) {
 	add, err := purchase.db.Prepare(`INSERT INTO purchase 
 	(  user_id, resource, label, license_id, transaction_date, partialLicense) 
 	VALUES (?, ?, ?, ?, ?,  ?)`)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer add.Close()
-	_, err = add.Exec(p.User.UserID, p.Resource, p.Label, p.LicenseID, time.Now(), p.PartialLicense)
-	return err
+	if result, err := add.Exec(p.User.UserID, p.Resource, p.Label, p.LicenseID, time.Now(), p.PartialLicense); err == nil {
+		if id, err := result.LastInsertId(); err == nil {
+			return id, nil
+		}
+	}
+	return 0, err
 }
 
 func (purchase dbPurchase) Update(changedPurchase Purchase) error {
-	add, err := purchase.db.Prepare("UPDATE purchase SET user_id=?, resource=?, label=?, license_id=?, transaction_date=?, partialLicense=? WHERE purchase_id=?")
+	update, err := purchase.db.Prepare("UPDATE purchase SET user_id=?, resource=?, label=?, license_id=?, transaction_date=?, partialLicense=? WHERE purchase_id=?")
 	if err != nil {
 		return err
 	}
-	defer add.Close()
-	_, err = add.Exec(changedPurchase.User.UserID, changedPurchase.Resource, changedPurchase.Label, changedPurchase.LicenseID, changedPurchase.TransactionDate, changedPurchase.PartialLicense, changedPurchase.PurchaseID)
+	defer update.Close()
+	result, err := update.Exec(changedPurchase.User.UserID, changedPurchase.Resource, changedPurchase.Label, changedPurchase.LicenseID, changedPurchase.TransactionDate, changedPurchase.PartialLicense, changedPurchase.PurchaseID)
+	if changed, err := result.RowsAffected(); err == nil {
+		if changed != 1 {
+			return ErrNoChange
+		}
+	}
 	return err
 }
 
@@ -171,7 +196,7 @@ func Open(db *sql.DB) (i WebPurchase, err error) {
 		return
 	}
 
-	getByLicenseID, err := db.Prepare(`SELECT purchase_id, resource, label, license_id, transaction_date, p.user_id, alias, email, password 
+	getByLicenseID, err := db.Prepare(`SELECT purchase_id, resource, label, license_id, transaction_date, partialLicense, p.user_id, alias, email, password 
     FROM purchase p 
     inner join user u on (p.user_id=u.user_id) 
     WHERE license_id = ? LIMIT 1`)

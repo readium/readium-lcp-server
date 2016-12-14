@@ -79,7 +79,7 @@ func New(bindAddr string, tplPath string, userAPI webuser.WebUser, purchaseAPI w
 	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}/license", staticapi.GetPurchaseLicense).Methods("GET") // get lcp license for purchase
 
 	// license update
-	s.handleFunc(sr.R, "/licenses/{id}", staticapi.RenewLicenseByLicenseID).Methods("GET") // get license by licenseID
+	s.handleFunc(sr.R, "/licenses/{license_id}", staticapi.RenewLicenseByLicenseID).Methods("GET") // get license by licenseID
 	// resources
 	s.handleFunc(sr.R, "/contents/{content_id}", staticapi.GetLcpResource).Methods("GET") // proxy get resource from lcp server
 
