@@ -151,9 +151,9 @@ NOTE: here is a license section snippet:
 ```json
 license:
     links:
-        hint: "http://www.edrla.org/readiumlcp/hint.html"
-		    publication: "http://www.edrla.org/readiumlcp/{publication_id}/publication" 
-        status: "http://www.edrla.org/readiumlcp/{license_id}/status" 
+        hint: "http://www.edrlab.org/static/hint.html"
+        publication: "http://www.edrlab.org/files/{publication_id}"
+        status: "http://www.edrlab.org/licenses/{license_id}/status"
 ```
 
 "license_status": parameters related to the interactions implemented by the License Status server, if any
