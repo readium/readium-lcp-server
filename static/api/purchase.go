@@ -302,7 +302,7 @@ func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 					// got new  license, return license
 					// get license_id and save it in the database
 					w.Header().Set("Content-Type", response.Header.Get("Content-Type"))
-					w.Header().Set("Content-Disposition", "attachment; filename=\""+purchase.Label+"\""+".lic")
+					w.Header().Set("Content-Disposition", "attachment; filename=\""+purchase.Label+".lcpl\"")
 					io.Copy(w, response.Body)
 					//try to find licenseID and save it , but don't really care about result
 					if data, err := ioutil.ReadAll(response.Body); err == nil {
@@ -448,7 +448,7 @@ func RenewLicenseByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) 
 				{
 					// got new  license, return license
 					w.Header().Set("Content-Type", api.ContentType_LCP_JSON)
-					w.Header().Set("Content-Disposition", "attachment; filename=\""+purchase.Label+"\""+".lic")
+					w.Header().Set("Content-Disposition", "attachment; filename=\""+purchase.Label+".lcpl\"")
 					data, err := ioutil.ReadAll(response.Body)
 					if err != nil {
 						problem.Error(w, r, problem.Problem{Detail: "Error writing response:" + err.Error()}, http.StatusInternalServerError)
