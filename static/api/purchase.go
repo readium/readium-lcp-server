@@ -149,11 +149,11 @@ func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 		pr, pw := io.Pipe()
 		defer pr.Close()
 		go func() {
-			_ = json.NewEncoder(pw).Encode(purchase.PartialLicense)
+			_, _ = io.WriteString(pw, purchase.PartialLicense)
 			pw.Close() // signal end writing partial license (POST)
 		}()
 		// get new license from lcpserver
-		log.Println("POST" + config.Config.LcpServer.PublicBaseUrl + "/contents/" + purchase.Resource + "/licenses")
+		log.Println("POST " + config.Config.LcpServer.PublicBaseUrl + "/contents/" + purchase.Resource + "/licenses")
 		req, err := http.NewRequest("POST", config.Config.LcpServer.PublicBaseUrl+"/contents/"+purchase.Resource+"/licenses", pr)
 		if config.Config.LcpUpdateAuth.Username != "" {
 			req.SetBasicAuth(config.Config.LcpUpdateAuth.Username, config.Config.LcpUpdateAuth.Password)
