@@ -35,6 +35,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"strconv"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
@@ -60,9 +61,18 @@ func main() {
 	}
 	config.ReadConfig(configFile)
 	log.Println("Read config from " + configFile)
+	
+	err = config.SetPublicUrls()
+	if err != nil {
+		panic(err)
+	}
+
 	log.Println("LCP server = " + config.Config.LcpServer.PublicBaseUrl)
 	log.Println("using login  " + config.Config.LcpUpdateAuth.Username)
-	dbURI = "sqlite3://file:static.sqlite?cache=shared&mode=rwc"
+	
+	if dbURI = config.Config.FrontendServer.Database; dbURI == "" {
+		dbURI = "sqlite3://file:frontend.sqlite?cache=shared&mode=rwc"
+	}
 	driver, cnxn := dbFromURI(dbURI)
 	db, err := sql.Open(driver, cnxn)
 	if err != nil {
@@ -89,8 +99,8 @@ func main() {
 
 	HandleSignals()
 
-	s := staticserver.New(":80", static, userDB, purchaseDB)
-	log.Println("Test webserver for LCP running on port 80")
+	s := staticserver.New(config.Config.FrontendServer.Host + ":" + strconv.Itoa(config.Config.FrontendServer.Port), static, userDB, purchaseDB)
+	log.Println("Test webserver for LCP running on port " + strconv.Itoa(config.Config.FrontendServer.Port))
 	log.Println("using database " + dbURI)
 
 	if err := s.ListenAndServe(); err != nil {
