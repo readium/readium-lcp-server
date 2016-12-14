@@ -684,13 +684,17 @@ func getEvents(ls *licensestatuses.LicenseStatus, s Server) error {
 func makeLinks(ls *licensestatuses.LicenseStatus) {
 	lsdBaseUrl := config.Config.LsdServer.PublicBaseUrl
 	lcpBaseUrl := config.Config.LcpServer.PublicBaseUrl
+	frontendBaseUrl := config.Config.FrontendServer.PublicBaseUrl
 	registerAvailable := config.Config.LicenseStatus.Register
 	returnAvailable := config.Config.LicenseStatus.Return
 	renewAvailable := config.Config.LicenseStatus.Renew
 	links := new([]licensestatuses.Link)
 
-	*links = append(*links, createLink(lcpBaseUrl, "license", ls.LicenseRef, "",
-		api.ContentType_LCP_JSON, false))
+	if frontendBaseUrl != "" {
+		*links = append(*links, createLink(frontendBaseUrl, "license", ls.LicenseRef, "", api.ContentType_LCP_JSON, false))
+	} else {
+		*links = append(*links, createLink(lcpBaseUrl, "license", ls.LicenseRef, "", api.ContentType_LCP_JSON, false))
+	}
 
 	if registerAvailable {
 		*links = append(*links, createLink(lsdBaseUrl, "register", ls.LicenseRef, "/register{?id,name}",

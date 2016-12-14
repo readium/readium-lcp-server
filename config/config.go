@@ -40,6 +40,7 @@ type Configuration struct {
 	License       License       `yaml:"license"`
 	LcpServer     ServerInfo    `yaml:"lcp"`
 	LsdServer     ServerInfo    `yaml:"lsd"`
+	FrontendServer     ServerInfo `yaml:"frontend"`
 	LsdNotifyAuth Auth          `yaml:"lsd_notify_auth"`
 	LcpUpdateAuth Auth          `yaml:"lcp_update_auth"`
 	Static        Static        `yaml:"static"`
@@ -128,8 +129,8 @@ func ReadConfig(configFileName string) {
 }
 
 func SetPublicUrls() error {
-	var lcpPublicBaseUrl, lsdPublicBaseUrl, lcpHost, lsdHost string
-	var lcpPort, lsdPort int
+	var lcpPublicBaseUrl, lsdPublicBaseUrl, frontendPublicBaseUrl, lcpHost, lsdHost, frontendHost string
+	var lcpPort, lsdPort, frontendPort int
 	var err error
 
 	if lcpHost = Config.LcpServer.Host; lcpHost == "" {
@@ -146,11 +147,21 @@ func SetPublicUrls() error {
 		}
 	}
 
+	if frontendHost = Config.FrontendServer.Host; frontendHost == "" {
+		frontendHost, err = os.Hostname()
+		if err != nil {
+			return err
+		}
+	}
+
 	if lcpPort = Config.LcpServer.Port; lcpPort == 0 {
 		lcpPort = 8989
 	}
 	if lsdPort = Config.LsdServer.Port; lsdPort == 0 {
 		lsdPort = 8990
+	}
+	if frontendPort = Config.FrontendServer.Port; frontendPort == 0 {
+		frontendPort = 80
 	}
 
 	if lcpPublicBaseUrl = Config.LcpServer.PublicBaseUrl; lcpPublicBaseUrl == "" {
@@ -160,6 +171,10 @@ func SetPublicUrls() error {
 	if lsdPublicBaseUrl = Config.LsdServer.PublicBaseUrl; lsdPublicBaseUrl == "" {
 		lsdPublicBaseUrl = "http://" + lsdHost + ":" + strconv.Itoa(lsdPort)
 		Config.LsdServer.PublicBaseUrl = lsdPublicBaseUrl
+	}
+	if frontendPublicBaseUrl = Config.FrontendServer.PublicBaseUrl; frontendPublicBaseUrl == "" {
+		frontendPublicBaseUrl = "http://" + frontendHost + ":" + strconv.Itoa(frontendPort)
+		Config.FrontendServer.PublicBaseUrl = frontendPublicBaseUrl
 	}
 
 	return err
