@@ -53,18 +53,27 @@ export class ResourcesComponent implements OnInit {
         // create purchase in database
         // ask license on lcpserver
         console.log(this.user.alias + ' bought ' + this.selectedResource.location);
-        //TODO alert user somehow...goto user details ?
+        // TODO alert user somehow...goto user details ?
+        // redirect to download ?
     }
 
     onLoan(): void {
-        // should add parameters for loan action (period etc.)
-        /* "rights": {\n\
-        "print": 10,\n\
-        "copy": 2048,\n\
-        "start": "2016-09-01T01:08:15+01:00",\n\
-        "end": "2017-11-25T01:08:15+01:00"\n\
-        }\n\*/
+        // TODO add parameters for loan action (period etc.)
+        let rights = new lic.UserRights;
+        rights.copy = 10;
+        rights.print = 10;
+        rights.start = new Date();
+        rights.end = new Date( rights.start.valueOf() + 30 * 24 * 3600); // + 30 days  
+        console.log(rights);
         // loan action action for selectedResource and user
+        let partialLicense =this.createPartialLicense(this.user, rights);
+        let p = new Purchase;
+        p.label = this.selectedResource.location;
+        p.partialLicense = JSON.stringify(partialLicense);
+        p.resource = this.selectedResource.id;
+        p.user = this.user;
+        console.log(p);
+        this.purchaseService.create(p);
         // create partial license
         // create purchase in database
         // ask license on lcpserver
@@ -74,7 +83,7 @@ export class ResourcesComponent implements OnInit {
     private createPartialLicense(user: User, rights: lic.UserRights): lic.PartialLicense {
         let partialLicense = new lic.PartialLicense;
         partialLicense.provider =  lic.PROVIDER;
-        partialLicense.user =  {id: user.userID, email: user.email, name: user.alias, encrypted: undefined };
+        partialLicense.user =  {id: '_' + String(user.userID), email: user.email, name: user.alias, encrypted: undefined };
         partialLicense.rights = rights;
         partialLicense.encryption = new lic.Encryption;
         partialLicense.encryption.user_key = new lic.UserKey;

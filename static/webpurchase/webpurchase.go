@@ -41,7 +41,7 @@ var ErrNotFound = errors.New("Purchase not found")
 type WebPurchase interface {
 	Get(id int64) (Purchase, error)
 	GetByLicenseID(licenseID string) (Purchase, error)
-
+	GetForUser(userID int64, page int, pageNum int) func() (Purchase, error)
 	Add(p Purchase) error
 	Update(p Purchase) error
 }
@@ -61,18 +61,16 @@ type dbPurchase struct {
 	db             *sql.DB
 	get            *sql.Stmt
 	getByLicenseID *sql.Stmt
-	add            *sql.Stmt
-	listForUser    *sql.Stmt
 }
 
 func (purchase dbPurchase) Get(id int64) (Purchase, error) {
+	//return also includes the partialLicense
 	records, err := purchase.get.Query(id)
 	defer records.Close()
 	if records.Next() {
 		var p Purchase
 		p.User = webuser.User{}
-		// purchase_id, user_id, resource, label, transaction_date, user_id, alias, email, password
-		err = records.Scan(&p.PurchaseID, &p.Resource, &p.Label, &p.LicenseID, &p.TransactionDate, &p.User.UserID, &p.User.Alias, &p.User.Email, &p.User.Password)
+		err = records.Scan(&p.PurchaseID, &p.Resource, &p.Label, &p.LicenseID, &p.TransactionDate, &p.PartialLicense, &p.User.UserID, &p.User.Alias, &p.User.Email, &p.User.Password)
 		return p, err
 	}
 
@@ -93,13 +91,42 @@ func (purchase dbPurchase) GetByLicenseID(licenseID string) (Purchase, error) {
 	return Purchase{}, ErrNotFound
 }
 
+func (purchase dbPurchase) GetForUser(userID int64, page int, pageNum int) func() (Purchase, error) {
+	listPurchases, err := purchase.db.Query(`
+	SELECT purchase_id, resource, label, license_id, transaction_date, p.user_id, alias, email, password 
+    FROM purchase p 
+    inner join user u on (p.user_id=u.user_id) 
+    WHERE u.user_id = ? 
+	ORDER BY p.transaction_date desc LIMIT ? OFFSET ? `, userID, page, pageNum*page)
+	if err != nil {
+		return func() (Purchase, error) { return Purchase{}, err }
+	}
+	return func() (Purchase, error) {
+		var p Purchase
+		if listPurchases.Next() {
+			err = listPurchases.Scan(&p.PurchaseID, &p.Resource, &p.Label, &p.LicenseID, &p.TransactionDate, &p.User.UserID, &p.User.Alias, &p.User.Email, &p.User.Password)
+			if err != nil {
+				return p, err
+			}
+
+		} else {
+			listPurchases.Close()
+			err = ErrNotFound
+		}
+		return p, err
+	}
+
+}
+
 func (purchase dbPurchase) Add(p Purchase) error {
-	add, err := purchase.db.Prepare("INSERT INTO purchase ( purchase_id, user_id, resource, label, license_id, transaction_date, partialLicense) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	add, err := purchase.db.Prepare(`INSERT INTO purchase 
+	(  user_id, resource, label, license_id, transaction_date, partialLicense) 
+	VALUES (?, ?, ?, ?, ?,  ?)`)
 	if err != nil {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(p.PurchaseID, p.User.UserID, p.Label, p.LicenseID, p.PartialLicense, p.PartialLicense)
+	_, err = add.Exec(p.User.UserID, p.Resource, p.Label, p.LicenseID, time.Now(), p.PartialLicense)
 	return err
 }
 
@@ -130,12 +157,12 @@ func Open(db *sql.DB) (i WebPurchase, err error) {
 		log.Println("Error creating purchase table")
 		return
 	}
-	_, err = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_purchase ON purchase (license_id)`)
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_purchase ON purchase (license_id)`)
 	if err != nil {
 		log.Println("Error creating idx_purchase table")
 		return
 	}
-	get, err := db.Prepare(`SELECT purchase_id, resource, label, license_id, transaction_date, p.user_id, alias, email, password 
+	get, err := db.Prepare(`SELECT purchase_id, resource, label, license_id, transaction_date, partialLicense, p.user_id, alias, email, password 
     FROM purchase p 
     inner join user u on (p.user_id=u.user_id) 
     WHERE purchase_id = ? LIMIT 1`)
@@ -152,6 +179,6 @@ func Open(db *sql.DB) (i WebPurchase, err error) {
 		log.Println("Error prepare get purchase by LicenseID ")
 		return
 	}
-	i = dbPurchase{db, get, getByLicenseID, nil, nil}
+	i = dbPurchase{db, get, getByLicenseID}
 	return
 }

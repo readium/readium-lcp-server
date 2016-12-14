@@ -3,11 +3,12 @@
     margin-left:16px;    
 }
 .anID {
-    width: 50;
-    margin-left: 8px;
+    width: 50px;
+    margin-left: 8px;    
     padding: 8px;
     border-radius: 10px;
-    border: 3px solid black;     
+    border: 3px solid black;
+    text-align: center;     
 }
 .aLabel {
     width:200;
@@ -25,8 +26,3 @@
 .delete {
     background-color: red;
 }
-
-.selectedUser {
-    
-}
-

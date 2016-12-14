@@ -17,6 +17,7 @@ export class PurchaseService {
       .then(function (response) {
         let purchases: Purchase[] = [];
         for (let ResponseItem of response.json()) {
+          console.log(ResponseItem);
           let p = new Purchase;
           p.label = ResponseItem.label;
           p.licenseID = ResponseItem.licenseID;
@@ -36,10 +37,11 @@ export class PurchaseService {
       .put(this.usersUrl + '/' + purchase.user.userID + '/purchases', JSON.stringify(purchase), {headers: this.headers})
       .toPromise()
       .then(function (response) {
-          if (response.status === 201) {
+          if ((response.status === 200) || (response.status === 201)) {
+            console.log(response.text);
             return purchase; // ok
           } else {
-            throw 'Error creating purchase ' + response.text;
+            throw 'Error in create(purchase); ' + response.status + response.text;
           }
       })
       .catch(this.handleError);

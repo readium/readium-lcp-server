@@ -24,7 +24,7 @@ var UserService = (function () {
             var users = [];
             for (var _i = 0, _a = response.json(); _i < _a.length; _i++) {
                 var jsonUser = _a[_i];
-                users[users.length] = { userID: jsonUser.userID, alias: jsonUser.alias, email: jsonUser.email, password: null };
+                users[users.length] = { userID: jsonUser.userID, alias: jsonUser.alias, email: jsonUser.email, password: jsonUser.password };
             }
             return users;
         })

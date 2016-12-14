@@ -40,6 +40,7 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/static/server"
 	"github.com/readium/readium-lcp-server/static/webpurchase"
 	"github.com/readium/readium-lcp-server/static/webuser"
@@ -51,9 +52,16 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-	var dbURI, static string
+	var dbURI, static, configFile string
 	var err error
 
+	if configFile = os.Getenv("READIUM_WEBTEST_CONFIG"); configFile == "" {
+		configFile = "config.yaml"
+	}
+	config.ReadConfig(configFile)
+	log.Println("Read config from " + configFile)
+	log.Println("LCP server = " + config.Config.LcpServer.PublicBaseUrl)
+	log.Println("using login  " + config.Config.LcpUpdateAuth.Username)
 	dbURI = "sqlite3://file:static.sqlite?cache=shared&mode=rwc"
 	driver, cnxn := dbFromURI(dbURI)
 	db, err := sql.Open(driver, cnxn)

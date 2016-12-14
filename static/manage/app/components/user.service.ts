@@ -15,7 +15,7 @@ export class UserService {
       .then(function (response) {
         let users: User[] = [];
         for (let jsonUser of response.json()) {
-          users[users.length] = {userID: jsonUser.userID, alias: jsonUser.alias, email: jsonUser.email, password: null};
+          users[users.length] = {userID: jsonUser.userID, alias: jsonUser.alias, email: jsonUser.email, password: jsonUser.password};
         }
         return users;
       })

@@ -1,7 +1,8 @@
-Purchases 
-<br/>
-TODO :
-<ul>
-<li> list purchases</li>
-<li> clic to redownload license ?</li>
+<h3 class="purchases step">Purchases</h3>
+<ul class="purchases">
+    <li *ngFor="let purchase of purchases" (click)="onSelect(purchase)" [class.selected]="purchase === selectedPurchase">    
+    <span class="aDate">{{purchase.transactionDate}}</span>
+    <span class="aLabel">{{purchase.label}}</span>     
+    <span class="aLicenseID">{{purchase.licenseID}}</span><button (click)="DownloadLicense(purchase)">download</button>     
+    </li>
 </ul>

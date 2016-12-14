@@ -4,11 +4,12 @@ import {Location} from '@angular/common';
 
 import { User } from './user';
 import { UserService } from './user.service';
+
 @Component({
     moduleId: module.id,
     selector: 'user',
     templateUrl: '/app/components/user.html',
-    styleUrls: ['/app/components/user.css'],
+    styleUrls: ['../../app/components/user.css'],
     providers: [UserService]
 })
 

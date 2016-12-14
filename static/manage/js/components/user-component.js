@@ -46,7 +46,7 @@ UserComponent = __decorate([
         moduleId: module.id,
         selector: 'user',
         templateUrl: '/app/components/user.html',
-        styleUrls: ['/app/components/user.css'],
+        styleUrls: ['../../app/components/user.css'],
         providers: [user_service_1.UserService]
     }),
     __metadata("design:paramtypes", [user_service_1.UserService,

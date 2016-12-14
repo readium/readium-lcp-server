@@ -44,7 +44,7 @@ export class UserRights {
 }
 
 export class  UserInfo  {
-    id:        string |number;
+    id:        string;
     email:     string;
     name:      string;
     encrypted: string[] | undefined;
