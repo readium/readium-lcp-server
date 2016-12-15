@@ -203,7 +203,6 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	//check & set the status of the license status
 	if licenseStatus.Status == status.STATUS_READY {
 		licenseStatus.Status = status.STATUS_ACTIVE
-		licenseStatus.Updated.License = &event.Timestamp
 	}
 
 	*licenseStatus.DeviceCount += 1
