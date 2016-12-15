@@ -27,6 +27,7 @@ package api
 
 import (
 	"log"
+	"fmt"
 	"net/http"
 
 	"github.com/abbot/go-http-auth"
@@ -115,7 +116,9 @@ func ExtraLogger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc)
 
 	log.Print(" << -------------------")
 
-	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path})
+	fmt.Printf("%s => %s (%s)\n", r.RemoteAddr, r.URL.String(), r.RequestURI)
+
+	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path, "query": r.URL.RawQuery})
 
 	log.Printf("REQUEST headers: %#v", r.Header)
 
