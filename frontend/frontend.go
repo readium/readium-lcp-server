@@ -95,12 +95,11 @@ func main() {
 
 	_, file, _, _ := runtime.Caller(0)
 	here := filepath.Dir(file)
-	manageDir = filepath.Join(here, "../static/manage")
+	manageDir = filepath.Join(here, "../frontend/manage")
 
 	HandleSignals()
-
 	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), manageDir, userDB, purchaseDB)
-	log.Println("Test webserver for LCP running on port " + strconv.Itoa(config.Config.FrontendServer.Port))
+	log.Println("Frontend webserver for LCP running on " + config.Config.FrontendServer.Host + ":" + strconv.Itoa(config.Config.FrontendServer.Port))
 	log.Println("using database " + dbURI)
 
 	if err := s.ListenAndServe(); err != nil {
