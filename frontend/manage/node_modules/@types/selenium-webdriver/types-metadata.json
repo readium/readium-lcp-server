@@ -1,0 +1,44 @@
+{
+    "authors": "Bill Armstrong <https://github.com/BillArmstrong>, Yuki Kokubun <https://github.com/Kuniwak>, Craig Nishina <https://github.com/cnishina>",
+    "libraryDependencies": [],
+    "moduleDependencies": [],
+    "libraryMajorVersion": 2,
+    "libraryMinorVersion": 53,
+    "libraryName": "Selenium WebDriverJS",
+    "typingsPackageName": "selenium-webdriver",
+    "projectName": "https://github.com/SeleniumHQ/selenium/tree/master/javascript/node/selenium-webdriver",
+    "sourceRepoURL": "https://www.github.com/DefinitelyTyped/DefinitelyTyped",
+    "sourceBranch": "types-2.0",
+    "kind": "MultipleModules",
+    "globals": [
+        "chrome",
+        "edge",
+        "executors",
+        "firefox",
+        "http",
+        "ie",
+        "opera",
+        "remote",
+        "safari",
+        "testing",
+        "webdriver"
+    ],
+    "declaredModules": [
+        "selenium-webdriver/chrome",
+        "selenium-webdriver/edge",
+        "selenium-webdriver/executors",
+        "selenium-webdriver/firefox",
+        "selenium-webdriver/http",
+        "selenium-webdriver/ie",
+        "selenium-webdriver/opera",
+        "selenium-webdriver/remote",
+        "selenium-webdriver/safari",
+        "selenium-webdriver",
+        "selenium-webdriver/testing"
+    ],
+    "files": [
+        "index.d.ts"
+    ],
+    "hasPackageJson": false,
+    "contentHash": "ccbc684db3ad491d9918dbe4436c211af05714c51f00ffad3bdce1eb708723ab"
+}
