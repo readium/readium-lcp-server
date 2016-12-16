@@ -15,7 +15,7 @@ var jsSHA = require("jssha");
 var UserService = (function () {
     function UserService(http) {
         this.http = http;
-        this.usersUrl = 'http://localhost/users'; // THIS SHOULD BE EQUAL TO THE URL of the static webserver (or just /)
+        this.usersUrl = Config.frontend.url + '/users';
         this.headers = new http_1.Headers({ 'Content-Type': 'application/json' });
     }
     UserService.prototype.getUsers = function () {

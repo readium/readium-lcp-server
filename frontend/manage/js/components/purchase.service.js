@@ -15,7 +15,7 @@ var purchase_1 = require("./purchase");
 var PurchaseService = (function () {
     function PurchaseService(http) {
         this.http = http;
-        this.usersUrl = 'http://localhost/users'; // THIS SHOULD BE EQUAL TO THE URL of the static webserver (or just /)
+        this.usersUrl = Config.frontend.url + '/users';
         // /users/{user_id}/purchases
         this.headers = new http_1.Headers({ 'Content-Type': 'application/json' });
     }

@@ -12,10 +12,9 @@ var core_1 = require("@angular/core");
 var http_1 = require("@angular/http");
 require("rxjs/add/operator/toPromise");
 var ResourceService = (function () {
-    // private headers = new Headers ({'Content-Type': 'application/json'});
     function ResourceService(http) {
         this.http = http;
-        this.resourceUrl = 'http://localhost:8989/contents'; // THIS SHOULD BE EQUAL TO THE URL of the lcp webserver+/contents )
+        this.resourceUrl = Config.lcp.url + '/contents';
     }
     ResourceService.prototype.getResources = function () {
         return this.http.get(this.resourceUrl)
