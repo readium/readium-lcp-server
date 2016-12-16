@@ -4,6 +4,7 @@ lcpencrypt/lcpencrypt
 files/
 *.sqlite*
 config.yaml
+lcpserver/manage/config.js
 .vscode/launch.json
 debug
 *.exe
