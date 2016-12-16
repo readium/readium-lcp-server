@@ -13,7 +13,7 @@ import { PurchaseService } from './purchase.service';
     moduleId: module.id,
     selector: 'resources',
     templateUrl: '/app/components/resource-list.html',
-    styleUrls: ['../../app/components/resource.css', '../../style.css'], // from /js/app/components... 
+    styleUrls: ['../../app/components/resource.css', '../../styles.css'], // from /js/app/components... 
     providers: [ResourceService, PurchaseService]
 })
 
