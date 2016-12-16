@@ -71,9 +71,9 @@ func (s *Server) Source() *pack.ManualSource {
 	return &s.source
 }
 
-func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager, basicAuth *auth.BasicAuth) *Server {
+func New(bindAddr string, static string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager, basicAuth *auth.BasicAuth) *Server {
 
-	sr := api.CreateServerRouter(tplPath)
+	sr := api.CreateServerRouter(static)
 	
 	s := &Server{
 		Server: http.Server{

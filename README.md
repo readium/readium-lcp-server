@@ -174,6 +174,10 @@ NOTE: list files for localization (ex: 'en-US.json, de-DE.json') must match the 
 - log_directory: point to log file (a .log).
 - compliance_tests_mode_on: boolean; if `true`, logging is turned on.
 
+Documentation
+============
+A detailed documentation is found in the [Wiki pages](../../wiki) of the project.
+
 Contributing
 ============
 Please make a Pull Request with tests at github.com/readium/readium-lcp-server

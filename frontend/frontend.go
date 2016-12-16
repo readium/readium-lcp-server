@@ -53,7 +53,7 @@ func dbFromURI(uri string) (string, string) {
 }
 
 func main() {
-	var dbURI, manageDir, configFile string
+	var dbURI, static, configFile string
 	var err error
 
 	if configFile = os.Getenv("READIUM_WEBTEST_CONFIG"); configFile == "" {
@@ -93,12 +93,15 @@ func main() {
 		panic(err)
 	}
 
-	_, file, _, _ := runtime.Caller(0)
-	here := filepath.Dir(file)
-	manageDir = filepath.Join(here, "../frontend/manage")
+	static = config.Config.FrontendServer.Directory
+	if static == "" {
+		_, file, _, _ := runtime.Caller(0)
+		here := filepath.Dir(file)
+		static = filepath.Join(here, "../frontend/manage")
+	}
 
 	HandleSignals()
-	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), manageDir, userDB, purchaseDB)
+	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), static, userDB, purchaseDB)
 	log.Println("Frontend webserver for LCP running on " + config.Config.FrontendServer.Host + ":" + strconv.Itoa(config.Config.FrontendServer.Port))
 	log.Println("using database " + dbURI)
 

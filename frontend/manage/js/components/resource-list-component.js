@@ -105,7 +105,7 @@ ResourcesComponent = __decorate([
         moduleId: module.id,
         selector: 'resources',
         templateUrl: '/app/components/resource-list.html',
-        styleUrls: ['../../app/components/resource.css', '../../style.css'],
+        styleUrls: ['../../app/components/resource.css', '../../styles.css'],
         providers: [resource_service_1.ResourceService, purchase_service_1.PurchaseService]
     }),
     __metadata("design:paramtypes", [resource_service_1.ResourceService, purchase_service_1.PurchaseService, router_1.Router])

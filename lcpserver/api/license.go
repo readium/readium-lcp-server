@@ -43,6 +43,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
@@ -79,6 +80,9 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	var lic license.License
 	err := DecodeJsonLicense(r, &lic)
 	if err != nil { // no or incorrect (json) license found in body
+
+		spew.Dump(lic)
+
 		// just send partial licens
 		log.Println("PARTIAL CONTENT:(error: " + err.Error() + ")")
 		body, _ := ioutil.ReadAll(r.Body)
@@ -107,6 +111,9 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 
 	} else { // add information to license , sign and return (real) License
+
+		spew.Dump(lic)
+
 		if lic.User.Email == "" {
 			problem.Error(w, r, problem.Problem{Detail: "User information must be passed in INPUT"}, http.StatusBadRequest)
 			return
