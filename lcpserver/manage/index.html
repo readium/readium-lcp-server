@@ -17,24 +17,24 @@
     <h2>Packages</h2>
     <ul id="packages"></ul>
     <script language="javascript" type="text/javascript">
-      var obj = $("#dropzone");
-      obj.on('dragenter', function (e) {
-          console.log(this);
-          $(this).addClass("dropping")
-          e.stopPropagation();
-          e.preventDefault();
-      });
-      obj.on('dragover', function (e) {
-          e.stopPropagation();
-          e.preventDefault();
-          });
-    obj.on('drop', function (e) {
-        $(this).removeClass("dropping")
-        e.preventDefault();
-        var files = e.originalEvent.dataTransfer.files;
-        //We need to send dropped files to Server
-        handleFileUpload(files,obj);
-    });
+    //   var obj = $("#dropzone");
+    //   obj.on('dragenter', function (e) {
+    //       console.log(this);
+    //       $(this).addClass("dropping")
+    //       e.stopPropagation();
+    //       e.preventDefault();
+    //   });
+    //   obj.on('dragover', function (e) {
+    //       e.stopPropagation();
+    //       e.preventDefault();
+    //       });
+    // obj.on('drop', function (e) {
+    //     $(this).removeClass("dropping")
+    //     e.preventDefault();
+    //     var files = e.originalEvent.dataTransfer.files;
+    //     //We need to send dropped files to Server
+    //     handleFileUpload(files);
+    // });
 
 $('#packages').on('click', 'li', function() {
     $('#key').val($(this).data("key"));
@@ -70,11 +70,11 @@ $(document).on('drop', function (e) {
     $(this).removeClass("dropping")
     e.preventDefault();
     var files = e.originalEvent.dataTransfer.files;
-    handleFileUpload(files,obj);
+    handleFileUpload(files);
     });
 
 
-function handleFileUpload(files,obj) {
+function handleFileUpload(files) {
   
   for (var i = 0; i < files.length; i++) {
     $('#dropzone').css('background', '-webkit-linear-gradient(left, #0074D9 0%,#0074D9 0%,transparent 0%)')
