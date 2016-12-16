@@ -43,7 +43,6 @@ type Configuration struct {
 	FrontendServer     ServerInfo `yaml:"frontend"`
 	LsdNotifyAuth Auth          `yaml:"lsd_notify_auth"`
 	LcpUpdateAuth Auth          `yaml:"lcp_update_auth"`
-	Static        Static        `yaml:"static"`
 	LicenseStatus LicenseStatus `yaml:"license_status"`
 	Localization  Localization  `yaml:"localization"`
 	Logging       Logging       `yaml:"logging"`
@@ -56,6 +55,7 @@ type ServerInfo struct {
 	ReadOnly      bool   `yaml:"readonly,omitempty"`
 	PublicBaseUrl string `yaml:"public_base_url,omitempty"`
 	Database      string `yaml:"database,omitempty"`
+	Directory string `yaml:"directory,omitempty"`
 }
 
 type Auth struct {
@@ -69,10 +69,6 @@ type Certificate struct {
 }
 
 type FileSystem struct {
-	Directory string `yaml:"directory"`
-}
-
-type Static struct {
 	Directory string `yaml:"directory"`
 }
 

@@ -12,7 +12,7 @@ frontend/manage/node_modules/*
 frontend/node_modules/*
 frontend/manage/js/*
 frontend/manage/js/components/*
-frontend/manage/config.js
+lcpserver/manage/config.js
 *.map
 *.htpasswd
 lcpserver/test.sqllite
