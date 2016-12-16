@@ -9,7 +9,10 @@
     "lib": [ "es2015", "dom" ],
     "noImplicitAny": true,
     "suppressImplicitAnyIndexErrors": true,
-    "outDir": "./js"
+    "outDir": "./js",
+    "typeRoots": [
+      "node_modules/@types"
+    ]
   },
   "include": [
         "app/**/*"

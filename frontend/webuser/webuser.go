@@ -142,6 +142,7 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	alias varchar(64) NOT NULL, 
 	email varchar(64) NOT NULL, 
 	password varchar(64) NOT NULL, 
+	
 	constraint pk_user  primary key(user_id)
 	)`)
 	if err != nil {

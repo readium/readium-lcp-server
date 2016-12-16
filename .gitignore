@@ -8,10 +8,9 @@ config.yaml
 debug
 *.exe
 *.yaml
-static/manage/node_modules/*
-static/node_modules/*
-static/manage/js/*
-static/manage/js/components/*
+**/manage/*.js
+frontend/manage/node_modules/*
+frontend/manage/js/components/*
 *.map
 *.htpasswd
 lcpserver/test.sqllite

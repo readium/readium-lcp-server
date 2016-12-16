@@ -130,9 +130,22 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 			return
 		}
+		//select UserKey to use and create Value
+		var encryptionKey []byte
+		if len(lic.Encryption.UserKey.Value) > 0 {
+			encryptionKey = lic.Encryption.UserKey.Value
+			lic.Encryption.UserKey.Value = nil
+		} else {
+			passphrase := lic.Encryption.UserKey.ClearValue
+			ExistingLicense.Encryption.UserKey.ClearValue = ""
+			hash := sha256.Sum256([]byte(passphrase))
+			ExistingLicense.Encryption.UserKey.Value = hash[:32]
+			encryptionKey = hash[:]
+		}
 
 		ExistingLicense.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
-		ExistingLicense.Encryption.ContentKey.Value = encryptKey(content.EncryptionKey, ExistingLicense.Encryption.UserKey.Value) //use old UserKey.Value
+		ExistingLicense.Encryption.ContentKey.Value = encryptKey(content.EncryptionKey, encryptionKey[:])
+		//ExistingLicense.Encryption.ContentKey.Value = encryptKey(content.EncryptionKey, ExistingLicense.Encryption.UserKey.Value) //use old UserKey.Value
 		ExistingLicense.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 		err = buildKeyCheck(&ExistingLicense, ExistingLicense.Encryption.UserKey.Value)
 		if err != nil {

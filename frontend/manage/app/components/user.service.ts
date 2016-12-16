@@ -2,6 +2,7 @@ import { Injectable }    from '@angular/core';
 import { Headers, Http } from '@angular/http';
 import 'rxjs/add/operator/toPromise';
 import { User } from './user';
+import * as CryptoJS from 'angular-crypto-js';
 
 @Injectable()
 export class UserService {
@@ -23,7 +24,10 @@ export class UserService {
   }
 
   create(newAlias: string, newEmail: string, newPassword: string): Promise<User> {
-    let user: User = {userID: null, alias: newAlias, email: newEmail, password: newPassword};
+    let hash = CryptoJS.createHash('sha256');
+    hash.update(newPassword);
+    let hashedPassword= hash.digest('hex'); 
+    let user: User = {userID: null, alias: newAlias, email: newEmail, password:  hashedPassword};
     return this.http
       .put(this.usersUrl, JSON.stringify(user), {headers: this.headers})
       .toPromise()

@@ -13,7 +13,7 @@
     <tr *ngFor="let user of users" >
         <td class="anID" [class.selected]="user === selectedUser" >{{user.userID}}</td>
         <td class="aLabel" (click)="onSelect(user)" >{{user.alias}}</td>
-        <td class="anID"> passphrase = {{user.password}}</td>
+        <td class="anID"> hashed passphrase = {{user.password}}</td>
         <td><button class="delete" (click)="delete(user); $event.stopPropagation()">x</button></td>
     </tr>
 </table> 

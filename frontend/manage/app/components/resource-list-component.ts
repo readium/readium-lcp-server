@@ -8,7 +8,6 @@ import  * as lic from './partialLicense';
 import { ResourceService } from './resource.service';
 import { PurchaseService } from './purchase.service';
 
-
 @Component({
     moduleId: module.id,
     selector: 'resources',
@@ -26,7 +25,7 @@ export class ResourcesComponent implements OnInit {
 
     constructor(private resourceService: ResourceService, private purchaseService: PurchaseService, private router: Router) { }
 
-
+    
     getResources(): void {
         this.resourceService.getResources().then(Resources => this.resources = Resources);
     }
@@ -80,6 +79,15 @@ export class ResourcesComponent implements OnInit {
         console.log(this.user.alias + ' wants to loan ' + this.selectedResource.location);
     }
 
+    private hexToBytes(hex: string) {
+        let bytes: any[];
+        let c: number;
+        for (bytes = [], c = 0; c < hex.length; c += 1) {
+            bytes.push(parseInt(hex.charAt(c), 16));
+        }
+        return bytes;
+    }
+
     private createPartialLicense(user: User, rights: lic.UserRights): lic.PartialLicense {
         let partialLicense = new lic.PartialLicense;
         partialLicense.provider =  lic.PROVIDER;
@@ -87,7 +95,7 @@ export class ResourcesComponent implements OnInit {
         partialLicense.rights = rights;
         partialLicense.encryption = new lic.Encryption;
         partialLicense.encryption.user_key = new lic.UserKey;
-        partialLicense.encryption.user_key.clear_value = user.password;
+        partialLicense.encryption.user_key.value =  this.hexToBytes( user.password);
         partialLicense.encryption.user_key.algorithm = lic.USERKEY_ALGO;
         partialLicense.encryption.user_key.text_hint = 'Enter passphrase';
         return partialLicense;
