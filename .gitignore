@@ -8,10 +8,10 @@ config.yaml
 debug
 *.exe
 *.yaml
-static/manage/node_modules/*
-static/node_modules/*
-static/manage/js/*
-static/manage/js/components/*
+frontend/manage/node_modules/*
+frontend/node_modules/*
+frontend/manage/js/*
+frontend/manage/js/components/*
 *.map
 *.htpasswd
 lcpserver/test.sqllite
@@ -19,3 +19,4 @@ lcpserver/test.sqllite
 .vscode
 lcpencrypt/.DS_Store
 lcpserver/.DS_Store
+frontend/manage/config.js
