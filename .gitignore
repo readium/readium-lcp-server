@@ -12,6 +12,7 @@ frontend/manage/node_modules/*
 frontend/node_modules/*
 frontend/manage/js/*
 frontend/manage/js/components/*
+frontend/manage/config.js
 *.map
 *.htpasswd
 lcpserver/test.sqllite
@@ -19,4 +20,3 @@ lcpserver/test.sqllite
 .vscode
 lcpencrypt/.DS_Store
 lcpserver/.DS_Store
-frontend/manage/config.js
