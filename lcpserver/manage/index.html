@@ -42,13 +42,17 @@ $('#packages').on('click', 'li', function() {
 
 $(document).on('click', '#license', function() {
     var lic = makeLicense();
-    $("#license-form").attr('action', Config.lcp.url + "/contents/" + $('#key').val() + "/licenses");
+    $("#license-form").attr('action',
+    Config.lcp.url.replace("http://", "http://" + Config.lcp.user + ":" + Config.lcp.password + "@")
+    + "/contents/" + $('#key').val() + "/licenses");
     $("#data").val(JSON.stringify(lic));
 });
 
 $(document).on('click', '#publication', function() {
     var lic = makeLicense();
-    $("#license-form").attr('action', Config.lcp.url + "/contents/" + $('#key').val() + "/publications");
+    $("#license-form").attr('action',
+    Config.lcp.url.replace("http://", "http://" + Config.lcp.user + ":" + Config.lcp.password + "@")
+    + "/contents/" + $('#key').val() + "/publications");
     $("#data").val(JSON.stringify(lic));
 });
 
