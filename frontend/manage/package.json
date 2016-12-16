@@ -1,7 +1,7 @@
 {
-  "name": "angular-quickstart",
+  "name": "frontend-angular-app",
   "version": "1.0.0",
-  "description": "QuickStart package.json from the documentation, supplemented with testing support",
+  "description": "Frontend for LCP server",
   "scripts": {
     "start": "tsc && concurrently \"tsc -w\" \"lite-server\" ",
     "e2e": "tsc && concurrently \"http-server -s\" \"protractor protractor.config.js\" --kill-others --success first",
@@ -26,12 +26,16 @@
     "@angular/platform-browser-dynamic": "~2.2.0",
     "@angular/router": "~3.2.0",
     "@types/cryptojs": "^3.1.29",
+    "@types/jssha": "0.0.29",
     "angular-in-memory-web-api": "~0.1.15",
     "core-js": "^2.4.1",
     "cryptojs": "^2.5.3",
+    "fast-sha256": "^1.0.0",
+    "jssha": "^2.2.0",
     "reflect-metadata": "^0.1.8",
     "rxjs": "5.0.0-rc.5",
     "systemjs": "0.19.40",
+    "tweetnacl-util": "^0.13.5",
     "zone.js": "^0.7.2"
   },
   "devDependencies": {

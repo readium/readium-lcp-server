@@ -7,7 +7,7 @@
         <label>alias: </label>
         <input [(ngModel)]="user.alias" placeholder="name"/>
         <input [(ngModel)]="user.email" placeholder="email"/>
-        <input [(ngModel)]="user.password" placeholder="password"/>
+        <input [(ngModel)]="newPassword" placeholder="password"/>
         <button (click)="save()">Save</button>
     </div>
     <purchases [user]="user"></purchases>    

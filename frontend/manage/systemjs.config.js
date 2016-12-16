@@ -26,7 +26,7 @@
       // other libraries
       'rxjs':                      'npm:rxjs',
       'angular-in-memory-web-api': 'npm:angular-in-memory-web-api/bundles/in-memory-web-api.umd.js',
-      'angular-crypto-js': 'npm:angular-crypto-js'
+      'jssha': 'npm:jssha/src'
 
     },
     // packages tells the System loader how to load when no filename and/or no extension
@@ -38,7 +38,8 @@
       rxjs: {
         defaultExtension: 'js'
       },
-      'angular-crypto-js': {       
+      'jssha': {       
+        main: 'sha.js',
         defaultExtension: 'js'
 
       }

@@ -32,7 +32,7 @@ var UserComponent = (function () {
     };
     UserComponent.prototype.save = function () {
         var _this = this;
-        this.userService.update(this.user)
+        this.userService.update(this.user, this.newPassword)
             .then(function () { return _this.goBack(); });
     };
     return UserComponent;
@@ -41,6 +41,10 @@ __decorate([
     core_1.Input(),
     __metadata("design:type", user_1.User)
 ], UserComponent.prototype, "user", void 0);
+__decorate([
+    core_1.Input(),
+    __metadata("design:type", String)
+], UserComponent.prototype, "newPassword", void 0);
 UserComponent = __decorate([
     core_1.Component({
         moduleId: module.id,

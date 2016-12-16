@@ -15,6 +15,7 @@ import { UserService } from './user.service';
 
 export class UserComponent implements OnInit {
     @Input() user: User;
+    @Input() newPassword: string;
 
     constructor(
         private userService: UserService,
@@ -33,8 +34,8 @@ export class UserComponent implements OnInit {
         this.location.back();
     }
 
-    save(): void {
-        this.userService.update(this.user)
+    save(): void {        
+        this.userService.update(this.user, this.newPassword)
         .then(() => this.goBack());
     }
 }

@@ -2,7 +2,7 @@ import { Injectable }    from '@angular/core';
 import { Headers, Http } from '@angular/http';
 import 'rxjs/add/operator/toPromise';
 import { User } from './user';
-import * as CryptoJS from 'angular-crypto-js';
+import * as  jsSHA from 'jssha';
 
 @Injectable()
 export class UserService {
@@ -24,9 +24,9 @@ export class UserService {
   }
 
   create(newAlias: string, newEmail: string, newPassword: string): Promise<User> {
-    let hash = CryptoJS.createHash('sha256');
-    hash.update(newPassword);
-    let hashedPassword= hash.digest('hex'); 
+    const jsSHAObject:jsSHA.jsSHA = new jsSHA("SHA-256","TEXT");
+    jsSHAObject.update(newPassword);
+    let hashedPassword =  jsSHAObject.getHash ("HEX");
     let user: User = {userID: null, alias: newAlias, email: newEmail, password:  hashedPassword};
     return this.http
       .put(this.usersUrl, JSON.stringify(user), {headers: this.headers})
@@ -57,10 +57,15 @@ export class UserService {
       return this.getUsers()
       .then(users => users.find(user => user.userID === id));
   }
-  update(user: User): Promise<User> {
+  update(user: User, newPassword: string |undefined): Promise<User> {
+    if ((user.password != newPassword) && newPassword!=undefined) {
+       const jsSHAObject:jsSHA.jsSHA = new jsSHA("SHA-256","TEXT");
+      jsSHAObject.update(newPassword);
+      user.password =  jsSHAObject.getHash ("HEX");
+    }
     const url = `${this.usersUrl}/${user.userID}`;
     return this.http
-      .put(url, JSON.stringify(user), {headers: this.headers})
+      .post(url, JSON.stringify(user), {headers: this.headers})
       .toPromise()
       .then(() => user)
       .catch(this.handleError);

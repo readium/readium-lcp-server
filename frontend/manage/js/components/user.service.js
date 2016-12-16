@@ -11,7 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var core_1 = require("@angular/core");
 var http_1 = require("@angular/http");
 require("rxjs/add/operator/toPromise");
-var CryptoJS = require("angular-crypto-js");
+var jsSHA = require("jssha");
 var UserService = (function () {
     function UserService(http) {
         this.http = http;
@@ -32,9 +32,9 @@ var UserService = (function () {
             .catch(this.handleError);
     };
     UserService.prototype.create = function (newAlias, newEmail, newPassword) {
-        var hash = CryptoJS.createHash('sha256');
-        hash.update(newPassword);
-        var hashedPassword = hash.digest('hex');
+        var jsSHAObject = new jsSHA("SHA-256", "TEXT");
+        jsSHAObject.update(newPassword);
+        var hashedPassword = jsSHAObject.getHash("HEX");
         var user = { userID: null, alias: newAlias, email: newEmail, password: hashedPassword };
         return this.http
             .put(this.usersUrl, JSON.stringify(user), { headers: this.headers })
@@ -64,10 +64,15 @@ var UserService = (function () {
         return this.getUsers()
             .then(function (users) { return users.find(function (user) { return user.userID === id; }); });
     };
-    UserService.prototype.update = function (user) {
+    UserService.prototype.update = function (user, newPassword) {
+        if ((user.password != newPassword) && newPassword != undefined) {
+            var jsSHAObject = new jsSHA("SHA-256", "TEXT");
+            jsSHAObject.update(newPassword);
+            user.password = jsSHAObject.getHash("HEX");
+        }
         var url = this.usersUrl + "/" + user.userID;
         return this.http
-            .put(url, JSON.stringify(user), { headers: this.headers })
+            .post(url, JSON.stringify(user), { headers: this.headers })
             .toPromise()
             .then(function () { return user; })
             .catch(this.handleError);
