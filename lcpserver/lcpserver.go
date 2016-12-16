@@ -150,7 +150,7 @@ func main() {
 	if static == "" {
 		_, file, _, _ := runtime.Caller(0)
 		here := filepath.Dir(file)
-		static = filepath.Join(here, "../frontend/manage")
+		static = filepath.Join(here, "../lcpserver/manage")
 	}
 	authFile := config.Config.LcpServer.AuthFile
 	if authFile == "" {
