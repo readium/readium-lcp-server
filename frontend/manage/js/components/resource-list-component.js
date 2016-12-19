@@ -71,10 +71,9 @@ var ResourcesComponent = (function () {
         console.log(this.user.alias + ' wants to loan ' + this.selectedResource.location);
     };
     ResourcesComponent.prototype.hexToBytes = function (hex) {
-        var bytes;
-        var c;
-        for (bytes = [], c = 0; c < hex.length; c += 1) {
-            bytes.push(parseInt(hex.charAt(c), 16));
+        var bytes = [];
+        for (var i = 0; i < (hex.length / 2); i++) {
+            bytes.push(parseInt(hex.substr(i * 2, 2), 16));
         }
         return bytes;
     };

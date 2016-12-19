@@ -80,11 +80,12 @@ export class ResourcesComponent implements OnInit {
     }
 
     private hexToBytes(hex: string) {
-        let bytes: any[];
-        let c: number;
-        for (bytes = [], c = 0; c < hex.length; c += 1) {
-            bytes.push(parseInt(hex.charAt(c), 16));
+        let bytes: number[] = [];
+
+        for (let i = 0; i < (hex.length/2); i++) {
+            bytes.push(parseInt(hex.substr(i*2, 2), 16));
         }
+
         return bytes;
     }
 
