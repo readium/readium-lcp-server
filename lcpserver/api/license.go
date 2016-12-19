@@ -54,12 +54,21 @@ import (
 	"github.com/readium/readium-lcp-server/storage"
 )
 
-//{
-//"content_key": "12345",
-//"date": "2013-11-04T01:08:15+01:00",
-//"hint": "Enter your email address",
-//"hint_url": "http://www.imaginaryebookretailer.com/lcp"
-//}
+/*
+// Minimum partial JSON to pass as HTTP request parameter, to get an existing license:
+{
+    "user": {
+      "id": "user_1",
+      "email": "email_1"
+    }
+    ,
+    "encryption": {
+      "user_key": {
+        "clear_value": "passphrase"
+      }
+    }
+}
+*/
 func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 
@@ -109,39 +118,21 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 		ExistingLicense.User = lic.User
-		content, err := s.Index().Get(ExistingLicense.ContentId)
-		if err != nil {
-			if err == index.NotFound {
-				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
-			} else {
-				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-			}
-			return
-		}
 
 		if ExistingLicense.Links == nil {
 			ExistingLicense.Links = license.DefaultLinksCopy()
 		}
-		err = prepareLinks(ExistingLicense, s)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-			return
-		}
+		
+		// TODO: see CompleteLicense() code to see how ; unfortunately ; UserKey.Check is not sufficient
+		ExistingLicense.Encryption.UserKey.ClearValue = lic.Encryption.UserKey.ClearValue
+		//ExistingLicense.Encryption.UserKey.Value = ExistingLicense.Encryption.UserKey.Check 
 
-		ExistingLicense.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
-		ExistingLicense.Encryption.ContentKey.Value = encryptKey(content.EncryptionKey, ExistingLicense.Encryption.UserKey.Value) //use old UserKey.Value
-		ExistingLicense.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
-		err = buildKeyCheck(&ExistingLicense, ExistingLicense.Encryption.UserKey.Value)
+		err = completeLicense(&ExistingLicense, ExistingLicense.ContentId, s)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
-		err = signLicense(&ExistingLicense, s.Certificate())
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-			return
-		}
-
+		
 		w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 		w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 		
@@ -269,6 +260,7 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	key := vars["key"]
+	lic.ContentId = ""
 	err = completeLicense(&lic, key, s)
 
 	if err != nil {
@@ -356,9 +348,7 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 	}
 	var buf bytes.Buffer
 
-	//lic.Links["publication"] = license.Link{Href: item.PublicUrl(), Type: epub.ContentType_EPUB}
-	//lic.ContentId = key
-
+	lic.ContentId = ""
 	err = completeLicense(&lic, key, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
@@ -410,8 +400,14 @@ func completeLicense(l *license.License, key string, s Server) error {
 		return err
 	}
 
-	license.Prepare(l)
-	l.ContentId = key
+	isNewLicense := l.ContentId == ""
+	if (isNewLicense) {
+		license.Prepare(l)
+		l.ContentId = key
+	} else {
+		l.Signature = nil
+	}
+
 	links := new([]license.Link)
 
 	//verify that mandatory (hint & publication) links are present in the License
@@ -440,9 +436,14 @@ func completeLicense(l *license.License, key string, s Server) error {
 
 	l.Links = *links
 	var encryptionKey []byte
+	
+	noPassphrase := l.Encryption.UserKey.ClearValue == ""
+
 	if len(l.Encryption.UserKey.Value) > 0 {
 		encryptionKey = l.Encryption.UserKey.Value
 		l.Encryption.UserKey.Value = nil
+	} else if noPassphrase {
+		return errors.New("No user encryption key, no clear passphrase")
 	} else {
 		passphrase := l.Encryption.UserKey.ClearValue
 		l.Encryption.UserKey.ClearValue = ""
@@ -451,16 +452,24 @@ func completeLicense(l *license.License, key string, s Server) error {
 	}
 
 	l.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
-	l.Encryption.ContentKey.Value = encryptKey(c.EncryptionKey, encryptionKey[:])
+	if isNewLicense || !noPassphrase {
+		// TODO: unfortunately the license.Encryption.ContentKey.Value is not stored! :(
+		// (so if isNewLicense is false, the encrypted_value JSON property is null)
+		l.Encryption.ContentKey.Value = encryptKey(c.EncryptionKey, encryptionKey[:])
+	}
 	l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 
-	err = encryptFields(l, encryptionKey[:])
-	if err != nil {
-		return err
-	}
-	err = buildKeyCheck(l, encryptionKey[:])
-	if err != nil {
-		return err
+	if isNewLicense || !noPassphrase {
+		err = encryptFields(l, encryptionKey[:])
+		if err != nil {
+			return err
+		}
+		err = buildKeyCheck(l, encryptionKey[:])
+		if err != nil {
+			return err
+		}
+	} else {
+		l.Encryption.UserKey.Check = encryptionKey
 	}
 
 	if l.Signature != nil {
