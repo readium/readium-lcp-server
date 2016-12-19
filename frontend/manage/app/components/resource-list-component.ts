@@ -22,10 +22,10 @@ export class ResourcesComponent implements OnInit {
     selectedResource: Resource;
     @Input() id: string;
     @Input() user: User;
+    @Input() hours: string;
 
     constructor(private resourceService: ResourceService, private purchaseService: PurchaseService, private router: Router) { }
 
-    
     getResources(): void {
         this.resourceService.getResources().then(Resources => this.resources = Resources);
     }
@@ -38,45 +38,51 @@ export class ResourcesComponent implements OnInit {
         this.selectedResource = resource;
     }
 
-    onBuy(): void {
+    onBuy(resource: Resource): void {
         // buy action for selectedResource and user
         // create partial license
-        let partialLicense =this.createPartialLicense(this.user, undefined);
+        let partialLicense = this.createPartialLicense(this.user, undefined);
         let p = new Purchase;
-        p.label = this.selectedResource.location;
+        p.label = resource.location;
         p.partialLicense = JSON.stringify(partialLicense);
-        p.resource = this.selectedResource.id;
+        p.resource = resource.id;
         p.user = this.user;
         console.log(p);
         this.purchaseService.create(p);
         // create purchase in database
         // ask license on lcpserver
-        console.log(this.user.alias + ' bought ' + this.selectedResource.location);
+        console.log(this.user.alias + ' bought ' + resource.location);
         // TODO alert user somehow...goto user details ?
         // redirect to download ?
     }
 
-    onLoan(): void {
+    onLoan(resource: Resource, hours: string): void {
         // TODO add parameters for loan action (period etc.)
         let rights = new lic.UserRights;
         rights.copy = 10;
         rights.print = 10;
         rights.start = new Date();
-        rights.end = new Date( rights.start.valueOf() + 30 * 24 * 3600); // + 30 days  
+        let h: number = parseFloat(hours);
+
+        if (isNaN(h)) {
+            rights.end = new Date( rights.start.valueOf() + 30 * 24 * 3600 * 1000); // + 30 days  
+        } else {
+            rights.end = new Date( rights.start.valueOf() + h * 3600 * 1000); // + h hours
+        }
         console.log(rights);
         // loan action action for selectedResource and user
-        let partialLicense =this.createPartialLicense(this.user, rights);
+        let partialLicense = this.createPartialLicense(this.user, rights);
         let p = new Purchase;
-        p.label = this.selectedResource.location;
+        p.label = resource.location;
         p.partialLicense = JSON.stringify(partialLicense);
-        p.resource = this.selectedResource.id;
+        p.resource = resource.id;
         p.user = this.user;
         console.log(p);
         this.purchaseService.create(p);
         // create partial license
         // create purchase in database
         // ask license on lcpserver
-        console.log(this.user.alias + ' wants to loan ' + this.selectedResource.location);
+        console.log(this.user.alias + ' wants to loan ' + resource.location);
     }
 
     private hexToBytes(hex: string) {

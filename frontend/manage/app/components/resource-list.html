@@ -8,5 +8,9 @@
 <div class="selectedResource" *ngIf="selectedResource">
     <h3>{{selectedResource.location }}  <span class="anID"> ( {{selectedResource.id }} ) </span> </h3>
     <button class="lcpBuy" (click)="onBuy(selectedResource)">Buy link</button>
-    <button class="lcpLoan" (click)="onLoan(selectedResource)">Loan for 3 weeks</button>
+    <span>
+        <label>Loan for #hours:</label>
+        <input #hours />
+        <button class="lcpLoan" (click)="onLoan(selectedResource, hours.value)">Loan (default= 3 weeks)</button>
+    </span>
 </div>      
