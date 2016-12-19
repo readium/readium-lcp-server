@@ -19,3 +19,4 @@ lcpserver/test.sqllite
 .vscode
 lcpencrypt/.DS_Store
 lcpserver/.DS_Store
+npm-debug.log
