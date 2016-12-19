@@ -79,7 +79,7 @@ func (purchase dbPurchase) Get(id int64) (Purchase, error) {
 			return Purchase{}, err
 		}
 		user := webuser.User{UserID: *UserID, Email: *Email, Password: *Password}
-		return Purchase{PurchaseID: *PurchaseID, Resource: *Resource, Label: *Label, LicenseID: *LicenseID, TransactionDate: *TransactionDate, User: user}, err
+		return Purchase{PurchaseID: *PurchaseID, Resource: *Resource, Label: *Label, LicenseID: *LicenseID, TransactionDate: *TransactionDate, PartialLicense: *PartialLicense, User: user}, err
 
 	}
 

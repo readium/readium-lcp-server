@@ -20,3 +20,4 @@ lcpserver/test.sqllite
 lcpencrypt/.DS_Store
 lcpserver/.DS_Store
 npm-debug.log
+manage/config.js
