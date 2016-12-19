@@ -31,7 +31,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/go-yaml/yaml"
+	"gopkg.in/yaml.v2"
 )
 
 type Configuration struct {
