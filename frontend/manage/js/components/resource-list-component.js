@@ -31,44 +31,50 @@ var ResourcesComponent = (function () {
     ResourcesComponent.prototype.onSelect = function (resource) {
         this.selectedResource = resource;
     };
-    ResourcesComponent.prototype.onBuy = function () {
+    ResourcesComponent.prototype.onBuy = function (resource) {
         // buy action for selectedResource and user
         // create partial license
         var partialLicense = this.createPartialLicense(this.user, undefined);
         var p = new purchase_1.Purchase;
-        p.label = this.selectedResource.location;
+        p.label = resource.location;
         p.partialLicense = JSON.stringify(partialLicense);
-        p.resource = this.selectedResource.id;
+        p.resource = resource.id;
         p.user = this.user;
         console.log(p);
         this.purchaseService.create(p);
         // create purchase in database
         // ask license on lcpserver
-        console.log(this.user.alias + ' bought ' + this.selectedResource.location);
+        console.log(this.user.alias + ' bought ' + resource.location);
         // TODO alert user somehow...goto user details ?
         // redirect to download ?
     };
-    ResourcesComponent.prototype.onLoan = function () {
+    ResourcesComponent.prototype.onLoan = function (resource, hours) {
         // TODO add parameters for loan action (period etc.)
         var rights = new lic.UserRights;
         rights.copy = 10;
         rights.print = 10;
         rights.start = new Date();
-        rights.end = new Date(rights.start.valueOf() + 30 * 24 * 3600); // + 30 days  
+        var h = parseFloat(hours);
+        if (isNaN(h)) {
+            rights.end = new Date(rights.start.valueOf() + 30 * 24 * 3600 * 1000); // + 30 days  
+        }
+        else {
+            rights.end = new Date(rights.start.valueOf() + h * 3600 * 1000); // + h hours
+        }
         console.log(rights);
         // loan action action for selectedResource and user
         var partialLicense = this.createPartialLicense(this.user, rights);
         var p = new purchase_1.Purchase;
-        p.label = this.selectedResource.location;
+        p.label = resource.location;
         p.partialLicense = JSON.stringify(partialLicense);
-        p.resource = this.selectedResource.id;
+        p.resource = resource.id;
         p.user = this.user;
         console.log(p);
         this.purchaseService.create(p);
         // create partial license
         // create purchase in database
         // ask license on lcpserver
-        console.log(this.user.alias + ' wants to loan ' + this.selectedResource.location);
+        console.log(this.user.alias + ' wants to loan ' + resource.location);
     };
     ResourcesComponent.prototype.hexToBytes = function (hex) {
         var bytes = [];
@@ -99,6 +105,10 @@ __decorate([
     core_1.Input(),
     __metadata("design:type", user_1.User)
 ], ResourcesComponent.prototype, "user", void 0);
+__decorate([
+    core_1.Input(),
+    __metadata("design:type", String)
+], ResourcesComponent.prototype, "hours", void 0);
 ResourcesComponent = __decorate([
     core_1.Component({
         moduleId: module.id,
