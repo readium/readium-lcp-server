@@ -6,7 +6,7 @@
     "clean": "node ./node_modules/rimraf/bin.js \"js/**/*.*\"",
 
     "prestart": "npm run clean",
-    "start": "tsc && concurrently \"tsc -w\" \"lite-server\" ",
+    "start": "tsc && concurrently \"tsc -w\" \"lite-server --config=bs-config.js\" ",
     
     "pree2e": "npm run clean && webdriver-manager update",
     "e2e": "tsc && concurrently \"http-server -s\" \"protractor protractor.config.js\" --kill-others --success first",
@@ -24,7 +24,7 @@
     "tsc:w": "tsc -w",
     
     "lint": "tslint ./app/**/*.ts -t verbose",
-    "lite": "lite-server"
+    "lite": "lite-server --config=bs-config.js"
   },
   "keywords": [],
   "author": "",

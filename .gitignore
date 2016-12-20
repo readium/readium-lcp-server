@@ -9,7 +9,7 @@ lcpserver/manage/config.js
 debug
 *.exe
 *.yaml
-**/manage/*.js
+**/manage/config.js
 frontend/manage/node_modules/*
 frontend/manage/js/components/*
 *.map
