@@ -138,7 +138,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 		err = encryptFields(encrypter_fields, &ExistingLicense, ExistingLicense.Encryption.UserKey.Value)
 		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 
