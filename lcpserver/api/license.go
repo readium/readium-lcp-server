@@ -154,6 +154,12 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		ExistingLicense.Encryption.ContentKey.Value = encryptKey(content.EncryptionKey, encryptionKey[:])
 		//ExistingLicense.Encryption.ContentKey.Value = encryptKey(content.EncryptionKey, ExistingLicense.Encryption.UserKey.Value) //use old UserKey.Value
 		ExistingLicense.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
+
+		err = encryptFields(&ExistingLicense, encryptionKey[:])
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			return
+		}
 		err = buildKeyCheck(&ExistingLicense, encryptionKey[:])
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
