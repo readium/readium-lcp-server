@@ -3,15 +3,28 @@
   "version": "1.0.0",
   "description": "Frontend for LCP server",
   "scripts": {
+    "clean": "node ./node_modules/rimraf/bin.js \"js/**/*.*\"",
+
+    "prestart": "npm run clean",
     "start": "tsc && concurrently \"tsc -w\" \"lite-server\" ",
+    
+    "pree2e": "npm run clean && webdriver-manager update",
     "e2e": "tsc && concurrently \"http-server -s\" \"protractor protractor.config.js\" --kill-others --success first",
-    "lint": "tslint ./app/**/*.ts -t verbose",
-    "lite": "lite-server",
-    "pree2e": "webdriver-manager update",
+
+    "pretest": "npm run clean",
     "test": "tsc && concurrently \"tsc -w\" \"karma start karma.conf.js\"",
+    
+    "pretest-once": "npm run clean",
     "test-once": "tsc && karma start karma.conf.js --single-run",
+    
+    "pretsc": "npm run clean",
     "tsc": "tsc",
-    "tsc:w": "tsc -w"
+    
+    "pretsc:w": "npm run clean",
+    "tsc:w": "tsc -w",
+    
+    "lint": "tslint ./app/**/*.ts -t verbose",
+    "lite": "lite-server"
   },
   "keywords": [],
   "author": "",
@@ -39,6 +52,7 @@
     "zone.js": "^0.7.2"
   },
   "devDependencies": {
+    "rimraf": "latest",
     "concurrently": "^3.1.0",
     "lite-server": "^2.2.2",
     "typescript": "^2.0.10",
