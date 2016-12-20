@@ -56,17 +56,11 @@ import (
 	"github.com/readium/readium-lcp-server/storage"
 )
 
-//{
-//"content_key": "12345",
-//"date": "2013-11-04T01:08:15+01:00",
-//"hint": "Enter your email address",
-//"hint_url": "http://www.imaginaryebookretailer.com/lcp"
-//}
 func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 
 	licenceId := vars["key"]
-	// search existing license using key
+	
 	var ExistingLicense license.License
 	ExistingLicense, e := s.Licenses().Get(licenceId)
 	if e != nil {
@@ -85,7 +79,6 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	
 	if err != nil { // no or incorrect (json) license found in body
 
-		// just send partial licens
 		log.Println("PARTIAL CONTENT:(error: " + err.Error() + ")")
 		body, _ := ioutil.ReadAll(r.Body)
 		log.Println("BODY=" + string(body))
@@ -120,60 +113,12 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		}
 		ExistingLicense.User = lic.User
 
-		// content, err := s.Index().Get(ExistingLicense.ContentId)
-		// if err != nil {
-		// 	if err == index.NotFound {
-		// 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
-		// 	} else {
-		// 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-		// 	}
-		// 	return
-		// }
-
 		if ExistingLicense.Links == nil {
 			ExistingLicense.Links = license.DefaultLinksCopy()
 		}
 
-		// err = prepareLinks(ExistingLicense, s)
-		// if err != nil {
-		// 	problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		// 	return
-		// }
-
-		// //select UserKey to use and create Value
-		// var encryptionKey []byte
-		// if len(lic.Encryption.UserKey.Value) > 0 {
-		// 	encryptionKey = lic.Encryption.UserKey.Value
-		// 	lic.Encryption.UserKey.Value = nil
-		// } else {
-		// 	passphrase := lic.Encryption.UserKey.ClearValue
-		// 	ExistingLicense.Encryption.UserKey.ClearValue = ""
-		// 	hash := sha256.Sum256([]byte(passphrase))
-		// 	ExistingLicense.Encryption.UserKey.Value = hash[:32]
-		// 	encryptionKey = hash[:]
-		// }
-
-		// ExistingLicense.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
-		// ExistingLicense.Encryption.ContentKey.Value = encryptKey(content.EncryptionKey, encryptionKey[:])
-		// //ExistingLicense.Encryption.ContentKey.Value = encryptKey(content.EncryptionKey, ExistingLicense.Encryption.UserKey.Value) //use old UserKey.Value
-		// ExistingLicense.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
-
-		// err = encryptFields(&ExistingLicense, encryptionKey[:])
-		// if err != nil {
-		// 	problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-		// 	return
-		// }
-		// err = buildKeyCheck(&ExistingLicense, encryptionKey[:])
-		// if err != nil {
-		// 	problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-		// 	return
-		// }
-		// err = signLicense(&ExistingLicense, s.Certificate())
-
-		// We don't pass plain-text passphrase
-		// ExistingLicense.Encryption.UserKey.ClearValue = lic.Encryption.UserKey.ClearValue
 		ExistingLicense.Encryption.UserKey.Value = lic.Encryption.UserKey.Value
-		//ExistingLicense.Encryption.UserKey.Value = ExistingLicense.Encryption.UserKey.Check
+
 		err = completeLicense(&ExistingLicense, ExistingLicense.ContentId, s)
 
 		if err != nil {
@@ -197,7 +142,7 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 	vars := mux.Vars(r)
 	licenceId := vars["key"]
-	// search existing license using key
+	
 	var ExistingLicense license.License
 	ExistingLicense, e := s.Licenses().Get(licenceId)
 	if e != nil {
@@ -250,51 +195,51 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 // TODO: the UpdateRightsLicense function appears to be unused?
-func UpdateRightsLicense(w http.ResponseWriter, r *http.Request, s Server) {
-	vars := mux.Vars(r)
-	licenceId := vars["key"]
-	// search existing license using key
-	var ExistingLicense license.License
-	ExistingLicense, e := s.Licenses().Get(licenceId)
-	if e != nil {
-		if e == license.NotFound {
-			problem.Error(w, r, problem.Problem{Detail: license.NotFound.Error()}, http.StatusNotFound)
-		} else {
-			problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusBadRequest)
-		}
-		return
-	}
-	var lic license.License
-	err := DecodeJsonLicense(r, &lic)
-	if err != nil { // no or incorrect (json) license found in body
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-		return
-	}
-	if lic.Id != licenceId {
-		problem.Error(w, r, problem.Problem{Detail: "Different license IDs"}, http.StatusNotFound)
-		return
-	}
-	// update rights of license in database
-	if lic.Rights.Copy != nil {
-		ExistingLicense.Rights.Copy = lic.Rights.Copy
-	}
-	if lic.Rights.Print != nil {
-		ExistingLicense.Rights.Print = lic.Rights.Print
-	}
-	if lic.Rights.Start != nil {
-		ExistingLicense.Rights.Start = lic.Rights.Start
-	}
-	if lic.Rights.End != nil {
-		ExistingLicense.Rights.End = lic.Rights.End
-	}
-	err = s.Licenses().UpdateRights(ExistingLicense)
-	if err != nil { // no or incorrect (json) license found in body
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-		return
-	}
-	// go on to GET license io to return the existing license
-	GetLicense(w, r, s)
-}
+// func UpdateRightsLicense(w http.ResponseWriter, r *http.Request, s Server) {
+// 	vars := mux.Vars(r)
+// 	licenceId := vars["key"]
+// 	// search existing license using key
+// 	var ExistingLicense license.License
+// 	ExistingLicense, e := s.Licenses().Get(licenceId)
+// 	if e != nil {
+// 		if e == license.NotFound {
+// 			problem.Error(w, r, problem.Problem{Detail: license.NotFound.Error()}, http.StatusNotFound)
+// 		} else {
+// 			problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusBadRequest)
+// 		}
+// 		return
+// 	}
+// 	var lic license.License
+// 	err := DecodeJsonLicense(r, &lic)
+// 	if err != nil { // no or incorrect (json) license found in body
+// 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+// 		return
+// 	}
+// 	if lic.Id != licenceId {
+// 		problem.Error(w, r, problem.Problem{Detail: "Different license IDs"}, http.StatusNotFound)
+// 		return
+// 	}
+// 	// update rights of license in database
+// 	if lic.Rights.Copy != nil {
+// 		ExistingLicense.Rights.Copy = lic.Rights.Copy
+// 	}
+// 	if lic.Rights.Print != nil {
+// 		ExistingLicense.Rights.Print = lic.Rights.Print
+// 	}
+// 	if lic.Rights.Start != nil {
+// 		ExistingLicense.Rights.Start = lic.Rights.Start
+// 	}
+// 	if lic.Rights.End != nil {
+// 		ExistingLicense.Rights.End = lic.Rights.End
+// 	}
+// 	err = s.Licenses().UpdateRights(ExistingLicense)
+// 	if err != nil { // no or incorrect (json) license found in body
+// 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+// 		return
+// 	}
+// 	// go on to GET license io to return the existing license
+// 	GetLicense(w, r, s)
+// }
 
 func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
@@ -484,13 +429,9 @@ func completeLicense(l *license.License, key string, s Server) error {
 	l.Links = *links
 	var encryptionKey []byte
 
-	// noPassphrase := l.Encryption.UserKey.ClearValue == nil || l.Encryption.UserKey.ClearValue == ""
-
 	if len(l.Encryption.UserKey.Value) > 0 {
 		encryptionKey = l.Encryption.UserKey.Value
 		l.Encryption.UserKey.Value = nil
-	// } else if noPassphrase {
-	// 	return errors.New("No user encryption key, no clear passphrase")
 	} else {
 		passphrase := l.Encryption.UserKey.ClearValue
 		l.Encryption.UserKey.ClearValue = ""
@@ -499,26 +440,20 @@ func completeLicense(l *license.License, key string, s Server) error {
 	}
 
 	l.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
-	// if isNewLicense || !noPassphrase {
-		// TODO: unfortunately the license.Encryption.ContentKey.Value is not stored! :(
-		// (so if isNewLicense is false, the encrypted_value JSON property is null)
-		l.Encryption.ContentKey.Value = encryptKey(c.EncryptionKey, encryptionKey[:])
-	// }
-
+	
+	l.Encryption.ContentKey.Value = encryptKey(c.EncryptionKey, encryptionKey[:])
+	
 	l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
-	// if isNewLicense || !noPassphrase {
-		err = encryptFields(l, encryptionKey[:])
-		if err != nil {
-			return err
-		}
-		err = buildKeyCheck(l, encryptionKey[:])
-		if err != nil {
-			return err
-		}
-	// } else {
-	// 	l.Encryption.UserKey.Check = encryptionKey
-	// }
-
+	
+	err = encryptFields(l, encryptionKey[:])
+	if err != nil {
+		return err
+	}
+	err = buildKeyCheck(l, encryptionKey[:])
+	if err != nil {
+		return err
+	}
+	
 	if l.Signature != nil {
 		log.Println("Signature is NOT nil (it should)")
 		l.Signature = nil
