@@ -449,7 +449,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	//update license using LCP Server
-	go updateLicense(event.Timestamp, licenseFk)
+	go updateLicense(licenseStatus.PotentialRights.End, licenseFk)
 
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
