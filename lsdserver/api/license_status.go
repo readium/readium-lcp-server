@@ -182,7 +182,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
-	if deviceStatus != "" {
+	if deviceStatus != "" { // deviceStatus == status.TYPE_REGISTER || deviceStatus == status.TYPE_RETURN || deviceStatus == status.TYPE_RENEW
 		problem.Error(w, r, problem.Problem{Detail: "Device has been already registered"}, http.StatusBadRequest)
 		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusBadRequest))
 		return
@@ -298,7 +298,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 			return
 		}
-		if deviceStatus == status.TYPE_RETURN || deviceStatus == "" {
+		if deviceStatus == status.TYPE_RETURN || deviceStatus == "" { // deviceStatus != status.TYPE_REGISTER && deviceStatus != status.TYPE_RENEW
 			problem.Error(w, r, problem.Problem{Detail: "Device is not activated"}, http.StatusBadRequest)
 			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusBadRequest))
 			return
@@ -394,7 +394,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 			return
 		}
-		if deviceStatus != status.TYPE_REGISTER {
+		if deviceStatus != status.TYPE_REGISTER && deviceStatus != status.TYPE_RENEW { // deviceStatus == "" || deviceStatus == status.TYPE_RETURN
 			problem.Error(w, r, problem.Problem{Detail: "The device is not active for this license"}, http.StatusBadRequest)
 			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusBadRequest))
 			return
