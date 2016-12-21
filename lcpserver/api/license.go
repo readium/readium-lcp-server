@@ -103,6 +103,10 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
+		
+		log.Println("PARTIAL LICENSE FOR RESPONSE:")
+		spew.Dump(ExistingLicense)
+		
 		return
 
 	} else { // add information to license , sign and return (real) License
@@ -134,6 +138,10 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
+		
+		log.Println("COMPLETE LICENSE FOR RESPONSE:")
+		spew.Dump(ExistingLicense)
+		
 		return
 	}
 }
