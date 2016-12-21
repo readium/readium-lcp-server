@@ -18,6 +18,7 @@ var purchase_list_component_1 = require("./components/purchase-list-component");
 var resource_list_component_1 = require("./components/resource-list-component");
 var http_1 = require("@angular/http");
 var app_routing_module_1 = require("./app-routing.module");
+var rightsFromPartialLicense_pipe_1 = require("./components/rightsFromPartialLicense.pipe");
 var AppModule = (function () {
     function AppModule() {
     }
@@ -26,7 +27,7 @@ var AppModule = (function () {
 AppModule = __decorate([
     core_1.NgModule({
         imports: [platform_browser_1.BrowserModule, forms_1.FormsModule, http_1.HttpModule, app_routing_module_1.AppRoutingModule],
-        declarations: [app_component_1.AppComponent, user_list_component_1.UsersComponent, user_component_1.UserComponent, resource_list_component_1.ResourcesComponent, purchase_list_component_1.PurchasesComponent],
+        declarations: [app_component_1.AppComponent, user_list_component_1.UsersComponent, user_component_1.UserComponent, resource_list_component_1.ResourcesComponent, purchase_list_component_1.PurchasesComponent, rightsFromPartialLicense_pipe_1.FilterRights, rightsFromPartialLicense_pipe_1.ShowRights],
         bootstrap: [app_component_1.AppComponent]
     }),
     __metadata("design:paramtypes", [])

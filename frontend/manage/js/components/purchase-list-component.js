@@ -13,9 +13,11 @@ var router_1 = require("@angular/router");
 var common_1 = require("@angular/common");
 var user_1 = require("./user");
 var purchase_service_1 = require("./purchase.service");
+var lsd_service_1 = require("./lsd.service");
 var PurchasesComponent = (function () {
-    function PurchasesComponent(purchaseService, route, location) {
+    function PurchasesComponent(purchaseService, lsdService, route, location) {
         this.purchaseService = purchaseService;
+        this.lsdService = lsdService;
         this.route = route;
         this.location = location;
     }
@@ -29,6 +31,41 @@ var PurchasesComponent = (function () {
     };
     PurchasesComponent.prototype.onSelect = function (p) {
         this.selectedPurchase = p;
+    };
+    PurchasesComponent.prototype.RenewLoan = function (p, hours) {
+        console.log('should renew license for another ' + hours + ' hours. ()' + p.label + ')');
+        if (p.licenseID !== '') {
+            var t = Date.now();
+            t += hours * 3600 * 1000;
+            this.lsdService.renewLoan(p.licenseID, new Date(t), undefined, undefined)
+                .then(function (status) { return alert(JSON.stringify(status)); })
+                .catch(function (reason) { return alert('RENEW PROBLEM: \n' + reason._body); });
+        }
+        else {
+            alert('No licenseID for this purchase, please press download to create a license.');
+        }
+    };
+    PurchasesComponent.prototype.ReturnLoan = function (p) {
+        // contact lsd server and return the license
+        if (p.licenseID !== '') {
+            this.lsdService.returnLoan(p.licenseID, undefined, undefined)
+                .then(function (status) { return alert(JSON.stringify(status)); })
+                .catch(function (reason) { return console.log('error returning license for ' + p.label + ':' + reason); });
+        }
+        else {
+            alert('No licenseID yet for this purchase! (clic download first)');
+        }
+    };
+    PurchasesComponent.prototype.CheckStatus = function (p) {
+        // contact lsd server and CheckStatus of the license
+        if (p.licenseID !== '') {
+            this.lsdService.getStatus(p.licenseID, undefined, undefined)
+                .then(function (status) { return alert(JSON.stringify(status)); })
+                .catch(function (reason) { return console.log('error checking LSD status for ' + p.label + ':' + reason); });
+        }
+        else {
+            alert('No licenseID for this purchase, please press download to create a license.');
+        }
     };
     PurchasesComponent.prototype.DownloadLicense = function (p) {
         // get License !
@@ -50,15 +87,20 @@ __decorate([
     core_1.Input(),
     __metadata("design:type", user_1.User)
 ], PurchasesComponent.prototype, "user", void 0);
+__decorate([
+    core_1.Input(),
+    __metadata("design:type", String)
+], PurchasesComponent.prototype, "hours", void 0);
 PurchasesComponent = __decorate([
     core_1.Component({
         moduleId: module.id,
         selector: 'purchases',
         templateUrl: '/app/components/purchases.html',
         styleUrls: ['../../app/components/purchases.css'],
-        providers: [purchase_service_1.PurchaseService]
+        providers: [purchase_service_1.PurchaseService, lsd_service_1.LsdService]
     }),
     __metadata("design:paramtypes", [purchase_service_1.PurchaseService,
+        lsd_service_1.LsdService,
         router_1.ActivatedRoute,
         common_1.Location])
 ], PurchasesComponent);

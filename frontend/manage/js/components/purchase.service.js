@@ -26,7 +26,6 @@ var PurchaseService = (function () {
             var purchases = [];
             for (var _i = 0, _a = response.json(); _i < _a.length; _i++) {
                 var ResponseItem = _a[_i];
-                console.log(ResponseItem);
                 var p = new purchase_1.Purchase;
                 p.label = ResponseItem.label;
                 p.licenseID = ResponseItem.licenseID;
@@ -34,6 +33,7 @@ var PurchaseService = (function () {
                 p.resource = ResponseItem.resource;
                 p.transactionDate = ResponseItem.transactionDate;
                 p.user = ResponseItem.user;
+                p.partialLicense = ResponseItem.partialLicense;
                 purchases[purchases.length] = p;
             }
             return purchases;
@@ -46,7 +46,6 @@ var PurchaseService = (function () {
             .toPromise()
             .then(function (response) {
             if ((response.status === 200) || (response.status === 201)) {
-                console.log(response.text);
                 return purchase; // ok
             }
             else {

@@ -1,8 +1,22 @@
 <h3 class="purchases step">Purchases</h3>
+
 <ul class="purchases">
-    <li *ngFor="let purchase of purchases" (click)="onSelect(purchase)" [class.selected]="purchase === selectedPurchase">    
-    <span class="aDate">{{purchase.transactionDate}}</span>
-    <span class="aLabel">{{purchase.label}}</span>     
-    <span class="aLicenseID">{{purchase.licenseID}}</span><button (click)="DownloadLicense(purchase)">download</button>     
+    <li *ngFor="let purchase of purchases" (click)="onSelect(purchase)" [class.selected]="purchase === selectedPurchase" class="purchase">    
+        <span class="date">{{purchase.transactionDate  | date:'medium' }}</span><button (click)="DownloadLicense(purchase)">download</button> 
+        <button (click)="CheckStatus(purchase)">status</button> 
+        <span class="label">{{purchase.label}}</span><br/>    
+        <span class="licenseID">{{purchase.licenseID}}</span>
+                
+        <div class="rights" *ngIf="purchase.partialLicense | FilterRights">
+            <div>
+                <span >{{ purchase.partialLicense  | ShowRights }}</span>
+                <button (click)="ReturnLoan(purchase)">Return</button> 
+            </div>
+            <div>
+                <label>Renew for #hours:</label>
+                <input class="inputhours" #hours />
+                <button (click)="RenewLoan(purchase,hours.value)">Renew</button> 
+            </div>        
+        </div>
     </li>
 </ul>

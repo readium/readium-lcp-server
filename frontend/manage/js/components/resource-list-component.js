@@ -32,6 +32,7 @@ var ResourcesComponent = (function () {
         this.selectedResource = resource;
     };
     ResourcesComponent.prototype.onBuy = function (resource) {
+        var _this = this;
         // buy action for selectedResource and user
         // create partial license
         var partialLicense = this.createPartialLicense(this.user, undefined);
@@ -40,15 +41,13 @@ var ResourcesComponent = (function () {
         p.partialLicense = JSON.stringify(partialLicense);
         p.resource = resource.id;
         p.user = this.user;
-        console.log(p);
-        this.purchaseService.create(p);
-        // create purchase in database
-        // ask license on lcpserver
-        console.log(this.user.alias + ' bought ' + resource.location);
-        // TODO alert user somehow...goto user details ?
-        // redirect to download ?
+        var rp;
+        // create a purchase in database (and get license on lcpserver )
+        this.purchaseService.create(p)
+            .then(function (p) { return _this.router.navigate(['/userdetail', _this.user.userID]); });
     };
     ResourcesComponent.prototype.onLoan = function (resource, hours) {
+        var _this = this;
         // TODO add parameters for loan action (period etc.)
         var rights = new lic.UserRights;
         rights.copy = 10;
@@ -61,7 +60,6 @@ var ResourcesComponent = (function () {
         else {
             rights.end = new Date(rights.start.valueOf() + h * 3600 * 1000); // + h hours
         }
-        console.log(rights);
         // loan action action for selectedResource and user
         var partialLicense = this.createPartialLicense(this.user, rights);
         var p = new purchase_1.Purchase;
@@ -69,12 +67,9 @@ var ResourcesComponent = (function () {
         p.partialLicense = JSON.stringify(partialLicense);
         p.resource = resource.id;
         p.user = this.user;
-        console.log(p);
-        this.purchaseService.create(p);
-        // create partial license
-        // create purchase in database
-        // ask license on lcpserver
-        console.log(this.user.alias + ' wants to loan ' + resource.location);
+        // create a purchase(loan) in database (and get license on lcpserver )
+        this.purchaseService.create(p)
+            .then(function (p) { return _this.router.navigate(['/userdetail', _this.user.userID]); });
     };
     ResourcesComponent.prototype.hexToBytes = function (hex) {
         var bytes = [];

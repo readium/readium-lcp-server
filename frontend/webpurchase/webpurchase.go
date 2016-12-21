@@ -100,8 +100,6 @@ func (purchase dbPurchase) GetByLicenseID(licenseID string) (Purchase, error) {
 		}
 		user := webuser.User{UserID: *UserID, Alias: *Alias, Email: *Email, Password: *Password}
 		p := Purchase{PurchaseID: *PurchaseID, Resource: *Resource, Label: *Label, LicenseID: *LicenseID, PartialLicense: *PartialLicense, TransactionDate: *TransactionDate, User: user}
-		log.Println("purchase found")
-		log.Println(p)
 		return p, err
 	}
 	return Purchase{}, ErrNotFound
@@ -109,7 +107,7 @@ func (purchase dbPurchase) GetByLicenseID(licenseID string) (Purchase, error) {
 
 func (purchase dbPurchase) GetForUser(userID int64, page int, pageNum int) func() (Purchase, error) {
 	listPurchases, err := purchase.db.Query(`
-	SELECT purchase_id, resource, label, license_id, transaction_date, p.user_id, alias, email, password 
+	SELECT purchase_id, resource, label, license_id, transaction_date, p.user_id, alias, email, password, partialLicense 
     FROM purchase p 
     inner join user u on (p.user_id=u.user_id) 
     WHERE u.user_id = ? 
@@ -120,7 +118,7 @@ func (purchase dbPurchase) GetForUser(userID int64, page int, pageNum int) func(
 	return func() (Purchase, error) {
 		var p Purchase
 		if listPurchases.Next() {
-			err = listPurchases.Scan(&p.PurchaseID, &p.Resource, &p.Label, &p.LicenseID, &p.TransactionDate, &p.User.UserID, &p.User.Alias, &p.User.Email, &p.User.Password)
+			err = listPurchases.Scan(&p.PurchaseID, &p.Resource, &p.Label, &p.LicenseID, &p.TransactionDate, &p.User.UserID, &p.User.Alias, &p.User.Email, &p.User.Password, &p.PartialLicense)
 			if err != nil {
 				return p, err
 			}
@@ -137,12 +135,12 @@ func (purchase dbPurchase) GetForUser(userID int64, page int, pageNum int) func(
 func (purchase dbPurchase) Add(p Purchase) (int64, error) {
 	add, err := purchase.db.Prepare(`INSERT INTO purchase 
 	(  user_id, resource, label, license_id, transaction_date, partialLicense) 
-	VALUES (?, ?, ?, ?, ?,  ?)`)
+	VALUES (?, ?, ?, ?, datetime(),  ?)`)
 	if err != nil {
 		return 0, err
 	}
 	defer add.Close()
-	if result, err := add.Exec(p.User.UserID, p.Resource, p.Label, p.LicenseID, time.Now(), p.PartialLicense); err == nil {
+	if result, err := add.Exec(p.User.UserID, p.Resource, p.Label, p.LicenseID, p.PartialLicense); err == nil {
 		if id, err := result.LastInsertId(); err == nil {
 			return id, nil
 		}
@@ -151,12 +149,12 @@ func (purchase dbPurchase) Add(p Purchase) (int64, error) {
 }
 
 func (purchase dbPurchase) Update(changedPurchase Purchase) error {
-	update, err := purchase.db.Prepare("UPDATE purchase SET user_id=?, resource=?, label=?, license_id=?, transaction_date=?, partialLicense=? WHERE purchase_id=?")
+	update, err := purchase.db.Prepare("UPDATE purchase SET user_id=?, resource=?, label=?, license_id=?,  partialLicense=? WHERE purchase_id=?")
 	if err != nil {
 		return err
 	}
 	defer update.Close()
-	result, err := update.Exec(changedPurchase.User.UserID, changedPurchase.Resource, changedPurchase.Label, changedPurchase.LicenseID, changedPurchase.TransactionDate, changedPurchase.PartialLicense, changedPurchase.PurchaseID)
+	result, err := update.Exec(changedPurchase.User.UserID, changedPurchase.Resource, changedPurchase.Label, changedPurchase.LicenseID, changedPurchase.PartialLicense, changedPurchase.PurchaseID)
 	if changed, err := result.RowsAffected(); err == nil {
 		if changed != 1 {
 			return ErrNoChange

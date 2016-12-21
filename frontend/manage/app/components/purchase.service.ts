@@ -18,7 +18,6 @@ export class PurchaseService {
       .then(function (response) {
         let purchases: Purchase[] = [];
         for (let ResponseItem of response.json()) {
-          console.log(ResponseItem);
           let p = new Purchase;
           p.label = ResponseItem.label;
           p.licenseID = ResponseItem.licenseID;
@@ -26,6 +25,7 @@ export class PurchaseService {
           p.resource = ResponseItem.resource;
           p.transactionDate = ResponseItem.transactionDate;
           p.user = ResponseItem.user;
+          p.partialLicense = ResponseItem.partialLicense;
           purchases[purchases.length] = p;
         }
         return purchases;
@@ -39,7 +39,6 @@ export class PurchaseService {
       .toPromise()
       .then(function (response) {
           if ((response.status === 200) || (response.status === 201)) {
-            console.log(response.text);
             return purchase; // ok
           } else {
             throw 'Error in create(purchase); ' + response.status + response.text;

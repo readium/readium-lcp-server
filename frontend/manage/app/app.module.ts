@@ -10,10 +10,11 @@ import { PurchasesComponent }  from './components/purchase-list-component';
 import { ResourcesComponent } from './components/resource-list-component';
 import { HttpModule } from '@angular/http';
 import { AppRoutingModule } from './app-routing.module';
+import {FilterRights, ShowRights} from './components/rightsFromPartialLicense.pipe';
 
 @NgModule({
   imports:      [ BrowserModule, FormsModule, HttpModule, AppRoutingModule ],
-  declarations: [ AppComponent, UsersComponent, UserComponent, ResourcesComponent, PurchasesComponent ],
+  declarations: [ AppComponent, UsersComponent, UserComponent, ResourcesComponent, PurchasesComponent, FilterRights, ShowRights ],
   bootstrap:    [ AppComponent ]
 })
 export class AppModule { }

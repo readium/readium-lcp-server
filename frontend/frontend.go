@@ -117,8 +117,9 @@ func main() {
 	// To ignore your local changes, use:
 	// git update-index --assume-unchanged frontend/manage/config.js
 	window.Config = {`
-	configJs += "\n\tfrontend: {url: '" + config.Config.FrontendServer.PublicBaseUrl + "' }, \n\t"
-	configJs += "lcp: {url: '" + config.Config.LcpServer.PublicBaseUrl + "'} \n }"
+	configJs += "\n\tfrontend: {url: '" + config.Config.FrontendServer.PublicBaseUrl + "' },\n"
+	configJs += "\tlcp: {url: '" + config.Config.LcpServer.PublicBaseUrl + "'},\n"
+	configJs += "\tlsd: {url: '" + config.Config.LsdServer.PublicBaseUrl + "'}\n}"
 
 	log.Println("manage/index.html config.js:")
 	log.Println(configJs)

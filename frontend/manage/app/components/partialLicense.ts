@@ -54,6 +54,11 @@ export class  UserInfo  {
 export class PartialLicense {
     provider:   string;  // 'http://edrlab.org'
     user:       UserInfo;  // get it from  user.user_id, user_email, ...
-    encryption: Encryption; // user_key => set clear_value & text_hint
+    encryption: Encryption; 
     rights:     UserRights | undefined;
+}
+
+export class PartialLicenseJSON extends PartialLicense {
+    // function to encode / decode JSON string
+    
 }
