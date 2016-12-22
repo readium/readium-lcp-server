@@ -23,60 +23,47 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 
-package license
+package crypto
 
 import (
 	"bytes"
-	"database/sql"
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/hex"
 	"testing"
-
-	_ "github.com/mattn/go-sqlite3"
-
-	"github.com/readium/readium-lcp-server/sign"
 )
 
-func TestStoreInit(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	st, err := NewSqlStore(db)
-	if err != nil {
-		t.Fatal(err)
+func TestEncryptGCM(t *testing.T) {
+	key, _ := hex.DecodeString("11754cd72aec309bf52f7687212e8957")
+
+	encrypter := NewAESGCMEncrypter()
+
+	data := []byte("The quick brown fox jumps over the lazy dog")
+
+	r := bytes.NewReader(data)
+	w := new(bytes.Buffer)
+
+	if err := encrypter.Encrypt(ContentKey(key), r, w); err != nil {
+		t.Fatal("Encryption failed", err)
 	}
 
-	it := st.List()
-	if _, err := it(); err != NotFound {
-		t.Errorf("Didn't expect the iterator to have a value")
-	}
+	block, _ := aes.NewCipher(key)
+	gcm, _ := cipher.NewGCM(block)
 
-}
+	out := w.Bytes()
+	t.Logf("nonce size: %#v", gcm.NonceSize())
+	t.Logf("nonce: %#v", out[0:gcm.NonceSize()])
+	t.Logf("ciphertext: %#v", out[gcm.NonceSize():])
+	clear := make([]byte, 0)
+	clear, err := gcm.Open(clear, out[0:gcm.NonceSize()], out[gcm.NonceSize():], nil)
 
-func TestStoreAdd(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
-		t.Fatal(err)
-	}
-	st, err := NewSqlStore(db)
-	if err != nil {
-		t.Fatal(err)
+		t.Fatal("Decryption failed", err)
 	}
 
-	l := New()
-	Prepare(&l)
-	err = st.Add(l)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	l2, err := st.Get(l.Id)
-	if err != nil {
-		t.Error(err)
-	}
-
-	js1, err := sign.Canon(l)
-	js2, err2 := sign.Canon(l2)
-	if err != nil || err2 != nil || !bytes.Equal(js1, js2) {
-		t.Error("Difference between Add and Get")
+	if diff := bytes.Compare(data, clear); diff != 0 {
+		t.Logf("Original: %#v", data)
+		t.Logf("After cycle: %#v", clear)
+		t.Errorf("Expected encryption-decryption to return original")
 	}
 }

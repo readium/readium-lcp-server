@@ -124,7 +124,6 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		ExistingLicense.Encryption.UserKey.Value = lic.Encryption.UserKey.Value
 
 		err = completeLicense(&ExistingLicense, ExistingLicense.ContentId, s)
-
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
@@ -447,17 +446,22 @@ func completeLicense(l *license.License, key string, s Server) error {
 		encryptionKey = hash[:]
 	}
 
-	l.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
-	
-	l.Encryption.ContentKey.Value = encryptKey(c.EncryptionKey, encryptionKey[:])
-	
+	encrypter_content_key := crypto.NewAESEncrypter_CONTENT_KEY()
+
+	l.Encryption.ContentKey.Algorithm = encrypter_content_key.Signature()
+	l.Encryption.ContentKey.Value = encryptKey(encrypter_content_key, c.EncryptionKey, encryptionKey[:])
 	l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
-	
-	err = encryptFields(l, encryptionKey[:])
+
+	encrypter_fields := crypto.NewAESEncrypter_FIELDS()
+
+	err = encryptFields(encrypter_fields, l, encryptionKey[:])
 	if err != nil {
 		return err
 	}
-	err = buildKeyCheck(l, encryptionKey[:])
+
+	encrypter_user_key_check := crypto.NewAESEncrypter_USER_KEY_CHECK()
+	
+	err = buildKeyCheck(encrypter_user_key_check, l, encryptionKey[:])
 	if err != nil {
 		return err
 	}
@@ -473,9 +477,9 @@ func completeLicense(l *license.License, key string, s Server) error {
 	return nil
 }
 
-func buildKeyCheck(l *license.License, key []byte) error {
+func buildKeyCheck(encrypter crypto.Encrypter, l *license.License, key []byte) error {
 	var out bytes.Buffer
-	err := crypto.Encrypt(key, bytes.NewBufferString(l.Id), &out)
+	err := encrypter.Encrypt(key, bytes.NewBufferString(l.Id), &out)
 	if err != nil {
 		return err
 	}
@@ -483,11 +487,11 @@ func buildKeyCheck(l *license.License, key []byte) error {
 	return nil
 }
 
-func encryptFields(l *license.License, key []byte) error {
+func encryptFields(encrypter crypto.Encrypter, l *license.License, key []byte) error {
 	for _, toEncrypt := range l.User.Encrypted {
 		var out bytes.Buffer
 		field := getField(&l.User, toEncrypt)
-		err := crypto.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
+		err := encrypter.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
 		if err != nil {
 			return err
 		}
@@ -515,10 +519,10 @@ func signLicense(l *license.License, cert *tls.Certificate) error {
 	return nil
 }
 
-func encryptKey(key []byte, kek []byte) []byte {
+func encryptKey(encrypter crypto.Encrypter, key []byte, kek []byte) []byte {
 	var out bytes.Buffer
 	in := bytes.NewReader(key)
-	crypto.Encrypt(kek[:], in, &out)
+	encrypter.Encrypt(kek[:], in, &out)
 	return out.Bytes()
 }
 
