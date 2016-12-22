@@ -3,10 +3,9 @@
     background: black;
     color : white;
     padding: 8px 8px 8px 8px;
-    margin: 16px 16px;
-    
+    margin: 16px 16px;    
 }
-.rights {
+.rights,.register {
     font-style: italic;
     color : gray;
     width: 50%;

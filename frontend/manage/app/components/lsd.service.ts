@@ -49,6 +49,25 @@ export class LsdService {
       .catch(this.handleError);
   }
 
+ registerDevice(licenseID: string, id: string, name: string | undefined): Promise<lsd.LicenseStatus> {
+    return this.http.post(this.lsdServer + '/licenses/' + licenseID + '/register'  + LsdService.getParamsFor(id, name), undefined )
+      .toPromise()
+      .then(function (response) {
+           if ((response.status === 200) || (response.status === 201)) {
+               return response.json();
+            } else if ((response.status === 400)) { // bad request
+                let obj = response.json();
+                throw 'Error registering device (License Status Document): ' + obj.detail + '\n' + response.status + response.text;
+            } else if ((response.status === 404)) { // license not found
+                let obj = response.json();
+                throw 'License not found: ' + obj.detail + '\n' + response.status + response.text;
+            } else {
+            throw 'Error registering device (License Status Document); ' + response.status + response.text;
+          }
+      })
+      .catch(this.handleError);
+  }
+
   returnLoan(licenseID: string, id: string | undefined, name: string | undefined): Promise<lsd.LicenseStatus> {
     return this.http.put(this.lsdServer + '/licenses/' + licenseID + '/return'  + LsdService.getParamsFor(id, name), undefined )
       .toPromise()

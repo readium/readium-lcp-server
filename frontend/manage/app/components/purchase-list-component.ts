@@ -18,6 +18,8 @@ import {LsdService} from './lsd.service';
 export class PurchasesComponent implements OnInit {
     @Input() user: User;
     @Input() hours: string;
+    @Input() deviceID: string;
+    @Input() deviceName: string;
 
     purchases: Purchase[];
     selectedPurchase: Purchase;
@@ -40,31 +42,45 @@ export class PurchasesComponent implements OnInit {
     onSelect(p: Purchase): void {
         this.selectedPurchase = p;
     }
+    RegisterDevice(p: Purchase, deviceID: string, deviceName: string|undefined) {
+        this.deviceID = deviceID;
+        this.deviceName = deviceName;
+        console.log('register license for device ' + deviceID );
+        if ( p.licenseID !== '') {
+            this.lsdService.registerDevice(p.licenseID, deviceID, deviceName)
+            .then( status => alert('DEVICE registered!\n' + JSON.stringify(status) ) )
+            .catch( reason =>  alert( 'PROBLEM: \n' +  reason._body));
+        } else {
+            alert('No licenseID for this purchase, please press download to create a license.');
+        }
+    }
 
-    RenewLoan(p: Purchase, hours: number) {
+    RenewLoan(p: Purchase, hours: number, deviceID: string|undefined, deviceName: string|undefined) {
         console.log('should renew license for another ' + hours + ' hours. ()' + p.label + ')');
         if ( p.licenseID !== '') {
             let t = Date.now();
             t += hours * 3600 * 1000;
-            this.lsdService.renewLoan(p.licenseID, new Date(t), undefined, undefined)
+            this.lsdService.renewLoan(p.licenseID, new Date(t), deviceID, deviceName)
             .then( status => alert(JSON.stringify(status) ) )
             .catch( reason =>  alert( 'RENEW PROBLEM: \n' +  reason._body));
         } else {
             alert('No licenseID for this purchase, please press download to create a license.');
         }
     }
-    ReturnLoan(p: Purchase) {
-         // contact lsd server and return the license
+
+    // contact lsd server and return the license
+    ReturnLoan(p: Purchase, deviceID: string|undefined, deviceName: string|undefined) {
         if ( p.licenseID !== '') {
-            this.lsdService.returnLoan(p.licenseID,undefined,undefined)
+            this.lsdService.returnLoan(p.licenseID, deviceID, deviceName)
             .then( status => alert(JSON.stringify(status) ) )
             .catch( reason => console.log('error returning license for ' + p.label + ':' + reason) )
         } else {
             alert('No licenseID yet for this purchase! (clic download first)');
         }
     }
-    CheckStatus(p:Purchase) {
-        // contact lsd server and CheckStatus of the license
+
+    // contact lsd server and CheckStatus of the license
+    CheckStatus(p: Purchase) {
         if ( p.licenseID !== '') {
             this.lsdService.getStatus(p.licenseID,undefined,undefined)
             .then( status => alert(JSON.stringify(status) ) )

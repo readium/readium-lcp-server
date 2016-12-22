@@ -32,12 +32,25 @@ var PurchasesComponent = (function () {
     PurchasesComponent.prototype.onSelect = function (p) {
         this.selectedPurchase = p;
     };
-    PurchasesComponent.prototype.RenewLoan = function (p, hours) {
+    PurchasesComponent.prototype.RegisterDevice = function (p, deviceID, deviceName) {
+        this.deviceID = deviceID;
+        this.deviceName = deviceName;
+        console.log('register license for device ' + deviceID);
+        if (p.licenseID !== '') {
+            this.lsdService.registerDevice(p.licenseID, deviceID, deviceName)
+                .then(function (status) { return alert('DEVICE registered!\n' + JSON.stringify(status)); })
+                .catch(function (reason) { return alert('PROBLEM: \n' + reason._body); });
+        }
+        else {
+            alert('No licenseID for this purchase, please press download to create a license.');
+        }
+    };
+    PurchasesComponent.prototype.RenewLoan = function (p, hours, deviceID, deviceName) {
         console.log('should renew license for another ' + hours + ' hours. ()' + p.label + ')');
         if (p.licenseID !== '') {
             var t = Date.now();
             t += hours * 3600 * 1000;
-            this.lsdService.renewLoan(p.licenseID, new Date(t), undefined, undefined)
+            this.lsdService.renewLoan(p.licenseID, new Date(t), deviceID, deviceName)
                 .then(function (status) { return alert(JSON.stringify(status)); })
                 .catch(function (reason) { return alert('RENEW PROBLEM: \n' + reason._body); });
         }
@@ -45,10 +58,10 @@ var PurchasesComponent = (function () {
             alert('No licenseID for this purchase, please press download to create a license.');
         }
     };
-    PurchasesComponent.prototype.ReturnLoan = function (p) {
-        // contact lsd server and return the license
+    // contact lsd server and return the license
+    PurchasesComponent.prototype.ReturnLoan = function (p, deviceID, deviceName) {
         if (p.licenseID !== '') {
-            this.lsdService.returnLoan(p.licenseID, undefined, undefined)
+            this.lsdService.returnLoan(p.licenseID, deviceID, deviceName)
                 .then(function (status) { return alert(JSON.stringify(status)); })
                 .catch(function (reason) { return console.log('error returning license for ' + p.label + ':' + reason); });
         }
@@ -56,8 +69,8 @@ var PurchasesComponent = (function () {
             alert('No licenseID yet for this purchase! (clic download first)');
         }
     };
+    // contact lsd server and CheckStatus of the license
     PurchasesComponent.prototype.CheckStatus = function (p) {
-        // contact lsd server and CheckStatus of the license
         if (p.licenseID !== '') {
             this.lsdService.getStatus(p.licenseID, undefined, undefined)
                 .then(function (status) { return alert(JSON.stringify(status)); })
@@ -91,6 +104,14 @@ __decorate([
     core_1.Input(),
     __metadata("design:type", String)
 ], PurchasesComponent.prototype, "hours", void 0);
+__decorate([
+    core_1.Input(),
+    __metadata("design:type", String)
+], PurchasesComponent.prototype, "deviceID", void 0);
+__decorate([
+    core_1.Input(),
+    __metadata("design:type", String)
+], PurchasesComponent.prototype, "deviceName", void 0);
 PurchasesComponent = __decorate([
     core_1.Component({
         moduleId: module.id,
