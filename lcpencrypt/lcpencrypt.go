@@ -42,6 +42,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/pack"
@@ -205,7 +206,8 @@ func main() {
 	}
 
 	// pack / encrypt the epub content, fill the output file
-	_, encryptionKey, err := pack.Do(ep, output)
+	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
+	_, encryptionKey, err := pack.Do(encrypter, ep, output)
 
 	stats, err := output.Stat()
 	if err == nil && (stats.Size() > 0) {

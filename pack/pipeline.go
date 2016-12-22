@@ -36,6 +36,7 @@ import (
 
 	"github.com/satori/go.uuid"
 
+	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/storage"
@@ -91,10 +92,10 @@ func (s *ManualSource) Post(t *Task) Result {
 }
 
 type Packager struct {
-	Incoming chan *Task
-	done     chan struct{}
-	store    storage.Store
-	idx      index.Index
+	Incoming  chan *Task
+	done      chan struct{}
+	store     storage.Store
+	idx       index.Index
 }
 
 func (p Packager) work() {
@@ -149,7 +150,8 @@ func (p Packager) encrypt(r *Result, ep epub.Epub) (*EncryptedFileInfo, []byte) 
 		r.Error = err
 		return nil, nil
 	}
-	_, key, err := Do(ep, tmpFile)
+	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
+	_, key, err := Do(encrypter, ep, tmpFile)
 	r.Error = err
 	var encryptedFileInfo EncryptedFileInfo
 	encryptedFileInfo.File = tmpFile
@@ -190,10 +192,10 @@ func (p Packager) addToIndex(r *Result, key []byte, name string, contentSize int
 
 func NewPackager(store storage.Store, idx index.Index, concurrency int) *Packager {
 	packager := Packager{
-		Incoming: make(chan *Task),
-		done:     make(chan struct{}),
-		store:    store,
-		idx:      idx,
+		Incoming:  make(chan *Task),
+		done:      make(chan struct{}),
+		store:     store,
+		idx:       idx,
 	}
 
 	for i := 0; i < concurrency; i++ {

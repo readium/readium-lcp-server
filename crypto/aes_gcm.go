@@ -23,60 +23,54 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 
-package license
+package crypto
 
 import (
-	"bytes"
-	"database/sql"
-	"testing"
-
-	_ "github.com/mattn/go-sqlite3"
-
-	"github.com/readium/readium-lcp-server/sign"
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/binary"
+	"io"
+	"io/ioutil"
 )
 
-func TestStoreInit(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	st, err := NewSqlStore(db)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	it := st.List()
-	if _, err := it(); err != NotFound {
-		t.Errorf("Didn't expect the iterator to have a value")
-	}
-
+type gcmEncrypter struct {
+	counter uint64
 }
 
-func TestStoreAdd(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+func (e gcmEncrypter) Signature() string {
+	return "http://www.w3.org/2009/xmlenc11#aes256-gcm"
+}
+
+func (e gcmEncrypter) GenerateKey() (ContentKey, error) {
+	slice, err := GenerateKey(aes256keyLength)
+	return ContentKey(slice), err
+}
+
+func (e *gcmEncrypter) Encrypt(key ContentKey, r io.Reader, w io.Writer) error {
+	block, err := aes.NewCipher(key)
 	if err != nil {
-		t.Fatal(err)
-	}
-	st, err := NewSqlStore(db)
-	if err != nil {
-		t.Fatal(err)
+		return err
 	}
 
-	l := New()
-	Prepare(&l)
-	err = st.Add(l)
+	counter := e.counter
+	e.counter++
+
+	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
 
-	l2, err := st.Get(l.Id)
-	if err != nil {
-		t.Error(err)
-	}
+	nonce := make([]byte, gcm.NonceSize())
+	binary.BigEndian.PutUint64(nonce, counter)
 
-	js1, err := sign.Canon(l)
-	js2, err2 := sign.Canon(l2)
-	if err != nil || err2 != nil || !bytes.Equal(js1, js2) {
-		t.Error("Difference between Add and Get")
-	}
+	data, err := ioutil.ReadAll(r)
+	out := gcm.Seal(nonce, nonce, data, nil)
+
+	_, err = w.Write(out)
+
+	return err
+}
+
+func NewAESGCMEncrypter() Encrypter {
+	return &gcmEncrypter{}
 }
