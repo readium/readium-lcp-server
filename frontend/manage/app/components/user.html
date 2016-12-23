@@ -1,15 +1,18 @@
 <div *ngIf="user">
-    <h2>{{user.alias}} details!</h2>
+    <h2 class="user">{{user.alias}}'s details!</h2>
+    <button (click)="goBack()">Go back</button>
+
     <div>
-        <label>email: </label>{{user.email}}
-    </div>
-    <div>
-        <label>alias: </label>
+        <label>Change user: </label>
         <input [(ngModel)]="user.alias" placeholder="name"/>
         <input [(ngModel)]="user.email" placeholder="email"/>
         <input [(ngModel)]="newPassword" placeholder="password"/>
-        <button (click)="save()">Save</button>
+        <button (click)="save()">Update</button>
     </div>
+    
     <purchases [user]="user"></purchases>    
-    <button (click)="goBack()">Back</button>
+
+
+
+    <button (click)="goBack()">Go back</button>
 </div>

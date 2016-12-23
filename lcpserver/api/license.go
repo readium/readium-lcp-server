@@ -42,8 +42,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/mux"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gorilla/mux"
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
@@ -59,8 +59,8 @@ import (
 func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 
-	licenceId := vars["key"]
-	
+	licenceId := vars["license_id"]
+
 	var ExistingLicense license.License
 	ExistingLicense, e := s.Licenses().Get(licenceId)
 	if e != nil {
@@ -73,10 +73,10 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	var lic license.License
 	err := DecodeJsonLicense(r, &lic)
-	
+
 	log.Println("PARTIAL LICENSE RECEIVED IN REQUEST BODY:")
 	spew.Dump(lic)
-	
+
 	if err != nil { // no or incorrect (json) license found in body
 
 		log.Println("PARTIAL CONTENT:(error: " + err.Error() + ")")
@@ -103,6 +103,10 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
+
+		log.Println("PARTIAL LICENSE FOR RESPONSE:")
+		spew.Dump(ExistingLicense)
+
 		return
 
 	} else { // add information to license , sign and return (real) License
@@ -120,7 +124,6 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		ExistingLicense.Encryption.UserKey.Value = lic.Encryption.UserKey.Value
 
 		err = completeLicense(&ExistingLicense, ExistingLicense.ContentId, s)
-
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
@@ -134,61 +137,74 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
+
+		log.Println("COMPLETE LICENSE FOR RESPONSE:")
+		spew.Dump(ExistingLicense)
+
 		return
 	}
 }
 
+// this function only updates the license in the database given a partial license input
+func updateLicenseInDatabase(liceseID string, partialLicense license.License, s Server) (license.License, error) {
+
+	var ExistingLicense license.License
+	ExistingLicense, err := s.Licenses().Get(liceseID)
+	if err != nil {
+		return ExistingLicense, err
+	}
+
+	// update rights of license in database / verify validity of lic / existingLicense
+	if partialLicense.Provider != "" {
+		ExistingLicense.Provider = partialLicense.Provider
+	}
+	if partialLicense.Rights.Copy != nil {
+		ExistingLicense.Rights.Copy = partialLicense.Rights.Copy
+	}
+	if partialLicense.Rights.Print != nil {
+		ExistingLicense.Rights.Print = partialLicense.Rights.Print
+	}
+	if partialLicense.Rights.Start != nil {
+		ExistingLicense.Rights.Start = partialLicense.Rights.Start
+	}
+	if partialLicense.Rights.End != nil {
+		ExistingLicense.Rights.End = partialLicense.Rights.End
+	}
+	if partialLicense.Encryption.UserKey.Hint != "" {
+		ExistingLicense.Encryption.UserKey.Hint = partialLicense.Encryption.UserKey.Hint
+	}
+	if partialLicense.ContentId != "" { //change content
+		ExistingLicense.ContentId = partialLicense.ContentId
+	}
+	err = s.Licenses().Update(ExistingLicense)
+	if err != nil { // no or incorrect (json) license found in body
+		return ExistingLicense, err
+	}
+	return ExistingLicense, err
+}
+
+// UpdateLicense updates an existing license and returns the new license (lcpl)
 func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 	vars := mux.Vars(r)
-	licenceId := vars["key"]
-	
-	var ExistingLicense license.License
-	ExistingLicense, e := s.Licenses().Get(licenceId)
-	if e != nil {
-		if e == license.NotFound {
-			problem.Error(w, r, problem.Problem{Detail: license.NotFound.Error()}, http.StatusNotFound)
-		} else {
-			problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusBadRequest)
-		}
-		return
-	}
+	licenseID := vars["license_id"]
 	var lic license.License
 	err := DecodeJsonLicense(r, &lic)
 	if err != nil { // no or incorrect (json) license found in body
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-	if lic.Id != licenceId {
+	if lic.Id != licenseID {
 		problem.Error(w, r, problem.Problem{Detail: "Different license IDs"}, http.StatusNotFound)
 		return
 	}
-	// update rights of license in database / verify validity of lic / existingLicense
-	if lic.Provider != "" {
-		ExistingLicense.Provider = lic.Provider
-	}
-	if lic.Rights.Copy != nil {
-		ExistingLicense.Rights.Copy = lic.Rights.Copy
-	}
-	if lic.Rights.Print != nil {
-		ExistingLicense.Rights.Print = lic.Rights.Print
-	}
-	if lic.Rights.Start != nil {
-		ExistingLicense.Rights.Start = lic.Rights.Start
-	}
-	if lic.Rights.End != nil {
-		ExistingLicense.Rights.End = lic.Rights.End
-	}
-	if lic.Encryption.UserKey.Hint != "" {
-		ExistingLicense.Encryption.UserKey.Hint = lic.Encryption.UserKey.Hint
-	}
-	if lic.ContentId != "" { //change content
-		ExistingLicense.ContentId = lic.ContentId
-	}
-	err = s.Licenses().Update(ExistingLicense)
-	if err != nil { // no or incorrect (json) license found in body
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-		return
+	_, err = updateLicenseInDatabase(licenseID, lic, s)
+	if err != nil {
+		if err == license.NotFound {
+			problem.Error(w, r, problem.Problem{Detail: license.NotFound.Error()}, http.StatusNotFound)
+		} else {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		}
 	}
 	// go on and GET license io to return the updated license
 	GetLicense(w, r, s)
@@ -283,20 +299,46 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Server) {
-	vars := mux.Vars(r)
-	key := vars["key"]
-
-	var lic license.License
-
-	err := DecodeJsonLicense(r, &lic)
-
+	var partialLicense license.License
+	var newLicense license.License
+	err := DecodeJsonLicense(r, &partialLicense)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
+
+	vars := mux.Vars(r)
+	key := vars["key"]
+	licenseID := vars["license_id"] //may be empty (new request or update of existing license/publication
+	if licenseID != "" {
+		//license update license, regenerate publication, maybe only get from db ?
+		newLicense, err = updateLicenseInDatabase(licenseID, partialLicense, s)
+		if err != nil {
+			if err == license.NotFound {
+				problem.Error(w, r, problem.Problem{Detail: license.NotFound.Error()}, http.StatusNotFound)
+			} else {
+				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			}
+		}
+		key = newLicense.ContentId
+	} else {
+		//new license , generate publication
+		newLicense = partialLicense
+		newLicense.ContentId = ""
+		err = completeLicense(&newLicense, key, s)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+			return
+		}
+		err = s.Licenses().Add(newLicense)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+			return
+		}
+	}
+	// get publication and add license to the publication
 	if key == "" {
 		problem.Error(w, r, problem.Problem{Detail: "No content id", Instance: key}, http.StatusBadRequest)
-
 		return
 	}
 
@@ -305,11 +347,9 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 		if err == storage.NotFound {
 			problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: key}, http.StatusNotFound)
 			return
-
-		} else {
-			problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
-			return
 		}
+		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+		return
 	}
 
 	content, err := s.Index().Get(key)
@@ -339,37 +379,20 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
 		return
 	}
+	//add license to publication
 	var buf bytes.Buffer
-
-	lic.ContentId = ""
-	err = completeLicense(&lic, key, s)
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
-		return
-	}
-
 	enc := json.NewEncoder(&buf)
-	enc.Encode(lic)
-
-	err = s.Licenses().Add(lic)
-
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
-		return
-	}
-
+	enc.Encode(newLicense)
 	var buf2 bytes.Buffer
 	buf2.Write(bytes.TrimRight(buf.Bytes(), "\n"))
 	ep.Add(epub.LicenseFile, &buf2, uint64(buf2.Len()))
 
 	w.Header().Add("Content-Type", epub.ContentType_EPUB)
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, content.Location))
-
+	w.Header().Add("X-Lcp-License", newLicense.Id)
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusCreated)
-
 	ep.Write(w)
-
 }
 
 func DecodeJsonLicense(r *http.Request, lic *license.License) error {
@@ -394,7 +417,7 @@ func completeLicense(l *license.License, key string, s Server) error {
 	}
 
 	isNewLicense := l.ContentId == ""
-	if (isNewLicense) {
+	if isNewLicense {
 		license.Prepare(l)
 		l.ContentId = key
 	} else {
@@ -439,21 +462,26 @@ func completeLicense(l *license.License, key string, s Server) error {
 		encryptionKey = hash[:]
 	}
 
-	l.Encryption.ContentKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
-	
-	l.Encryption.ContentKey.Value = encryptKey(c.EncryptionKey, encryptionKey[:])
-	
+	encrypter_content_key := crypto.NewAESEncrypter_CONTENT_KEY()
+
+	l.Encryption.ContentKey.Algorithm = encrypter_content_key.Signature()
+	l.Encryption.ContentKey.Value = encryptKey(encrypter_content_key, c.EncryptionKey, encryptionKey[:])
 	l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
-	
-	err = encryptFields(l, encryptionKey[:])
+
+	encrypter_fields := crypto.NewAESEncrypter_FIELDS()
+
+	err = encryptFields(encrypter_fields, l, encryptionKey[:])
 	if err != nil {
 		return err
 	}
-	err = buildKeyCheck(l, encryptionKey[:])
+
+	encrypter_user_key_check := crypto.NewAESEncrypter_USER_KEY_CHECK()
+
+	err = buildKeyCheck(encrypter_user_key_check, l, encryptionKey[:])
 	if err != nil {
 		return err
 	}
-	
+
 	if l.Signature != nil {
 		log.Println("Signature is NOT nil (it should)")
 		l.Signature = nil
@@ -465,9 +493,9 @@ func completeLicense(l *license.License, key string, s Server) error {
 	return nil
 }
 
-func buildKeyCheck(l *license.License, key []byte) error {
+func buildKeyCheck(encrypter crypto.Encrypter, l *license.License, key []byte) error {
 	var out bytes.Buffer
-	err := crypto.Encrypt(key, bytes.NewBufferString(l.Id), &out)
+	err := encrypter.Encrypt(key, bytes.NewBufferString(l.Id), &out)
 	if err != nil {
 		return err
 	}
@@ -475,11 +503,11 @@ func buildKeyCheck(l *license.License, key []byte) error {
 	return nil
 }
 
-func encryptFields(l *license.License, key []byte) error {
+func encryptFields(encrypter crypto.Encrypter, l *license.License, key []byte) error {
 	for _, toEncrypt := range l.User.Encrypted {
 		var out bytes.Buffer
 		field := getField(&l.User, toEncrypt)
-		err := crypto.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
+		err := encrypter.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
 		if err != nil {
 			return err
 		}
@@ -507,10 +535,10 @@ func signLicense(l *license.License, cert *tls.Certificate) error {
 	return nil
 }
 
-func encryptKey(key []byte, kek []byte) []byte {
+func encryptKey(encrypter crypto.Encrypter, key []byte, kek []byte) []byte {
 	var out bytes.Buffer
 	in := bytes.NewReader(key)
-	crypto.Encrypt(kek[:], in, &out)
+	encrypter.Encrypt(kek[:], in, &out)
 	return out.Bytes()
 }
 
@@ -604,7 +632,7 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 		per_page = 30
 	}
 	if page > 0 {
-		page -= 1 //pagenum starting at 0 in code, but user interface starting at 1
+		page-- //pagenum starting at 0 in code, but user interface starting at 1
 	}
 	if page < 0 {
 		problem.Error(w, r, problem.Problem{Detail: "page must be positive integer"}, http.StatusBadRequest)

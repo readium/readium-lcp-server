@@ -60,4 +60,12 @@ var PartialLicense = (function () {
     return PartialLicense;
 }());
 exports.PartialLicense = PartialLicense;
+var PartialLicenseJSON = (function (_super) {
+    __extends(PartialLicenseJSON, _super);
+    function PartialLicenseJSON() {
+        return _super.apply(this, arguments) || this;
+    }
+    return PartialLicenseJSON;
+}(PartialLicense));
+exports.PartialLicenseJSON = PartialLicenseJSON;
 //# sourceMappingURL=partialLicense.js.map

@@ -35,6 +35,7 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
+
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"

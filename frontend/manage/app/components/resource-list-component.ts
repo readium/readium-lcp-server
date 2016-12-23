@@ -38,7 +38,7 @@ export class ResourcesComponent implements OnInit {
         this.selectedResource = resource;
     }
 
-    onBuy(resource: Resource): void {
+    onBuy(resource: Resource): void { 
         // buy action for selectedResource and user
         // create partial license
         let partialLicense = this.createPartialLicense(this.user, undefined);
@@ -47,13 +47,10 @@ export class ResourcesComponent implements OnInit {
         p.partialLicense = JSON.stringify(partialLicense);
         p.resource = resource.id;
         p.user = this.user;
-        console.log(p);
-        this.purchaseService.create(p);
-        // create purchase in database
-        // ask license on lcpserver
-        console.log(this.user.alias + ' bought ' + resource.location);
-        // TODO alert user somehow...goto user details ?
-        // redirect to download ?
+        let rp: Purchase;
+        // create a purchase in database (and get license on lcpserver )
+        this.purchaseService.create(p)
+        .then(p =>  this.router.navigate(['/userdetail', this.user.userID]));
     }
 
     onLoan(resource: Resource, hours: string): void {
@@ -69,7 +66,6 @@ export class ResourcesComponent implements OnInit {
         } else {
             rights.end = new Date( rights.start.valueOf() + h * 3600 * 1000); // + h hours
         }
-        console.log(rights);
         // loan action action for selectedResource and user
         let partialLicense = this.createPartialLicense(this.user, rights);
         let p = new Purchase;
@@ -77,21 +73,16 @@ export class ResourcesComponent implements OnInit {
         p.partialLicense = JSON.stringify(partialLicense);
         p.resource = resource.id;
         p.user = this.user;
-        console.log(p);
-        this.purchaseService.create(p);
-        // create partial license
-        // create purchase in database
-        // ask license on lcpserver
-        console.log(this.user.alias + ' wants to loan ' + resource.location);
+        // create a purchase(loan) in database (and get license on lcpserver )
+        this.purchaseService.create(p)
+        .then( p =>  this.router.navigate(['/userdetail', this.user.userID]));
     }
 
     private hexToBytes(hex: string) {
         let bytes: number[] = [];
-
         for (let i = 0; i < (hex.length/2); i++) {
-            bytes.push(parseInt(hex.substr(i*2, 2), 16));
+            bytes.push(parseInt(hex.substr(i * 2, 2), 16));
         }
-
         return bytes;
     }
 

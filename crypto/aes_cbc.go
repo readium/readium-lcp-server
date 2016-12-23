@@ -23,60 +23,88 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 
-package license
+package crypto
 
 import (
 	"bytes"
-	"database/sql"
-	"testing"
-
-	_ "github.com/mattn/go-sqlite3"
-
-	"github.com/readium/readium-lcp-server/sign"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"io"
 )
 
-func TestStoreInit(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	st, err := NewSqlStore(db)
-	if err != nil {
-		t.Fatal(err)
-	}
+type cbcEncrypter struct{}
 
-	it := st.List()
-	if _, err := it(); err != NotFound {
-		t.Errorf("Didn't expect the iterator to have a value")
-	}
+const (
+	aes256keyLength = 32 // 256 bits
+)
 
+func (e cbcEncrypter) Signature() string {
+	return "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
 }
 
-func TestStoreAdd(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+func (e cbcEncrypter) GenerateKey() (ContentKey, error) {
+	slice, err := GenerateKey(aes256keyLength)
+	return ContentKey(slice), err
+}
+
+func (e cbcEncrypter) Encrypt(key ContentKey, r io.Reader, w io.Writer) error {
+	r = PaddedReader(r, aes.BlockSize)
+
+	block, err := aes.NewCipher(key)
 	if err != nil {
-		t.Fatal(err)
-	}
-	st, err := NewSqlStore(db)
-	if err != nil {
-		t.Fatal(err)
+		return err
 	}
 
-	l := New()
-	Prepare(&l)
-	err = st.Add(l)
-	if err != nil {
-		t.Fatal(err)
+	// generate the IV
+	iv := make([]byte, aes.BlockSize)
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return err
 	}
 
-	l2, err := st.Get(l.Id)
-	if err != nil {
-		t.Error(err)
+	// write the IV first
+	if _, err = w.Write(iv); err != nil {
+		return err
 	}
 
-	js1, err := sign.Canon(l)
-	js2, err2 := sign.Canon(l2)
-	if err != nil || err2 != nil || !bytes.Equal(js1, js2) {
-		t.Error("Difference between Add and Get")
+	mode := cipher.NewCBCEncrypter(block, iv)
+	buffer := make([]byte, aes.BlockSize)
+	for _, err = io.ReadFull(r, buffer); err == nil; _, err = io.ReadFull(r, buffer) {
+		mode.CryptBlocks(buffer, buffer)
+		_, wErr := w.Write(buffer)
+		if wErr != nil {
+			return wErr
+		}
 	}
+
+	if err == nil || err == io.EOF {
+		return nil
+	}
+
+	return err
+}
+
+func (c cbcEncrypter) Decrypt(key ContentKey, r io.Reader, w io.Writer) error {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return err
+	}
+
+	var buffer bytes.Buffer
+	io.Copy(&buffer, r)
+
+	buf := buffer.Bytes()
+	iv := buf[:aes.BlockSize]
+
+	mode := cipher.NewCBCDecrypter(block, iv)
+	mode.CryptBlocks(buf[aes.BlockSize:], buf[aes.BlockSize:])
+
+	padding := buf[len(buf)-1]
+	w.Write(buf[aes.BlockSize : len(buf)-int(padding)])
+
+	return nil
+}
+
+func NewAESCBCEncrypter() Encrypter {
+	return cbcEncrypter(struct{}{})
 }

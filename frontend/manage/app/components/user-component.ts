@@ -34,7 +34,7 @@ export class UserComponent implements OnInit {
         this.location.back();
     }
 
-    save(): void {        
+    save(): void {
         this.userService.update(this.user, this.newPassword)
         .then(() => this.goBack());
     }

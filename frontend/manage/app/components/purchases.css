@@ -1,0 +1,23 @@
+.purchase {
+    border-color: darkgrey;
+    background: black;
+    color : white;
+    padding: 8px 8px 8px 8px;
+    margin: 16px 16px;    
+}
+.rights,.register {
+    font-style: italic;
+    color : gray;
+    width: 50%;
+    margin-left: 32px;
+}
+
+.licenseID {
+    font-size: 75%;
+    width: 50%;
+    margin-left: 32px;
+}
+
+.inputhours {
+    width: 50px;
+}
