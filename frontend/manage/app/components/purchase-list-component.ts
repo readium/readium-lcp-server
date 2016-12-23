@@ -105,4 +105,18 @@ export class PurchasesComponent implements OnInit {
 
     }
 
+    // get epub with license
+    DownloadPublication(p: Purchase): void {
+        if ( p.licenseID === undefined) {
+            console.log('Get purchase and download ' + p.label );
+            // existing lcp function
+            // we need to recontact the static server and ask to create a new license
+            window.location.href = '/users/' + p.user.userID + '/purchases/' + p.purchaseID + '/publication';
+        } else {
+            console.log('Re-download publication : ' + p.label + '(' + p.licenseID + ')');
+            // redirect to /licenses/ p.licenseID 
+            window.location.href = '/licenses/' + p.licenseID + '/publication';
+        }
+    }
+
 }

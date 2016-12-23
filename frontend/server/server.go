@@ -72,14 +72,16 @@ func New(bindAddr string, tplPath string, userAPI webuser.WebUser, purchaseAPI w
 	s.handleFunc(sr.R, "/users/{user_id}", staticapi.UpdateUser).Methods("POST")
 	s.handleFunc(sr.R, "/users/{user_id}", staticapi.DeleteUser).Methods("DELETE")
 	// purchases
-	s.handleFunc(sr.R, "/users/{user_id}/purchases", staticapi.GetPurchasesForUser).Methods("GET")                      // get purchases for a user
-	s.handleFunc(sr.R, "/users/{user_id}/purchases", staticapi.CreatePurchase).Methods("PUT")                           //add purchase
-	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}", staticapi.GetPurchase).Methods("GET")                // get purchase
-	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}", staticapi.UpdatePurchase).Methods("POST")            // update purchase
-	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}/license", staticapi.GetPurchaseLicense).Methods("GET") // get lcp license for purchase
+	s.handleFunc(sr.R, "/users/{user_id}/purchases", staticapi.GetPurchasesForUser).Methods("GET")                              // get purchases for a user
+	s.handleFunc(sr.R, "/users/{user_id}/purchases", staticapi.CreatePurchase).Methods("PUT")                                   //add purchase
+	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}", staticapi.GetPurchase).Methods("GET")                        // get purchase
+	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}", staticapi.UpdatePurchase).Methods("POST")                    // update purchase
+	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}/license", staticapi.GetPurchaseLicense).Methods("GET")         // get lcp license for purchase
+	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}/publication", staticapi.GetPurchasePublication).Methods("GET") // get lcp publication for purchase
 
 	// license update
-	s.handleFunc(sr.R, "/licenses/{license_id}", staticapi.RenewLicenseByLicenseID).Methods("GET") // get license by licenseID
+	s.handleFunc(sr.R, "/licenses/{license_id}", staticapi.RenewLicenseByLicenseID).Methods("GET")                        // get license by licenseID
+	s.handleFunc(sr.R, "/licenses/{license_id}/publication", staticapi.RenewLicensePublicationByLicenseID).Methods("GET") // get publication by licenseID
 	// resources
 	s.handleFunc(sr.R, "/contents/{content_id}", staticapi.GetLcpResource).Methods("GET") // proxy get resource from lcp server
 

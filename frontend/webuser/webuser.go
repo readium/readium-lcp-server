@@ -102,6 +102,16 @@ func (user dbUser) Update(changedUser User) error {
 }
 
 func (user dbUser) DeleteUser(userID int64) error {
+	// delete purchases from user
+	delPurchases, err := user.db.Prepare(`DELETE FROM  purchase WHERE user_id=?`)
+	if err != nil {
+		return err
+	}
+	defer delPurchases.Close()
+	if _, err := delPurchases.Exec(userID); err != nil {
+		return err
+	}
+	// and delete user
 	query, err := user.db.Prepare("DELETE FROM user WHERE user_id=?")
 	if err != nil {
 		return err

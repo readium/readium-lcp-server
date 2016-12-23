@@ -2,7 +2,9 @@
 
 <ul class="purchases">
     <li *ngFor="let purchase of purchases" (click)="onSelect(purchase)" [class.selected]="purchase === selectedPurchase" class="purchase">    
-        <span class="date">{{purchase.transactionDate  | date:'medium' }}</span><button (click)="DownloadLicense(purchase)">download</button> 
+        <span class="date">{{purchase.transactionDate  | date:'medium' }}</span>
+        <button (click)="DownloadLicense(purchase)">download lcpl</button> 
+        <button (click)="DownloadPublication(purchase)">download publication</button> 
         <button (click)="CheckStatus(purchase)">status</button> 
         <span class="label">{{purchase.label}}</span><br/>    
         <span class="licenseID">{{purchase.licenseID}}</span>
