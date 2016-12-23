@@ -1,19 +1,33 @@
-import { NgModule }      from '@angular/core';
-import { BrowserModule } from '@angular/platform-browser';
-import { FormsModule }   from '@angular/forms';
+import { NgModule }                 from '@angular/core';
+import { BrowserModule }            from '@angular/platform-browser';
+import { HttpModule }               from '@angular/http';
 
-import { AppComponent }  from './components/app.component';
-import { UsersComponent }  from './components/user-list-component';
-import { UserComponent }  from './components/user-component';
-import { PurchasesComponent }  from './components/purchase-list-component';
+import { PageNotFoundComponent }    from './not-found.component';
+import { AppComponent }             from './app.component';
+import { AppRoutingModule }         from './app-routing.module';
 
-import { ResourcesComponent } from './components/resource-list-component';
-import { HttpModule } from '@angular/http';
-import { AppRoutingModule } from './app-routing.module';
+import { SidebarModule }            from './shared/sidebar/sidebar.module';
+import { HeaderModule }             from './shared/header/header.module';
+import { DashboardModule }          from './dashboard/dashboard.module';
+import { UserModule }               from './user/user.module';
 
 @NgModule({
-  imports:      [ BrowserModule, FormsModule, HttpModule, AppRoutingModule ],
-  declarations: [ AppComponent, UsersComponent, UserComponent, ResourcesComponent, PurchasesComponent ],
-  bootstrap:    [ AppComponent ]
+    imports: [
+        BrowserModule,
+        HttpModule,
+        HeaderModule,
+        SidebarModule,
+        DashboardModule,
+        UserModule,
+        AppRoutingModule,
+    ],
+    declarations: [
+        AppComponent,
+        PageNotFoundComponent
+    ],
+    bootstrap: [
+        AppComponent
+    ]
 })
+
 export class AppModule { }

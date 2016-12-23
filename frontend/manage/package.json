@@ -5,24 +5,30 @@
   "scripts": {
     "clean": "node ./node_modules/rimraf/bin.js \"js/**/*.*\"",
 
+    "copy-templates": "cpx \"app/**/*.html\" dist/app",
+    "copy-templates:w": "cpx \"app/**/*.html\" dist/app --watch",
+
+    "build-css": "node-sass -r assets/sass -o dist/css",
+    "build-css:w": "node-sass -w -r assets/sass -o dist/css",
+
     "prestart": "npm run clean",
-    "start": "tsc && concurrently \"tsc -w\" \"lite-server --config=bs-config.js\" ",
-    
+    "start": "tsc && concurrently \"cpx 'app/**/*.html' dist/app --watch\" \"node-sass -w -r assets/sass -o dist/css\" \"tsc -w\" \"lite-server --config=bs-config.js\" ",
+
     "pree2e": "npm run clean && webdriver-manager update",
     "e2e": "tsc && concurrently \"http-server -s\" \"protractor protractor.config.js\" --kill-others --success first",
 
     "pretest": "npm run clean",
     "test": "tsc && concurrently \"tsc -w\" \"karma start karma.conf.js\"",
-    
+
     "pretest-once": "npm run clean",
     "test-once": "tsc && karma start karma.conf.js --single-run",
-    
+
     "pretsc": "npm run clean",
     "tsc": "tsc",
-    
+
     "pretsc:w": "npm run clean",
     "tsc:w": "tsc -w",
-    
+
     "lint": "tslint ./app/**/*.ts -t verbose",
     "lite": "lite-server --config=bs-config.js"
   },
@@ -49,7 +55,11 @@
     "rxjs": "5.0.0-rc.5",
     "systemjs": "0.19.40",
     "tweetnacl-util": "^0.13.5",
-    "zone.js": "^0.7.2"
+    "zone.js": "^0.7.2",
+    "node-sass": "^4.1.1",
+    "bootstrap": "4.0.0-alpha.5",
+    "font-awesome": "^4.7.0",
+    "cpx": "^1.5.0"
   },
   "devDependencies": {
     "rimraf": "latest",

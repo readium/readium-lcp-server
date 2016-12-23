@@ -1,0 +1,15 @@
+<button id="sidebar-toggler" (click)="toggle()">&#9776;</button>
+<nav id="sidebar">
+  <ul>
+    <li [routerLinkActive]="['active']">
+      <a routerLink="/dashboard">
+          <span class="fa fa-fw fa-dashboard"></span> Dashboard
+      </a>
+    </li>
+    <li [routerLinkActive]="['active']">
+      <a routerLink="/users">
+          <span class="fa fa-user"></span> Users
+      </a>
+    </li>
+  </ul>
+</nav>

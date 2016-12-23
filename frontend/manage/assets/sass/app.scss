@@ -1,0 +1,140 @@
+// Variables
+$header-bg-color: #222;
+$header-color: #eee;
+$sidebar-bg-color: #222;
+$sidebar-color: #999;
+$sidebar-item-over-bg-color: #000;
+$sidebar-item-over-color: #fff;
+
+a:hover {
+    text-decoration: none;
+}
+
+a:focus,
+a:active,
+a:hover {
+    color: inherit;
+}
+
+#sidebar-toggler {
+    display: none;
+    position: fixed;
+    left: 0;
+    top: 10px;
+    color: $header-color;
+    z-index: 3;
+    border: none;
+    background: transparent;
+}
+
+lcp-header {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    left: 0;
+    border: none;
+    border-radius: 0;
+    padding : 6px;
+    background: $header-bg-color;
+    color: $header-color;
+    text-align: left
+
+    a {
+        color: $header-color;
+    }
+
+    a:visited {
+        color: inherit;
+    }
+}
+
+#sidebar {
+    position: fixed;
+    z-index: 3;
+    top: 50px;
+    left: 225px;
+    width: 225px;
+    bottom: 0;
+    margin-left: -225px;
+    border: none;
+    border-radius: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: $sidebar-bg-color;
+    color: $sidebar-color;
+    padding-bottom: 40px;
+    -webkit-transition: all 0.2s ease-in-out;
+    -moz-transition: all 0.2s ease-in-out;
+    -ms-transition: all 0.2s ease-in-out;
+    -o-transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out;
+
+    ul {
+        display: block;
+        padding: 20px 0 0 0;
+    }
+
+    li {
+        display: block;
+        padding: 0;
+    }
+
+    li:hover,
+    li.active {
+        background: $sidebar-item-over-bg-color;
+        color: $sidebar-item-over-color;
+    }
+
+    .fa {
+        width: 20px;
+        text-align: center;
+    }
+
+    a {
+        display: block;
+        padding: 5px 10px;
+    }
+
+    a:visited {
+        color: inherit;
+    }
+}
+
+#main-container {
+    position: relative;
+    margin: 50px 0 0 225px;
+    padding: 10px;
+}
+
+@media screen and (max-width: 768px) {
+    #sidebar-toggler {
+        display: block;
+    }
+
+    lcp-header {
+        text-align: center;
+    }
+
+    lcp-header .navbar-brand {
+        float: none;
+        display: inline-block;
+        cursor: pointer;
+    }
+
+    #sidebar {
+        left: 0;
+    }
+
+    #main-container {
+        margin-left : 0;
+    }
+
+    #app.sidebar-open #sidebar {
+        left: 225px;
+    }
+
+    #app.sidebar-open #main-container {
+        margin-left: 225px;
+    }
+}

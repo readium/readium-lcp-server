@@ -1,0 +1,39 @@
+<h1>Users</h1>
+
+<div>
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item active">Users</li>
+    <li class="float-xs-right">
+      <a routerLink="/users/add" role="button">Add</a>
+    </li>
+  </ol>
+</div>
+
+
+<table *ngIf="users.length > 0" class="table">
+  <thead class="thead-inverse">
+    <tr>
+      <th>#</th>
+      <th>Alias</th>
+      <th>Email</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+     <tr *ngFor="let user of users" >
+      <th scope="row">{{user.id}}</th>
+      <td>{{user.alias}}</td>
+      <td>{{user.email}}</td>
+      <td>
+        <button
+            type="button" class="btn btn-secondary btn-sm"
+            (click)="onRemove(user.id)">
+          <i class="fa fa-trash" aria-hidden="true"></i> Remove
+        </button>
+        <a [routerLink]="['/users', user.id, 'edit']"
+           class="btn btn-secondary btn-sm" role="button">
+           <i class="fa fa-edit" aria-hidden="true"></i> Edit
+        </a>
+      </td>
+    </tr>
+</table>

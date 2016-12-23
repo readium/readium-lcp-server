@@ -1,17 +1,19 @@
-import { NgModule } from '@angular/core';
-import { Routes, RouterModule } from '@angular/router';
-import { UsersComponent } from './components/user-list-component';
-import { UserComponent } from './components/user-component';
+import { NgModule }                 from '@angular/core';
+import { RouterModule, Routes }     from '@angular/router';
+import { PageNotFoundComponent }    from './not-found.component';
 
-
-const routes: Routes = [
-    { path: '', redirectTo: 'userlist', pathMatch: 'full' },
-    { path: 'userlist' , component: UsersComponent },
-    { path: 'userdetail/:id', component: UserComponent }
+const appRoutes: Routes = [
+    { path: '',   redirectTo: '/dashboard', pathMatch: 'full' },
+    { path: '**', component: PageNotFoundComponent }
 ];
 
 @NgModule({
-    imports: [ RouterModule.forRoot(routes)],
-    exports: [ RouterModule ]
+  imports: [
+    RouterModule.forRoot(appRoutes)
+  ],
+  exports: [
+    RouterModule
+  ]
 })
-export class AppRoutingModule { }
+
+export class AppRoutingModule {}

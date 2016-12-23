@@ -1,0 +1,10 @@
+<h1>Edit user</h1>
+
+<div *ngIf="user">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a routerLink="/users">Users</a></li>
+    <li class="breadcrumb-item active">{{user.email}}</li>
+  </ol>
+
+  <lcp-user-form [user]="user"></lcp-user-form>
+</div>
