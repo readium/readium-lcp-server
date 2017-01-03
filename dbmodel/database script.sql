@@ -2,7 +2,9 @@
 CREATE TABLE IF NOT EXISTS content (
   id varchar(255) PRIMARY KEY NOT NULL,
   encryption_key varchar(64) NOT NULL,
-  location text NOT NULL
+  location text NOT NULL,
+  length int(11) NOT NULL,
+  sha256 varchar(64) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS license (

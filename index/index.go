@@ -110,8 +110,7 @@ func Open(db *sql.DB) (i Index, err error) {
 	encryption_key varchar(64) NOT NULL, 
 	location text NOT NULL, 
 	length bigint,
-	sha256 varchar(64),
-	FOREIGN KEY(id) REFERENCES license(content_fk))`)
+	sha256 varchar(64))`)
 	if err != nil {
 		return
 	}
