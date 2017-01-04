@@ -158,18 +158,26 @@ func updateLicenseInDatabase(liceseID string, partialLicense license.License, s 
 	if partialLicense.Provider != "" {
 		ExistingLicense.Provider = partialLicense.Provider
 	}
-	if partialLicense.Rights.Copy != nil {
-		ExistingLicense.Rights.Copy = partialLicense.Rights.Copy
+	if partialLicense.Rights != nil {
+		if partialLicense.Rights.Copy != nil {
+			ExistingLicense.Rights.Copy = partialLicense.Rights.Copy
+		}
+		if partialLicense.Rights.Print != nil {
+			ExistingLicense.Rights.Print = partialLicense.Rights.Print
+		}
+		if partialLicense.Rights.Start != nil {
+			ExistingLicense.Rights.Start = partialLicense.Rights.Start
+		}
+		if partialLicense.Rights.End != nil {
+			ExistingLicense.Rights.End = partialLicense.Rights.End
+		}
+	} else {
+		ExistingLicense.Rights.Copy = nil
+		ExistingLicense.Rights.Print = nil
+		ExistingLicense.Rights.Start = nil
+		ExistingLicense.Rights.End = nil
 	}
-	if partialLicense.Rights.Print != nil {
-		ExistingLicense.Rights.Print = partialLicense.Rights.Print
-	}
-	if partialLicense.Rights.Start != nil {
-		ExistingLicense.Rights.Start = partialLicense.Rights.Start
-	}
-	if partialLicense.Rights.End != nil {
-		ExistingLicense.Rights.End = partialLicense.Rights.End
-	}
+
 	if partialLicense.Encryption.UserKey.Hint != "" {
 		ExistingLicense.Encryption.UserKey.Hint = partialLicense.Encryption.UserKey.Hint
 	}
