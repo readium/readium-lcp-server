@@ -329,6 +329,11 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 			}
 		}
 		key = newLicense.ContentId
+		err = completeLicense(&newLicense, key, s)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: key}, http.StatusInternalServerError)
+			return
+		}
 	} else {
 		//new license , generate publication
 		newLicense = partialLicense
