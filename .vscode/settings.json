@@ -2,16 +2,16 @@
 {
      //go
      "go.useCodeSnippetsOnFunctionSuggest": false,
-     "go.buildOnSave": true,
-     "go.lintOnSave": true,
-     "go.vetOnSave": true,
+     "go.buildOnSave": false,
+     "go.lintOnSave": false,
+     "go.vetOnSave": false,
      "go.buildTags": "",
      "go.buildFlags": [],
      "go.lintTool": "golint",
      "go.lintFlags": [],
      "go.vetFlags": [],
      "go.coverOnSave": false,
-     "go.formatOnSave": true, 
+     "go.formatOnSave": false, 
      "go.formatTool": "goreturns",
      "go.formatFlags": [],
      "go.gocodeAutoBuild": false
