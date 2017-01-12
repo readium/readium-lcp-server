@@ -28,9 +28,9 @@ package crypto
 import (
 	"crypto/aes"
 	"io"
-
-	"github.com/readium/readium-lcp-server/config"
 )
+//"github.com/readium/readium-lcp-server/config"
+// FOR: config.Config.AES256_CBC_OR_GCM
 
 type Encrypter interface {
 	Encrypt(key ContentKey, r io.Reader, w io.Writer) error
@@ -43,11 +43,15 @@ type Decrypter interface {
 }
 
 func NewAESEncrypter_PUBLICATION_RESOURCES() Encrypter {
-	if config.Config.AES256_CBC_OR_GCM == "GCM" {
-		return NewAESGCMEncrypter()
-	} else { // default to CBC
-		return NewAESCBCEncrypter()
-	}
+	
+	return NewAESCBCEncrypter()
+
+	// DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
+	// if config.Config.AES256_CBC_OR_GCM == "GCM" {
+	// 	return NewAESGCMEncrypter()
+	// } else { // default to CBC
+	// 	return NewAESCBCEncrypter()
+	// }
 }
 
 func NewAESEncrypter_CONTENT_KEY() Encrypter {

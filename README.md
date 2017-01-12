@@ -174,7 +174,10 @@ NOTE: list files for localization (ex: 'en-US.json, de-DE.json') must match the 
 - log_directory: point to log file (a .log).
 - compliance_tests_mode_on: boolean; if `true`, logging is turned on.
 
+
+The following CBC / GCM configurable property is DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
 "aes256_cbc_or_gcm": either "GCM" or "CBC" (which is the default value). This is used only for encrypting publication resources, not the content key, not the user key check, not the LCP license fields.
+
 
 Documentation
 ============
