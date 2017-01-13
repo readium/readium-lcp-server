@@ -83,7 +83,6 @@ export class PublicationFormComponent implements OnInit {
             let publication = new Publication();
             publication.title = this.form.value['title'];
             publication.masterFilename = this.form.value['filename'];
-            console.log(publication);
             this.publicationService.add(publication)
             .then(
                 newPublication => {
