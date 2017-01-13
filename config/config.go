@@ -35,18 +35,18 @@ import (
 )
 
 type Configuration struct {
-	Certificate   Certificate   `yaml:"certificate"`
-	Storage       Storage       `yaml:"storage"`
-	License       License       `yaml:"license"`
-	LcpServer     ServerInfo    `yaml:"lcp"`
-	LsdServer     ServerInfo    `yaml:"lsd"`
-	FrontendServer     ServerInfo `yaml:"frontend"`
-	LsdNotifyAuth Auth          `yaml:"lsd_notify_auth"`
-	LcpUpdateAuth Auth          `yaml:"lcp_update_auth"`
-	LicenseStatus LicenseStatus `yaml:"license_status"`
-	Localization  Localization  `yaml:"localization"`
-	Logging       Logging       `yaml:"logging"`
-	AES256_CBC_OR_GCM string    `yaml:"aes256_cbc_or_gcm,omitempty"`
+	Certificate       Certificate        `yaml:"certificate"`
+	Storage           Storage            `yaml:"storage"`
+	License           License            `yaml:"license"`
+	LcpServer         ServerInfo         `yaml:"lcp"`
+	LsdServer         ServerInfo         `yaml:"lsd"`
+	FrontendServer    FrontendServerInfo `yaml:"frontend"`
+	LsdNotifyAuth     Auth               `yaml:"lsd_notify_auth"`
+	LcpUpdateAuth     Auth               `yaml:"lcp_update_auth"`
+	LicenseStatus     LicenseStatus      `yaml:"license_status"`
+	Localization      Localization       `yaml:"localization"`
+	Logging           Logging            `yaml:"logging"`
+	AES256_CBC_OR_GCM string             `yaml:"aes256_cbc_or_gcm,omitempty"`
 }
 
 type ServerInfo struct {
@@ -56,7 +56,13 @@ type ServerInfo struct {
 	ReadOnly      bool   `yaml:"readonly,omitempty"`
 	PublicBaseUrl string `yaml:"public_base_url,omitempty"`
 	Database      string `yaml:"database,omitempty"`
-	Directory string `yaml:"directory,omitempty"`
+	Directory     string `yaml:"directory,omitempty"`
+}
+
+type FrontendServerInfo struct {
+	ServerInfo          `yaml:",inline"`
+	MasterRepository    string `yaml:"master_repository"`
+	EncryptedRepository string `yaml:"encrypted_repository"`
 }
 
 type Auth struct {
@@ -120,6 +126,7 @@ func ReadConfig(configFileName string) {
 	}
 
 	err = yaml.Unmarshal(yamlFile, &Config)
+
 	if err != nil {
 		panic("Can't unmarshal config. " + configFileName + " -> " + err.Error())
 	}
