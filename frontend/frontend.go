@@ -43,7 +43,9 @@ import (
 
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/frontend/server"
+	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
+	"github.com/readium/readium-lcp-server/frontend/webrepository"
 	"github.com/readium/readium-lcp-server/frontend/webuser"
 )
 
@@ -79,6 +81,16 @@ func main() {
 		panic(err)
 	}
 	_, err = db.Exec("PRAGMA journal_mode = WAL")
+	if err != nil {
+		panic(err)
+	}
+
+	repoManager, err := webrepository.Init(config.Config.FrontendServer)
+	if err != nil {
+		panic(err)
+	}
+
+	publicationDB, err := webpublication.Init(config.Config, db)
 	if err != nil {
 		panic(err)
 	}
@@ -126,7 +138,7 @@ func main() {
 
 	fileConfigJs.WriteString(configJs)
 	HandleSignals()
-	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), static, userDB, purchaseDB)
+	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), static, repoManager, publicationDB, userDB, purchaseDB)
 	log.Println("Frontend webserver for LCP running on " + config.Config.FrontendServer.Host + ":" + strconv.Itoa(config.Config.FrontendServer.Port))
 	log.Println("using database " + dbURI)
 

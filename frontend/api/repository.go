@@ -26,16 +26,32 @@
 package staticapi
 
 import (
-	"github.com/readium/readium-lcp-server/frontend/webpublication"
-	"github.com/readium/readium-lcp-server/frontend/webpurchase"
+	"encoding/json"
+	"net/http"
+
+	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/frontend/webrepository"
-	"github.com/readium/readium-lcp-server/frontend/webuser"
+	"github.com/readium/readium-lcp-server/problem"
 )
 
-//IServer defines methods for db interaction
-type IServer interface {
-	RepositoryAPI() webrepository.WebRepository
-	PublicationAPI() webpublication.WebPublication
-	UserAPI() webuser.WebUser
-	PurchaseAPI() webpurchase.WebPurchase
+// GetRepositoryMasterFiles returns a list of repository masterfiles
+func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s IServer) {
+	var err error
+
+	files := make([]webrepository.RepositoryFile, 0)
+
+	fn := s.RepositoryAPI().GetMasterFiles()
+
+	for it, err := fn(); err == nil; it, err = fn() {
+		files = append(files, it)
+	}
+
+	w.Header().Set("Content-Type", api.ContentType_JSON)
+
+	enc := json.NewEncoder(w)
+	err = enc.Encode(files)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
 }

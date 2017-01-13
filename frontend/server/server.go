@@ -33,17 +33,21 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/frontend/api"
+	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
+	"github.com/readium/readium-lcp-server/frontend/webrepository"
 	"github.com/readium/readium-lcp-server/frontend/webuser"
 )
 
 //Server struct contains server info and  db interfaces
 type Server struct {
 	http.Server
-	readonly  bool
-	cert      *tls.Certificate
-	users     webuser.WebUser
-	purchases webpurchase.WebPurchase
+	readonly     bool
+	cert         *tls.Certificate
+	repositories webrepository.WebRepository
+	publications webpublication.WebPublication
+	users        webuser.WebUser
+	purchases    webpurchase.WebPurchase
 }
 
 // HandlerFunc type define a function handled by the server
@@ -52,7 +56,13 @@ type HandlerFunc func(w http.ResponseWriter, r *http.Request, s staticapi.IServe
 //type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s staticapi.IServer)
 
 // New creates a new webserver (basic user interface)
-func New(bindAddr string, tplPath string, userAPI webuser.WebUser, purchaseAPI webpurchase.WebPurchase) *Server {
+func New(
+	bindAddr string,
+	tplPath string,
+	repositoryAPI webrepository.WebRepository,
+	publicationAPI webpublication.WebPublication,
+	userAPI webuser.WebUser,
+	purchaseAPI webpurchase.WebPurchase) *Server {
 
 	sr := api.CreateServerRouter(tplPath)
 	s := &Server{
@@ -63,29 +73,53 @@ func New(bindAddr string, tplPath string, userAPI webuser.WebUser, purchaseAPI w
 			ReadTimeout:    15 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
-		users:     userAPI,
-		purchases: purchaseAPI}
-	//user functions
-	s.handleFunc(sr.R, "/users/{email}", staticapi.GetUserByEmail).Methods("GET")
-	s.handleFunc(sr.R, "/users", staticapi.GetUsers).Methods("GET")
-	s.handleFunc(sr.R, "/users", staticapi.CreateUser).Methods("PUT")
-	s.handleFunc(sr.R, "/users/{user_id}", staticapi.UpdateUser).Methods("POST")
-	s.handleFunc(sr.R, "/users/{user_id}", staticapi.DeleteUser).Methods("DELETE")
+		repositories: repositoryAPI,
+		publications: publicationAPI,
+		users:        userAPI,
+		purchases:    purchaseAPI}
+
+	// repositories
+	s.handleFunc(sr.R, "/api/v1/repositories/master-files", staticapi.GetRepositoryMasterFiles).Methods("GET")
+
+	// publications
+	s.handleFunc(sr.R, "/api/v1/publications", staticapi.GetPublications).Methods("GET")
+	s.handleFunc(sr.R, "/api/v1/publications", staticapi.CreatePublication).Methods("POST")
+	s.handleFunc(sr.R, "/api/v1/publications/{id}", staticapi.GetPublication).Methods("GET")
+	s.handleFunc(sr.R, "/api/v1/publications/{id}", staticapi.UpdatePublication).Methods("PUT")
+	s.handleFunc(sr.R, "/api/v1/publications/{id}", staticapi.DeletePublication).Methods("DELETE")
+
+	// user functions
+	s.handleFunc(sr.R, "/api/v1/users/{email}", staticapi.GetUserByEmail).Methods("GET")
+	s.handleFunc(sr.R, "/api/v1/users", staticapi.GetUsers).Methods("GET")
+	s.handleFunc(sr.R, "/api/v1/users", staticapi.CreateUser).Methods("PUT")
+	s.handleFunc(sr.R, "/api/v1/users/{user_id}", staticapi.UpdateUser).Methods("POST")
+	s.handleFunc(sr.R, "/api/v1/users/{user_id}", staticapi.DeleteUser).Methods("DELETE")
+
 	// purchases
-	s.handleFunc(sr.R, "/users/{user_id}/purchases", staticapi.GetPurchasesForUser).Methods("GET")                              // get purchases for a user
-	s.handleFunc(sr.R, "/users/{user_id}/purchases", staticapi.CreatePurchase).Methods("PUT")                                   //add purchase
-	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}", staticapi.GetPurchase).Methods("GET")                        // get purchase
-	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}", staticapi.UpdatePurchase).Methods("POST")                    // update purchase
-	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}/license", staticapi.GetPurchaseLicense).Methods("GET")         // get lcp license for purchase
-	s.handleFunc(sr.R, "/users/{user_id}/purchases/{purchase_id}/publication", staticapi.GetPurchasePublication).Methods("GET") // get lcp publication for purchase
+	s.handleFunc(sr.R, "/api/v1/users/{user_id}/purchases", staticapi.GetPurchasesForUser).Methods("GET")                              // get purchases for a user
+	s.handleFunc(sr.R, "/api/v1/users/{user_id}/purchases", staticapi.CreatePurchase).Methods("PUT")                                   //add purchase
+	s.handleFunc(sr.R, "/api/v1/users/{user_id}/purchases/{purchase_id}", staticapi.GetPurchase).Methods("GET")                        // get purchase
+	s.handleFunc(sr.R, "/api/v1/users/{user_id}/purchases/{purchase_id}", staticapi.UpdatePurchase).Methods("POST")                    // update purchase
+	s.handleFunc(sr.R, "/api/v1/users/{user_id}/purchases/{purchase_id}/license", staticapi.GetPurchaseLicense).Methods("GET")         // get lcp license for purchase
+	s.handleFunc(sr.R, "/api/v1/users/{user_id}/purchases/{purchase_id}/publication", staticapi.GetPurchasePublication).Methods("GET") // get lcp publication for purchase
 
 	// license update
-	s.handleFunc(sr.R, "/licenses/{license_id}", staticapi.RenewLicenseByLicenseID).Methods("GET")                        // get license by licenseID
-	s.handleFunc(sr.R, "/licenses/{license_id}/publication", staticapi.RenewLicensePublicationByLicenseID).Methods("GET") // get publication by licenseID
+	s.handleFunc(sr.R, "/api/v1/licenses/{license_id}", staticapi.RenewLicenseByLicenseID).Methods("GET")                        // get license by licenseID
+	s.handleFunc(sr.R, "/api/v1/licenses/{license_id}/publication", staticapi.RenewLicensePublicationByLicenseID).Methods("GET") // get publication by licenseID
 	// resources
-	s.handleFunc(sr.R, "/contents/{content_id}", staticapi.GetLcpResource).Methods("GET") // proxy get resource from lcp server
+	s.handleFunc(sr.R, "/api/v1/contents/{content_id}", staticapi.GetLcpResource).Methods("GET") // proxy get resource from lcp server
 
 	return s
+}
+
+// RepositoryAPI ( staticapi.IServer ) returns interface for repositories
+func (server *Server) RepositoryAPI() webrepository.WebRepository {
+	return server.repositories
+}
+
+// PublicationAPI ( staticapi.IServer )returns DB interface for users
+func (server *Server) PublicationAPI() webpublication.WebPublication {
+	return server.publications
 }
 
 //UserAPI ( staticapi.IServer )returns DB interface for users
