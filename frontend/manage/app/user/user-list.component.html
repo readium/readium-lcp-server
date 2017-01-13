@@ -20,8 +20,8 @@
     </tr>
   </thead>
   <tbody>
-     <tr *ngFor="let user of users" >
-      <th scope="row">{{user.id}}</th>
+     <tr *ngFor="let user of users">
+      <td>{{user.id}}</td>
       <td>{{user.alias}}</td>
       <td>{{user.email}}</td>
       <td>
@@ -36,4 +36,5 @@
         </a>
       </td>
     </tr>
+  </tbody>
 </table>
