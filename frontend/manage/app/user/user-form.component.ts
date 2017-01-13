@@ -19,6 +19,7 @@ export class UserFormComponent implements OnInit {
     @Input()
     user: User;
 
+    edit: boolean = false;
     submitButtonLabel: string = "Add";
     form: FormGroup;
 
@@ -32,6 +33,7 @@ export class UserFormComponent implements OnInit {
 
     ngOnInit(): void {
         if (this.user == null) {
+            this.user = new User();
             this.submitButtonLabel = "Add";
             this.form = this.fb.group({
                 "alias": ["", Validators.required],
@@ -39,6 +41,7 @@ export class UserFormComponent implements OnInit {
                 "password": ["", Validators.required]
             });
         } else {
+            this.edit = true;
             this.submitButtonLabel = "Save";
             this.form = this.fb.group({
                 "alias": [this.user.alias, Validators.required],
@@ -57,24 +60,18 @@ export class UserFormComponent implements OnInit {
     }
 
     onSubmit() {
-        if (this.user) {
-            // Update user
-            // FIXME: Only update password
+        this.bindForm();
+
+        if (this.edit) {
             this.userService.update(
-                this.user,
-                this.form.value['password']
+                this.user
             ).then(
                 user => {
                     this.gotoList();
                 }
             );
         } else {
-            // Create user
-            this.userService.create(
-                this.form.value['alias'],
-                this.form.value['email'],
-                this.form.value['password']
-            ).then(
+            this.userService.add(this.user).then(
                 user => {
                     this.gotoList();
                 }
@@ -82,5 +79,18 @@ export class UserFormComponent implements OnInit {
         }
 
         this.submitted = true;
+    }
+
+    // Bind form to user
+    bindForm(): void {
+        this.user.alias = this.form.value['alias'];
+        this.user.email = this.form.value['email'];
+
+        let newPassword: string = this.form.value['password'];
+        newPassword = newPassword.trim();
+
+        if (newPassword.length > 0) {
+            this.user.clearPassword = newPassword;
+        }
     }
 }

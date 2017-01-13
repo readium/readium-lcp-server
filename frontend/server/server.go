@@ -89,11 +89,11 @@ func New(
 	s.handleFunc(sr.R, "/api/v1/publications/{id}", staticapi.DeletePublication).Methods("DELETE")
 
 	// user functions
-	s.handleFunc(sr.R, "/api/v1/users/{email}", staticapi.GetUserByEmail).Methods("GET")
 	s.handleFunc(sr.R, "/api/v1/users", staticapi.GetUsers).Methods("GET")
-	s.handleFunc(sr.R, "/api/v1/users", staticapi.CreateUser).Methods("PUT")
-	s.handleFunc(sr.R, "/api/v1/users/{user_id}", staticapi.UpdateUser).Methods("POST")
-	s.handleFunc(sr.R, "/api/v1/users/{user_id}", staticapi.DeleteUser).Methods("DELETE")
+	s.handleFunc(sr.R, "/api/v1/users", staticapi.CreateUser).Methods("POST")
+	s.handleFunc(sr.R, "/api/v1/users/{id}", staticapi.GetUser).Methods("GET")
+	s.handleFunc(sr.R, "/api/v1/users/{id}", staticapi.UpdateUser).Methods("PUT")
+	s.handleFunc(sr.R, "/api/v1/users/{id}", staticapi.DeleteUser).Methods("DELETE")
 
 	// purchases
 	s.handleFunc(sr.R, "/api/v1/users/{user_id}/purchases", staticapi.GetPurchasesForUser).Methods("GET")                              // get purchases for a user

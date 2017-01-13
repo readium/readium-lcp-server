@@ -16,7 +16,7 @@ export class UserListComponent implements OnInit {
     }
 
     refreshUsers(): void {
-        this.userService.getUsers().then(
+        this.userService.list().then(
             users => {
                 this.users = users;
             }

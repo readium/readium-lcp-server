@@ -91,11 +91,14 @@ func GetUsers(w http.ResponseWriter, r *http.Request, s IServer) {
 }
 
 //GetUserByEmail searches a client by his email
-func GetUserByEmail(w http.ResponseWriter, r *http.Request, s IServer) {
+func GetUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
-	var email string
-	email = vars["email"]
-	if user, err := s.UserAPI().GetByEmail(email); err == nil {
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		// id is not a number
+		problem.Error(w, r, problem.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
+	}
+	if user, err := s.UserAPI().Get(int64(id)); err == nil {
 		enc := json.NewEncoder(w)
 		if err = enc.Encode(user); err == nil {
 			// send json of correctly encoded user info
@@ -153,7 +156,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	var id int
 	var err error
 	var user webuser.User
-	if id, err = strconv.Atoi(vars["user_id"]); err != nil {
+	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
 		problem.Error(w, r, problem.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
 	}
@@ -185,7 +188,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 //DeleteUser creates a user in the database
 func DeleteUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
-	uid, err := strconv.ParseInt(vars["user_id"], 10, 64)
+	uid, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 	}
