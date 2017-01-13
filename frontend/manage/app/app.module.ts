@@ -10,6 +10,7 @@ import { SidebarModule }            from './shared/sidebar/sidebar.module';
 import { HeaderModule }             from './shared/header/header.module';
 import { DashboardModule }          from './dashboard/dashboard.module';
 import { UserModule }               from './user/user.module';
+import { PublicationModule }        from './publication/publication.module';
 
 @NgModule({
     imports: [
@@ -19,6 +20,7 @@ import { UserModule }               from './user/user.module';
         SidebarModule,
         DashboardModule,
         UserModule,
+        PublicationModule,
         AppRoutingModule,
     ],
     declarations: [

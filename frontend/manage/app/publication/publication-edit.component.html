@@ -1,0 +1,10 @@
+<h1>Edit publication</h1>
+
+<div *ngIf="publication">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a routerLink="/publications">Publications</a></li>
+    <li class="breadcrumb-item active">{{publication.title}}</li>
+  </ol>
+
+  <lcp-publication-form [publication]="publication"></lcp-publication-form>
+</div>

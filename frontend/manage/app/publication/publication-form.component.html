@@ -1,0 +1,21 @@
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+  <div class="form-group">
+    <label for="publication-title">Title</label>
+    <input
+        id="publication-title" class="form-control" placeholder="Enter a title"
+        [formControl]="form.controls['title']">
+  </div>
+  <div *ngIf="!publication" class="form-group">
+    <label for="publication-filename">Unprotected publication</label>
+    <select
+        id="publication-filename" class="form-control"
+        [formControl]="form.controls['filename']">
+      <option value="">Select a publication</option>
+      <option *ngFor="let file of masterFiles">
+      {{file.name}}
+      </option>
+    </select>
+  </div>
+  <button type="submit" [disabled]="!form.valid" class="btn btn-primary">{{submitButtonLabel}}</button>
+  <button type="button" (click)="onCancel()" class="btn btn-secondary">Cancel</button>
+</form>
