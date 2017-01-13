@@ -26,6 +26,8 @@
 package sign
 
 import "encoding/json"
+import "strings"
+import "io"
 
 func Canon(in interface{}) ([]byte, error) {
 	// the easiest way to canonicalize is to marshal it and reify it as a map
@@ -35,12 +37,17 @@ func Canon(in interface{}) ([]byte, error) {
 		return b, err
 	}
 
-	temp := new(map[string]interface{})
+	var jsonObj interface{} // map[string]interface{} ==> auto sorting
 
-	err = json.Unmarshal(b, temp)
-	if err != nil {
-		return b, err
+	dec := json.NewDecoder(strings.NewReader(string(b)))
+	dec.UseNumber()
+	for {
+		if er := dec.Decode(&jsonObj); err == io.EOF {
+			break
+		} else if er != nil {
+			return nil, er
+		}
 	}
 
-	return json.Marshal(temp)
+	return json.Marshal(jsonObj)
 }
