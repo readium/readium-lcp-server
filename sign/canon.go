@@ -42,7 +42,7 @@ func Canon(in interface{}) ([]byte, error) {
 	dec := json.NewDecoder(strings.NewReader(string(b)))
 	dec.UseNumber()
 	for {
-		if er := dec.Decode(&jsonObj); err == io.EOF {
+		if er := dec.Decode(&jsonObj); er == io.EOF {
 			break
 		} else if er != nil {
 			return nil, er
