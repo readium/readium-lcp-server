@@ -328,7 +328,10 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			}
 		}
-		newLicense.User = partialLicense.User  //pass user information in updated license
+		newLicense.User = partialLicense.User //pass user information in updated license
+		newLicense.Encryption.UserKey.Value = partialLicense.Encryption.UserKey.Value
+		newLicense.Encryption.UserKey.ClearValue = partialLicense.Encryption.UserKey.ClearValue
+
 		// contentID is not set, get it from the license
 		contentID = newLicense.ContentId
 		err = completeLicense(&newLicense, contentID, s)
@@ -439,7 +442,7 @@ func completeLicense(l *license.License, contentID string, s Server) error {
 		license.Prepare(l)
 		l.ContentId = contentID
 	} else {
-		l.Signature = nil  // empty signature fields, needs to be recalculated
+		l.Signature = nil // empty signature fields, needs to be recalculated
 	}
 	links := new([]license.Link)
 
@@ -472,7 +475,7 @@ func completeLicense(l *license.License, contentID string, s Server) error {
 
 	if len(l.Encryption.UserKey.Value) > 0 {
 		encryptionKey = l.Encryption.UserKey.Value
-		l.Encryption.UserKey.Value = nil
+		//l.Encryption.UserKey.Value = nil
 	} else {
 		passphrase := l.Encryption.UserKey.ClearValue
 		l.Encryption.UserKey.ClearValue = ""
