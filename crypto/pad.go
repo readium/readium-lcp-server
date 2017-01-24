@@ -21,12 +21,14 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package crypto
 
 import (
 	"io"
+	"math/rand"
+	"time"
 )
 
 type paddedReader struct {
@@ -73,8 +75,13 @@ func (r *paddedReader) Read(buf []byte) (int, error) {
 
 func (r *paddedReader) pad(buf []byte) (i int, err error) {
 	capacity := cap(buf)
+	src := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i = 0; capacity > 0 && r.left > 0; i++ {
-		buf[i] = r.count
+		if capacity == 1 && r.left == 1 {
+			buf[i] = r.count
+		} else {
+			buf[i] = byte(src.Intn(254) + 1)
+		}
 		capacity--
 		r.left--
 	}
