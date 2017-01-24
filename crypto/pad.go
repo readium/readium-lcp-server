@@ -27,6 +27,8 @@ package crypto
 
 import (
 	"io"
+	"math/rand"
+	"time"
 )
 
 type paddedReader struct {
@@ -73,9 +75,12 @@ func (r *paddedReader) Read(buf []byte) (int, error) {
 
 func (r *paddedReader) pad(buf []byte) (i int, err error) {
 	capacity := cap(buf)
+	src := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i = 0; capacity > 0 && r.left > 0; i++ {
 		if capacity == 1 && r.left == 1 {
 			buf[i] = r.count
+		} else {
+			buf[i] = byte(src.Intn(254) + 1)
 		}
 		capacity--
 		r.left--
