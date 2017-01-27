@@ -11,6 +11,8 @@ debug
 *.yaml
 **/manage/config.js
 frontend/manage/node_modules/*
+frontend/manage/dist/*
+frontend/manage/js/*
 frontend/manage/js/components/*
 *.map
 *.htpasswd

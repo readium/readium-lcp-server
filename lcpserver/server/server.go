@@ -104,9 +104,9 @@ func New(bindAddr string, static string, readonly bool, idx *index.Index, st *st
 	if !readonly {
 		s.handleFunc(contentRoutes, "/{name}", apilcp.StoreContent).Methods("POST")
 		s.handlePrivateFunc(contentRoutes, "/{key}", apilcp.AddContent, basicAuth).Methods("PUT")
-		s.handlePrivateFunc(contentRoutes, "/{key}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
-		s.handlePrivateFunc(contentRoutes, "/{key}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
-		s.handlePrivateFunc(contentRoutes, "/{key}/publication", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
+		s.handlePrivateFunc(contentRoutes, "/{content_id}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
+		s.handlePrivateFunc(contentRoutes, "/{content_id}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
+		s.handlePrivateFunc(contentRoutes, "/{content_id}/publication", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 	}
 
 	licenseRoutes := sr.R.PathPrefix("/licenses").Subrouter().StrictSlash(false)

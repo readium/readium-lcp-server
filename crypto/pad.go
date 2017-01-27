@@ -27,6 +27,8 @@ package crypto
 
 import (
 	"io"
+	"math/rand"
+	"time"
 )
 
 type paddedReader struct {
@@ -35,6 +37,7 @@ type paddedReader struct {
 	count byte
 	left  byte
 	done  bool
+	insertPadLengthAll bool
 }
 
 func (r *paddedReader) Read(buf []byte) (int, error) {
@@ -73,8 +76,21 @@ func (r *paddedReader) Read(buf []byte) (int, error) {
 
 func (r *paddedReader) pad(buf []byte) (i int, err error) {
 	capacity := cap(buf)
+
+	src := rand.New(rand.NewSource(time.Now().UnixNano()))
+
 	for i = 0; capacity > 0 && r.left > 0; i++ {
-		buf[i] = r.count
+
+		if (r.insertPadLengthAll) {
+			buf[i] = r.count
+		} else {
+			if r.left == 1 { //capacity == 1 && 
+				buf[i] = r.count
+			} else {
+				buf[i] = byte(src.Intn(254) + 1)
+			}
+		}
+
 		capacity--
 		r.left--
 	}
@@ -86,6 +102,9 @@ func (r *paddedReader) pad(buf []byte) (i int, err error) {
 	return
 }
 
-func PaddedReader(r io.Reader, blockSize byte) io.Reader {
-	return &paddedReader{Reader: r, size: blockSize, count: 0, left: 0, done: false}
+
+// insertPadLengthAll = true means PKCS#7 (padding length inserted in each padding slot),
+// otherwise false means padding length inserted only in the last slot (the rest is random bytes)
+func PaddedReader(r io.Reader, blockSize byte, insertPadLengthAll bool) io.Reader {
+	return &paddedReader{Reader: r, size: blockSize, count: 0, left: 0, done: false, insertPadLengthAll: insertPadLengthAll}
 }
