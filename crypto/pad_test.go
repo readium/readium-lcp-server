@@ -43,6 +43,8 @@ func TestOneBlock(t *testing.T) {
 		t.Errorf("should have read 6 bytes, read %d", n)
 	}
 
+	// if PaddedReader constructor parameter "insertPadLengthAll" was false,
+	// then only the last byte out[7] would equate the padding length (the others would be random)
 	if out[4] != 2 || out[5] != 2 {
 		t.Errorf("last values were expected to be 2, got [%x %x]", out[4], out[5])
 	}
@@ -61,6 +63,8 @@ func TestFullPadding(t *testing.T) {
 		t.Error("should have read 8 bytes, read %d", n)
 	}
 
+	// if PaddedReader constructor parameter "insertPadLengthAll" was false,
+	// then only the last byte out[7] would equate the padding length (the others would be random)
 	if out[4] != 4 || out[5] != 4 || out[6] != 4 || out[7] != 4 {
 		t.Errorf("last values were expected to be 8, got [%x %x %x %x]", out[4], out[5], out[6], out[7])
 	}
@@ -84,6 +88,8 @@ func TestManyBlocks(t *testing.T) {
 		t.Errorf("should have read 3 bytes, read %d", n)
 	}
 
+	// if PaddedReader constructor parameter "insertPadLengthAll" was false,
+	// then only the last byte out[2] would equate the padding length (the others would be random)
 	if out[1] != 2 || out[2] != 2 {
 		t.Errorf("last values were expected to be 2, got [%x %x]", out[1], out[2])
 	}
