@@ -61,6 +61,7 @@ type ServerInfo struct {
 
 type FrontendServerInfo struct {
 	ServerInfo          `yaml:",inline"`
+	ProviderID          string `yaml:"provider_id"`
 	MasterRepository    string `yaml:"master_repository"`
 	EncryptedRepository string `yaml:"encrypted_repository"`
 }
