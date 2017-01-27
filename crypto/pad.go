@@ -84,7 +84,7 @@ func (r *paddedReader) pad(buf []byte) (i int, err error) {
 		if (r.insertPadLengthAll) {
 			buf[i] = r.count
 		} else {
-			if capacity == 1 && r.left == 1 {
+			if r.left == 1 { //capacity == 1 && 
 				buf[i] = r.count
 			} else {
 				buf[i] = byte(src.Intn(254) + 1)
