@@ -84,7 +84,7 @@ func EncryptEpub(inputPath string, outputPath string) (EncryptedEpub, error) {
 	}
 
 	stats, err := output.Stat()
-	if err != nil && (stats.Size() > 0) {
+	if err != nil || (stats.Size() <= 0) {
 		return EncryptedEpub{}, errors.New("Unable to output file")
 	}
 
