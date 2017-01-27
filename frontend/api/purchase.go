@@ -38,6 +38,8 @@ import (
 	"github.com/readium/readium-lcp-server/frontend/webuser"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/problem"
+
+	"github.com/Machiel/slugify"
 )
 
 //DecodeJSONPurchase transforms a json string to a User struct
@@ -132,7 +134,6 @@ func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 
 //GetPurchaseLicense contacts LCP server and asks a license for the purchase using the partial license and resourceID
 func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
-	var purchase webpurchase.Purchase
 	vars := mux.Vars(r)
 	var id int
 	var err error
@@ -142,15 +143,21 @@ func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
 	}
 
-	fullJSONLicense, err := s.PurchaseAPI().GetJSONLicense(int64(id))
+	purchase, err := s.PurchaseAPI().Get(int64(id))
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+		return
+	}
 
+	fullJSONLicense, err := s.PurchaseAPI().GetJSONLicense(int64(id))
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
+	attachmentName := slugify.Slugify(purchase.Publication.Title)
 	w.Header().Set("Content-Type", api.ContentType_LCP_JSON)
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+purchase.Publication.Title+".lcpl\"")
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+attachmentName+".lcpl\"")
 	w.Write([]byte(fullJSONLicense))
 }
 
