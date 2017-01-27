@@ -70,9 +70,10 @@ export class PurchaseFormComponent implements OnInit{
             this.form = this.fb.group({
                 "publication": ["", Validators.required],
                 "user": ["", Validators.required],
-                "end_date": ["", Validators.required],
-                "type": ["loan", Validators.required]
+                "end_date": "",
+                "type": ["LOAN", Validators.required]
             });
+            console.log(this.form.value['type']);
         } else {
             this.edit = true;
             this.submitButtonLabel = "Save";
@@ -123,6 +124,9 @@ export class PurchaseFormComponent implements OnInit{
         this.purchase.publication = publication;
         this.purchase.user = user;
         this.purchase.type = this.form.value['type'];
-        this.purchase.endDate = moment(this.form.value['end_date']).format();
+
+        if (this.form.value['end_date'].trim().length > 0) {
+            this.purchase.endDate = moment(this.form.value['end_date']).format();
+        }
     }
 }

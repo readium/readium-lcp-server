@@ -52,6 +52,7 @@ var ErrNoChange = errors.New("No lines were updated")
 const purchaseManagerQuery = `SELECT
 p.id, p.uuid,
 p.type, p.transaction_date,
+p.license_uuid,
 p.start_date, p.end_date,
 u.id, u.uuid, u.name, u.email, u.password,
 pu.id, pu.uuid, pu.title, pu.status
@@ -83,11 +84,11 @@ type Purchase struct {
 	UUID            string                     `json:"uuid"`
 	Publication     webpublication.Publication `json:"publication"`
 	User            webuser.User               `json:"user"`
-	LicenseUUID     string                     `json:"licenseUuid,omitempty"`
+	LicenseUUID     *string                    `json:"licenseUuid,omitempty"`
 	Type            string                     `json:"type"`
 	TransactionDate time.Time                  `json:"transactionDate, omitempty"`
-	StartDate       time.Time                  `json:"startDate, omitempty"`
-	EndDate         time.Time                  `json:"endDate, omitempty"`
+	StartDate       *time.Time                 `json:"startDate, omitempty"`
+	EndDate         *time.Time                 `json:"endDate, omitempty"`
 }
 
 type purchaseManager struct {
@@ -123,6 +124,7 @@ func convertRecordToPurchase(records *sql.Rows) (Purchase, error) {
 		&purchase.UUID,
 		&purchase.Type,
 		&purchase.TransactionDate,
+		&purchase.LicenseUUID,
 		&purchase.StartDate,
 		&purchase.EndDate,
 		&user.ID,
@@ -198,6 +200,7 @@ func (pManager purchaseManager) GetLicense(purchaseID int64) (license.License, e
 	partialLicense.Encryption.UserKey = userKey
 
 	// Rights
+	// FIXME: Do not use harcoded values
 	var copy int32
 	var print int32
 	copy = 2048
@@ -205,8 +208,13 @@ func (pManager purchaseManager) GetLicense(purchaseID int64) (license.License, e
 	userRights := license.UserRights{}
 	userRights.Copy = &copy
 	userRights.Print = &print
-	userRights.Start = &purchase.StartDate
-	userRights.End = &purchase.EndDate
+
+	// Do not include start and end date for a BUY purchase
+	if purchase.Type == LOAN {
+		userRights.Start = purchase.StartDate
+		userRights.End = purchase.EndDate
+	}
+
 	partialLicense.Rights = &userRights
 
 	// Encode in json
@@ -218,8 +226,16 @@ func (pManager purchaseManager) GetLicense(purchaseID int64) (license.License, e
 
 	// Post partial license to LCP
 	lcpServerConfig := pManager.config.LcpServer
-	lcpURL := lcpServerConfig.PublicBaseUrl + "/contents/" +
-		purchase.Publication.UUID + "/licenses"
+	var lcpURL string
+
+	if purchase.LicenseUUID == nil {
+		lcpURL = lcpServerConfig.PublicBaseUrl + "/contents/" +
+			purchase.Publication.UUID + "/licenses"
+	} else {
+		lcpURL = lcpServerConfig.PublicBaseUrl + "/licenses/" +
+			*purchase.LicenseUUID
+	}
+
 	log.Println("POST " + lcpURL)
 
 	req, err := http.NewRequest("POST", lcpURL, bytes.NewReader(jsonBody))
@@ -242,7 +258,8 @@ func (pManager purchaseManager) GetLicense(purchaseID int64) (license.License, e
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 201 {
+	if (purchase.LicenseUUID == nil && resp.StatusCode != 201) ||
+		resp.StatusCode != 200 {
 		// Bad status code
 		return license.License{}, errors.New("Bad status code")
 	}
@@ -258,7 +275,7 @@ func (pManager purchaseManager) GetLicense(purchaseID int64) (license.License, e
 	}
 
 	// Store license uuid
-	purchase.LicenseUUID = fullLicense.Id
+	purchase.LicenseUUID = &fullLicense.Id
 	pManager.Update(purchase)
 
 	if err != nil {
@@ -327,8 +344,8 @@ func (pManager purchaseManager) Add(p Purchase) error {
 		p.TransactionDate = time.Now()
 	}
 
-	if p.StartDate.IsZero() {
-		p.StartDate = p.TransactionDate
+	if p.Type == LOAN && p.StartDate == nil {
+		p.StartDate = &p.TransactionDate
 	}
 
 	// Create uuid

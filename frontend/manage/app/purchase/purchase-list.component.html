@@ -29,14 +29,15 @@
       <td>{{purchase.publication.title}}</td>
       <td>{{purchase.user.alias}}</td>
       <td>{{purchase.type}}</td>
-      <td>{{formatDate(purchase.startDate)}}</td>
-      <td>{{formatDate(purchase.endDate)}}</td>
+      <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.startDate)}}</span></td>
+      <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.endDate)}}</span></td>
       <td>
         <a href="{{buildLcplDownloadUrl(purchase.id)}}"
            class="btn btn-secondary btn-sm" role="button">
            <i class="fa fa-download" aria-hidden="true"></i> LCPL
         </a>
-        <a [routerLink]="['/purchase', purchase.id, 'edit']"
+        <a *ngIf="purchase.type == 'LOAN'"
+           [routerLink]="['/purchase', purchase.id, 'edit']"
            class="btn btn-secondary btn-sm" role="button">
            <i class="fa fa-edit" aria-hidden="true"></i> Edit
         </a>
