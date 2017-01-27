@@ -259,7 +259,7 @@ func (pManager purchaseManager) GetLicense(purchaseID int64) (license.License, e
 	defer resp.Body.Close()
 
 	if (purchase.LicenseUUID == nil && resp.StatusCode != 201) ||
-		resp.StatusCode != 200 {
+		(purchase.LicenseUUID != nil && resp.StatusCode != 200) {
 		// Bad status code
 		return license.License{}, errors.New("Bad status code")
 	}
