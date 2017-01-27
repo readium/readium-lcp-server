@@ -36,14 +36,13 @@ import (
 	"path"
 	"time"
 
-	"github.com/nu7hatch/gouuid"
-
 	"fmt"
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/lcpencrypt/encrypt"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
+	"github.com/satori/go.uuid"
 )
 
 // Publication status
@@ -140,12 +139,9 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 	}
 
 	// Create output file path
-	contentUUID, err := uuid.NewV4()
-	if err != nil {
-		return err
-	}
+	contentUUID := uuid.NewV4().String()
 
-	outputFilename := contentUUID.String()
+	outputFilename := contentUUID
 	outputPath := path.Join(
 		pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
 
@@ -160,7 +156,7 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 	// Prepare request
 	// POST LCP content
 	lcpPublication := apilcp.LcpPublication{}
-	lcpPublication.ContentId = contentUUID.String()
+	lcpPublication.ContentId = contentUUID
 	lcpPublication.ContentKey = encryptedEpub.EncryptionKey
 	lcpPublication.Output = pubManager.config.Storage.FileSystem.Directory
 
@@ -171,7 +167,7 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 
 	// Post content to LCP
 	lcpServerConfig := pubManager.config.LcpServer
-	lcpURL := lcpServerConfig.PublicBaseUrl + "/contents/" + contentUUID.String()
+	lcpURL := lcpServerConfig.PublicBaseUrl + "/contents/" + contentUUID
 	log.Println("PUT " + lcpURL)
 	req, err := http.NewRequest("PUT", lcpURL, bytes.NewReader(jsonBody))
 
@@ -196,7 +192,7 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 	}
 
 	// Store new publication
-	pub.UUID = contentUUID.String()
+	pub.UUID = contentUUID
 	pub.Status = StatusOk
 	dbAdd, err := pubManager.db.Prepare("INSERT INTO publication (uuid, title, status) VALUES ( ?, ?, ?)")
 	if err != nil {

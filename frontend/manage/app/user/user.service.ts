@@ -20,8 +20,9 @@ export class UserService extends CrudService<User> {
 
     decode(jsonObj: any): User {
         return {
-            id: jsonObj.userID,
-            alias: jsonObj.alias,
+            id: jsonObj.id,
+            uuid: jsonObj.uuid,
+            name: jsonObj.name,
             email: jsonObj.email,
             password: jsonObj.password,
             clearPassword: null
@@ -30,8 +31,9 @@ export class UserService extends CrudService<User> {
 
     encode(obj: User): any {
         let jsonObj = {
-            userID: obj.id,
-            alias: obj.alias,
+            id: obj.id,
+            uuid: obj.uuid,
+            name: obj.name,
             email: obj.email,
             password: obj.password
         };

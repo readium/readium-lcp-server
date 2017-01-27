@@ -1,7 +1,7 @@
-import { Component, OnDestroy } from '@angular/core';
-import { Subscription }         from 'rxjs/Subscription';
+import { Component, OnDestroy }     from '@angular/core';
+import { Subscription }             from 'rxjs/Subscription';
 
-import { SidebarService }       from './shared/sidebar/sidebar.service';
+import { SidebarService }           from './shared/sidebar/sidebar.service';
 
 @Component({
     moduleId: module.id,

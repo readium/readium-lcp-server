@@ -174,7 +174,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 		}
 	} else {
 		// client is found!
-		if err := s.UserAPI().Update(webuser.User{UserID: int64(id), Alias: user.Alias, Email: user.Email, Password: user.Password}); err != nil {
+		if err := s.UserAPI().Update(webuser.User{ID: int64(id), Name: user.Name, Email: user.Email, Password: user.Password}); err != nil {
 			//update failed!
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}

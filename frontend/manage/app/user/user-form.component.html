@@ -1,9 +1,9 @@
 <form [formGroup]="form" (ngSubmit)="onSubmit()">
   <div class="form-group">
-    <label for="user-alias">Alias</label>
+    <label for="user-name">Name</label>
     <input
-        id="user-alias" class="form-control" placeholder="Enter user name"
-        [formControl]="form.controls['alias']">
+        id="user-name" class="form-control" placeholder="Enter user name"
+        [formControl]="form.controls['name']">
   </div>
   <div class="form-group">
     <label for="user-email">Email address</label>

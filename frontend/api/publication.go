@@ -145,7 +145,7 @@ func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	var pub webpublication.Publication
 	var err error
 	if pub, err = DecodeJSONPublication(r); err != nil {
-		problem.Error(w, r, problem.Problem{Detail: "incorrect JSON User " + err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "incorrect JSON Publication " + err.Error()}, http.StatusBadRequest)
 		return
 	}
 	// publication ok

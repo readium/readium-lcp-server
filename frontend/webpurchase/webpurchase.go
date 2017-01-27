@@ -26,12 +26,24 @@
 package webpurchase
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"time"
 
+	"fmt"
+
+	"github.com/readium/readium-lcp-server/api"
+	"github.com/readium/readium-lcp-server/config"
+	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webuser"
+	"github.com/readium/readium-lcp-server/license"
+	"github.com/satori/go.uuid"
 )
 
 //ErrNotFound Error is thrown when a purchase is not found
@@ -40,121 +52,294 @@ var ErrNotFound = errors.New("Purchase not found")
 //ErrNoChange is thrown when an update action does not change any rows (not found)
 var ErrNoChange = errors.New("No lines were updated")
 
+const purchaseManagerQuery = `SELECT
+p.id, p.uuid,
+p.type, p.transaction_date,
+p.start_date, p.end_date,
+u.id, u.uuid, u.name, u.email, u.password,
+pu.id, pu.uuid, pu.title, pu.status
+FROM purchase p
+left join user u on (p.user_id=u.id)
+left join publication pu on (p.publication_id=pu.id)`
+
 //WebPurchase defines possible interactions with DB
 type WebPurchase interface {
 	Get(id int64) (Purchase, error)
+	GetJSONLicense(id int64) (string, error)
 	GetByLicenseID(licenseID string) (Purchase, error)
-	GetForUser(userID int64, page int, pageNum int) func() (Purchase, error)
-	Add(p Purchase) (int64, error)
+	List(page int, pageNum int) func() (Purchase, error)
+	ListByUser(userID int64, page int, pageNum int) func() (Purchase, error)
+	Add(p Purchase) error
 	Update(p Purchase) error
 }
 
+// Enumeration of PurchaseType
+const (
+	BUY  string = "BUY"
+	LOAN string = "LOAN"
+)
+
 //Purchase struct defines a user in json and database
+//PurchaseType: BUY or LOAN
 type Purchase struct {
-	User            webuser.User `json:"user"`
-	PurchaseID      int64        `json:"purchaseID, omitempty"`
-	Resource        string       `json:"resource, omitempty"`
-	Label           string       `json:"label,omitempty"`
-	LicenseID       string       `json:"licenseID,omitempty"`
-	TransactionDate time.Time    `json:"transactionDate, omitempty"`
-	PartialLicense  string       `json:"partialLicense, omitempty"`
+	ID              int64                      `json:"id, omitempty"`
+	UUID            string                     `json:"uuid"`
+	Publication     webpublication.Publication `json:"publication"`
+	User            webuser.User               `json:"user"`
+	LicenseUUID     string                     `json:"licenseUuid,omitempty"`
+	Type            string                     `json:"type"`
+	TransactionDate time.Time                  `json:"transactionDate, omitempty"`
+	StartDate       time.Time                  `json:"startDate, omitempty"`
+	EndDate         time.Time                  `json:"endDate, omitempty"`
 }
 
-type dbPurchase struct {
-	db             *sql.DB
-	get            *sql.Stmt
-	getByLicenseID *sql.Stmt
+type purchaseManager struct {
+	config config.Configuration
+	db     *sql.DB
 }
 
-func (purchase dbPurchase) Get(id int64) (Purchase, error) {
-	//return also includes the partialLicense
-	records, err := purchase.get.Query(id)
-	defer records.Close()
-	if records.Next() {
-		var PurchaseID, UserID *int64
-		var Resource, Label, LicenseID, PartialLicense, Alias, Email, Password *string
-		var TransactionDate *time.Time
-
-		if err = records.Scan(&PurchaseID, &Resource, &Label, &LicenseID, &TransactionDate, &PartialLicense, &UserID, &Alias, &Email, &Password); err != nil {
-			return Purchase{}, err
+func convertRecordsToPurchases(records *sql.Rows) func() (Purchase, error) {
+	return func() (Purchase, error) {
+		var err error
+		var purchase Purchase
+		if records.Next() {
+			purchase, err = convertRecordToPurchase(records)
+			if err != nil {
+				return purchase, err
+			}
+		} else {
+			records.Close()
+			err = ErrNotFound
 		}
-		user := webuser.User{UserID: *UserID, Email: *Email, Password: *Password}
-		return Purchase{PurchaseID: *PurchaseID, Resource: *Resource, Label: *Label, LicenseID: *LicenseID, TransactionDate: *TransactionDate, PartialLicense: *PartialLicense, User: user}, err
 
+		return purchase, err
+	}
+}
+
+func convertRecordToPurchase(records *sql.Rows) (Purchase, error) {
+	purchase := Purchase{}
+	user := webuser.User{}
+	pub := webpublication.Publication{}
+
+	err := records.Scan(
+		&purchase.ID,
+		&purchase.UUID,
+		&purchase.Type,
+		&purchase.TransactionDate,
+		&purchase.StartDate,
+		&purchase.EndDate,
+		&user.ID,
+		&user.Name,
+		&user.UUID,
+		&user.Email,
+		&user.Password,
+		&pub.ID,
+		&pub.UUID,
+		&pub.Title,
+		&pub.Status)
+
+	if err != nil {
+		return Purchase{}, err
+	}
+
+	// Load relations
+	purchase.User = user
+	purchase.Publication = pub
+	return purchase, err
+}
+
+func (pManager purchaseManager) Get(id int64) (Purchase, error) {
+	dbGetQuery := purchaseManagerQuery + ` WHERE p.id = ? LIMIT 1`
+	dbGet, err := pManager.db.Prepare(dbGetQuery)
+	if err != nil {
+		return Purchase{}, err
+	}
+	defer dbGet.Close()
+
+	records, err := dbGet.Query(id)
+	defer records.Close()
+
+	if records.Next() {
+		return convertRecordToPurchase(records)
 	}
 
 	return Purchase{}, ErrNotFound
 }
 
-func (purchase dbPurchase) GetByLicenseID(licenseID string) (Purchase, error) {
-	records, err := purchase.getByLicenseID.Query(licenseID)
+// GetJSONLicense
+func (pManager purchaseManager) GetJSONLicense(purchaseID int64) (string, error) {
+	purchase, err := pManager.Get(purchaseID)
+
+	if err != nil {
+		return "", err
+	}
+
+	// Create LCP license
+	partialLicense := license.License{}
+
+	// Provider
+	partialLicense.Provider = "provider"
+
+	// User
+	encryptedAttrs := []string{"email", "name"}
+	partialLicense.User.Email = purchase.User.Email
+	partialLicense.User.Name = purchase.User.Name
+	partialLicense.User.Id = purchase.User.UUID
+	partialLicense.User.Encrypted = encryptedAttrs
+
+	// Encryption
+	userKeyValue, err := hex.DecodeString(purchase.User.Password)
+
+	if err != nil {
+		return "", err
+	}
+
+	userKey := license.UserKey{}
+	userKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
+	userKey.Hint = "Enter your passphrase"
+	userKey.Value = userKeyValue
+	partialLicense.Encryption.UserKey = userKey
+
+	// Rights
+	var copy int32
+	var print int32
+	copy = 2048
+	print = 100
+	userRights := license.UserRights{}
+	userRights.Copy = &copy
+	userRights.Print = &print
+	userRights.Start = &purchase.StartDate
+	userRights.End = &purchase.EndDate
+	partialLicense.Rights = &userRights
+
+	// Encode in json
+	jsonBody, err := json.Marshal(partialLicense)
+
+	if err != nil {
+		return "", err
+	}
+
+	// Post partial license to LCP
+	lcpServerConfig := pManager.config.LcpServer
+	lcpURL := lcpServerConfig.PublicBaseUrl + "/contents/" +
+		purchase.Publication.UUID + "/licenses"
+	log.Println("POST " + lcpURL)
+
+	req, err := http.NewRequest("POST", lcpURL, bytes.NewReader(jsonBody))
+
+	lcpUpdateAuth := pManager.config.LcpUpdateAuth
+	if pManager.config.LcpUpdateAuth.Username != "" {
+		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
+	}
+
+	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
+
+	var lcpClient = &http.Client{
+		Timeout: time.Second * 5,
+	}
+
+	resp, err := lcpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	// Read Body
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	bodyString := string(body)
+
+	if resp.StatusCode != 201 {
+		// Bad status code
+		return "", errors.New(bodyString)
+	}
+
+	fmt.Println(bodyString)
+	return bodyString, nil
+}
+
+func (pManager purchaseManager) GetByLicenseID(licenseID string) (Purchase, error) {
+	dbGetByLicenseIDQuery := purchaseManagerQuery + ` WHERE p.license_uuid = ? LIMIT 1`
+	dbGetByLicenseID, err := pManager.db.Prepare(dbGetByLicenseIDQuery)
+	if err != nil {
+		return Purchase{}, err
+	}
+	defer dbGetByLicenseID.Close()
+
+	records, err := dbGetByLicenseID.Query(licenseID)
 	defer records.Close()
 	if records.Next() {
-		var PurchaseID, UserID *int64
-		var Resource, Label, LicenseID, PartialLicense, Alias, Email, Password *string
-		var TransactionDate *time.Time
-
-		if err = records.Scan(&PurchaseID, &Resource, &Label, &LicenseID, &TransactionDate, &PartialLicense, &UserID, &Alias, &Email, &Password); err != nil {
-			log.Println("error in SCAN", err)
-			return Purchase{}, err
-		}
-		user := webuser.User{UserID: *UserID, Alias: *Alias, Email: *Email, Password: *Password}
-		p := Purchase{PurchaseID: *PurchaseID, Resource: *Resource, Label: *Label, LicenseID: *LicenseID, PartialLicense: *PartialLicense, TransactionDate: *TransactionDate, User: user}
-		return p, err
+		return convertRecordToPurchase(records)
 	}
+
 	return Purchase{}, ErrNotFound
 }
 
-func (purchase dbPurchase) GetForUser(userID int64, page int, pageNum int) func() (Purchase, error) {
-	listPurchases, err := purchase.db.Query(`
-	SELECT purchase_id, resource, label, license_id, transaction_date, p.user_id, alias, email, password, partialLicense 
-    FROM purchase p 
-    inner join user u on (p.user_id=u.user_id) 
-    WHERE u.user_id = ? 
-	ORDER BY p.transaction_date desc LIMIT ? OFFSET ? `, userID, page, pageNum*page)
+func (pManager purchaseManager) List(page int, pageNum int) func() (Purchase, error) {
+	dbListByUserQuery := purchaseManagerQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
+	dbListByUser, err := pManager.db.Prepare(dbListByUserQuery)
+
 	if err != nil {
 		return func() (Purchase, error) { return Purchase{}, err }
 	}
-	return func() (Purchase, error) {
-		var p Purchase
-		if listPurchases.Next() {
-			err = listPurchases.Scan(&p.PurchaseID, &p.Resource, &p.Label, &p.LicenseID, &p.TransactionDate, &p.User.UserID, &p.User.Alias, &p.User.Email, &p.User.Password, &p.PartialLicense)
-			if err != nil {
-				return p, err
-			}
+	defer dbListByUser.Close()
 
-		} else {
-			listPurchases.Close()
-			err = ErrNotFound
-		}
-		return p, err
-	}
-
+	records, err := dbListByUser.Query(page, pageNum*page)
+	return convertRecordsToPurchases(records)
 }
 
-func (purchase dbPurchase) Add(p Purchase) (int64, error) {
-	add, err := purchase.db.Prepare(`INSERT INTO purchase 
-	(  user_id, resource, label, license_id, transaction_date, partialLicense) 
-	VALUES (?, ?, ?, ?, datetime(),  ?)`)
+func (pManager purchaseManager) ListByUser(userID int64, page int, pageNum int) func() (Purchase, error) {
+	dbListByUserQuery := purchaseManagerQuery + ` WHERE u.id = ?
+ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
+	dbListByUser, err := pManager.db.Prepare(dbListByUserQuery)
 	if err != nil {
-		return 0, err
+		return func() (Purchase, error) { return Purchase{}, err }
+	}
+	defer dbListByUser.Close()
+
+	records, err := dbListByUser.Query(userID, page, pageNum*page)
+	return convertRecordsToPurchases(records)
+}
+
+func (pManager purchaseManager) Add(p Purchase) error {
+	add, err := pManager.db.Prepare(`INSERT INTO purchase
+	(uuid, publication_id, user_id,
+	type, transaction_date,
+	start_date, end_date)
+	VALUES (?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		return err
 	}
 	defer add.Close()
-	if result, err := add.Exec(p.User.UserID, p.Resource, p.Label, p.LicenseID, p.PartialLicense); err == nil {
-		if id, err := result.LastInsertId(); err == nil {
-			return id, nil
-		}
+
+	// Fill default values
+	if p.TransactionDate.IsZero() {
+		p.TransactionDate = time.Now()
 	}
-	return 0, err
+
+	if p.StartDate.IsZero() {
+		p.StartDate = p.TransactionDate
+	}
+
+	// Create uuid
+	p.UUID = uuid.NewV4().String()
+
+	_, err = add.Exec(
+		p.UUID,
+		p.Publication.ID, p.User.ID,
+		string(p.Type), p.TransactionDate,
+		p.StartDate, p.EndDate)
+
+	return err
 }
 
-func (purchase dbPurchase) Update(changedPurchase Purchase) error {
-	update, err := purchase.db.Prepare("UPDATE purchase SET user_id=?, resource=?, label=?, license_id=?,  partialLicense=? WHERE purchase_id=?")
+func (pManager purchaseManager) Update(p Purchase) error {
+	update, err := pManager.db.Prepare(`UPDATE purchase
+	SET start_date=?, end_date=? WHERE id=?`)
 	if err != nil {
 		return err
 	}
 	defer update.Close()
-	result, err := update.Exec(changedPurchase.User.UserID, changedPurchase.Resource, changedPurchase.Label, changedPurchase.LicenseID, changedPurchase.PartialLicense, changedPurchase.PurchaseID)
+	result, err := update.Exec(p.StartDate, p.EndDate, p.ID)
 	if changed, err := result.RowsAffected(); err == nil {
 		if changed != 1 {
 			return ErrNoChange
@@ -163,45 +348,32 @@ func (purchase dbPurchase) Update(changedPurchase Purchase) error {
 	return err
 }
 
-//Open  creates or opens a database connection to access Purchases
-func Open(db *sql.DB) (i WebPurchase, err error) {
+// Init purchaseManager
+func Init(config config.Configuration, db *sql.DB) (i WebPurchase, err error) {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS purchase (
-	purchase_id integer NOT NULL, 
-	user_id integer NOT NULL, 
-	resource varchar(64) NOT NULL, 
-	label varchar(64) NOT NULL, 
-	license_id varchar(255) NULL,
+	id integer NOT NULL,
+	uuid varchar(255) NOT NULL,
+	publication_id integer NOT NULL,
+	user_id integer NOT NULL,
+	license_uuid varchar(255) NULL,
+	type varchar(32) NOT NULL,
     transaction_date datetime,
-    partialLicense TEXT,
-	constraint pk_purchase  primary key(purchase_id),
-    constraint fk_purchase_user foreign key (user_id) references user(user_id)
+	start_date datetime,
+	end_date datetime,
+	constraint pk_purchase  primary key(id),
+	constraint fk_purchase_publication foreign key (publication_id) references publication(id)
+    constraint fk_purchase_user foreign key (user_id) references user(id)
 	)`)
 	if err != nil {
 		log.Println("Error creating purchase table")
 		return
 	}
-	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_purchase ON purchase (license_id)`)
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_purchase ON purchase (license_uuid)`)
 	if err != nil {
 		log.Println("Error creating idx_purchase table")
 		return
 	}
-	get, err := db.Prepare(`SELECT purchase_id, resource, label, license_id, transaction_date, partialLicense, p.user_id, alias, email, password 
-    FROM purchase p 
-    inner join user u on (p.user_id=u.user_id) 
-    WHERE purchase_id = ? LIMIT 1`)
-	if err != nil {
-		log.Println("Error prepare get purchase ")
-		return
-	}
 
-	getByLicenseID, err := db.Prepare(`SELECT purchase_id, resource, label, license_id, transaction_date, partialLicense, p.user_id, alias, email, password 
-    FROM purchase p 
-    inner join user u on (p.user_id=u.user_id) 
-    WHERE license_id = ? LIMIT 1`)
-	if err != nil {
-		log.Println("Error prepare get purchase by LicenseID ")
-		return
-	}
-	i = dbPurchase{db, get, getByLicenseID}
+	i = purchaseManager{config, db}
 	return
 }

@@ -1,0 +1,55 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+  <div *ngIf="!edit" class="form-group">
+    <label for="publication">Publication</label>
+    <select
+        id="publication" class="form-control"
+        [formControl]="form.controls['publication']">
+      <option value="">Select a publication</option>
+      <option *ngFor="let publication of availablePublications"
+              value="{{publication.id}}">
+      {{publication.title}} ({{publication.uuid}})
+      </option>
+    </select>
+  </div>
+
+  <div *ngIf="!edit" class="form-group">
+    <label for="user">User</label>
+    <select
+        id="user" class="form-control"
+        [formControl]="form.controls['user']">
+      <option value="">Select a user</option>
+      <option *ngFor="let user of availableUsers"
+              value="{{user.id}}">
+      {{user.alias}} ({{user.email}})
+      </option>
+    </select>
+  </div>
+
+   <div class="form-group">
+    <label>Type</label>
+    <div class="form-check">
+      <label class="form-check-label">
+        <input type="radio" class="form-check-input"
+          name="optionsRadios" value="LOAN" [formControl]="form.controls['type']">
+        Loan
+      </label>
+    </div>
+    <div class="form-check">
+    <label class="form-check-label">
+        <input type="radio" class="form-check-input"
+          name="optionsRadios" value="BUY" [formControl]="form.controls['type']">
+        Buy
+      </label>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="enddate">End Date</label>
+    <input class="form-control"
+      formControlName="end_date"
+      ng2-datetime-picker />
+  </div>
+
+  <button type="submit" [disabled]="!form.valid" class="btn btn-primary">{{submitButtonLabel}}</button>
+  <button type="button" (click)="onCancel()" class="btn btn-secondary">Cancel</button>
+</form>

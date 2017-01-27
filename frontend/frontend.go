@@ -100,7 +100,7 @@ func main() {
 		panic(err)
 	}
 
-	purchaseDB, err := webpurchase.Open(db)
+	purchaseDB, err := webpurchase.Init(config.Config, db)
 	if err != nil {
 		panic(err)
 	}

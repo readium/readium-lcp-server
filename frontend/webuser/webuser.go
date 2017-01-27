@@ -28,6 +28,8 @@ package webuser
 import (
 	"database/sql"
 	"errors"
+
+	"github.com/satori/go.uuid"
 )
 
 //ErrNotFound error trown when user is not found
@@ -45,8 +47,9 @@ type WebUser interface {
 
 //User struct defines a user
 type User struct {
-	UserID   int64  `json:"userID"`
-	Alias    string `json:"alias,omitempty"`
+	ID       int64  `json:"id"`
+	UUID     string `json:"uuid"`
+	Name     string `json:"name,omitempty"`
 	Email    string `json:"email,omitempty"`
 	Password string `json:"password,omitempty"`
 }
@@ -62,7 +65,7 @@ func (user dbUser) Get(id int64) (User, error) {
 	defer records.Close()
 	if records.Next() {
 		var c User
-		err = records.Scan(&c.UserID, &c.Alias, &c.Email, &c.Password)
+		err = records.Scan(&c.ID, &c.UUID, &c.Name, &c.Email, &c.Password)
 		return c, err
 	}
 
@@ -74,7 +77,7 @@ func (user dbUser) GetByEmail(email string) (User, error) {
 	defer records.Close()
 	if records.Next() {
 		var c User
-		err = records.Scan(&c.UserID, &c.Alias, &c.Email, &c.Password)
+		err = records.Scan(&c.ID, &c.UUID, &c.Name, &c.Email, &c.Password)
 		return c, err
 	}
 
@@ -82,28 +85,32 @@ func (user dbUser) GetByEmail(email string) (User, error) {
 }
 
 func (user dbUser) Add(newUser User) error {
-	add, err := user.db.Prepare("INSERT INTO user (alias,email,password) VALUES ( ?, ?, ?)")
+	add, err := user.db.Prepare("INSERT INTO user (uuid, name, email, password) VALUES (?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(newUser.Alias, newUser.Email, newUser.Password)
+
+	// Create uuid
+	newUser.UUID = uuid.NewV4().String()
+
+	_, err = add.Exec(newUser.UUID, newUser.Name, newUser.Email, newUser.Password)
 	return err
 }
 
 func (user dbUser) Update(changedUser User) error {
-	add, err := user.db.Prepare("UPDATE user SET alias=? , email=?, password=? WHERE user_id=?")
+	add, err := user.db.Prepare("UPDATE user SET name=? , email=?, password=? WHERE id=?")
 	if err != nil {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(changedUser.Alias, changedUser.Email, changedUser.Password, changedUser.UserID)
+	_, err = add.Exec(changedUser.Name, changedUser.Email, changedUser.Password, changedUser.ID)
 	return err
 }
 
 func (user dbUser) DeleteUser(userID int64) error {
 	// delete purchases from user
-	delPurchases, err := user.db.Prepare(`DELETE FROM  purchase WHERE user_id=?`)
+	delPurchases, err := user.db.Prepare(`DELETE FROM purchase WHERE user_id=?`)
 	if err != nil {
 		return err
 	}
@@ -112,7 +119,7 @@ func (user dbUser) DeleteUser(userID int64) error {
 		return err
 	}
 	// and delete user
-	query, err := user.db.Prepare("DELETE FROM user WHERE user_id=?")
+	query, err := user.db.Prepare("DELETE FROM user WHERE id=?")
 	if err != nil {
 		return err
 	}
@@ -122,7 +129,7 @@ func (user dbUser) DeleteUser(userID int64) error {
 }
 
 func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
-	listUsers, err := user.db.Query(`SELECT user_id, alias, email, password
+	listUsers, err := user.db.Query(`SELECT id, uuid, name, email, password
 	FROM user
 	ORDER BY email desc LIMIT ? OFFSET ? `, page, pageNum*page)
 	if err != nil {
@@ -131,7 +138,7 @@ func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
 	return func() (User, error) {
 		var u User
 		if listUsers.Next() {
-			err := listUsers.Scan(&u.UserID, &u.Alias, &u.Email, &u.Password)
+			err := listUsers.Scan(&u.ID, &u.UUID, &u.Name, &u.Email, &u.Password)
 
 			if err != nil {
 				return u, err
@@ -148,21 +155,22 @@ func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
 //Open  returns a WebUser interface (db interaction)
 func Open(db *sql.DB) (i WebUser, err error) {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS user (
-	user_id integer NOT NULL, 
-	alias varchar(64) NOT NULL, 
-	email varchar(64) NOT NULL, 
-	password varchar(64) NOT NULL, 
-	
-	constraint pk_user  primary key(user_id)
+	id integer NOT NULL,
+	uuid varchar(255) NOT NULL,
+	name varchar(64) NOT NULL,
+	email varchar(64) NOT NULL,
+	password varchar(64) NOT NULL,
+
+	constraint pk_user  primary key(id)
 	)`)
 	if err != nil {
 		return
 	}
-	get, err := db.Prepare("SELECT user_id,alias,email,password FROM user WHERE user_id = ? LIMIT 1")
+	get, err := db.Prepare("SELECT id, uuid, name, email, password FROM user WHERE id = ? LIMIT 1")
 	if err != nil {
 		return
 	}
-	getByEmail, err := db.Prepare("SELECT user_id,alias,email,password FROM user WHERE email = ? LIMIT 1")
+	getByEmail, err := db.Prepare("SELECT id, uuid, name, email, password FROM user WHERE email = ? LIMIT 1")
 	if err != nil {
 		return
 	}

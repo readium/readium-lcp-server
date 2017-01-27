@@ -1,0 +1,46 @@
+<h1>Purchases</h1>
+
+<div>
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item active">Purchases</li>
+    <li class="float-xs-right">
+      <a routerLink="/purchases/add" role="button">Add</a>
+    </li>
+  </ol>
+</div>
+
+<table *ngIf="purchases.length > 0" class="table">
+  <thead class="thead-inverse">
+    <tr>
+      <th>#</th>
+      <th>Date</th>
+      <th>Publication</th>
+      <th>User</th>
+      <th>Type</th>
+      <th>License start date</th>
+      <th>License end date</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let purchase of purchases">
+      <td>{{purchase.id}}</td>
+      <td>{{formatDate(purchase.transactionDate)}}</td>
+      <td>{{purchase.publication.title}}</td>
+      <td>{{purchase.user.alias}}</td>
+      <td>{{purchase.type}}</td>
+      <td>{{formatDate(purchase.startDate)}}</td>
+      <td>{{formatDate(purchase.endDate)}}</td>
+      <td>
+        <a href="{{buildLcplDownloadUrl(purchase.id)}}"
+           class="btn btn-secondary btn-sm" role="button">
+           <i class="fa fa-download" aria-hidden="true"></i> LCPL
+        </a>
+        <a [routerLink]="['/purchase', purchase.id, 'edit']"
+           class="btn btn-secondary btn-sm" role="button">
+           <i class="fa fa-edit" aria-hidden="true"></i> Edit
+        </a>
+      </td>
+    </tr>
+  </tbody>
+</table>

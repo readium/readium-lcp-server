@@ -36,7 +36,7 @@ export class UserFormComponent implements OnInit {
             this.user = new User();
             this.submitButtonLabel = "Add";
             this.form = this.fb.group({
-                "alias": ["", Validators.required],
+                "name": ["", Validators.required],
                 "email": ["", Validators.required],
                 "password": ["", Validators.required]
             });
@@ -44,7 +44,7 @@ export class UserFormComponent implements OnInit {
             this.edit = true;
             this.submitButtonLabel = "Save";
             this.form = this.fb.group({
-                "alias": [this.user.alias, Validators.required],
+                "name": [this.user.name, Validators.required],
                 "email": [this.user.email, Validators.required],
                 "password": ""
             });
@@ -83,7 +83,7 @@ export class UserFormComponent implements OnInit {
 
     // Bind form to user
     bindForm(): void {
-        this.user.alias = this.form.value['alias'];
+        this.user.name = this.form.value['name'];
         this.user.email = this.form.value['email'];
 
         let newPassword: string = this.form.value['password'];

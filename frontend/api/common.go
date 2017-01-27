@@ -26,6 +26,10 @@
 package staticapi
 
 import (
+	"net/http"
+	"strconv"
+
+	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
 	"github.com/readium/readium-lcp-server/frontend/webrepository"
@@ -38,4 +42,65 @@ type IServer interface {
 	PublicationAPI() webpublication.WebPublication
 	UserAPI() webuser.WebUser
 	PurchaseAPI() webpurchase.WebPurchase
+}
+
+// Pagination used to paginate listing
+type Pagination struct {
+	Page    int
+	PerPage int
+}
+
+// ExtractPaginationFromRequest extract from http.Request pagination information
+func ExtractPaginationFromRequest(r *http.Request) (Pagination, error) {
+	var err error
+	var page int64    // default: page 1
+	var perPage int64 // default: 30 items per page
+	pagination := Pagination{}
+
+	if r.FormValue("page") != "" {
+		page, err = strconv.ParseInt((r).FormValue("page"), 10, 32)
+		if err != nil {
+			return pagination, err
+		}
+	} else {
+		page = 1
+	}
+
+	if r.FormValue("per_page") != "" {
+		perPage, err = strconv.ParseInt((r).FormValue("per_page"), 10, 32)
+		if err != nil {
+			return pagination, err
+		}
+	} else {
+		perPage = 30
+	}
+
+	if page > 0 {
+		page-- //pagenum starting at 0 in code, but user interface starting at 1
+	}
+
+	if page < 0 {
+		return pagination, err
+	}
+
+	pagination.Page = int(page)
+	pagination.PerPage = int(perPage)
+	return pagination, err
+}
+
+// PrepareListHeaderResponse Set http headers
+func PrepareListHeaderResponse(
+	resourceCount int,
+	resourceLink string,
+	pagination Pagination,
+	w http.ResponseWriter) {
+	if resourceCount > 0 {
+		nextPage := strconv.Itoa(int(pagination.Page) + 1)
+		w.Header().Set("Link", "<"+resourceLink+"?page="+nextPage+">; rel=\"next\"; title=\"next\"")
+	}
+	if pagination.Page > 1 {
+		previousPage := strconv.Itoa(int(pagination.Page) - 1)
+		w.Header().Set("Link", "<"+resourceLink+"/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
+	}
+	w.Header().Set("Content-Type", api.ContentType_JSON)
 }

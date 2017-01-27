@@ -11,6 +11,7 @@ import { HeaderModule }             from './shared/header/header.module';
 import { DashboardModule }          from './dashboard/dashboard.module';
 import { UserModule }               from './user/user.module';
 import { PublicationModule }        from './publication/publication.module';
+import { PurchaseModule }           from './purchase/purchase.module';
 
 @NgModule({
     imports: [
@@ -21,6 +22,7 @@ import { PublicationModule }        from './publication/publication.module';
         DashboardModule,
         UserModule,
         PublicationModule,
+        PurchaseModule,
         AppRoutingModule,
     ],
     declarations: [
