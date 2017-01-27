@@ -40,6 +40,7 @@ const (
 )
 
 func (e cbcEncrypter) Signature() string {
+	// W3C padding scheme, not PKCS#7 (see last parameter "insertPadLengthAll" [false] of PaddedReader constructor)
 	return "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
 }
 
@@ -49,7 +50,8 @@ func (e cbcEncrypter) GenerateKey() (ContentKey, error) {
 }
 
 func (e cbcEncrypter) Encrypt(key ContentKey, r io.Reader, w io.Writer) error {
-	r = PaddedReader(r, aes.BlockSize) // PKCS#7
+
+	r = PaddedReader(r, aes.BlockSize, false)
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -99,7 +101,7 @@ func (c cbcEncrypter) Decrypt(key ContentKey, r io.Reader, w io.Writer) error {
 	mode := cipher.NewCBCDecrypter(block, iv)
 	mode.CryptBlocks(buf[aes.BlockSize:], buf[aes.BlockSize:])
 
-	padding := buf[len(buf)-1] // PKCS#7
+	padding := buf[len(buf)-1] // padding length valid for both PKCS#7 and W3C schemes
 	w.Write(buf[aes.BlockSize : len(buf)-int(padding)])
 
 	return nil

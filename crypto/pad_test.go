@@ -33,7 +33,7 @@ import (
 
 func TestOneBlock(t *testing.T) {
 	buf := bytes.NewBufferString("4321")
-	reader := PaddedReader(buf, 6)
+	reader := PaddedReader(buf, 6, true)
 	var out [12]byte
 	n, err := reader.Read(out[:])
 	if err != nil && err != io.EOF {
@@ -50,7 +50,7 @@ func TestOneBlock(t *testing.T) {
 
 func TestFullPadding(t *testing.T) {
 	buf := bytes.NewBufferString("1234")
-	reader := PaddedReader(buf, 4)
+	reader := PaddedReader(buf, 4, true)
 
 	var out [8]byte
 	n, err := io.ReadFull(reader, out[:])
@@ -68,7 +68,7 @@ func TestFullPadding(t *testing.T) {
 
 func TestManyBlocks(t *testing.T) {
 	buf := bytes.NewBufferString("1234")
-	reader := PaddedReader(buf, 3)
+	reader := PaddedReader(buf, 3, true)
 	var out [3]byte
 	n, err := io.ReadFull(reader, out[:])
 	if err != nil {
@@ -91,7 +91,7 @@ func TestManyBlocks(t *testing.T) {
 
 func TestPaddingInMultipleCalls(t *testing.T) {
 	buf := bytes.NewBufferString("1")
-	reader := PaddedReader(buf, 6)
+	reader := PaddedReader(buf, 6, false)
 	var out [3]byte
 	n, err := io.ReadFull(reader, out[:])
 
@@ -122,7 +122,7 @@ func (r failingReader) Read(buf []byte) (int, error) {
 }
 
 func TestFailingReader(t *testing.T) {
-	reader := PaddedReader(failingReader{}, 8)
+	reader := PaddedReader(failingReader{}, 8, false)
 	var out [8]byte
 	_, err := io.ReadFull(reader, out[:])
 
