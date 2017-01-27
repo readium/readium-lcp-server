@@ -43,6 +43,8 @@ import (
 	"github.com/readium/readium-lcp-server/lcpencrypt/encrypt"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/satori/go.uuid"
+
+	"github.com/Machiel/slugify"
 )
 
 // Publication status
@@ -140,8 +142,7 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 
 	// Create output file path
 	contentUUID := uuid.NewV4().String()
-
-	outputFilename := contentUUID
+	outputFilename := contentUUID + ".tmp"
 	outputPath := path.Join(
 		pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
 
@@ -155,10 +156,15 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 
 	// Prepare request
 	// POST LCP content
+	contentDisposition := slugify.Slugify(pub.Title)
 	lcpPublication := apilcp.LcpPublication{}
 	lcpPublication.ContentId = contentUUID
 	lcpPublication.ContentKey = encryptedEpub.EncryptionKey
-	lcpPublication.Output = pubManager.config.Storage.FileSystem.Directory
+	lcpPublication.Output = path.Join(
+		pubManager.config.Storage.FileSystem.Directory, outputFilename)
+	lcpPublication.ContentDisposition = &contentDisposition
+	lcpPublication.Checksum = &encryptedEpub.Checksum
+	lcpPublication.Size = &encryptedEpub.Size
 
 	jsonBody, err := json.Marshal(lcpPublication)
 	if err != nil {
@@ -188,6 +194,12 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 
 	if resp.StatusCode != 201 {
 		// Bad status code
+		return err
+	}
+
+	// Remove temporary file
+	err = os.Remove(outputPath)
+	if err != nil {
 		return err
 	}
 

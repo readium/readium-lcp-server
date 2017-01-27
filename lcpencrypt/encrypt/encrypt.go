@@ -28,6 +28,8 @@ package encrypt
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -37,12 +39,15 @@ import (
 	"github.com/readium/readium-lcp-server/pack"
 )
 
+// EncryptedEpub Encrypted epub
 type EncryptedEpub struct {
 	Path          string
 	EncryptionKey []byte
+	Size          int64
+	Checksum      string
 }
 
-// Encrypt input file to output file
+// EncryptEpub Encrypt input file to output file
 func EncryptEpub(inputPath string, outputPath string) (EncryptedEpub, error) {
 	if _, err := os.Stat(inputPath); err != nil {
 		return EncryptedEpub{}, errors.New("Input file does not exists")
@@ -83,6 +88,15 @@ func EncryptEpub(inputPath string, outputPath string) (EncryptedEpub, error) {
 		return EncryptedEpub{}, errors.New("Unable to output file")
 	}
 
+	hasher := sha256.New()
+	s, err := ioutil.ReadFile(outputPath)
+	_, err = hasher.Write(s)
+	if err != nil {
+		return EncryptedEpub{}, errors.New("Unable to build checksum")
+	}
+
+	checksum := hex.EncodeToString(hasher.Sum(nil))
+
 	output.Close()
-	return EncryptedEpub{outputPath, encryptionKey}, nil
+	return EncryptedEpub{outputPath, encryptionKey, stats.Size(), checksum}, nil
 }
