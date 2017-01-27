@@ -31,12 +31,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
-
-	"fmt"
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
@@ -65,7 +62,7 @@ left join publication pu on (p.publication_id=pu.id)`
 //WebPurchase defines possible interactions with DB
 type WebPurchase interface {
 	Get(id int64) (Purchase, error)
-	GetJSONLicense(id int64) (string, error)
+	GetLicense(id int64) (license.License, error)
 	GetByLicenseID(licenseID string) (Purchase, error)
 	List(page int, pageNum int) func() (Purchase, error)
 	ListByUser(userID int64, page int, pageNum int) func() (Purchase, error)
@@ -166,12 +163,12 @@ func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 	return Purchase{}, ErrNotFound
 }
 
-// GetJSONLicense
-func (pManager purchaseManager) GetJSONLicense(purchaseID int64) (string, error) {
+// GetLicense
+func (pManager purchaseManager) GetLicense(purchaseID int64) (license.License, error) {
 	purchase, err := pManager.Get(purchaseID)
 
 	if err != nil {
-		return "", err
+		return license.License{}, err
 	}
 
 	// Create LCP license
@@ -191,7 +188,7 @@ func (pManager purchaseManager) GetJSONLicense(purchaseID int64) (string, error)
 	userKeyValue, err := hex.DecodeString(purchase.User.Password)
 
 	if err != nil {
-		return "", err
+		return license.License{}, err
 	}
 
 	userKey := license.UserKey{}
@@ -216,7 +213,7 @@ func (pManager purchaseManager) GetJSONLicense(purchaseID int64) (string, error)
 	jsonBody, err := json.Marshal(partialLicense)
 
 	if err != nil {
-		return "", err
+		return license.License{}, err
 	}
 
 	// Post partial license to LCP
@@ -240,21 +237,35 @@ func (pManager purchaseManager) GetJSONLicense(purchaseID int64) (string, error)
 
 	resp, err := lcpClient.Do(req)
 	if err != nil {
-		return "", err
+		return license.License{}, err
 	}
 
-	// Read Body
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	bodyString := string(body)
 
 	if resp.StatusCode != 201 {
 		// Bad status code
-		return "", errors.New(bodyString)
+		return license.License{}, errors.New("Bad status code")
 	}
 
-	fmt.Println(bodyString)
-	return bodyString, nil
+	// Decode full license
+	fullLicense := license.License{}
+	var dec *json.Decoder
+	dec = json.NewDecoder(resp.Body)
+	err = dec.Decode(&fullLicense)
+
+	if err != nil {
+		return license.License{}, errors.New("Unable to decode license")
+	}
+
+	// Store license uuid
+	purchase.LicenseUUID = fullLicense.Id
+	pManager.Update(purchase)
+
+	if err != nil {
+		return license.License{}, errors.New("Unable to update license uuid")
+	}
+
+	return fullLicense, nil
 }
 
 func (pManager purchaseManager) GetByLicenseID(licenseID string) (Purchase, error) {
@@ -334,12 +345,12 @@ func (pManager purchaseManager) Add(p Purchase) error {
 
 func (pManager purchaseManager) Update(p Purchase) error {
 	update, err := pManager.db.Prepare(`UPDATE purchase
-	SET start_date=?, end_date=? WHERE id=?`)
+	SET license_uuid=?, start_date=?, end_date=? WHERE id=?`)
 	if err != nil {
 		return err
 	}
 	defer update.Close()
-	result, err := update.Exec(p.StartDate, p.EndDate, p.ID)
+	result, err := update.Exec(p.LicenseUUID, p.StartDate, p.EndDate, p.ID)
 	if changed, err := result.RowsAffected(); err == nil {
 		if changed != 1 {
 			return ErrNoChange
