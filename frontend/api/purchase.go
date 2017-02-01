@@ -170,16 +170,16 @@ func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 
 //GetPurchase gets a purchase by its ID in the database
 func GetPurchase(w http.ResponseWriter, r *http.Request, s IServer) {
-	var purchase webpurchase.Purchase
 	vars := mux.Vars(r)
 	var id int
 	var err error
-	if id, err = strconv.Atoi(vars["purchase_id"]); err != nil {
+	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
 		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
 	}
-	purchase.User = *new(webuser.User)
-	if purchase, err = s.PurchaseAPI().Get(int64(id)); err != nil {
+
+	purchase, err := s.PurchaseAPI().Get(int64(id))
+	if err != nil {
 		switch err {
 		case webpurchase.ErrNotFound:
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
@@ -187,6 +187,7 @@ func GetPurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
 	}
+
 	// purchase found
 	// purchase.PartialLicense = "*" //hide partialLicense?
 	enc := json.NewEncoder(w)
