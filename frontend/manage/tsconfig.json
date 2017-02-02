@@ -11,7 +11,8 @@
     "suppressImplicitAnyIndexErrors": true,
     "outDir": "dist/app",
     "typeRoots": [
-      "node_modules/@types"
+      "node_modules/@types",
+      "./typings"
     ]
   },
   "include": [
