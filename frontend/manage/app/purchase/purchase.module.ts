@@ -11,6 +11,7 @@ import { PurchaseService }          from './purchase.service';
 import { PurchaseRoutingModule }    from './purchase-routing.module';
 import { PurchaseListComponent }    from './purchase-list.component';
 import { PurchaseFormComponent }    from './purchase-form.component';
+import { PurchaseEditComponent }    from './purchase-edit.component';
 import { PurchaseAddComponent }     from './purchase-add.component';
 
 @NgModule({
@@ -25,6 +26,7 @@ import { PurchaseAddComponent }     from './purchase-add.component';
     declarations: [
         PurchaseListComponent,
         PurchaseFormComponent,
+        PurchaseEditComponent,
         PurchaseAddComponent
     ],
     providers: [

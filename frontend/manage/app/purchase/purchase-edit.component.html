@@ -1,0 +1,10 @@
+<h1>Renew purchase</h1>
+
+<div *ngIf="purchase">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a routerLink="/purchases">Purchases</a></li>
+    <li class="breadcrumb-item active">{{purchase.id}}</li>
+  </ol>
+
+  <lcp-purchase-form [purchase]="purchase"></lcp-purchase-form>
+</div>

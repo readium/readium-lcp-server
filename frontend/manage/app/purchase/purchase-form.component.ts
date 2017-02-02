@@ -78,7 +78,9 @@ export class PurchaseFormComponent implements OnInit{
             this.edit = true;
             this.submitButtonLabel = "Save";
             this.form = this.fb.group({
-                "end_date": ["", Validators.required]
+                "end_date": [
+                    moment(this.purchase.endDate).format('YYYY-MM-DD HH:mm'),
+                    Validators.required]
             });
         }
     }
@@ -115,15 +117,19 @@ export class PurchaseFormComponent implements OnInit{
 
     // Bind form to purchase
     bindForm(): void {
-        let publicationId = this.form.value['publication'];
-        let userId = this.form.value['user'];
-        let publication = new Publication();
-        let user = new User();
-        publication.id = publicationId;
-        user.id = userId;
-        this.purchase.publication = publication;
-        this.purchase.user = user;
-        this.purchase.type = this.form.value['type'];
+        if (!this.edit) {
+            let publicationId = this.form.value['publication'];
+            let userId = this.form.value['user'];
+            let publication = new Publication();
+            let user = new User();
+            publication.id = publicationId;
+            user.id = userId;
+            this.purchase.publication = publication;
+            this.purchase.user = user;
+            this.purchase.type = this.form.value['type'];
+        } else {
+            this.purchase.status = 'to-be-renewed';
+        }
 
         if (this.form.value['end_date'].trim().length > 0) {
             this.purchase.endDate = moment(this.form.value['end_date']).format();

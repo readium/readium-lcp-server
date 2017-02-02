@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 
-import * as moment from 'moment';
+import * as moment  from 'moment';
+import * as saveAs from 'file-saver';
 
 import { Purchase }          from './purchase';
 import { PurchaseService }   from './purchase.service';
@@ -32,8 +33,25 @@ export class PurchaseListComponent implements OnInit {
         return Config.frontend.url + '/api/v1/purchases/' + id + '/license';
     }
 
+    buildLicenseDeliveredClass(licenseUuid: string) {
+         if (licenseUuid == null) {
+            return "danger";
+        }
+
+        return "success";
+    }
+
+    buildStatusClass(status: string) {
+        if (status == "error") {
+            return "danger";
+        } else if (status == "returned") {
+            return "warning"
+        }
+        return "success";
+    }
+
     formatDate(date: string): string {
-        return moment(date).format('YYYY-MM-DD HH:mm:ss');
+        return moment(date).format('YYYY-MM-DD HH:mm');
     }
 
     ngOnInit(): void {
@@ -42,6 +60,27 @@ export class PurchaseListComponent implements OnInit {
 
     onRemove(objId: any): void {
         this.purchaseService.delete(objId).then(
+            purchase => {
+                this.refreshPurchases();
+            }
+        );
+    }
+
+    onDownload(purchase: Purchase): void {
+        this.purchaseService.getLicense(String(purchase.id)).then(
+            license => {
+                var data = new Blob(
+                    [license],
+                    { type: 'application/vnd.readium.lcp.license.1.0+json;charset=utf-8' });
+                this.refreshPurchases();
+                saveAs(data, 'test.lcpl');
+            }
+        );
+    }
+
+    onReturn(purchase: Purchase): void {
+        purchase.status = 'to-be-returned';
+        this.purchaseService.update(purchase).then(
             purchase => {
                 this.refreshPurchases();
             }

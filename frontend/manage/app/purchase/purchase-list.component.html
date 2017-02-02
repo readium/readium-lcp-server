@@ -17,8 +17,10 @@
       <th>Publication</th>
       <th>User</th>
       <th>Type</th>
-      <th>License start date</th>
-      <th>License end date</th>
+      <th>Start date</th>
+      <th>End date</th>
+      <th>Delivered</th>
+      <th>Status</th>
       <th>Actions</th>
     </tr>
   </thead>
@@ -31,16 +33,27 @@
       <td>{{purchase.type}}</td>
       <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.startDate)}}</span></td>
       <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.endDate)}}</span></td>
+      <td><span class="badge badge-{{buildLicenseDeliveredClass(purchase.licenseUuid)}}">{{(purchase.licenseUuid != null)}}</span></td>
+      <td><span class="badge badge-{{buildStatusClass(purchase.status)}}">{{purchase.status}}</span></td>
       <td>
-        <a href="{{buildLcplDownloadUrl(purchase.id)}}"
-           class="btn btn-secondary btn-sm" role="button">
-           <i class="fa fa-download" aria-hidden="true"></i> LCPL
-        </a>
-        <a *ngIf="purchase.type == 'LOAN'"
-           [routerLink]="['/purchase', purchase.id, 'edit']"
-           class="btn btn-secondary btn-sm" role="button">
-           <i class="fa fa-edit" aria-hidden="true"></i> Edit
-        </a>
+        <div *ngIf="purchase.status == 'ok'">
+          <button (click)="onDownload(purchase)"
+            type="button" role="button"
+            class="btn btn-secondary btn-sm">
+            <i class="fa fa-download" aria-hidden="true"></i> LCPL
+          </button>
+          <a *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
+            [routerLink]="['/purchases', purchase.id, 'renew']"
+            class="btn btn-secondary btn-sm" role="button">
+            <i class="fa fa-hourglass-end" aria-hidden="true"></i> Renew
+          </a>
+          <button *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
+              type="button" role="button"
+              class="btn btn-secondary btn-sm"
+              (click)="onReturn(purchase)">
+            <i class="fa fa-eject" aria-hidden="true"></i> Return
+          </button>
+        </div>
       </td>
     </tr>
   </tbody>

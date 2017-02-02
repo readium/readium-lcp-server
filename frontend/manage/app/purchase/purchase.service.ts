@@ -36,15 +36,17 @@ export class PurchaseService extends CrudService<Purchase> {
                 email: jsonObj.user.email
             },
             type: jsonObj.type,
+            licenseUuid: jsonObj.licenseUuid,
             transactionDate: jsonObj.transactionDate,
             startDate: jsonObj.startDate,
-            endDate: jsonObj.endDate
+            endDate: jsonObj.endDate,
+            status: jsonObj.status
         };
     }
 
     encode(obj: Purchase): any {
         return {
-            id: obj.id,
+            id: Number(obj.id),
             uuid: obj.uuid,
             publication: {
                 id: Number(obj.publication.id)
@@ -53,7 +55,27 @@ export class PurchaseService extends CrudService<Purchase> {
                 id: Number(obj.user.id)
             },
             type: obj.type,
-            endDate: obj.endDate
+            licenseUuid: obj.licenseUuid,
+            startDate: obj.startDate,
+            endDate: obj.endDate,
+            status: obj.status
         }
+    }
+
+    getLicense(id: string): Promise<string> {
+        let licenseUrl = this.baseUrl + "/" + id + "/license";
+        return this.http
+            .get(
+                licenseUrl,
+                { headers: this.defaultHttpHeaders })
+            .toPromise()
+            .then(function (response) {
+                if (response.ok) {
+                    return response.text()
+                } else {
+                    throw 'Error retrieving license ' + response.text();
+                }
+            })
+            .catch(this.handleError);
     }
 }

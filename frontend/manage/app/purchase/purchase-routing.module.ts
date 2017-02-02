@@ -2,9 +2,11 @@ import { NgModule }                 from '@angular/core';
 import { RouterModule, Routes }     from '@angular/router';
 
 import { PurchaseAddComponent } from './purchase-add.component';
+import { PurchaseEditComponent } from './purchase-edit.component';
 import { PurchaseListComponent } from './purchase-list.component';
 
 const purchaseRoutes: Routes = [
+    { path: 'purchases/:id/renew', component: PurchaseEditComponent },
     { path: 'purchases/add', component: PurchaseAddComponent },
     { path: 'purchases', component: PurchaseListComponent }
 ];
