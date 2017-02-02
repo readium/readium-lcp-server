@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit }        from '@angular/core';
+import { Observable, Subscription } from 'rxjs/Rx';
 
 import { Slug }     from 'ng2-slugify';
 import * as moment  from 'moment';
@@ -69,9 +70,19 @@ export class PurchaseListComponent implements OnInit {
     }
 
     onDownload(purchase: Purchase): void {
-        this.purchaseService.getLicense(String(purchase.id)).then(
+        // Wait 5 seconds before refreshing purchases
+        let downloadTimer = Observable.timer(5000);
+        let downloadSubscriber = downloadTimer.subscribe(
+            (t: any) => {
+                this.refreshPurchases();
+                downloadSubscriber.unsubscribe();
+            }
+        );
+        document.location.href = this.buildLcplDownloadUrl(purchase.id);
+
+        /*this.purchaseService.getLicense(String(purchase.id)).then(
             license => {
-                var data = new Blob(
+                let data = new Blob(
                     [license],
                     { type: 'application/vnd.readium.lcp.license.1.0+json;charset=utf-8'
 
@@ -86,7 +97,7 @@ export class PurchaseListComponent implements OnInit {
                 this.refreshPurchases();
                 saveAs(data, this.slug.slugify(purchase.publication.title)+'.lcpl');
             }
-        );
+        );*/
     }
 
     onReturn(purchase: Purchase): void {
