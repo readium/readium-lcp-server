@@ -29,7 +29,7 @@
       <td>{{purchase.id}}</td>
       <td>{{formatDate(purchase.transactionDate)}}</td>
       <td>{{purchase.publication.title}}</td>
-      <td>{{purchase.user.alias}}</td>
+      <td>{{purchase.user.name}}</td>
       <td>{{purchase.type}}</td>
       <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.startDate)}}</span></td>
       <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.endDate)}}</span></td>
