@@ -33,9 +33,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
-	"github.com/readium/readium-lcp-server/frontend/webuser"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/problem"
 
@@ -235,165 +233,9 @@ func getLicenseInfo(data []byte, lic *license.License) error {
 	return nil
 }
 
-//RenewLicenseByLicenseID searches a purchase by a LicenseID in the database, and
-// contacts the tcp server in order to renew the license
-func RenewLicenseByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) {
-	/*purchase := webpurchase.Purchase{}
-	vars := mux.Vars(r)
-	var err error
-	if purchase, err = s.PurchaseAPI().GetByLicenseID(vars["license_id"]); err != nil {
-		switch err {
-		case webpurchase.ErrNotFound:
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
-		default:
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		}
-	}
-
-	// purchase found,  get a renewed license from lcpserver
-	if config.Config.LcpServer.PublicBaseUrl != "" { // get updated License from lcp server
-		var lcpClient = &http.Client{
-			Timeout: time.Second * 5,
-		}
-	}*/
-	/*log.Println("POST " + config.Config.LcpServer.PublicBaseUrl + "/licenses/" + vars["license_id"])
-		log.Println("BODY (partial license)")
-		log.Println(purchase.PartialLicense)
-		req, err := http.NewRequest("POST", config.Config.LcpServer.PublicBaseUrl+"/licenses/"+vars["license_id"], strings.NewReader(purchase.PartialLicense))
-		Auth := config.Config.LcpUpdateAuth
-		if Auth.Username != "" {
-			req.SetBasicAuth(Auth.Username, Auth.Password)
-		}
-		req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
-		response, err := lcpClient.Do(req)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server :" + err.Error()}, http.StatusInternalServerError)
-		} else {
-			defer req.Body.Close()
-			defer response.Body.Close()
-			switch response.StatusCode {
-			case 200, 201:
-				{
-					//forward headers
-					for name, headers := range response.Header {
-						for _, value := range headers {
-							w.Header().Add(name, value)
-						}
-					}
-					// and license
-					data, err := ioutil.ReadAll(response.Body)
-					if err != nil {
-						problem.Error(w, r, problem.Problem{Detail: "Error writing response:" + err.Error()}, http.StatusInternalServerError)
-					}
-					w.Write(data)
-					return
-				}
-			case 206:
-				problem.Error(w, r, problem.Problem{Detail: "Partial content (invalid license) from LCP server"}, http.StatusNotFound)
-			case 404:
-				problem.Error(w, r, problem.Problem{Detail: "License not found on LCP server"}, http.StatusNotFound)
-			default: //other error ?
-				{
-					var pb problem.Problem
-					var dec *json.Decoder
-					dec = json.NewDecoder(response.Body)
-					err := dec.Decode(&pb)
-					if err == nil {
-						problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server : statuscode=" + strconv.Itoa(response.StatusCode)}, http.StatusInternalServerError)
-					} else {
-						problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server :"}, http.StatusInternalServerError)
-					}
-				}
-			}
-
-		}
-	} else { // incorrect config
-		problem.Error(w, r, problem.Problem{Detail: "No LCP server defined to contact for a new license, check your configuration!"}, http.StatusInternalServerError)
-	}*/
-
-}
-
-//RenewLicensePublicationByLicenseID searches a purchase by a LicenseID in the database, and
-// contacts the tcp server in order to renew the license and return a publication with the license
-// TODO !!!! (this actually returns the license= copy method RenewLicenseByLicenseID)
-func RenewLicensePublicationByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) {
-	/*purchase := webpurchase.Purchase{}
-	vars := mux.Vars(r)
-	var err error
-	if purchase, err = s.PurchaseAPI().GetByLicenseID(vars["license_id"]); err != nil {
-		switch err {
-		case webpurchase.ErrNotFound:
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
-		default:
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		}
-	}*/
-
-	// purchase found,  get a renewed license from lcpserver
-	/*if config.Config.LcpServer.PublicBaseUrl != "" { // get updated License from lcp server
-		var lcpClient = &http.Client{
-			Timeout: time.Second * 5,
-		}
-		log.Println("POST " + config.Config.LcpServer.PublicBaseUrl + "/licenses/" + vars["license_id"] + "/publication")
-		log.Println("BODY (partial license)")
-		log.Println(purchase.PartialLicense)
-		req, err := http.NewRequest("POST", config.Config.LcpServer.PublicBaseUrl+"/licenses/"+vars["license_id"]+"/publication", strings.NewReader(purchase.PartialLicense))
-		Auth := config.Config.LcpUpdateAuth
-		if Auth.Username != "" {
-			req.SetBasicAuth(Auth.Username, Auth.Password)
-		}
-		req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
-		response, err := lcpClient.Do(req)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server :" + err.Error()}, http.StatusInternalServerError)
-		} else {
-			defer req.Body.Close()
-			defer response.Body.Close()
-			switch response.StatusCode {
-			case 200, 201:
-				{
-					//forward headers
-					for name, headers := range response.Header {
-						for _, value := range headers {
-							w.Header().Add(name, value)
-						}
-					}
-					// and publication/license
-					data, err := ioutil.ReadAll(response.Body)
-					if err != nil {
-						problem.Error(w, r, problem.Problem{Detail: "Error writing response:" + err.Error()}, http.StatusInternalServerError)
-					}
-					w.Write(data)
-					return
-				}
-			case 206:
-				problem.Error(w, r, problem.Problem{Detail: "Partial content (invalid license) from LCP server"}, http.StatusNotFound)
-			case 404:
-				problem.Error(w, r, problem.Problem{Detail: "License not found on LCP server"}, http.StatusNotFound)
-			default: //other error ?
-				{
-					var pb problem.Problem
-					var dec *json.Decoder
-					dec = json.NewDecoder(response.Body)
-					err := dec.Decode(&pb)
-					if err == nil {
-						problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server : statuscode=" + strconv.Itoa(response.StatusCode)}, http.StatusInternalServerError)
-					} else {
-						problem.Error(w, r, problem.Problem{Detail: "Error in LCP Server :"}, http.StatusInternalServerError)
-					}
-				}
-			}
-
-		}
-	} else { // incorrect config
-		problem.Error(w, r, problem.Problem{Detail: "No LCP server defined to contact for a new license, check your configuration!"}, http.StatusInternalServerError)
-	}
-	*/
-}
-
 //UpdatePurchase updates a purchase in the database
 func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
-	var purchase webpurchase.Purchase
+	var newPurchase webpurchase.Purchase
 	vars := mux.Vars(r)
 	var id int
 	var err error
@@ -402,17 +244,19 @@ func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
 	}
 	//ID is a number, check user (json)
-	if purchase, err = DecodeJSONPurchase(r); err != nil {
+	if newPurchase, err = DecodeJSONPurchase(r); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 	}
+
 	// user ok, id is a number, search purchase to update
 	if _, err := s.PurchaseAPI().Get(int64(id)); err == nil {
 		// purchase found
 		if err := s.PurchaseAPI().Update(webpurchase.Purchase{
-			ID:              int64(id),
-			User:            webuser.User{ID: purchase.User.ID},
-			Publication:     webpublication.Publication{ID: purchase.Publication.ID},
-			TransactionDate: purchase.TransactionDate}); err != nil {
+			ID:          int64(id),
+			LicenseUUID: newPurchase.LicenseUUID,
+			StartDate:   newPurchase.StartDate,
+			EndDate:     newPurchase.EndDate,
+			Status:      newPurchase.Status}); err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
 		w.WriteHeader(http.StatusOK)
