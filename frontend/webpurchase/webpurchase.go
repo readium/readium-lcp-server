@@ -53,7 +53,7 @@ const purchaseManagerQuery = `SELECT
 p.id, p.uuid,
 p.type, p.transaction_date,
 p.license_uuid,
-p.start_date, p.end_date,
+p.start_date, p.end_date, p.status,
 u.id, u.uuid, u.name, u.email, u.password,
 pu.id, pu.uuid, pu.title, pu.status
 FROM purchase p
@@ -70,6 +70,15 @@ type WebPurchase interface {
 	Add(p Purchase) error
 	Update(p Purchase) error
 }
+
+// Purchase status
+const (
+	StatusToBeRenewed  string = "to-be-renewed"
+	StatusToBeReturned string = "to-be-returned"
+	StatusReturned     string = "returned"
+	StatusError        string = "error"
+	StatusOk           string = "ok"
+)
 
 // Enumeration of PurchaseType
 const (
@@ -89,6 +98,7 @@ type Purchase struct {
 	TransactionDate time.Time                  `json:"transactionDate, omitempty"`
 	StartDate       *time.Time                 `json:"startDate, omitempty"`
 	EndDate         *time.Time                 `json:"endDate, omitempty"`
+	Status          string                     `json:"status"`
 }
 
 type purchaseManager struct {
@@ -127,6 +137,7 @@ func convertRecordToPurchase(records *sql.Rows) (Purchase, error) {
 		&purchase.LicenseUUID,
 		&purchase.StartDate,
 		&purchase.EndDate,
+		&purchase.Status,
 		&user.ID,
 		&user.UUID,
 		&user.Name,
@@ -332,8 +343,8 @@ func (pManager purchaseManager) Add(p Purchase) error {
 	add, err := pManager.db.Prepare(`INSERT INTO purchase
 	(uuid, publication_id, user_id,
 	type, transaction_date,
-	start_date, end_date)
-	VALUES (?, ?, ?, ?, ?, ?, ?)`)
+	start_date, end_date, status)
+	VALUES (?, ?, ?, ?, ?, ?, ?, 'ok')`)
 	if err != nil {
 		return err
 	}
@@ -388,6 +399,7 @@ func Init(config config.Configuration, db *sql.DB) (i WebPurchase, err error) {
     transaction_date datetime,
 	start_date datetime,
 	end_date datetime,
+	status varchar(255) NOT NULL,
 	constraint pk_purchase  primary key(id),
 	constraint fk_purchase_publication foreign key (publication_id) references publication(id)
     constraint fk_purchase_user foreign key (user_id) references user(id)
