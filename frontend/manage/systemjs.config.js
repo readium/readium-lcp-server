@@ -29,7 +29,8 @@
       'jssha': 'npm:jssha/src',
       'ng2-datetime-picker': 'npm:ng2-datetime-picker/dist',
       'moment': 'node_modules/moment',
-      'config': '/config.js'
+      'config': '/config.js',
+      'file-saver': 'npm:file-saver'
     },
     // packages tells the System loader how to load when no filename and/or no extension
     packages: {
@@ -51,6 +52,10 @@
       },
       'moment': {
         main: 'moment.js',
+        defaultExtension: 'js'
+      },
+      'file-saver': {
+        main: './FileSaver.js',
         defaultExtension: 'js'
       }
     }
