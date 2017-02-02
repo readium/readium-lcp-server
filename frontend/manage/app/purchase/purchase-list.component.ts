@@ -73,7 +73,12 @@ export class PurchaseListComponent implements OnInit {
             license => {
                 var data = new Blob(
                     [license],
-                    { type: 'application/vnd.readium.lcp.license.1.0+json;charset=utf-8' });
+                    { type:
+                    //    'application/vnd.readium.lcp.license.1.0+json;charset=utf-8'
+                    //    'application/json;charset=utf-8'
+                    // 'application/octet-stream'
+                    'text/plain;charset=utf-8'
+                    });
                 this.refreshPurchases();
                 saveAs(data, this.slug.slugify(purchase.publication.title)+'.lcpl');
             }

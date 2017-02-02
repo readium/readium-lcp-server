@@ -32,6 +32,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -688,43 +689,39 @@ func getEvents(ls *licensestatuses.LicenseStatus, s Server) error {
 //makeLinks creates and adds links to the license status
 func makeLinks(ls *licensestatuses.LicenseStatus) {
 	lsdBaseUrl := config.Config.LsdServer.PublicBaseUrl
+	licenseLinkUrl := config.Config.LsdServer.LicenseLinkUrl
 	lcpBaseUrl := config.Config.LcpServer.PublicBaseUrl
-	frontendBaseUrl := config.Config.FrontendServer.PublicBaseUrl
+	//frontendBaseUrl := config.Config.FrontendServer.PublicBaseUrl
 	registerAvailable := config.Config.LicenseStatus.Register
 	returnAvailable := config.Config.LicenseStatus.Return
 	renewAvailable := config.Config.LicenseStatus.Renew
 	links := new([]licensestatuses.Link)
 
-	if frontendBaseUrl != "" {
-		*links = append(*links, createLink(frontendBaseUrl, "license", ls.LicenseRef, "", api.ContentType_LCP_JSON, false))
+	if licenseLinkUrl != "" {
+		licenseLinkUrl_ := strings.Replace(licenseLinkUrl, "{license_id}", ls.LicenseRef, -1)
+		link := licensestatuses.Link{Href: licenseLinkUrl_, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
+		*links = append(*links, link)
 	} else {
-		*links = append(*links, createLink(lcpBaseUrl, "license", ls.LicenseRef, "", api.ContentType_LCP_JSON, false))
+		link := licensestatuses.Link{Href: lcpBaseUrl + "/licenses/" + ls.LicenseRef, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
+		*links = append(*links, link)
 	}
 
 	if registerAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "register", ls.LicenseRef, "/register{?id,name}",
-			api.ContentType_LSD_JSON, true))
+		link := licensestatuses.Link{Href: lsdBaseUrl + "/licenses/" + ls.LicenseRef + "/register{?id,name}", Rel: "register", Type: api.ContentType_LSD_JSON, Templated: true}
+		*links = append(*links, link)
 	}
 
 	if returnAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "return", ls.LicenseRef, "/return{?id,name}",
-			api.ContentType_LCP_JSON, true))
+		link := licensestatuses.Link{Href: lsdBaseUrl + "/licenses/" + ls.LicenseRef + "/return{?id,name}", Rel: "return", Type: api.ContentType_LSD_JSON, Templated: true}
+		*links = append(*links, link)
 	}
 
 	if renewAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "renew", ls.LicenseRef, "/renew{?end,id,name}",
-			api.ContentType_LCP_JSON, true))
+		link := licensestatuses.Link{Href: lsdBaseUrl + "/licenses/" + ls.LicenseRef + "/renew{?end,id,name}", Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}
+		*links = append(*links, link)
 	}
 
 	ls.Links = *links
-}
-
-//createLink creates a link and fills it
-func createLink(publicBaseUrl string, rel string, licenseRef string, page string,
-	typeLink string, templated bool) licensestatuses.Link {
-	link := licensestatuses.Link{Href: publicBaseUrl + "/licenses/" + licenseRef + page, Rel: rel,
-		Type: typeLink, Templated: templated}
-	return link
 }
 
 //makeEvent creates an event and fill it
@@ -771,7 +768,7 @@ func updateLicense(timeEnd time.Time, licenseRef string) {
 			pw.Close()
 		}()
 		req, err := http.NewRequest("PATCH", lcpBaseUrl+"/licenses/"+l.Id, pr)
-		
+
 		updateAuth := config.Config.LcpUpdateAuth
 
 		if updateAuth.Username != "" {

@@ -39,7 +39,7 @@ type Configuration struct {
 	Storage        Storage            `yaml:"storage"`
 	License        License            `yaml:"license"`
 	LcpServer      ServerInfo         `yaml:"lcp"`
-	LsdServer      ServerInfo         `yaml:"lsd"`
+	LsdServer      LsdServerInfo      `yaml:"lsd"`
 	FrontendServer FrontendServerInfo `yaml:"frontend"`
 	LsdNotifyAuth  Auth               `yaml:"lsd_notify_auth"`
 	LcpUpdateAuth  Auth               `yaml:"lcp_update_auth"`
@@ -59,6 +59,11 @@ type ServerInfo struct {
 	PublicBaseUrl string `yaml:"public_base_url,omitempty"`
 	Database      string `yaml:"database,omitempty"`
 	Directory     string `yaml:"directory,omitempty"`
+}
+
+type LsdServerInfo struct {
+	ServerInfo     `yaml:",inline"`
+	LicenseLinkUrl string `yaml:"license_link_url,omitempty"`
 }
 
 type FrontendServerInfo struct {

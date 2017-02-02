@@ -130,6 +130,43 @@ func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+//GetPurchaseLicenseFromLicenseUUID() finds the purchase ID from a given license UUID (passed in URL),
+//and performs the same as GetPurchaseLicense(), returning "license.lcpl" filename
+//(as this API is meant to be accessed from the LSD JSON license link)
+func GetPurchaseLicenseFromLicenseUUID(w http.ResponseWriter, r *http.Request, s IServer) {
+
+	vars := mux.Vars(r)
+	var purchase webpurchase.Purchase
+	var err error
+
+	if purchase, err = s.PurchaseAPI().GetByLicenseID(vars["licenseID"]); err != nil {
+		switch err {
+		case webpurchase.ErrNotFound:
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+		default:
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		}
+	}
+
+	fullLicense, err := s.PurchaseAPI().GetLicense(purchase.ID)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	//attachmentName := slugify.Slugify(purchase.Publication.Title)
+	w.Header().Set("Content-Type", api.ContentType_LCP_JSON)
+	w.Header().Set("Content-Disposition", "attachment; filename=\"license.lcpl\"")
+
+	enc := json.NewEncoder(w)
+	err = enc.Encode(fullLicense)
+
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+}
+
 //GetPurchaseLicense contacts LCP server and asks a license for the purchase using the partial license and resourceID
 func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
