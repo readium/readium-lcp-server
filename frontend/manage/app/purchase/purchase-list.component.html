@@ -33,7 +33,7 @@
       <td>{{purchase.type}}</td>
       <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.startDate)}}</span></td>
       <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.endDate)}}</span></td>
-      <td><span class="badge badge-{{buildLicenseDeliveredClass(purchase.licenseUuid)}}">{{(purchase.licenseUuid != null)}}</span></td>
+      <td><span class="badge badge-{{buildLicenseDeliveredClass(purchase.licenseUuid)}}">{{purchase.licenseUuid != null}}</span></td>
       <td><span class="badge badge-{{buildStatusClass(purchase.status)}}">{{purchase.status}}</span></td>
       <td>
         <div *ngIf="purchase.status == 'ok'">
@@ -42,6 +42,11 @@
             class="btn btn-secondary btn-sm">
             <i class="fa fa-download" aria-hidden="true"></i> LCPL
           </button>
+          <a href="{{buildLsdDownloadUrl(purchase)}}"
+            role="button"
+            class="btn btn-secondary btn-sm">
+            <i class="fa fa-download" aria-hidden="true"></i> LSD
+          </a>
           <a *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
             [routerLink]="['/purchases', purchase.id, 'renew']"
             class="btn btn-secondary btn-sm" role="button">

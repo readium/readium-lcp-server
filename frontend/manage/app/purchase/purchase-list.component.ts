@@ -32,8 +32,12 @@ export class PurchaseListComponent implements OnInit {
         );
     }
 
-    buildLcplDownloadUrl(id: number): string {
-        return Config.frontend.url + '/api/v1/purchases/' + id + '/license';
+    buildLsdDownloadUrl(purchase: Purchase): string {
+        return Config.lsd.url + '/licenses/' + purchase.licenseUuid + '/status';
+    }
+
+    buildLcplDownloadUrl(purchase: Purchase): string {
+        return Config.frontend.url + '/api/v1/purchases/' + purchase.id + '/license';
     }
 
     buildLicenseDeliveredClass(licenseUuid: string) {
@@ -78,7 +82,7 @@ export class PurchaseListComponent implements OnInit {
                 downloadSubscriber.unsubscribe();
             }
         );
-        document.location.href = this.buildLcplDownloadUrl(purchase.id);
+        document.location.href = this.buildLcplDownloadUrl(purchase);
 
         /*this.purchaseService.getLicense(String(purchase.id)).then(
             license => {
