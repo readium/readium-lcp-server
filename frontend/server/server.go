@@ -99,19 +99,11 @@ func New(
 	s.handleFunc(sr.R, "/api/v1/purchases", staticapi.GetPurchases).Methods("GET")
 	s.handleFunc(sr.R, "/api/v1/purchases", staticapi.CreatePurchase).Methods("POST")
 	s.handleFunc(sr.R, "/api/v1/purchases/{id}", staticapi.GetPurchase).Methods("GET")
-	s.handleFunc(sr.R, "/api/v1/purchases/{id}/license", staticapi.GetPurchaseLicense).Methods("GET")
 	s.handleFunc(sr.R, "/api/v1/purchases/{id}", staticapi.UpdatePurchase).Methods("PUT")
-	//s.handleFunc(sr.R, "/api/v1/purchases/{id}", staticapi.DeletePurchase).Methods("DELETE")
+	s.handleFunc(sr.R, "/api/v1/purchases/{id}/license", staticapi.GetPurchaseLicense).Methods("GET")
 
-	// update purchase
+	// List user purchases
 	s.handleFunc(sr.R, "/api/v1/users/{user_id}/purchases", staticapi.GetUserPurchases).Methods("GET")
-
-	// license update
-	s.handleFunc(sr.R, "/api/v1/licenses/{license_id}", staticapi.RenewLicenseByLicenseID).Methods("GET")                        // get license by licenseID
-	s.handleFunc(sr.R, "/api/v1/licenses/{license_id}/publication", staticapi.RenewLicensePublicationByLicenseID).Methods("GET") // get publication by licenseID
-	// resources
-	//s.handleFunc(sr.R, "/api/v1/contents/{content_id}", staticapi.GetLcpResource).Methods("GET") // proxy get resource from lcp server
-
 	return s
 }
 
