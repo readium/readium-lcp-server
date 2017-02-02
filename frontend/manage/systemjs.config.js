@@ -26,6 +26,7 @@
       // other libraries
       'rxjs':                      'npm:rxjs',
       'angular-in-memory-web-api': 'npm:angular-in-memory-web-api/bundles/in-memory-web-api.umd.js',
+      'ng2-slugify': 'npm:ng2-slugify',
       'jssha': 'npm:jssha/src',
       'ng2-datetime-picker': 'npm:ng2-datetime-picker/dist',
       'moment': 'node_modules/moment',
@@ -56,6 +57,10 @@
       },
       'file-saver': {
         main: './FileSaver.js',
+        defaultExtension: 'js'
+      },
+      'ng2-slugify': {
+        main: './ng2-slugify.js',
         defaultExtension: 'js'
       }
     }
