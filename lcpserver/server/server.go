@@ -91,13 +91,14 @@ func New(bindAddr string, static string, readonly bool, idx *index.Index, st *st
 		source:   pack.ManualSource{},
 	}
 
-	contentRoutes := sr.R.PathPrefix("/contents").Subrouter().StrictSlash(false)
+	// Route.PathPrefix: http://www.gorillatoolkit.org/pkg/mux#Route.PathPrefix
+	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
+	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
 
-	// note that "/contents" would 301-redirect to "/contents/" if StrictSlash(true)
-	// note that "/contents/KEY/" would 301-redirect to "/contents/KEY" if StrictSlash(true)
+	contentRoutesPathPrefix := "/contents"
+	contentRoutes := sr.R.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.handleFunc(sr.R, "/contents", apilcp.ListContents).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
-	s.handleFunc(contentRoutes, "/", apilcp.ListContents).Methods("GET")
+	s.handleFunc(sr.R, contentRoutesPathPrefix, apilcp.ListContents).Methods("GET")
 
 	s.handleFunc(contentRoutes, "/{key}", apilcp.GetContent).Methods("GET")
 	s.handlePrivateFunc(contentRoutes, "/{key}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")
@@ -109,10 +110,10 @@ func New(bindAddr string, static string, readonly bool, idx *index.Index, st *st
 		s.handlePrivateFunc(contentRoutes, "/{content_id}/publication", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 	}
 
-	licenseRoutes := sr.R.PathPrefix("/licenses").Subrouter().StrictSlash(false)
+	licenseRoutesPathPrefix := "/licenses"
+	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.handlePrivateFunc(sr.R, "/licenses", apilcp.ListLicenses, basicAuth).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
-	s.handlePrivateFunc(licenseRoutes, "/", apilcp.ListLicenses, basicAuth).Methods("GET")
+	s.handlePrivateFunc(sr.R, licenseRoutesPathPrefix, apilcp.ListLicenses, basicAuth).Methods("GET")
 
 	s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.GetLicense, basicAuth).Methods("GET")
 	s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.GetLicense, basicAuth).Methods("POST")

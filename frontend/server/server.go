@@ -78,32 +78,65 @@ func New(
 		users:        userAPI,
 		purchases:    purchaseAPI}
 
+	// Route.PathPrefix: http://www.gorillatoolkit.org/pkg/mux#Route.PathPrefix
+	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
+	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
+
+	apiURLPrefix := "/api/v1"
+
+	//
 	// repositories
-	s.handleFunc(sr.R, "/api/v1/repositories/master-files", staticapi.GetRepositoryMasterFiles).Methods("GET")
+	//
+	repositoriesRoutesPathPrefix := apiURLPrefix + "/repositories"
+	repositoriesRoutes := sr.R.PathPrefix(repositoriesRoutesPathPrefix).Subrouter().StrictSlash(false)
+	//
+	s.handleFunc(repositoriesRoutes, "/master-files", staticapi.GetRepositoryMasterFiles).Methods("GET")
 
+	//
 	// publications
-	s.handleFunc(sr.R, "/api/v1/publications", staticapi.GetPublications).Methods("GET")
-	s.handleFunc(sr.R, "/api/v1/publications", staticapi.CreatePublication).Methods("POST")
-	s.handleFunc(sr.R, "/api/v1/publications/{id}", staticapi.GetPublication).Methods("GET")
-	s.handleFunc(sr.R, "/api/v1/publications/{id}", staticapi.UpdatePublication).Methods("PUT")
-	s.handleFunc(sr.R, "/api/v1/publications/{id}", staticapi.DeletePublication).Methods("DELETE")
+	//
+	publicationsRoutesPathPrefix := apiURLPrefix + "/publications"
+	publicationsRoutes := sr.R.PathPrefix(publicationsRoutesPathPrefix).Subrouter().StrictSlash(false)
+	//
+	s.handleFunc(sr.R, publicationsRoutesPathPrefix, staticapi.GetPublications).Methods("GET")
+	//
+	s.handleFunc(sr.R, publicationsRoutesPathPrefix, staticapi.CreatePublication).Methods("POST")
+	//
+	s.handleFunc(publicationsRoutes, "/{id}", staticapi.GetPublication).Methods("GET")
+	s.handleFunc(publicationsRoutes, "/{id}", staticapi.UpdatePublication).Methods("PUT")
+	s.handleFunc(publicationsRoutes, "/{id}", staticapi.DeletePublication).Methods("DELETE")
 
+	//
 	// user functions
-	s.handleFunc(sr.R, "/api/v1/users", staticapi.GetUsers).Methods("GET")
-	s.handleFunc(sr.R, "/api/v1/users", staticapi.CreateUser).Methods("POST")
-	s.handleFunc(sr.R, "/api/v1/users/{id}", staticapi.GetUser).Methods("GET")
-	s.handleFunc(sr.R, "/api/v1/users/{id}", staticapi.UpdateUser).Methods("PUT")
-	s.handleFunc(sr.R, "/api/v1/users/{id}", staticapi.DeleteUser).Methods("DELETE")
+	//
+	usersRoutesPathPrefix := apiURLPrefix + "/users"
+	usersRoutes := sr.R.PathPrefix(usersRoutesPathPrefix).Subrouter().StrictSlash(false)
+	//
+	s.handleFunc(sr.R, usersRoutesPathPrefix, staticapi.GetUsers).Methods("GET")
+	//
+	s.handleFunc(sr.R, usersRoutesPathPrefix, staticapi.CreateUser).Methods("POST")
+	//
+	s.handleFunc(usersRoutes, "/{id}", staticapi.GetUser).Methods("GET")
+	s.handleFunc(usersRoutes, "/{id}", staticapi.UpdateUser).Methods("PUT")
+	s.handleFunc(usersRoutes, "/{id}", staticapi.DeleteUser).Methods("DELETE")
+	//
+	s.handleFunc(usersRoutes, "/{user_id}/purchases", staticapi.GetUserPurchases).Methods("GET")
 
+	//
 	// purchases
-	s.handleFunc(sr.R, "/api/v1/purchases", staticapi.GetPurchases).Methods("GET")
-	s.handleFunc(sr.R, "/api/v1/purchases", staticapi.CreatePurchase).Methods("POST")
-	s.handleFunc(sr.R, "/api/v1/purchases/{id}", staticapi.GetPurchase).Methods("GET")
-	s.handleFunc(sr.R, "/api/v1/purchases/{id}", staticapi.UpdatePurchase).Methods("PUT")
-	s.handleFunc(sr.R, "/api/v1/purchases/{id}/license", staticapi.GetPurchaseLicense).Methods("GET")
+	//
+	purchasesRoutesPathPrefix := apiURLPrefix + "/purchases"
+	purchasesRoutes := sr.R.PathPrefix(purchasesRoutesPathPrefix).Subrouter().StrictSlash(false)
+	//
+	s.handleFunc(sr.R, purchasesRoutesPathPrefix, staticapi.GetPurchases).Methods("GET")
+	//
+	s.handleFunc(sr.R, purchasesRoutesPathPrefix, staticapi.CreatePurchase).Methods("POST")
+	//
+	s.handleFunc(purchasesRoutes, "/{id}", staticapi.GetPurchase).Methods("GET")
+	s.handleFunc(purchasesRoutes, "/{id}", staticapi.UpdatePurchase).Methods("PUT")
+	//
+	s.handleFunc(purchasesRoutes, "/{id}/license", staticapi.GetPurchaseLicense).Methods("GET")
 
-	// List user purchases
-	s.handleFunc(sr.R, "/api/v1/users/{user_id}/purchases", staticapi.GetUserPurchases).Methods("GET")
 	return s
 }
 
