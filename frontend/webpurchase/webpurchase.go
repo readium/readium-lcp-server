@@ -372,12 +372,19 @@ func (pManager purchaseManager) Add(p Purchase) error {
 }
 
 func (pManager purchaseManager) Update(p Purchase) error {
+	// Get original purchase
+	origPurchase, err := pManager.Get(p.ID)
+
+	if err != nil {
+		return ErrNotFound
+	}
+
+	if origPurchase.Status != StatusOk {
+		return errors.New("Cannot update an invalid purchase")
+	}
+
 	if p.Status == StatusToBeRenewed ||
 		p.Status == StatusToBeReturned {
-
-		if p.Status != StatusOk {
-			return errors.New("Cannot update an invalid purchase")
-		}
 
 		if p.LicenseUUID == nil {
 			return errors.New("Cannot return or renew a purchase when no license has been delivered")
