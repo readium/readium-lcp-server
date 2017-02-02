@@ -372,13 +372,63 @@ func (pManager purchaseManager) Add(p Purchase) error {
 }
 
 func (pManager purchaseManager) Update(p Purchase) error {
+	if p.Status == StatusToBeRenewed ||
+		p.Status == StatusToBeReturned {
+
+		if p.Status != StatusOk {
+			return errors.New("Cannot update an invalid purchase")
+		}
+
+		if p.LicenseUUID == nil {
+			return errors.New("Cannot return or renew a purchase when no license has been delivered")
+		}
+
+		lsdServerConfig := pManager.config.LsdServer
+		lsdURL := lsdServerConfig.PublicBaseUrl + "/licenses/" + *p.LicenseUUID
+
+		if p.Status == StatusToBeRenewed {
+			lsdURL += "/renew?end=" + p.EndDate.Format(time.RFC3339)
+
+			// Next status if LSD raises no error
+			p.Status = StatusOk
+		} else if p.Status == StatusToBeReturned {
+			lsdURL += "/return"
+
+			// Next status if LSD raises no error
+			p.Status = StatusReturned
+		}
+
+		log.Println("PUT " + lsdURL)
+		req, err := http.NewRequest("PUT", lsdURL, nil)
+
+		lsdAuth := pManager.config.LsdNotifyAuth
+		if lsdAuth.Username != "" {
+			req.SetBasicAuth(lsdAuth.Username, lsdAuth.Password)
+		}
+
+		req.Header.Add("Content-Type", api.ContentType_JSON)
+
+		var lsdClient = &http.Client{
+			Timeout: time.Second * 5,
+		}
+
+		resp, err := lsdClient.Do(req)
+		if err != nil {
+			return err
+		}
+
+		defer resp.Body.Close()
+	} else {
+		p.Status = StatusOk
+	}
+
 	update, err := pManager.db.Prepare(`UPDATE purchase
-	SET license_uuid=?, start_date=?, end_date=? WHERE id=?`)
+	SET license_uuid=?, start_date=?, end_date=?, status=? WHERE id=?`)
 	if err != nil {
 		return err
 	}
 	defer update.Close()
-	result, err := update.Exec(p.LicenseUUID, p.StartDate, p.EndDate, p.ID)
+	result, err := update.Exec(p.LicenseUUID, p.StartDate, p.EndDate, p.Status, p.ID)
 	if changed, err := result.RowsAffected(); err == nil {
 		if changed != 1 {
 			return ErrNoChange
