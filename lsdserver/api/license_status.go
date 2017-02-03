@@ -638,18 +638,19 @@ func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatu
 	ls.LicenseRef = license.Id
 
 	registerAvailable := config.Config.LicenseStatus.Register
+
 	rentingDays := config.Config.LicenseStatus.RentingDays
+	if rentingDays == 0 {
+		rentingDays = 1 // default value, may be overridden by license.Rights.End, whichever is greater
+	}
+	end := license.Issued.Add(time.Hour * 24 * time.Duration(rentingDays))
+
+	if license.Rights.End != nil && license.Rights.End.After(end) {
+		end = license.Rights.End.Add(0)
+	}
 
 	ls.PotentialRights = new(licensestatuses.PotentialRights)
-	if license.Rights.End != nil {
-		end := license.Rights.End.Add(0)
-		ls.PotentialRights.End = &end
-	} else {
-		if rentingDays != 0 {
-			end := license.Issued.Add(time.Hour * 24 * time.Duration(rentingDays))
-			ls.PotentialRights.End = &end
-		}
-	}
+	ls.PotentialRights.End = &end
 
 	if registerAvailable {
 		ls.Status = status.STATUS_READY
