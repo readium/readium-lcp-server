@@ -755,35 +755,38 @@ func decodeJsonLicenseStatus(r *http.Request, ls *licensestatuses.LicenseStatus)
 
 //updateLicense updates license using LCP Server
 func updateLicense(timeEnd time.Time, licenseRef string) {
+
+	lcpBaseUrl := config.Config.LcpServer.PublicBaseUrl
+	if len(lcpBaseUrl) <= 0 {
+		return
+	}
+
 	l := license.License{Id: licenseRef, Rights: new(license.UserRights)}
 	l.Rights.End = &timeEnd
 
-	lcpBaseUrl := config.Config.LcpServer.PublicBaseUrl
-	if len(lcpBaseUrl) > 0 {
-		var lcpClient = &http.Client{
-			Timeout: time.Second * 10,
-		}
-		pr, pw := io.Pipe()
-		go func() {
-			_ = json.NewEncoder(pw).Encode(l)
-			pw.Close()
-		}()
-		req, err := http.NewRequest("PATCH", lcpBaseUrl+"/licenses/"+l.Id, pr)
+	var lcpClient = &http.Client{
+		Timeout: time.Second * 10,
+	}
+	pr, pw := io.Pipe()
+	go func() {
+		_ = json.NewEncoder(pw).Encode(l)
+		pw.Close()
+	}()
+	req, err := http.NewRequest("PATCH", lcpBaseUrl+"/licenses/"+l.Id, pr)
 
-		updateAuth := config.Config.LcpUpdateAuth
+	updateAuth := config.Config.LcpUpdateAuth
 
-		if updateAuth.Username != "" {
-			req.SetBasicAuth(updateAuth.Username, updateAuth.Password)
-		}
+	if updateAuth.Username != "" {
+		req.SetBasicAuth(updateAuth.Username, updateAuth.Password)
+	}
 
-		req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
-		response, err := lcpClient.Do(req)
-		if err != nil {
-			log.Println("Error Notify Lcp Server of License (" + l.Id + "):" + err.Error())
-		} else {
-			if response.StatusCode != http.StatusOK {
-				log.Println("Notify Lcp Server of License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
-			}
+	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
+	response, err := lcpClient.Do(req)
+	if err != nil {
+		log.Println("Error Notify Lcp Server of License (" + l.Id + "):" + err.Error())
+	} else {
+		if response.StatusCode != http.StatusOK {
+			log.Println("Notify Lcp Server of License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
 		}
 	}
 }
