@@ -639,18 +639,27 @@ func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatu
 
 	registerAvailable := config.Config.LicenseStatus.Register
 
-	rentingDays := config.Config.LicenseStatus.RentingDays
-	if rentingDays == 0 {
-		rentingDays = 1 // default value, may be overridden by license.Rights.End, whichever is greater
-	}
-	end := license.Issued.Add(time.Hour * 24 * time.Duration(rentingDays))
+	if license.Rights == nil || license.Rights.End == nil {
+		// The publication was purchased (not a loan), so we do not set LSD.PotentialRights.End
+	} else {
+		// license.Rights.End exists => this is a loan
+		endFromLicense := license.Rights.End.Add(0)
 
-	if license.Rights.End != nil && license.Rights.End.After(end) {
-		end = license.Rights.End.Add(0)
-	}
+		ls.PotentialRights = new(licensestatuses.PotentialRights)
 
-	ls.PotentialRights = new(licensestatuses.PotentialRights)
-	ls.PotentialRights.End = &end
+		rentingDays := config.Config.LicenseStatus.RentingDays
+		if rentingDays > 0 {
+			endFromConfig := license.Issued.Add(time.Hour * 24 * time.Duration(rentingDays))
+
+			if endFromLicense.After(endFromConfig) {
+				ls.PotentialRights.End = &endFromLicense
+			} else {
+				ls.PotentialRights.End = &endFromConfig
+			}
+		} else {
+			ls.PotentialRights.End = &endFromLicense
+		}
+	}
 
 	if registerAvailable {
 		ls.Status = status.STATUS_READY
