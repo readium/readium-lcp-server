@@ -41,6 +41,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
@@ -206,13 +207,54 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: "Different license IDs"}, http.StatusNotFound)
 		return
 	}
-	_, err = updateLicenseInDatabase(licenseID, lic, s)
+
+	// see lsdserver/api/license_status.go updateLicense()
+	// TODO: refactor the JSON data model for the PATCH param
+	// => we're using License.Rights.Start to carry LSD.PotentialRights.End (if loan, but empty if purchase cancelled/revoked)
+	// => we're using License.Rights.Copy (int32) to carry the suggested END extension: duration-after-existing-end (int64 time.Duration)
+	// => we're using License.Rights.End to carry the suggested END timestamp (time.Time)
+
+	if lic.Rights == nil ||
+		// straight forward absolute date (check for LSD.PotentialRights.End may be performed on caller's side, i.e. LSD server)
+		(lic.Rights.End != nil && !(*lic.Rights.End).IsZero()) ||
+		//LSD.PotentialRights.End and relative duration extension is not passed here for resolution
+		lic.Rights.Start == nil || (*lic.Rights.Start).IsZero() || lic.Rights.Copy == nil || *lic.Rights.Copy <= 0 {
+		_, err = updateLicenseInDatabase(licenseID, lic, s)
+	} else {
+
+		//LSD.PotentialRights.End and relative duration extension is passed here to resolve as absolute end
+		potentialRightEnd := *lic.Rights.Start
+		durationExtension := *lic.Rights.Copy
+
+		var ExistingLicense license.License
+		ExistingLicense, err = s.Licenses().Get(licenseID)
+		if err == nil {
+
+			var extendedEnd time.Time
+			if ExistingLicense.Rights != nil && ExistingLicense.Rights.End != nil && !(*ExistingLicense.Rights.End).IsZero() {
+				extendedEnd = (*ExistingLicense.Rights.End).Add(time.Duration(durationExtension))
+			} else {
+				extendedEnd = time.Now().Add(time.Duration(durationExtension))
+			}
+
+			if extendedEnd.After(potentialRightEnd) {
+				problem.Error(w, r, problem.Problem{Detail: "Cannot update License.Rights.End to date after max LSD.PotentialRights.End"}, http.StatusForbidden)
+				return
+			}
+
+			lic.Rights.Start = nil
+			lic.Rights.Copy = nil
+			_, err = updateLicenseInDatabase(licenseID, lic, s)
+		}
+	}
+
 	if err != nil {
 		if err == license.NotFound {
 			problem.Error(w, r, problem.Problem{Detail: license.NotFound.Error()}, http.StatusNotFound)
 		} else {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		}
+		return
 	}
 	// go on and GET license io to return the updated license
 	GetLicense(w, r, s)
