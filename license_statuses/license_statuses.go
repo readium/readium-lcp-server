@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package licensestatuses
 
@@ -52,26 +52,26 @@ type dbLicenseStatuses struct {
 	update         *sql.Stmt
 }
 
-//Get gets license status by id
-func (i dbLicenseStatuses) Get(id int) (LicenseStatus, error) {
-	var statusDB int64
+// //Get gets license status by id
+// func (i dbLicenseStatuses) Get(id int) (LicenseStatus, error) {
+// 	var statusDB int64
 
-	records, err := i.get.Query(id)
-	defer records.Close()
+// 	records, err := i.get.Query(id)
+// 	defer records.Close()
 
-	if records.Next() {
-		ls := LicenseStatus{}
-		err = records.Scan(&ls.Id, &statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
+// 	if records.Next() {
+// 		ls := LicenseStatus{}
+// 		err = records.Scan(&ls.Id, &statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
 
-		if err == nil {
-			status.GetStatus(statusDB, &ls.Status)
-		}
+// 		if err == nil {
+// 			status.GetStatus(statusDB, &ls.Status)
+// 		}
 
-		return ls, err
-	}
+// 		return ls, err
+// 	}
 
-	return LicenseStatus{}, NotFound
-}
+// 	return LicenseStatus{}, NotFound
+// }
 
 //Add adds license status to database
 func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
@@ -84,7 +84,11 @@ func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
 	statusDB, err := status.SetStatus(ls.Status)
 
 	if err == nil {
-		_, err = add.Exec(statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, ls.LicenseRef)
+		var end time.Time
+		if ls.PotentialRights != nil && ls.PotentialRights.End != nil && !(*ls.PotentialRights.End).IsZero() {
+			end = *ls.PotentialRights.End
+		}
+		_, err = add.Exec(statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, &end, ls.LicenseRef)
 	}
 
 	return err
@@ -162,7 +166,7 @@ func (i dbLicenseStatuses) Update(ls LicenseStatus) error {
 
 	var potentialRightsEnd *time.Time
 
-	if ls.PotentialRights != nil {
+	if ls.PotentialRights != nil && ls.PotentialRights.End != nil && !(*ls.PotentialRights.End).IsZero() {
 		potentialRightsEnd = ls.PotentialRights.End
 	}
 
