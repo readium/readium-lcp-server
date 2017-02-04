@@ -146,10 +146,10 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 // this function only updates the license in the database given a partial license input
-func updateLicenseInDatabase(liceseID string, partialLicense license.License, s Server) (license.License, error) {
+func updateLicenseInDatabase(licenseID string, partialLicense license.License, s Server) (license.License, error) {
 
 	var ExistingLicense license.License
-	ExistingLicense, err := s.Licenses().Get(liceseID)
+	ExistingLicense, err := s.Licenses().Get(licenseID)
 	if err != nil {
 		return ExistingLicense, err
 	}
