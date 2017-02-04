@@ -52,26 +52,26 @@ type dbLicenseStatuses struct {
 	update         *sql.Stmt
 }
 
-// //Get gets license status by id
-// func (i dbLicenseStatuses) Get(id int) (LicenseStatus, error) {
-// 	var statusDB int64
+//Get gets license status by id
+func (i dbLicenseStatuses) Get(id int) (LicenseStatus, error) {
+	var statusDB int64
 
-// 	records, err := i.get.Query(id)
-// 	defer records.Close()
+	records, err := i.get.Query(id)
+	defer records.Close()
 
-// 	if records.Next() {
-// 		ls := LicenseStatus{}
-// 		err = records.Scan(&ls.Id, &statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
+	if records.Next() {
+		ls := LicenseStatus{}
+		err = records.Scan(&ls.Id, &statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
 
-// 		if err == nil {
-// 			status.GetStatus(statusDB, &ls.Status)
-// 		}
+		if err == nil {
+			status.GetStatus(statusDB, &ls.Status)
+		}
 
-// 		return ls, err
-// 	}
+		return ls, err
+	}
 
-// 	return LicenseStatus{}, NotFound
-// }
+	return LicenseStatus{}, NotFound
+}
 
 //Add adds license status to database
 func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
