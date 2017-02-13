@@ -64,8 +64,9 @@ left join publication pu on (p.publication_id=pu.id)`
 //WebPurchase defines possible interactions with DB
 type WebPurchase interface {
 	Get(id int64) (Purchase, error)
-	GetLicense(id int64) (license.License, error)
-	GetLicenseStatusDocument(licenseUUID string) (licensestatuses.LicenseStatus, error)
+	GenerateLicense(purchase Purchase) (license.License, error)
+	GetPartialLicense(purchase Purchase) (license.License, error)
+	GetLicenseStatusDocument(purchase Purchase) (licensestatuses.LicenseStatus, error)
 	GetByLicenseID(licenseID string) (Purchase, error)
 	List(page int, pageNum int) func() (Purchase, error)
 	ListByUser(userID int64, page int, pageNum int) func() (Purchase, error)
@@ -181,7 +182,7 @@ func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 
 		if purchase.LicenseUUID != nil {
 			// Query LSD to retrieve max end date (PotentialRights.End)
-			statusDocument, err := pManager.GetLicenseStatusDocument(*purchase.LicenseUUID)
+			statusDocument, err := pManager.GetLicenseStatusDocument(purchase)
 
 			if err != nil {
 				return Purchase{}, err
@@ -196,14 +197,8 @@ func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 	return Purchase{}, ErrNotFound
 }
 
-// GetLicense
-func (pManager purchaseManager) GetLicense(purchaseID int64) (license.License, error) {
-	purchase, err := pManager.Get(purchaseID)
-
-	if err != nil {
-		return license.License{}, err
-	}
-
+// GenerateLicense
+func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.License, error) {
 	// Create LCP license
 	partialLicense := license.License{}
 
@@ -316,9 +311,62 @@ func (pManager purchaseManager) GetLicense(purchaseID int64) (license.License, e
 	return fullLicense, nil
 }
 
-func (pManager purchaseManager) GetLicenseStatusDocument(licenseUUID string) (licensestatuses.LicenseStatus, error) {
+// GetPartialLicense
+func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.License, error) {
+	if purchase.LicenseUUID == nil {
+		return license.License{}, errors.New("No license has been yet delivered")
+	}
+
+	// Post partial license to LCP
+	lcpServerConfig := pManager.config.LcpServer
+	lcpURL := lcpServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID
+	log.Println("GET " + lcpURL)
+
+	req, err := http.NewRequest("GET", lcpURL, nil)
+
+	lcpUpdateAuth := pManager.config.LcpUpdateAuth
+	if pManager.config.LcpUpdateAuth.Username != "" {
+		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
+	}
+
+	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
+
+	var lcpClient = &http.Client{
+		Timeout: time.Second * 5,
+	}
+
+	resp, err := lcpClient.Do(req)
+	if err != nil {
+		return license.License{}, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 206 {
+		// Bad status code
+		return license.License{}, errors.New("Bad status code")
+	}
+
+	// Decode full license
+	partialLicense := license.License{}
+	var dec *json.Decoder
+	dec = json.NewDecoder(resp.Body)
+	err = dec.Decode(&partialLicense)
+
+	if err != nil {
+		return license.License{}, errors.New("Unable to decode license")
+	}
+
+	return partialLicense, nil
+}
+
+func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (licensestatuses.LicenseStatus, error) {
+	if purchase.LicenseUUID == nil {
+		return licensestatuses.LicenseStatus{}, errors.New("No license has been yet delivered")
+	}
+
 	lsdServerConfig := pManager.config.LsdServer
-	lsdURL := lsdServerConfig.PublicBaseUrl + "/licenses/" + licenseUUID + "/status"
+	lsdURL := lsdServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID + "/status"
 	log.Println("GET " + lsdURL)
 	req, err := http.NewRequest("GET", lsdURL, nil)
 
@@ -451,7 +499,11 @@ func (pManager purchaseManager) Update(p Purchase) error {
 		lsdURL := lsdServerConfig.PublicBaseUrl + "/licenses/" + *p.LicenseUUID
 
 		if p.Status == StatusToBeRenewed {
-			lsdURL += "/renew?end=" + p.EndDate.Format(time.RFC3339)
+			lsdURL += "/renew"
+
+			if p.EndDate != nil {
+				lsdURL += "?end=" + p.EndDate.Format(time.RFC3339)
+			}
 
 			// Next status if LSD raises no error
 			p.Status = StatusOk
@@ -481,7 +533,18 @@ func (pManager purchaseManager) Update(p Purchase) error {
 			return err
 		}
 
+		// FIXME: Check status code
+
 		defer resp.Body.Close()
+
+		// Get new end date from LCP server
+		license, err := pManager.GetPartialLicense(origPurchase)
+
+		if err != nil {
+			return err
+		}
+
+		p.EndDate = license.Rights.End
 	} else {
 		p.Status = StatusOk
 	}
