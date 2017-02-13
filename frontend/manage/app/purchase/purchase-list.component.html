@@ -42,7 +42,8 @@
             class="btn btn-secondary btn-sm">
             <i class="fa fa-download" aria-hidden="true"></i> LCPL
           </button>
-          <a href="{{buildLsdDownloadUrl(purchase)}}"
+          <a *ngIf="purchase.licenseUuid != null"
+            href="{{buildLsdDownloadUrl(purchase)}}"
             role="button"
             class="btn btn-secondary btn-sm">
             <i class="fa fa-download" aria-hidden="true"></i> LSD
