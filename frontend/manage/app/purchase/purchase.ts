@@ -13,4 +13,5 @@ export class Purchase implements CrudItem {
     startDate?:         string;
     licenseUuid?:       string | null;
     status?:            string;
+    maxEndDate?:        string;
 }

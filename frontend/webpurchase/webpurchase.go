@@ -40,6 +40,7 @@ import (
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webuser"
 	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/license_statuses"
 	"github.com/satori/go.uuid"
 )
 
@@ -64,6 +65,7 @@ left join publication pu on (p.publication_id=pu.id)`
 type WebPurchase interface {
 	Get(id int64) (Purchase, error)
 	GetLicense(id int64) (license.License, error)
+	GetLicenseStatusDocument(licenseUUID string) (licensestatuses.LicenseStatus, error)
 	GetByLicenseID(licenseID string) (Purchase, error)
 	List(page int, pageNum int) func() (Purchase, error)
 	ListByUser(userID int64, page int, pageNum int) func() (Purchase, error)
@@ -99,6 +101,7 @@ type Purchase struct {
 	StartDate       *time.Time                 `json:"startDate, omitempty"`
 	EndDate         *time.Time                 `json:"endDate, omitempty"`
 	Status          string                     `json:"status"`
+	MaxEndDate      *time.Time                 `json:"maxEndDate, omitempty"`
 }
 
 type purchaseManager struct {
@@ -170,7 +173,24 @@ func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 	defer records.Close()
 
 	if records.Next() {
-		return convertRecordToPurchase(records)
+		purchase, err := convertRecordToPurchase(records)
+
+		if err != nil {
+			return Purchase{}, err
+		}
+
+		if purchase.LicenseUUID != nil {
+			// Query LSD to retrieve max end date (PotentialRights.End)
+			statusDocument, err := pManager.GetLicenseStatusDocument(*purchase.LicenseUUID)
+
+			if err != nil {
+				return Purchase{}, err
+			}
+
+			purchase.MaxEndDate = statusDocument.PotentialRights.End
+		}
+
+		return purchase, nil
 	}
 
 	return Purchase{}, ErrNotFound
@@ -294,6 +314,43 @@ func (pManager purchaseManager) GetLicense(purchaseID int64) (license.License, e
 	}
 
 	return fullLicense, nil
+}
+
+func (pManager purchaseManager) GetLicenseStatusDocument(licenseUUID string) (licensestatuses.LicenseStatus, error) {
+	lsdServerConfig := pManager.config.LsdServer
+	lsdURL := lsdServerConfig.PublicBaseUrl + "/licenses/" + licenseUUID + "/status"
+	log.Println("GET " + lsdURL)
+	req, err := http.NewRequest("GET", lsdURL, nil)
+
+	lsdAuth := pManager.config.LsdNotifyAuth
+	if lsdAuth.Username != "" {
+		req.SetBasicAuth(lsdAuth.Username, lsdAuth.Password)
+	}
+
+	req.Header.Add("Content-Type", api.ContentType_JSON)
+
+	var lsdClient = &http.Client{
+		Timeout: time.Second * 5,
+	}
+
+	resp, err := lsdClient.Do(req)
+	if err != nil {
+		return licensestatuses.LicenseStatus{}, err
+	}
+
+	// Decode status document
+	statusDocument := licensestatuses.LicenseStatus{}
+	var dec *json.Decoder
+	dec = json.NewDecoder(resp.Body)
+	err = dec.Decode(&statusDocument)
+
+	if err != nil {
+		return licensestatuses.LicenseStatus{}, err
+	}
+
+	defer resp.Body.Close()
+
+	return statusDocument, nil
 }
 
 func (pManager purchaseManager) GetByLicenseID(licenseID string) (Purchase, error) {
