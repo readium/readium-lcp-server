@@ -30,20 +30,39 @@
     <div class="form-check">
       <label class="form-check-label">
         <input type="radio" class="form-check-input" checked="form.value['type'] == 'LOAN'"
-          name="optionsRadios" value="LOAN" [formControl]="form.controls['type']">
+          value="LOAN" [formControl]="form.controls['type']">
         Loan
       </label>
     </div>
     <div class="form-check">
     <label class="form-check-label">
         <input type="radio" class="form-check-input"
-          name="optionsRadios" value="BUY" [formControl]="form.controls['type']" >
+          value="BUY" [formControl]="form.controls['type']" >
         Buy
       </label>
     </div>
   </div>
 
-  <div class="form-group" *ngIf="edit || form.value['type'] == 'LOAN'">
+  <div *ngIf="edit" class="form-group">
+    <label>Type of renew</label>
+    <div class="form-check">
+      <label class="form-check-label">
+        <input type="radio" class="form-check-input" checked="form.value['renew_type'] == 'NO_END_DATE'"
+          value="NO_END_DATE" [formControl]="form.controls['renew_type']">
+        Renew
+      </label>
+    </div>
+    <div class="form-check">
+    <label class="form-check-label">
+        <input type="radio" class="form-check-input" checked="form.value['renew_type'] == 'END_DATE'"
+          value="END_DATE" [formControl]="form.controls['renew_type']" >
+        Renew by setting an end date
+      </label>
+    </div>
+  </div>
+
+
+  <div class="form-group" *ngIf="(edit && form.value['renew_type'] == 'END_DATE') || form.value['type'] == 'LOAN'">
     <label for="enddate">End Date</label>
     <input class="form-control"
       formControlName="end_date"

@@ -78,9 +78,8 @@ export class PurchaseFormComponent implements OnInit{
             this.edit = true;
             this.submitButtonLabel = "Save";
             this.form = this.fb.group({
-                "end_date": [
-                    moment(this.purchase.endDate).format('YYYY-MM-DD HH:mm'),
-                    Validators.required]
+                "renew_type": ["NO_END_DATE", Validators.required],
+                "end_date": moment(this.purchase.endDate).format('YYYY-MM-DD HH:mm')
             });
         }
     }
@@ -133,6 +132,12 @@ export class PurchaseFormComponent implements OnInit{
 
         if (this.form.value['end_date'].trim().length > 0) {
             this.purchase.endDate = moment(this.form.value['end_date']).format();
+        }
+
+        if (this.edit && this.form.value['renew_type'] == 'NO_END_DATE') {
+            // Set end date to null
+            // End date will be processed by LSD
+            this.purchase.endDate = null;
         }
     }
 }
