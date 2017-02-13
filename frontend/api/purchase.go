@@ -148,7 +148,7 @@ func GetPurchaseLicenseFromLicenseUUID(w http.ResponseWriter, r *http.Request, s
 		}
 	}
 
-	fullLicense, err := s.PurchaseAPI().GetLicense(purchase.ID)
+	fullLicense, err := s.PurchaseAPI().GenerateLicense(purchase)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -184,7 +184,7 @@ func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 		return
 	}
 
-	fullLicense, err := s.PurchaseAPI().GetLicense(int64(id))
+	fullLicense, err := s.PurchaseAPI().GenerateLicense(purchase)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -285,19 +285,17 @@ func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 	}
 
-	// user ok, id is a number, search purchase to update
-	if _, err := s.PurchaseAPI().Get(int64(id)); err == nil {
-		// purchase found
-		if err := s.PurchaseAPI().Update(webpurchase.Purchase{
-			ID:          int64(id),
-			LicenseUUID: newPurchase.LicenseUUID,
-			StartDate:   newPurchase.StartDate,
-			EndDate:     newPurchase.EndDate,
-			Status:      newPurchase.Status}); err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		}
-		w.WriteHeader(http.StatusOK)
-	} else {
+	// purchase found
+	if err := s.PurchaseAPI().Update(webpurchase.Purchase{
+		ID:          int64(id),
+		LicenseUUID: newPurchase.LicenseUUID,
+		StartDate:   newPurchase.StartDate,
+		EndDate:     newPurchase.EndDate,
+		Status:      newPurchase.Status}); err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+	}
+
+	if err != nil {
 		switch err {
 		case webpurchase.ErrNotFound:
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
@@ -305,4 +303,6 @@ func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
