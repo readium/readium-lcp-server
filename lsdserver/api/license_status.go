@@ -641,10 +641,11 @@ func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatu
 
 	if license.Rights == nil || license.Rights.End == nil {
 		// The publication was purchased (not a loan), so we do not set LSD.PotentialRights.End
+		ls.CurrentEndLicense = nil
 	} else {
 		// license.Rights.End exists => this is a loan
 		endFromLicense := license.Rights.End.Add(0)
-
+		ls.CurrentEndLicense = &endFromLicense
 		ls.PotentialRights = new(licensestatuses.PotentialRights)
 
 		rentingDays := config.Config.LicenseStatus.RentingDays

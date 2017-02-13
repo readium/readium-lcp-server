@@ -47,6 +47,7 @@ type Store interface {
 	ListAll(page int, pageNum int) func() (LicenseReport, error)
 	UpdateRights(l License) error
 	Update(l License) error
+	UpdateLsdStatus(id string, status int32) error
 	Add(l License) error
 	Get(id string) (License, error)
 }
@@ -55,8 +56,10 @@ type sqlStore struct {
 	db *sql.DB
 }
 
-func notifyLsdServer(l License) {
-	if config.Config.LsdServer.PublicBaseUrl != "" { //notifyLsdServer of new License
+// notifyLsdServer informs LSD server of a new License
+// and saves the result of the http request in the DB (using the *Store)
+func notifyLsdServer(l License, s Store) {
+	if config.Config.LsdServer.PublicBaseUrl != "" {
 		var lsdClient = &http.Client{
 			Timeout: time.Second * 10,
 		}
@@ -70,7 +73,6 @@ func notifyLsdServer(l License) {
 
 		// Set credentials on lsd request
 		notifyAuth := config.Config.LsdNotifyAuth
-
 		if notifyAuth.Username != "" {
 			req.SetBasicAuth(notifyAuth.Username, notifyAuth.Password)
 		}
@@ -80,8 +82,10 @@ func notifyLsdServer(l License) {
 		response, err := lsdClient.Do(req)
 		if err != nil {
 			log.Println("Error Notify LsdServer of new License (" + l.Id + "):" + err.Error())
+			_ = s.UpdateLsdStatus(l.Id, -1)
 		} else {
 			defer req.Body.Close()
+			_ = s.UpdateLsdStatus(l.Id, int32(response.StatusCode))
 			if response.StatusCode != 201 { //bad request or server error
 				log.Println("Notify LsdServer of new License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
 			}
@@ -159,12 +163,14 @@ func (s *sqlStore) UpdateRights(l License) error {
 	return err
 }
 func (s *sqlStore) Add(l License) error {
-	go notifyLsdServer(l)
-	_, err := s.db.Exec("INSERT INTO license VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+	_, err := s.db.Exec(`INSERT INTO license (id, user_id, provider, issued, updated,
+	rights_print, rights_copy, rights_start, rights_end,
+	user_key_hint, user_key_hash, user_key_algorithm, content_fk) 
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?,  ?, ?, ?, ?, ?)`,
 		l.Id, l.User.Id, l.Provider, l.Issued, nil, l.Rights.Print, l.Rights.Copy, l.Rights.Start,
 		l.Rights.End, l.Encryption.UserKey.Hint, l.Encryption.UserKey.Check,
 		l.Encryption.UserKey.Key.Algorithm, l.ContentId)
-
+	go notifyLsdServer(l, s)
 	return err
 }
 
@@ -177,6 +183,15 @@ func (s *sqlStore) Update(l License) error {
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End,
 		l.Encryption.UserKey.Hint, l.ContentId,
 		l.Id)
+
+	return err
+}
+
+func (s *sqlStore) UpdateLsdStatus(id string, status int32) error {
+	_, err := s.db.Exec(`UPDATE license SET lsd_status =?
+				WHERE id=?`, // user_key_hash=?, user_key_algorithm=?,
+		status,
+		id)
 
 	return err
 }
@@ -228,4 +243,5 @@ const tableDef = `CREATE TABLE IF NOT EXISTS license (
 	user_key_hint text NOT NULL,
 	user_key_hash varchar(64) NOT NULL,
 	user_key_algorithm varchar(255) NOT NULL,
-	content_fk varchar(255) NOT NULL)`
+	content_fk varchar(255) NOT NULL,
+	lsd_status integer default 0)`
