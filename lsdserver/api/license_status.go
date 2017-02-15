@@ -777,8 +777,11 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 	lcpBaseUrl := config.Config.LcpServer.PublicBaseUrl
 	//frontendBaseUrl := config.Config.FrontendServer.PublicBaseUrl
 	registerAvailable := config.Config.LicenseStatus.Register
-	returnAvailable := config.Config.LicenseStatus.Return
-	renewAvailable := config.Config.LicenseStatus.Renew
+
+	licenseHasRightsEnd := ls.CurrentEndLicense != nil && !(*ls.CurrentEndLicense).IsZero()
+	returnAvailable := config.Config.LicenseStatus.Return && licenseHasRightsEnd
+	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd
+
 	links := new([]licensestatuses.Link)
 
 	if licenseLinkUrl != "" {
