@@ -70,7 +70,7 @@ export class PurchaseFormComponent implements OnInit{
             this.form = this.fb.group({
                 "publication": ["", Validators.required],
                 "user": ["", Validators.required],
-                "end_date": "", //["", Validators.required],
+                "end_date": ["", Validators.required],
                 "type": ["LOAN", Validators.required]
             });
             
@@ -94,7 +94,7 @@ export class PurchaseFormComponent implements OnInit{
             this.submitButtonLabel = "Save";
             this.form = this.fb.group({
                 "renew_type": ["NO_END_DATE", Validators.required],
-                "end_date": [dateTime, Validators.required]
+                "end_date": dateTime //[dateTime, Validators.required]
             });
 
             this.form.get('renew_type').valueChanges.subscribe(
