@@ -300,11 +300,7 @@ func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 		StartDate:   newPurchase.StartDate,
 		EndDate:     newPurchase.EndDate,
 		Status:      newPurchase.Status}); err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
-	}
 
-	if err != nil {
 		switch err {
 		case webpurchase.ErrNotFound:
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
