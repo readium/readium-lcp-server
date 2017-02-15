@@ -188,7 +188,9 @@ func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 				return Purchase{}, err
 			}
 
-			purchase.MaxEndDate = statusDocument.PotentialRights.End
+			if statusDocument.PotentialRights != nil && statusDocument.PotentialRights.End != nil && !(*statusDocument.PotentialRights.End).IsZero() {
+				purchase.MaxEndDate = statusDocument.PotentialRights.End
+			}
 		}
 
 		return purchase, nil
