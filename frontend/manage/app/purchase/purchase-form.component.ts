@@ -77,10 +77,14 @@ export class PurchaseFormComponent implements OnInit{
             this.form.get('type').valueChanges.subscribe(
                 value => {
                     if(value == "LOAN") {
+                        console.log("LOAN - REQUIRED");
                         this.form.get('end_date').setValidators(Validators.required);
                     } else {
+                        console.log("BUY - NOT REQUIRED");
                         this.form.get('end_date').clearValidators();
                     }
+                    this.form.updateValueAndValidity();
+                    this.form.get('end_date').updateValueAndValidity();
                 }
             );
 
