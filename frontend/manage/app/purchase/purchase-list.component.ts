@@ -73,7 +73,18 @@ export class PurchaseListComponent implements OnInit {
         );
     }
 
-    onDownload(purchase: Purchase): void {
+    onDownload_LSD(purchase: Purchase): void {
+
+        // The URL does not resolve to a content-disposition+filename like "ebook_title.lsd"
+        // If this were the case, most web browsers would normally just download the linked file.
+        // Instead, with some browsers the file is displayed (the current page context is overwritten)
+        let url = this.buildLsdDownloadUrl(purchase);
+        
+        //document.location.href = url;
+        window.open(url, "_blank");
+    }
+
+    onDownload_LCPL(purchase: Purchase): void {
         // Wait 5 seconds before refreshing purchases
         let downloadTimer = Observable.timer(5000);
         let downloadSubscriber = downloadTimer.subscribe(
@@ -82,7 +93,13 @@ export class PurchaseListComponent implements OnInit {
                 downloadSubscriber.unsubscribe();
             }
         );
-        document.location.href = this.buildLcplDownloadUrl(purchase);
+
+        // The URL resolves to a content-disposition+filename like "ebook_title.lcpl"
+        // Most web browsers should normally just download the linked file, not display it.
+        let url = this.buildLcplDownloadUrl(purchase);
+
+        //document.location.href = url;
+        window.open(url, "_blank");
 
         /*this.purchaseService.getLicense(String(purchase.id)).then(
             license => {

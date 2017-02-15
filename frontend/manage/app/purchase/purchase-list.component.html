@@ -37,17 +37,16 @@
       <td><span class="badge badge-{{buildStatusClass(purchase.status)}}">{{purchase.status}}</span></td>
       <td>
         <div *ngIf="purchase.status == 'ok'">
-          <button (click)="onDownload(purchase)"
+          <button (click)="onDownload_LCPL(purchase)"
             type="button" role="button"
             class="btn btn-secondary btn-sm">
             <i class="fa fa-download" aria-hidden="true"></i> LCPL
           </button>
-          <a *ngIf="purchase.licenseUuid != null"
-            href="{{buildLsdDownloadUrl(purchase)}}"
-            role="button"
+          <button *ngIf="purchase.licenseUuid != null" (click)="onDownload_LSD(purchase)"
+            type="button" role="button"
             class="btn btn-secondary btn-sm">
             <i class="fa fa-download" aria-hidden="true"></i> LSD
-          </a>
+          </button>
           <a *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
             [routerLink]="['/purchases', purchase.id, 'renew']"
             class="btn btn-secondary btn-sm" role="button">
