@@ -213,6 +213,7 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		} else {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		}
+		return
 	}
 	// go on and GET license io to return the updated license
 	GetLicense(w, r, s)
@@ -327,6 +328,7 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 			} else {
 				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			}
+			return
 		}
 		newLicense.User = partialLicense.User //pass user information in updated license
 		newLicense.Encryption.UserKey.Value = partialLicense.Encryption.UserKey.Value

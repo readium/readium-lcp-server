@@ -15,10 +15,11 @@ var results = map[string]string{
 }
 
 const (
-	LICENSE_STATUS  = "status"
-	REGISTER_DEVICE = "register"
-	RENEW_LICENSE   = "renew"
-	RETURN_LICENSE  = "return"
+	LICENSE_STATUS        = "status"
+	REGISTER_DEVICE       = "register"
+	RENEW_LICENSE         = "renew"
+	RETURN_LICENSE        = "return"
+	CANCEL_REVOKE_LICENSE = "cancel_revoke"
 )
 
 func AddLogToFile(w http.ResponseWriter, r *http.Request, s Server) {
@@ -44,6 +45,7 @@ func AddLogToFile(w http.ResponseWriter, r *http.Request, s Server) {
 	} else {
 		if testResult != "e" && testResult != "s" {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "You must type the result of compliance test"}, http.StatusBadRequest)
+			return
 		} else {
 			testResult = results[testResult]
 			writeLogToFile(testStage, testResult)

@@ -159,10 +159,12 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
 		problem.Error(w, r, problem.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
+		return
 	}
 	//ID is a number, check user (json)
 	if user, err = DecodeJSONUser(r); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
 	}
 	// user ok, id is a number, search user to update
 	if _, err := s.UserAPI().Get(int64(id)); err != nil {
@@ -177,6 +179,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 		if err := s.UserAPI().Update(webuser.User{ID: int64(id), Name: user.Name, Email: user.Email, Password: user.Password}); err != nil {
 			//update failed!
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			return
 		}
 		//database update ok
 		w.WriteHeader(http.StatusOK)
@@ -191,6 +194,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	uid, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
 	}
 	if err := s.UserAPI().DeleteUser(uid); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
