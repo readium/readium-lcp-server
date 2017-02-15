@@ -467,6 +467,12 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	if suggestedEnd.Before(time.Now()) {
+		problem.Error(w, r, problem.Problem{Detail: "attempt to renew with date before now"}, http.StatusForbidden)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusForbidden))
+		return
+	}
+
 	event := makeEvent(status.TYPE_RENEW, deviceName, deviceId, licenseStatus.Id)
 
 	err = s.Transactions().Add(*event, 3)

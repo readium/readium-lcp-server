@@ -96,6 +96,20 @@ export class PurchaseFormComponent implements OnInit{
                 "renew_type": ["NO_END_DATE", Validators.required],
                 "end_date": [dateTime, Validators.required]
             });
+
+            this.form.get('renew_type').valueChanges.subscribe(
+                value => {
+                    if(value == "NO_END_DATE") {
+                        console.log("NO_END_DATE - REQUIRED");
+                        this.form.get('end_date').clearValidators();
+                    } else {
+                        console.log("END_DATE - NOT REQUIRED");
+                        this.form.get('end_date').setValidators(Validators.required);
+                    }
+                    this.form.updateValueAndValidity();
+                    this.form.get('end_date').updateValueAndValidity();
+                }
+            );
         }
     }
 
