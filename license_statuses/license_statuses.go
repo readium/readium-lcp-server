@@ -75,7 +75,7 @@ type dbLicenseStatuses struct {
 
 //Add adds license status to database
 func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
-	add, err := i.db.Prepare("INSERT INTO license_status (status, license_updated, status_updated, device_count, potential_rights_end, license_ref) VALUES (?, ?, ?, ?, ?, ?)")
+	add, err := i.db.Prepare("INSERT INTO license_status (status, license_updated, status_updated, device_count, potential_rights_end, license_ref,  rights_end) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
 		if ls.PotentialRights != nil && ls.PotentialRights.End != nil && !(*ls.PotentialRights.End).IsZero() {
 			end = *ls.PotentialRights.End
 		}
-		_, err = add.Exec(statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, &end, ls.LicenseRef)
+		_, err = add.Exec(statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, &end, ls.LicenseRef, ls.CurrentEndLicense)
 	}
 
 	return err
@@ -131,7 +131,7 @@ func (i dbLicenseStatuses) GetByLicenseId(licenseFk string) (*LicenseStatus, err
 	var statusUpdate *time.Time
 
 	row := i.getbylicenseid.QueryRow(licenseFk)
-	err := row.Scan(&ls.Id, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef)
+	err := row.Scan(&ls.Id, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef, &ls.CurrentEndLicense)
 
 	if err == nil {
 		status.GetStatus(statusDB, &ls.Status)
@@ -171,8 +171,8 @@ func (i dbLicenseStatuses) Update(ls LicenseStatus) error {
 	}
 
 	var result sql.Result
-	result, err = i.db.Exec("UPDATE license_status SET status=?, license_updated=?, status_updated=?, device_count=?,potential_rights_end=?  WHERE id=?",
-		statusInt, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, potentialRightsEnd, ls.Id)
+	result, err = i.db.Exec("UPDATE license_status SET status=?, license_updated=?, status_updated=?, device_count=?,potential_rights_end=?,  rights_end=?  WHERE id=?",
+		statusInt, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, potentialRightsEnd, ls.CurrentEndLicense, ls.Id)
 
 	if err == nil {
 		if r, _ := result.RowsAffected(); r == 0 {
@@ -212,6 +212,7 @@ const tableDef = `CREATE TABLE IF NOT EXISTS license_status (
   status_updated datetime NOT NULL,
   device_count int(11) DEFAULT NULL,
   potential_rights_end datetime DEFAULT NULL,
-  license_ref varchar(255) NOT NULL
+  license_ref varchar(255) NOT NULL,
+  rights_end datetime DEFAULT NULL  
 );
 CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);`

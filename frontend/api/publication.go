@@ -126,7 +126,6 @@ func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 			}
 		}
 	}
-	return
 }
 
 //DecodeJSONUser transforms a json string to a User struct
@@ -167,10 +166,12 @@ func UpdatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
 		problem.Error(w, r, problem.Problem{Detail: "Plublication ID must be an integer"}, http.StatusBadRequest)
+		return
 	}
 	// ID is a number, check publication (json)
 	if pub, err = DecodeJSONPublication(r); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
 	}
 	// publication ok, id is a number, search publication to update
 	if foundPub, err := s.PublicationAPI().Get(int64(id)); err != nil {
@@ -193,7 +194,6 @@ func UpdatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 		w.WriteHeader(http.StatusOK)
 		//return
 	}
-
 }
 
 // DeletePublication removes a publication in the database
@@ -202,6 +202,7 @@ func DeletePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	id, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
 	}
 	if err := s.PublicationAPI().Delete(id); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)

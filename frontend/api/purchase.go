@@ -87,6 +87,7 @@ func GetUserPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	if userId, err = strconv.ParseInt(vars["user_id"], 10, 64); err != nil {
 		// user id is not a number
 		problem.Error(w, r, problem.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
+		return
 	}
 
 	pagination, err := ExtractPaginationFromRequest(r)
@@ -146,6 +147,7 @@ func GetPurchaseLicenseFromLicenseUUID(w http.ResponseWriter, r *http.Request, s
 		default:
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
+		return
 	}
 
 	fullLicense, err := s.PurchaseAPI().GenerateLicense(purchase)
@@ -176,6 +178,7 @@ func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
 		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
+		return
 	}
 
 	purchase, err := s.PurchaseAPI().Get(int64(id))
@@ -211,6 +214,7 @@ func GetPurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
 		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
+		return
 	}
 
 	purchase, err := s.PurchaseAPI().Get(int64(id))
@@ -221,6 +225,7 @@ func GetPurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 		default:
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
+		return
 	}
 
 	// purchase found
@@ -248,6 +253,7 @@ func GetPurchaseByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) {
 		default:
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
+		return
 	}
 	// purchase found
 	enc := json.NewEncoder(w)
@@ -279,10 +285,12 @@ func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
 		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
+		return
 	}
 	//ID is a number, check user (json)
 	if newPurchase, err = DecodeJSONPurchase(r); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
 	}
 
 	// purchase found
@@ -292,16 +300,14 @@ func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 		StartDate:   newPurchase.StartDate,
 		EndDate:     newPurchase.EndDate,
 		Status:      newPurchase.Status}); err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-	}
 
-	if err != nil {
 		switch err {
 		case webpurchase.ErrNotFound:
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		default:
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

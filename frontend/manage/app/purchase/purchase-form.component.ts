@@ -70,17 +70,46 @@ export class PurchaseFormComponent implements OnInit{
             this.form = this.fb.group({
                 "publication": ["", Validators.required],
                 "user": ["", Validators.required],
-                "end_date": "",
+                "end_date": "", //["", Validators.required],
                 "type": ["LOAN", Validators.required]
             });
-            console.log(this.form.value['type']);
+            
+            this.form.get('type').valueChanges.subscribe(
+                value => {
+                    if(value == "LOAN") {
+                        console.log("LOAN - REQUIRED");
+                        this.form.get('end_date').setValidators(Validators.required);
+                    } else {
+                        console.log("BUY - NOT REQUIRED");
+                        this.form.get('end_date').clearValidators();
+                    }
+                    this.form.updateValueAndValidity();
+                    this.form.get('end_date').updateValueAndValidity();
+                }
+            );
+
         } else {
+            let dateTime = moment(this.purchase.endDate).format('YYYY-MM-DD HH:mm')
             this.edit = true;
             this.submitButtonLabel = "Save";
             this.form = this.fb.group({
                 "renew_type": ["NO_END_DATE", Validators.required],
-                "end_date": moment(this.purchase.endDate).format('YYYY-MM-DD HH:mm')
+                "end_date": [dateTime, Validators.required]
             });
+
+            this.form.get('renew_type').valueChanges.subscribe(
+                value => {
+                    if(value == "NO_END_DATE") {
+                        console.log("NO_END_DATE - REQUIRED");
+                        this.form.get('end_date').clearValidators();
+                    } else {
+                        console.log("END_DATE - NOT REQUIRED");
+                        this.form.get('end_date').setValidators(Validators.required);
+                    }
+                    this.form.updateValueAndValidity();
+                    this.form.get('end_date').updateValueAndValidity();
+                }
+            );
         }
     }
 
