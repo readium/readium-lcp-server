@@ -324,7 +324,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
-	if httpStatusCode != http.StatusOK { // http.StatusPartialContent 206 in case of error
+	if httpStatusCode != http.StatusOK && httpStatusCode != http.StatusPartialContent { // 200, 206
 		errorr = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
 
 		problem.Error(w, r, problem.Problem{Detail: errorr.Error()}, httpStatusCode)
@@ -483,7 +483,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
-	if httpStatusCode != http.StatusOK { // http.StatusPartialContent 206 in case of error
+	if httpStatusCode != http.StatusOK && httpStatusCode != http.StatusPartialContent { // 200, 206
 		errorr = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
 
 		problem.Error(w, r, problem.Problem{Detail: errorr.Error()}, httpStatusCode)
@@ -682,7 +682,7 @@ func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
-	if httpStatusCode != http.StatusOK { // http.StatusPartialContent 206 in case of error
+	if httpStatusCode != http.StatusOK && httpStatusCode != http.StatusPartialContent { // 200, 206
 		errorr = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
 
 		problem.Error(w, r, problem.Problem{Detail: errorr.Error()}, httpStatusCode)
