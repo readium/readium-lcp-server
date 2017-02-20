@@ -78,7 +78,6 @@ type WebPurchase interface {
 const (
 	StatusToBeRenewed  string = "to-be-renewed"
 	StatusToBeReturned string = "to-be-returned"
-	StatusReturned     string = "returned"
 	StatusError        string = "error"
 	StatusOk           string = "ok"
 )
@@ -518,7 +517,7 @@ func (pManager purchaseManager) Update(p Purchase) error {
 			lsdURL += "/return"
 
 			// Next status if LSD raises no error
-			p.Status = StatusReturned
+			p.Status = StatusOk
 		}
 
 		log.Println("PUT " + lsdURL)
