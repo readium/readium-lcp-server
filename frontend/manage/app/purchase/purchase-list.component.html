@@ -20,7 +20,6 @@
       <th>Start date</th>
       <th>End date</th>
       <th>Delivered</th>
-      <th>Status</th>
       <th>Actions</th>
     </tr>
   </thead>
@@ -34,7 +33,6 @@
       <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.startDate)}}</span></td>
       <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.endDate)}}</span></td>
       <td><span class="badge badge-{{buildLicenseDeliveredClass(purchase.licenseUuid)}}">{{purchase.licenseUuid != null}}</span></td>
-      <td><span class="badge badge-{{buildStatusClass(purchase.status)}}">{{purchase.status}}</span></td>
       <td>
         <div *ngIf="purchase.status == 'ok'">
           <button (click)="onDownload_LCPL(purchase)"
