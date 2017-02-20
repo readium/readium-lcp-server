@@ -388,6 +388,11 @@ func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 		return licensestatuses.LicenseStatus{}, err
 	}
 
+	if resp.StatusCode != 200 {
+		// Bad status code
+		return licensestatuses.LicenseStatus{}, errors.New("Unable to find license")
+	}
+
 	// Decode status document
 	statusDocument := licensestatuses.LicenseStatus{}
 	var dec *json.Decoder
