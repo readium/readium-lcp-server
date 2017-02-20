@@ -6,6 +6,7 @@ import { PageNotFoundComponent }    from './not-found.component';
 import { AppComponent }             from './app.component';
 import { AppRoutingModule }         from './app-routing.module';
 
+import { LsdModule }                from './lsd/lsd.module';
 import { SidebarModule }            from './shared/sidebar/sidebar.module';
 import { HeaderModule }             from './shared/header/header.module';
 import { DashboardModule }          from './dashboard/dashboard.module';
@@ -17,6 +18,7 @@ import { PurchaseModule }           from './purchase/purchase.module';
     imports: [
         BrowserModule,
         HttpModule,
+        LsdModule,
         HeaderModule,
         SidebarModule,
         DashboardModule,
