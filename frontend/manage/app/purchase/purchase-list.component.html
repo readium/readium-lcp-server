@@ -40,11 +40,11 @@
             class="btn btn-secondary btn-sm">
             <i class="fa fa-download" aria-hidden="true"></i> LCPL
           </button>
-          <button *ngIf="purchase.licenseUuid != null" (click)="onDownload_LSD(purchase)"
-            type="button" role="button"
+          <a [routerLink]="['/purchases', purchase.id, 'status']"
+            role="button"
             class="btn btn-secondary btn-sm">
-            <i class="fa fa-download" aria-hidden="true"></i> LSD
-          </button>
+            <i class="fa fa-battery-half" aria-hidden="true"></i> Status
+          </a>
           <a *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
             [routerLink]="['/purchases', purchase.id, 'renew']"
             class="btn btn-secondary btn-sm" role="button">
