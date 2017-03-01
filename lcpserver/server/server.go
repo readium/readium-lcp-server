@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package lcpserver
 
@@ -32,7 +32,7 @@ import (
 
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
-	
+
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
@@ -71,16 +71,16 @@ func (s *Server) Source() *pack.ManualSource {
 	return &s.source
 }
 
-func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager, basicAuth *auth.BasicAuth) *Server {
+func New(bindAddr string, static string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager, basicAuth *auth.BasicAuth) *Server {
 
-	sr := api.CreateServerRouter(tplPath)
-	
+	sr := api.CreateServerRouter(static)
+
 	s := &Server{
 		Server: http.Server{
-			Handler:      sr.N,
-			Addr:         bindAddr,
-			WriteTimeout: 15 * time.Second,
-			ReadTimeout:  15 * time.Second,
+			Handler:        sr.N,
+			Addr:           bindAddr,
+			WriteTimeout:   15 * time.Second,
+			ReadTimeout:    15 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
 		readonly: readonly,
@@ -91,33 +91,35 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 		source:   pack.ManualSource{},
 	}
 
+	// Route.PathPrefix: http://www.gorillatoolkit.org/pkg/mux#Route.PathPrefix
+	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
+	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
 
-	contentRoutes := sr.R.PathPrefix("/contents").Subrouter().StrictSlash(false)
-	
-	// note that "/contents" would 301-redirect to "/contents/" if StrictSlash(true)
-	// note that "/contents/KEY/" would 301-redirect to "/contents/KEY" if StrictSlash(true)
-	
-	s.handleFunc(sr.R, "/contents", apilcp.ListContents).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates 
-	s.handleFunc(contentRoutes, "/", apilcp.ListContents).Methods("GET")
+	contentRoutesPathPrefix := "/contents"
+	contentRoutes := sr.R.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
+
+	s.handleFunc(sr.R, contentRoutesPathPrefix, apilcp.ListContents).Methods("GET")
 
 	s.handleFunc(contentRoutes, "/{key}", apilcp.GetContent).Methods("GET")
 	s.handlePrivateFunc(contentRoutes, "/{key}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")
 	if !readonly {
 		s.handleFunc(contentRoutes, "/{name}", apilcp.StoreContent).Methods("POST")
 		s.handlePrivateFunc(contentRoutes, "/{key}", apilcp.AddContent, basicAuth).Methods("PUT")
-		s.handlePrivateFunc(contentRoutes, "/{key}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
-		s.handlePrivateFunc(contentRoutes, "/{key}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
+		s.handlePrivateFunc(contentRoutes, "/{content_id}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
+		s.handlePrivateFunc(contentRoutes, "/{content_id}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
+		s.handlePrivateFunc(contentRoutes, "/{content_id}/publication", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 	}
 
-	licenseRoutes := sr.R.PathPrefix("/licenses").Subrouter().StrictSlash(false)
+	licenseRoutesPathPrefix := "/licenses"
+	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.handlePrivateFunc(sr.R, "/licenses", apilcp.ListLicenses, basicAuth).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
-	s.handlePrivateFunc(licenseRoutes, "/", apilcp.ListLicenses, basicAuth).Methods("GET")
+	s.handlePrivateFunc(sr.R, licenseRoutesPathPrefix, apilcp.ListLicenses, basicAuth).Methods("GET")
 
-	s.handlePrivateFunc(licenseRoutes, "/{key}", apilcp.GetLicense, basicAuth).Methods("GET")
-	s.handlePrivateFunc(licenseRoutes, "/{key}", apilcp.GetLicense, basicAuth).Methods("POST")
+	s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.GetLicense, basicAuth).Methods("GET")
+	s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.GetLicense, basicAuth).Methods("POST")
+	s.handlePrivateFunc(licenseRoutes, "/{license_id}/publication", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 	if !readonly {
-		s.handlePrivateFunc(licenseRoutes, "/{key}", apilcp.UpdateLicense, basicAuth).Methods("PATCH")
+		s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.UpdateLicense, basicAuth).Methods("PATCH")
 	}
 
 	s.source.Feed(packager.Incoming)
@@ -125,6 +127,7 @@ func New(bindAddr string, tplPath string, readonly bool, idx *index.Index, st *s
 }
 
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, s apilcp.Server)
+
 func (s *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *mux.Route {
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		fn(w, r, s)
@@ -132,6 +135,7 @@ func (s *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *m
 }
 
 type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s apilcp.Server)
+
 func (s *Server) handlePrivateFunc(router *mux.Router, route string, fn HandlerFunc, authenticator *auth.BasicAuth) *mux.Route {
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		if api.CheckAuth(authenticator, w, r) {

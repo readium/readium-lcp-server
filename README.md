@@ -151,9 +151,9 @@ NOTE: here is a license section snippet:
 ```json
 license:
     links:
-        hint: "http://www.edrlab.org/static/hint.html"
-        publication: "http://www.edrlab.org/files/{publication_id}"
-        status: "http://www.edrlab.org/licenses/{license_id}/status"
+        hint: "http://www.edrlab.org/readiumlcp/static/hint.html"
+        publication: "http://www.edrlab.org/readiumlcp/files/{publication_id}"
+        status: "http://www.edrlab.org/readiumlcp/licenses/{license_id}/status"
 ```
 
 "license_status": parameters related to the interactions implemented by the License Status server, if any
@@ -174,7 +174,15 @@ NOTE: list files for localization (ex: 'en-US.json, de-DE.json') must match the 
 - log_directory: point to log file (a .log).
 - compliance_tests_mode_on: boolean; if `true`, logging is turned on.
 
+
+The following CBC / GCM configurable property is DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
 "aes256_cbc_or_gcm": either "GCM" or "CBC" (which is the default value). This is used only for encrypting publication resources, not the content key, not the user key check, not the LCP license fields.
+
+
+Documentation
+============
+Detailed documentation can be found in the [Wiki pages](../../wiki) of the project.
+
 
 Contributing
 ============

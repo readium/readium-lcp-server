@@ -1,0 +1,18 @@
+<div *ngIf="user">
+    <h2 class="user">{{user.alias}}'s details!</h2>
+    <button (click)="goBack()">Go back</button>
+
+    <div>
+        <label>Change user: </label>
+        <input [(ngModel)]="user.alias" placeholder="name"/>
+        <input [(ngModel)]="user.email" placeholder="email"/>
+        <input [(ngModel)]="newPassword" placeholder="password"/>
+        <button (click)="save()">Update</button>
+    </div>
+    
+    <purchases [user]="user"></purchases>    
+
+
+
+    <button (click)="goBack()">Go back</button>
+</div>

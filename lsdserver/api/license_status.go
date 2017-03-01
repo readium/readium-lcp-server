@@ -28,10 +28,12 @@ package apilsd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -98,10 +100,10 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 
 	currentDateTime := time.Now()
 
-	if licenseStatus.PotentialRights != nil {
+	if licenseStatus.PotentialRights != nil && licenseStatus.PotentialRights.End != nil && !(*licenseStatus.PotentialRights.End).IsZero() {
 		diff := currentDateTime.Sub(*(licenseStatus.PotentialRights.End))
 
-		if (!licenseStatus.PotentialRights.End.IsZero()) && (diff > 0) && ((licenseStatus.Status == status.STATUS_ACTIVE) || (licenseStatus.Status == status.STATUS_READY)) {
+		if (diff > 0) && ((licenseStatus.Status == status.STATUS_ACTIVE) || (licenseStatus.Status == status.STATUS_READY)) {
 			licenseStatus.Status = status.STATUS_EXPIRED
 			err = s.LicenseStatuses().Update(*licenseStatus)
 			if err != nil {
@@ -182,7 +184,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
-	if deviceStatus != "" {
+	if deviceStatus != "" { // deviceStatus == status.TYPE_REGISTER || deviceStatus == status.TYPE_RETURN || deviceStatus == status.TYPE_RENEW
 		problem.Error(w, r, problem.Problem{Detail: "Device has been already registered"}, http.StatusBadRequest)
 		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusBadRequest))
 		return
@@ -260,7 +262,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	//checks request parameters
 	if (len(deviceName) > 255) || (len(deviceId) > 255) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusForbidden))
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusBadRequest))
 		return
 	}
 
@@ -281,11 +283,11 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		licenseStatus.Status = status.STATUS_CANCELLED
 		break
 	case status.STATUS_CANCELLED:
-		problem.Error(w, r, problem.Problem{Detail: "License is cancelled"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "License is cancelled"}, http.StatusForbidden)
 		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusForbidden))
 		return
 	case status.STATUS_REVOKED:
-		problem.Error(w, r, problem.Problem{Detail: "License is revoked"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "License is revoked"}, http.StatusForbidden)
 		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusForbidden))
 		return
 	}
@@ -298,7 +300,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 			return
 		}
-		if deviceStatus == status.TYPE_RETURN || deviceStatus == "" {
+		if deviceStatus == status.TYPE_RETURN || deviceStatus == "" { // deviceStatus != status.TYPE_REGISTER && deviceStatus != status.TYPE_RENEW
 			problem.Error(w, r, problem.Problem{Detail: "Device is not activated"}, http.StatusBadRequest)
 			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusBadRequest))
 			return
@@ -315,6 +317,22 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	//update license using LCP Server
+	httpStatusCode, errorr := updateLicense(event.Timestamp, licenseFk)
+	if errorr != nil {
+		problem.Error(w, r, problem.Problem{Detail: errorr.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError))
+		return
+	}
+	if httpStatusCode != http.StatusOK && httpStatusCode != http.StatusPartialContent { // 200, 206
+		errorr = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
+
+		problem.Error(w, r, problem.Problem{Detail: errorr.Error()}, httpStatusCode)
+		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(httpStatusCode))
+		return
+	}
+	licenseStatus.CurrentEndLicense = &event.Timestamp
+
 	//update licenseStatus
 	licenseStatus.Updated.Status = &event.Timestamp
 	licenseStatus.Updated.License = &event.Timestamp
@@ -325,9 +343,6 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
-
-	//update license using LCP Server
-	go updateLicense(event.Timestamp, licenseFk)
 
 	//fill license status
 	err = fillLicenseStatus(licenseStatus, r, s)
@@ -394,12 +409,21 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 			return
 		}
-		if deviceStatus != status.TYPE_REGISTER {
+		if deviceStatus != status.TYPE_REGISTER && deviceStatus != status.TYPE_RENEW { // deviceStatus == "" || deviceStatus == status.TYPE_RETURN
 			problem.Error(w, r, problem.Problem{Detail: "The device is not active for this license"}, http.StatusBadRequest)
 			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusBadRequest))
 			return
 		}
 	}
+
+	if licenseStatus.PotentialRights == nil || licenseStatus.PotentialRights.End == nil || (*licenseStatus.PotentialRights.End).IsZero() {
+		problem.Error(w, r, problem.Problem{Detail: "Potential rights end not set"}, http.StatusInternalServerError)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
+		return
+	}
+
+	var suggestedEnd time.Time
+	//suggestedEnd = time.Now() // isZero() is default value
 
 	//set new date for potential_rights_end
 	//if request parameter 'end' is empty, it used renew_days parameter from config
@@ -408,25 +432,47 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		renewDays := config.Config.LicenseStatus.RenewDays
 		if renewDays == 0 {
 			problem.Error(w, r, problem.Problem{Detail: "renew_days not found"}, http.StatusInternalServerError)
-			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusForbidden))
+			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 			return
 		}
-		if licenseStatus.PotentialRights == nil {
-			problem.Error(w, r, problem.Problem{Detail: "Potential rights not set"}, http.StatusInternalServerError)
-			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusForbidden))
+
+		var suggestedDuration time.Duration
+		//suggestedDuration = time.Duration(0)
+
+		suggestedDuration = 24 * time.Hour * time.Duration(renewDays) // nanoseconds
+
+		if licenseStatus.CurrentEndLicense != nil && !(*licenseStatus.CurrentEndLicense).IsZero() {
+			suggestedEnd = (*licenseStatus.CurrentEndLicense).Add(time.Duration(suggestedDuration))
+		} else {
+			//suggestedEnd = time.Now().Add(time.Duration(suggestedDuration))
+
+			problem.Error(w, r, problem.Problem{Detail: "CurrentEndLicense for LSD License Status is not set"}, http.StatusInternalServerError)
+			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 			return
 		}
-		end := licenseStatus.PotentialRights.End.Add(time.Hour * 24 * time.Duration(renewDays))
-		licenseStatus.PotentialRights.End = &end
 	} else {
 		expirationEnd, err := time.Parse(time.RFC3339, timeEndString)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusForbidden))
+			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 			return
 		}
-		licenseStatus.PotentialRights.End = &expirationEnd
+
+		suggestedEnd = expirationEnd
 	}
+
+	if suggestedEnd.After(*licenseStatus.PotentialRights.End) {
+		problem.Error(w, r, problem.Problem{Detail: "attempt to renew with date greater than potential rights end"}, http.StatusForbidden)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusForbidden))
+		return
+	}
+
+	if suggestedEnd.Before(time.Now()) {
+		problem.Error(w, r, problem.Problem{Detail: "attempt to renew with date before now"}, http.StatusForbidden)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusForbidden))
+		return
+	}
+
 	event := makeEvent(status.TYPE_RENEW, deviceName, deviceId, licenseStatus.Id)
 
 	err = s.Transactions().Add(*event, 3)
@@ -435,6 +481,22 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
+
+	//update license using LCP Server
+	httpStatusCode, errorr := updateLicense(suggestedEnd, licenseFk)
+	if errorr != nil {
+		problem.Error(w, r, problem.Problem{Detail: errorr.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
+		return
+	}
+	if httpStatusCode != http.StatusOK && httpStatusCode != http.StatusPartialContent { // 200, 206
+		errorr = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
+
+		problem.Error(w, r, problem.Problem{Detail: errorr.Error()}, httpStatusCode)
+		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(httpStatusCode))
+		return
+	}
+	licenseStatus.CurrentEndLicense = &suggestedEnd
 
 	//update license status fields
 	licenseStatus.Updated.Status = &event.Timestamp
@@ -447,9 +509,6 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
-
-	//update license using LCP Server
-	go updateLicense(event.Timestamp, licenseFk)
 
 	err = fillLicenseStatus(licenseStatus, r, s)
 	if err != nil {
@@ -564,6 +623,7 @@ func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
+			//logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusNotFound))
 			return
 		}
 
@@ -596,39 +656,59 @@ func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
+			logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusNotFound))
 			return
 		}
 
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
 	if licenseStatus.Status != status.STATUS_READY {
 		problem.Error(w, r, problem.Problem{Detail: "The new status is not compatible with current status"}, http.StatusBadRequest)
+		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest))
+		return
 	}
 
 	var parsedLs licensestatuses.LicenseStatus
 	err = decodeJsonLicenseStatus(r, &parsedLs)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
-	licenseStatus.Status = parsedLs.Status
-
 	currentTime := time.Now()
 
+	//update license using LCP Server
+	httpStatusCode, errorr := updateLicense(currentTime, licenseFk)
+	if errorr != nil {
+		problem.Error(w, r, problem.Problem{Detail: errorr.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusInternalServerError))
+		return
+	}
+	if httpStatusCode != http.StatusOK && httpStatusCode != http.StatusPartialContent { // 200, 206
+		errorr = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
+
+		problem.Error(w, r, problem.Problem{Detail: errorr.Error()}, httpStatusCode)
+		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(httpStatusCode))
+		return
+	}
+	licenseStatus.CurrentEndLicense = &currentTime
+
+	licenseStatus.Status = parsedLs.Status
 	licenseStatus.Updated.Status = &currentTime
 	licenseStatus.Updated.License = &currentTime
 
 	err = s.LicenseStatuses().Update(*licenseStatus)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
 
-	//update license using LCP Server
-	go updateLicense(currentTime, licenseFk)
+	logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusOK))
 }
 
 //makeLicenseStatus sets fields of license status according to the config file
@@ -637,12 +717,28 @@ func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatu
 	ls.LicenseRef = license.Id
 
 	registerAvailable := config.Config.LicenseStatus.Register
-	rentingDays := config.Config.LicenseStatus.RentingDays
 
-	ls.PotentialRights = new(licensestatuses.PotentialRights)
-	if rentingDays != 0 {
-		end := license.Issued.Add(time.Hour * 24 * time.Duration(rentingDays))
-		ls.PotentialRights.End = &end
+	if license.Rights == nil || license.Rights.End == nil {
+		// The publication was purchased (not a loan), so we do not set LSD.PotentialRights.End
+		ls.CurrentEndLicense = nil
+	} else {
+		// license.Rights.End exists => this is a loan
+		endFromLicense := license.Rights.End.Add(0)
+		ls.CurrentEndLicense = &endFromLicense
+		ls.PotentialRights = new(licensestatuses.PotentialRights)
+
+		rentingDays := config.Config.LicenseStatus.RentingDays
+		if rentingDays > 0 {
+			endFromConfig := license.Issued.Add(time.Hour * 24 * time.Duration(rentingDays))
+
+			if endFromLicense.After(endFromConfig) {
+				ls.PotentialRights.End = &endFromLicense
+			} else {
+				ls.PotentialRights.End = &endFromConfig
+			}
+		} else {
+			ls.PotentialRights.End = &endFromLicense
+		}
 	}
 
 	if registerAvailable {
@@ -683,39 +779,42 @@ func getEvents(ls *licensestatuses.LicenseStatus, s Server) error {
 //makeLinks creates and adds links to the license status
 func makeLinks(ls *licensestatuses.LicenseStatus) {
 	lsdBaseUrl := config.Config.LsdServer.PublicBaseUrl
+	licenseLinkUrl := config.Config.LsdServer.LicenseLinkUrl
 	lcpBaseUrl := config.Config.LcpServer.PublicBaseUrl
+	//frontendBaseUrl := config.Config.FrontendServer.PublicBaseUrl
 	registerAvailable := config.Config.LicenseStatus.Register
-	returnAvailable := config.Config.LicenseStatus.Return
-	renewAvailable := config.Config.LicenseStatus.Renew
+
+	licenseHasRightsEnd := ls.CurrentEndLicense != nil && !(*ls.CurrentEndLicense).IsZero()
+	returnAvailable := config.Config.LicenseStatus.Return && licenseHasRightsEnd
+	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd
+
 	links := new([]licensestatuses.Link)
 
-	*links = append(*links, createLink(lcpBaseUrl, "license", ls.LicenseRef, "",
-		api.ContentType_LCP_JSON, false))
+	if licenseLinkUrl != "" {
+		licenseLinkUrl_ := strings.Replace(licenseLinkUrl, "{license_id}", ls.LicenseRef, -1)
+		link := licensestatuses.Link{Href: licenseLinkUrl_, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
+		*links = append(*links, link)
+	} else {
+		link := licensestatuses.Link{Href: lcpBaseUrl + "/licenses/" + ls.LicenseRef, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
+		*links = append(*links, link)
+	}
 
 	if registerAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "register", ls.LicenseRef, "/register{?id,name}",
-			api.ContentType_LSD_JSON, true))
+		link := licensestatuses.Link{Href: lsdBaseUrl + "/licenses/" + ls.LicenseRef + "/register{?id,name}", Rel: "register", Type: api.ContentType_LSD_JSON, Templated: true}
+		*links = append(*links, link)
 	}
 
 	if returnAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "return", ls.LicenseRef, "/return{?id,name}",
-			api.ContentType_LCP_JSON, true))
+		link := licensestatuses.Link{Href: lsdBaseUrl + "/licenses/" + ls.LicenseRef + "/return{?id,name}", Rel: "return", Type: api.ContentType_LSD_JSON, Templated: true}
+		*links = append(*links, link)
 	}
 
 	if renewAvailable {
-		*links = append(*links, createLink(lsdBaseUrl, "renew", ls.LicenseRef, "/renew{?end,id,name}",
-			api.ContentType_LCP_JSON, true))
+		link := licensestatuses.Link{Href: lsdBaseUrl + "/licenses/" + ls.LicenseRef + "/renew{?end,id,name}", Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}
+		*links = append(*links, link)
 	}
 
 	ls.Links = *links
-}
-
-//createLink creates a link and fills it
-func createLink(publicBaseUrl string, rel string, licenseRef string, page string,
-	typeLink string, templated bool) licensestatuses.Link {
-	link := licensestatuses.Link{Href: publicBaseUrl + "/licenses/" + licenseRef + page, Rel: rel,
-		Type: typeLink, Templated: templated}
-	return link
 }
 
 //makeEvent creates an event and fill it
@@ -747,38 +846,46 @@ func decodeJsonLicenseStatus(r *http.Request, ls *licensestatuses.LicenseStatus)
 }
 
 //updateLicense updates license using LCP Server
-func updateLicense(timeEnd time.Time, licenseRef string) {
+func updateLicense(timeEnd time.Time, licenseRef string) (int, error) {
+
+	lcpBaseUrl := config.Config.LcpServer.PublicBaseUrl
+	if len(lcpBaseUrl) <= 0 {
+		return 0, errors.New("Undefined Config.LcpServer.PublicBaseUrl")
+	}
+
 	l := license.License{Id: licenseRef, Rights: new(license.UserRights)}
 	l.Rights.End = &timeEnd
 
-	lcpBaseUrl := config.Config.LcpServer.PublicBaseUrl
-	if len(lcpBaseUrl) > 0 {
-		var lcpClient = &http.Client{
-			Timeout: time.Second * 10,
-		}
-		pr, pw := io.Pipe()
-		go func() {
-			_ = json.NewEncoder(pw).Encode(l)
-			pw.Close()
-		}()
-		req, err := http.NewRequest("PATCH", lcpBaseUrl+"/licenses/"+l.Id, pr)
-		
-		updateAuth := config.Config.LcpUpdateAuth
-
-		if updateAuth.Username != "" {
-			req.SetBasicAuth(updateAuth.Username, updateAuth.Password)
-		}
-
-		req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
-		response, err := lcpClient.Do(req)
-		if err != nil {
-			log.Println("Error Notify Lcp Server of License (" + l.Id + "):" + err.Error())
-		} else {
-			if response.StatusCode != http.StatusOK {
-				log.Println("Notify Lcp Server of License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
-			}
-		}
+	var lcpClient = &http.Client{
+		Timeout: time.Second * 10,
 	}
+	pr, pw := io.Pipe()
+	go func() {
+		_ = json.NewEncoder(pw).Encode(l)
+		pw.Close()
+	}()
+	req, err := http.NewRequest("PATCH", lcpBaseUrl+"/licenses/"+l.Id, pr)
+	if err != nil {
+		return 0, err
+	}
+
+	updateAuth := config.Config.LcpUpdateAuth
+
+	if updateAuth.Username != "" {
+		req.SetBasicAuth(updateAuth.Username, updateAuth.Password)
+	}
+
+	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
+	response, err := lcpClient.Do(req)
+	if err == nil {
+		if response.StatusCode != http.StatusOK {
+			log.Println("Notify Lcp Server of License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
+		}
+		return response.StatusCode, nil
+	}
+
+	log.Println("Error Notify Lcp Server of License (" + l.Id + "):" + err.Error())
+	return 0, err
 }
 
 //fillLicenseStatus fills object 'links' and field 'message' in license status

@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package lsdserver
 
@@ -56,13 +56,13 @@ func (s *Server) Transactions() transactions.Transactions {
 func New(bindAddr string, readonly bool, complianceMode bool, lst *licensestatuses.LicenseStatuses, trns *transactions.Transactions, basicAuth *auth.BasicAuth) *Server {
 
 	sr := api.CreateServerRouter("")
-	
+
 	s := &Server{
 		Server: http.Server{
-			Handler:      sr.N,
-			Addr:         bindAddr,
-			WriteTimeout: 15 * time.Second,
-			ReadTimeout:  15 * time.Second,
+			Handler:        sr.N,
+			Addr:           bindAddr,
+			WriteTimeout:   15 * time.Second,
+			ReadTimeout:    15 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
 		readonly: readonly,
@@ -70,20 +70,21 @@ func New(bindAddr string, readonly bool, complianceMode bool, lst *licensestatus
 		trns:     *trns,
 	}
 
-	licenseRoutes := sr.R.PathPrefix("/licenses").Subrouter().StrictSlash(false)
+	// Route.PathPrefix: http://www.gorillatoolkit.org/pkg/mux#Route.PathPrefix
+	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
+	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
 
-	// note that "/licenses" would 301-redirect to "/licenses/" if StrictSlash(true)
-	// note that "/licenses/KEY/" would 301-redirect to "/licenses/KEY" if StrictSlash(true)
-	
+	licenseRoutesPathPrefix := "/licenses"
+	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
+
+	s.handlePrivateFunc(sr.R, licenseRoutesPathPrefix, apilsd.FilterLicenseStatuses, basicAuth).Methods("GET")
+
 	s.handleFunc(licenseRoutes, "/{key}/status", apilsd.GetLicenseStatusDocument).Methods("GET")
-	
-	s.handlePrivateFunc(sr.R, "/licenses", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
-	s.handlePrivateFunc(licenseRoutes, "/", apilsd.FilterLicenseStatuses, basicAuth).Methods("GET")
 
-	if complianceMode {	
+	if complianceMode {
 		s.handleFunc(sr.R, "/compliancetest", apilsd.AddLogToFile).Methods("GET")
-	}	
-	
+	}
+
 	s.handlePrivateFunc(licenseRoutes, "/{key}/registered", apilsd.ListRegisteredDevices, basicAuth).Methods("GET")
 	if !readonly {
 		s.handleFunc(licenseRoutes, "/{key}/register", apilsd.RegisterDevice).Methods("POST")
@@ -91,7 +92,7 @@ func New(bindAddr string, readonly bool, complianceMode bool, lst *licensestatus
 		s.handleFunc(licenseRoutes, "/{key}/renew", apilsd.LendingRenewal).Methods("PUT")
 		s.handlePrivateFunc(licenseRoutes, "/{key}/status", apilsd.CancelLicenseStatus, basicAuth).Methods("PATCH")
 
-		s.handlePrivateFunc(sr.R, "/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT") // annoyingly redundant, but we must add this route "manually" as the PathPrefix() with StrictSlash(false) dictates
+		s.handlePrivateFunc(sr.R, "/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 		s.handlePrivateFunc(licenseRoutes, "/", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 	}
 
@@ -99,6 +100,7 @@ func New(bindAddr string, readonly bool, complianceMode bool, lst *licensestatus
 }
 
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
+
 func (s *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *mux.Route {
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		fn(w, r, s)
@@ -106,6 +108,7 @@ func (s *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *m
 }
 
 type HandlerPrivateFunc func(w http.ResponseWriter, r *http.Request, s apilsd.Server)
+
 func (s *Server) handlePrivateFunc(router *mux.Router, route string, fn HandlerPrivateFunc, authenticator *auth.BasicAuth) *mux.Route {
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		if api.CheckAuth(authenticator, w, r) {

@@ -1,0 +1,31 @@
+h2.user {
+    font-size: 200%;
+}
+.users {
+    width: 50%;
+    margin-left:16px;    
+}
+.anID {
+    width: 50px;
+    margin-left: 8px;    
+    padding: 8px;
+    border-radius: 10px;
+    border: 3px solid black;
+    text-align: center;     
+}
+.aLabel {
+    width:200;
+    color: black;
+    background-color: gray;
+    border-radius: 10px;
+    border: 3px solid black; 
+    text-align: left;
+    padding: 8px;
+}
+.selected {
+    background-color: blue; 
+}
+
+.delete {
+    background-color: red;
+}

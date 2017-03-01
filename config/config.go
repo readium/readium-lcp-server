@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package config
 
@@ -35,18 +35,20 @@ import (
 )
 
 type Configuration struct {
-	Certificate   Certificate   `yaml:"certificate"`
-	Storage       Storage       `yaml:"storage"`
-	License       License       `yaml:"license"`
-	LcpServer     ServerInfo    `yaml:"lcp"`
-	LsdServer     ServerInfo    `yaml:"lsd"`
-	LsdNotifyAuth Auth          `yaml:"lsd_notify_auth"`
-	LcpUpdateAuth Auth          `yaml:"lcp_update_auth"`
-	Static        Static        `yaml:"static"`
-	LicenseStatus LicenseStatus `yaml:"license_status"`
-	Localization  Localization  `yaml:"localization"`
-	Logging       Logging       `yaml:"logging"`
-	AES256_CBC_OR_GCM string    `yaml:"aes256_cbc_or_gcm,omitempty"`
+	Certificate    Certificate        `yaml:"certificate"`
+	Storage        Storage            `yaml:"storage"`
+	License        License            `yaml:"license"`
+	LcpServer      ServerInfo         `yaml:"lcp"`
+	LsdServer      LsdServerInfo      `yaml:"lsd"`
+	FrontendServer FrontendServerInfo `yaml:"frontend"`
+	LsdNotifyAuth  Auth               `yaml:"lsd_notify_auth"`
+	LcpUpdateAuth  Auth               `yaml:"lcp_update_auth"`
+	LicenseStatus  LicenseStatus      `yaml:"license_status"`
+	Localization   Localization       `yaml:"localization"`
+	Logging        Logging            `yaml:"logging"`
+
+	// DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
+	//AES256_CBC_OR_GCM string             `yaml:"aes256_cbc_or_gcm,omitempty"`
 }
 
 type ServerInfo struct {
@@ -56,6 +58,19 @@ type ServerInfo struct {
 	ReadOnly      bool   `yaml:"readonly,omitempty"`
 	PublicBaseUrl string `yaml:"public_base_url,omitempty"`
 	Database      string `yaml:"database,omitempty"`
+	Directory     string `yaml:"directory,omitempty"`
+}
+
+type LsdServerInfo struct {
+	ServerInfo     `yaml:",inline"`
+	LicenseLinkUrl string `yaml:"license_link_url,omitempty"`
+}
+
+type FrontendServerInfo struct {
+	ServerInfo          `yaml:",inline"`
+	ProviderID          string `yaml:"provider_id"`
+	MasterRepository    string `yaml:"master_repository"`
+	EncryptedRepository string `yaml:"encrypted_repository"`
 }
 
 type Auth struct {
@@ -69,10 +84,6 @@ type Certificate struct {
 }
 
 type FileSystem struct {
-	Directory string `yaml:"directory"`
-}
-
-type Static struct {
 	Directory string `yaml:"directory"`
 }
 
@@ -123,14 +134,15 @@ func ReadConfig(configFileName string) {
 	}
 
 	err = yaml.Unmarshal(yamlFile, &Config)
+
 	if err != nil {
 		panic("Can't unmarshal config. " + configFileName + " -> " + err.Error())
 	}
 }
 
 func SetPublicUrls() error {
-	var lcpPublicBaseUrl, lsdPublicBaseUrl, lcpHost, lsdHost string
-	var lcpPort, lsdPort int
+	var lcpPublicBaseUrl, lsdPublicBaseUrl, frontendPublicBaseUrl, lcpHost, lsdHost, frontendHost string
+	var lcpPort, lsdPort, frontendPort int
 	var err error
 
 	if lcpHost = Config.LcpServer.Host; lcpHost == "" {
@@ -147,11 +159,21 @@ func SetPublicUrls() error {
 		}
 	}
 
+	if frontendHost = Config.FrontendServer.Host; frontendHost == "" {
+		frontendHost, err = os.Hostname()
+		if err != nil {
+			return err
+		}
+	}
+
 	if lcpPort = Config.LcpServer.Port; lcpPort == 0 {
 		lcpPort = 8989
 	}
 	if lsdPort = Config.LsdServer.Port; lsdPort == 0 {
 		lsdPort = 8990
+	}
+	if frontendPort = Config.FrontendServer.Port; frontendPort == 0 {
+		frontendPort = 80
 	}
 
 	if lcpPublicBaseUrl = Config.LcpServer.PublicBaseUrl; lcpPublicBaseUrl == "" {
@@ -161,6 +183,10 @@ func SetPublicUrls() error {
 	if lsdPublicBaseUrl = Config.LsdServer.PublicBaseUrl; lsdPublicBaseUrl == "" {
 		lsdPublicBaseUrl = "http://" + lsdHost + ":" + strconv.Itoa(lsdPort)
 		Config.LsdServer.PublicBaseUrl = lsdPublicBaseUrl
+	}
+	if frontendPublicBaseUrl = Config.FrontendServer.PublicBaseUrl; frontendPublicBaseUrl == "" {
+		frontendPublicBaseUrl = "http://" + frontendHost + ":" + strconv.Itoa(frontendPort)
+		Config.FrontendServer.PublicBaseUrl = frontendPublicBaseUrl
 	}
 
 	return err

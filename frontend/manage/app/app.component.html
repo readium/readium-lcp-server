@@ -1,0 +1,13 @@
+<div id="app" [class.sidebar-open]="sidebarOpen">
+  <lcp-header></lcp-header>
+  <lcp-sidebar></lcp-sidebar>
+  <div id="main-container">
+    <div class="container-fluid">
+      <div class="row">
+          <div class="col-md-12">
+              <router-outlet></router-outlet>
+          </div>
+      </div>
+    </div>
+  </div>
+</div>

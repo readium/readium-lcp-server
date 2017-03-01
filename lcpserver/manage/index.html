@@ -3,114 +3,38 @@
   <head>
     <!-- script   src="https://code.jquery.com/jquery-3.1.1.slim.min.js"   integrity="sha256-/SIrNqv8h6QGKDuNoLGA4iret+kyesCkHGzVUUV0shc="   crossorigin="anonymous"></script -->
     <script src="jquery-3.1.1.slim.min.js"></script>
+    <script src="config.js"></script>
     
     <link href='http://fonts.googleapis.com/css?family=Lato:400,900' rel='stylesheet' type='text/css'>
 
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
-
-    <style>
-      body {
-        font-family: 'Lato', sans-serif;
-        background-color: white;
-        color: #222;
-        padding: 0;
-        margin: 0;
-        font-size: 14px;
-      }
-
-      .dropping {
-        border-color: white;
-      }
-      #dropzone {
-        width: 300px;
-      }
-      h1 {
-        font-size: 16px;
-        background-color: #1abc9c;
-        color: white;
-        padding: 0;
-        padding-left: 5px;
-        margin: 0;
-      }
-      
-      h2 {
-        font-size: 14px;
-        padding: 0 0 0 5px;
-        margin: 0;
-      }
-
-      ul {
-        margin: 0;
-        padding: 0;
-      }
-
-      li {
-        list-style-type: none;
-        padding-left: 10px;
-        cursor: pointer;
-      }
-      li.epub {
-        border-top: 2px solid gray;
-        border-bottom: 2px solid gray
-      }
-      #key {
-        width: 350px;
-        font-size: 9px;
-      }
-      
-      .key {
-        font-size: 9px;
-        color: silver;
-        font-weight: bold;
-      }
-      .size {
-        font-size: 9px;
-        color: red;
-        font-weight: bold;
-      }
-      .sha {
-        font-size: 9px;
-        color: green;
-        font-weight: bold;
-      }
-      .download {
-        color: blue;
-        font-weight: bold;
-      }
-      .licenses {
-        color: blue;
-        font-size: 9px;
-      }
-
-      #license-form {
-        padding-left: 10px;
-      }
-    </style>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    
   </head>
   <body>
-    <h1>LCPServer Admin</h1>
+    <h1>LCPServer test Admin</h1>
     <div id="dropzone">&nbsp;</div>
     <h2>Packages</h2>
     <ul id="packages"></ul>
     <script language="javascript" type="text/javascript">
-      var obj = $("#dropzone");
-      obj.on('dragenter', function (e) {
-          console.log(this);
-          $(this).addClass("dropping")
-          e.stopPropagation();
-          e.preventDefault();
-      });
-      obj.on('dragover', function (e) {
-          e.stopPropagation();
-          e.preventDefault();
-          });
-    obj.on('drop', function (e) {
-        $(this).removeClass("dropping")
-        e.preventDefault();
-        var files = e.originalEvent.dataTransfer.files;
-        //We need to send dropped files to Server
-        handleFileUpload(files,obj);
-    });
+    //   var obj = $("#dropzone");
+    //   obj.on('dragenter', function (e) {
+    //       console.log(this);
+    //       $(this).addClass("dropping")
+    //       e.stopPropagation();
+    //       e.preventDefault();
+    //   });
+    //   obj.on('dragover', function (e) {
+    //       e.stopPropagation();
+    //       e.preventDefault();
+    //       });
+    // obj.on('drop', function (e) {
+    //     $(this).removeClass("dropping")
+    //     e.preventDefault();
+    //     var files = e.originalEvent.dataTransfer.files;
+    //     //We need to send dropped files to Server
+    //     handleFileUpload(files);
+    // });
 
 $('#packages').on('click', 'li', function() {
     $('#key').val($(this).data("key"));
@@ -118,13 +42,17 @@ $('#packages').on('click', 'li', function() {
 
 $(document).on('click', '#license', function() {
     var lic = makeLicense();
-    $("#license-form").attr('action', "/contents/" + $('#key').val() + "/licenses");
+    $("#license-form").attr('action',
+    Config.lcp.url.replace("http://", "http://" + Config.lcp.user + ":" + Config.lcp.password + "@")
+    + "/contents/" + $('#key').val() + "/licenses");
     $("#data").val(JSON.stringify(lic));
 });
 
 $(document).on('click', '#publication', function() {
     var lic = makeLicense();
-    $("#license-form").attr('action', "/contents/" + $('#key').val() + "/publications");
+    $("#license-form").attr('action',
+    Config.lcp.url.replace("http://", "http://" + Config.lcp.user + ":" + Config.lcp.password + "@")
+    + "/contents/" + $('#key').val() + "/publications");
     $("#data").val(JSON.stringify(lic));
 });
 
@@ -142,15 +70,15 @@ $(document).on('drop', function (e) {
     $(this).removeClass("dropping")
     e.preventDefault();
     var files = e.originalEvent.dataTransfer.files;
-    handleFileUpload(files,obj);
+    handleFileUpload(files);
     });
 
 
-function handleFileUpload(files,obj) {
+function handleFileUpload(files) {
   
   for (var i = 0; i < files.length; i++) {
     $('#dropzone').css('background', '-webkit-linear-gradient(left, #0074D9 0%,#0074D9 0%,transparent 0%)')
-    var uploadURL ="/contents/" + files[i].name; //Upload URL
+    var uploadURL =  Config.lcp.url + "/contents/" + files[i].name; //Upload URL
     var req = new XMLHttpRequest();
     req.upload.onprogress = function(e) {
       if (e.lengthComputable) {
@@ -163,6 +91,7 @@ function handleFileUpload(files,obj) {
       refreshPackages();
     }
     req.open("POST", uploadURL, true);
+    req.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
     req.send(files[i]);
     
   }
@@ -197,7 +126,8 @@ function emitLicense(key, license) {
     console.log(JSON.parse(this.responseText));
     console.log(this.responseText);
   }
-  req.open("GET", "/contents/" + key + "/licenses", true);
+  req.open("GET", Config.lcp.url + "/contents/" + key + "/licenses", true);
+  req.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
   req.send(JSON.stringify(license));
 }
 
@@ -211,7 +141,7 @@ function refreshPackages() {
       idx++;
       var epubID = data[i].id;
       $('#packages').append('<li class="epub" data-key="' + epubID + '" id="epub_' + epubID + '">EPUB '+idx+': <span class="filename">' + data[i].location +
-                            ' <span class="key">' + epubID + '</span> Length: [<span class="size">' + data[i].length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].sha256 + '</span>) <span class="download"><a href="/contents/'+epubID+'">GET</a> (raw)</span> <span class="licenses"><a target="_BLANK" href="/contents/'+epubID+'/licenses">licenses</a></span></li>');
+                            ' <span class="key">' + epubID + '</span> Length: [<span class="size">' + data[i].length + '</span>] SHA256 checksum: (<span class="sha">' + data[i].sha256 + '</span>) <span class="download"><a href="' + Config.lcp.url + '/contents/'+epubID+'">GET</a> (raw)</span> <span class="licenses"><a target="_BLANK" href="'+ Config.lcp.url + '/contents/'+epubID+'/licenses">licenses</a></span></li>');
 
 
   var req_ = new XMLHttpRequest();
@@ -224,7 +154,7 @@ function refreshPackages() {
       index++;
       var licID = data_[i_].id;
       //var jsonStr = JSON.stringify(data_[i_], null, " ");
-      list += '<li id="lic_'+licID+'">LICENSE '+index+': <span>['+data_[i_].user.id+']</span> <span><a target="_BLANK" href="/licenses/'+licID+'">'+licID+'</a></span> </li>';
+      list += '<li id="lic_'+licID+'">LICENSE '+index+': <span>['+data_[i_].user.id+']</span> <span><a target="_BLANK" href="'+ Config.lcp.url + '/licenses/'+licID+'">'+licID+'</a></span> </li>';
 
           var req__ = new XMLHttpRequest();
           req__.onload =  function() {
@@ -248,7 +178,8 @@ function refreshPackages() {
               href = href.replace("{license_id}", this.licID)
               $('#lic_'+this.licID).append(' STATUS: <span><a target="_BLANK" href="'+href+'">'+href+'</a></span>');
           };
-          req__.open("GET", "/licenses/" + licID);
+          req__.open("GET", Config.lcp.url+"/licenses/" + licID);
+          req__.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
           req__.licID = licID;
           req__.send();
     }
@@ -256,7 +187,8 @@ function refreshPackages() {
       list += "</ul>";
       $('#epub_'+this.epubID).append(list);
   };
-  req_.open("GET", "/contents/" + epubID + "/licenses");
+  req_.open("GET",  Config.lcp.url+ "/contents/" + epubID + "/licenses");
+  req_.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
   req_.epubID = epubID;
   req_.send();
 
@@ -282,12 +214,13 @@ function refreshPackages() {
         "print": 10,\n\
         "copy": 2048,\n\
         "start": "2016-09-01T01:08:15+01:00",\n\
-        "end": "2016-11-25T01:08:15+01:00"\n\
+        "end": "2017-11-25T01:08:15+01:00"\n\
     }\n\
   }\n';
 document.getElementById("licenseJSON").value = defaultLicenseJSON;
   };
-  req.open("GET", "/contents");
+  req.open("GET",  Config.lcp.url + "/contents");
+  req.setRequestHeader("Authorization", "Basic " + btoa(Config.lcp.user + ":" + Config.lcp.password));
   req.send();
 }
 $(function() {

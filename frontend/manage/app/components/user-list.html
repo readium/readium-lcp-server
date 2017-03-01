@@ -1,0 +1,24 @@
+<h2 class="step">1. Subscribe and/or select user in the list below</h2>
+<div>
+    <h3>Add User</h3>
+    <span><label>Alias:</label><input #alias /></span>
+    <span><label>Email:</label><input #email /></span>
+    <span><label>Password:</label><input #password /></span>
+    <button (click)="add(alias.value, email.value, password.value);alias.value='';email.value='';password.value='';">
+        add user
+    </button>
+</div>
+<h3>User list</h3>
+<table class="users">
+    <tr *ngFor="let user of users" >
+        <td class="anID" [class.selected]="user === selectedUser" >{{user.userID}}</td>
+        <td class="aLabel" (click)="onSelect(user)" >{{user.alias}}</td>
+        <td class="anID"> hashed passphrase = {{user.password}}</td>
+        <td><button class="delete" (click)="delete(user); $event.stopPropagation()">x</button></td>
+    </tr>
+</table> 
+<div class="selectedUser" *ngIf="selectedUser">
+    <h2>2. Select item for license</h2>
+    <h3>Current user = {{selectedUser.alias | uppercase }} <button (click)="gotoDetail()">Details</button> </h3>
+    <resources [user]=selectedUser></resources>    
+</div>      

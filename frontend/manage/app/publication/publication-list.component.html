@@ -1,0 +1,40 @@
+<h1>Publications</h1>
+
+<div>
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item active">Publications</li>
+    <li class="float-right">
+      <a routerLink="/publications/add" role="button">Add</a>
+    </li>
+  </ol>
+</div>
+
+
+<table *ngIf="publications.length > 0" class="table">
+  <thead class="thead-inverse">
+    <tr>
+      <th>#</th>
+      <th>UUID</th>
+      <th>Title</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let publication of publications">
+      <td>{{publication.id}}</td>
+      <td>{{publication.uuid}}</td>
+      <td>{{publication.title}}</td>
+      <td>
+        <button
+            type="button" class="btn btn-secondary btn-sm"
+            (click)="onRemove(publication.id)">
+          <i class="fa fa-trash" aria-hidden="true"></i> Remove
+        </button>
+        <a [routerLink]="['/publications', publication.id, 'edit']"
+           class="btn btn-secondary btn-sm" role="button">
+           <i class="fa fa-edit" aria-hidden="true"></i> Edit
+        </a>
+      </td>
+    </tr>
+  </tbody>
+</table>
