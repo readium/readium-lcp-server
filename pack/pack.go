@@ -1,3 +1,28 @@
+// Copyright (c) 2016 Readium Foundation
+//
+// Redistribution and use in source and binary forms, with or without modification,
+// are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation and/or
+//    other materials provided with the distribution.
+// 3. Neither the name of the organization nor the names of its contributors may be
+//    used to endorse or promote products derived from this software without specific
+//    prior written permission
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+
 package pack
 
 import (
@@ -12,8 +37,8 @@ import (
 	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
-func Do(ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key []byte, err error) {
-	key, err = crypto.GenerateKey()
+func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key crypto.ContentKey, err error) {
+	key, err = encrypter.GenerateKey()
 	if err != nil {
 		return
 	}
@@ -27,7 +52,7 @@ func Do(ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key []byte, err error)
 	for _, res := range ep.Resource {
 		if _, alreadyEncrypted := ep.Encryption.DataForFile(res.Path); !alreadyEncrypted && canEncrypt(res, ep) {
 			toCompress := mustCompressBeforeEncryption(*res, ep)
-			err = encryptFile(key, ep.Encryption, res, toCompress, ew)
+			err = encryptFile(encrypter, key, ep.Encryption, res, toCompress, ew)
 			if err != nil {
 				return
 			}
@@ -65,9 +90,9 @@ func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 	return ep.CanEncrypt(file.Path)
 }
 
-func encryptFile(key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool, w *epub.Writer) error {
+func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool, w *epub.Writer) error {
 	data := xmlenc.Data{}
-	data.Method.Algorithm = "http://www.w3.org/2001/04/xmlenc#aes256-cbc"
+	data.Method.Algorithm = xmlenc.URI(encrypter.Signature())
 	data.KeyInfo = &xmlenc.KeyInfo{}
 	data.KeyInfo.RetrievalMethod.URI = "license.lcpl#/encryption/content_key"
 	data.KeyInfo.RetrievalMethod.Type = "http://readium.org/2014/01/lcp#EncryptedContentKey"
@@ -108,21 +133,7 @@ func encryptFile(key []byte, m *xmlenc.Manifest, file *epub.Resource, compress b
 	if err != nil {
 		return err
 	}
-	return crypto.Encrypt(key, input, fw)
-}
-
-func Undo(key []byte, ep epub.Epub) (epub.Epub, error) {
-	for _, data := range ep.Encryption.Data {
-		if res, ok := findFile(string(data.CipherData.CipherReference.URI), ep); ok {
-			var buf bytes.Buffer
-			crypto.Decrypt(key, res.Contents, &buf)
-			res.Contents = &buf
-		}
-	}
-
-	ep.Encryption = nil
-
-	return ep, nil
+	return encrypter.Encrypt(key, input, fw)
 }
 
 func findFile(name string, ep epub.Epub) (*epub.Resource, bool) {

@@ -1,0 +1,39 @@
+[
+  {
+    "id": "ready",
+    "translation":"Your license is ready for usage"
+  },
+   {
+    "id": "active",
+    "translation":"Your license is actively used"
+  },
+   {
+    "id": "cancelled",
+    "translation":"It was canсelled"
+  },
+   {
+    "id": "expired",
+    "translation":"It was expired"
+  },
+   {
+    "id": "revoked",
+    "translation": "It was revoked"
+  },
+   {
+    "id": "returned",
+    "translation": "It was returned"
+  },
+   {
+	"id": "Not Found",
+	"translation": "Page not found"
+  },
+  {
+	"id": "Internal Server Error",
+	"translation": "Internal server error"
+  }
+  ,
+    {
+	"id": "EOF",
+	"translation": "Unexpected end of file"
+  }
+]

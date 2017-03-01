@@ -1,13 +1,38 @@
+// Copyright (c) 2016 Readium Foundation
+//
+// Redistribution and use in source and binary forms, with or without modification,
+// are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation and/or
+//    other materials provided with the distribution.
+// 3. Neither the name of the organization nor the names of its contributors may be
+//    used to endorse or promote products derived from this software without specific
+//    prior written permission
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+
 package license
 
 import (
 	"crypto/rand"
 	"fmt"
-
-	"github.com/readium/readium-lcp-server/sign"
-
 	"io"
 	"time"
+
+	"github.com/readium/readium-lcp-server/config"
+	"github.com/readium/readium-lcp-server/sign"
 )
 
 type Key struct {
@@ -34,10 +59,15 @@ type Encryption struct {
 }
 
 type Link struct {
-	Href   string `json:"href"`
-	Type   string `json:"type,omitempty"`
-	Size   int64  `json:"length,omitempty"`
-	Digest []byte `json:"hash,omitempty"`
+	Rel       string `json:"rel"`
+	Href      string `json:"href"`
+	Type      string `json:"type,omitempty"`
+	Title     string `json:"title,omitempty"`
+	Profile   string `json:"profile,omitempty"`
+	Templated bool   `json:"templated,omitempty" "default false"`
+	Size      int64  `json:"length,omitempty"`
+	//Digest    []byte `json:"hash,omitempty"`
+	Checksum string `json:"hash,omitempty"`
 }
 
 type UserInfo struct {
@@ -48,35 +78,60 @@ type UserInfo struct {
 }
 
 type UserRights struct {
-	Print    *int32     `json:"print,omitempty"`
-	Copy     *int32     `json:"copy,omitempty"`
-	TTS      bool       `json:"tts"`
-	Editable bool       `json:"edit"`
-	Start    *time.Time `json:"start,omitempty"`
-	End      *time.Time `json:"end,omitempty"`
-}
-
-var DefaultRights = UserRights{
-	TTS:      true,
-	Editable: false,
+	Print *int32     `json:"print,omitempty"`
+	Copy  *int32     `json:"copy,omitempty"`
+	Start *time.Time `json:"start,omitempty"`
+	End   *time.Time `json:"end,omitempty"`
 }
 
 const DEFAULT_PROFILE = "http://readium.org/lcp/profile-1.0"
+
+var DefaultLinks map[string]string
 
 type License struct {
 	Provider   string          `json:"provider"`
 	Id         string          `json:"id"`
 	Issued     time.Time       `json:"issued"`
-	Updated    time.Time       `json:"updated"`
+	Updated    *time.Time      `json:"updated,omitempty"`
 	Encryption Encryption      `json:"encryption"`
-	Links      map[string]Link `json:"links"`
+	Links      []Link          `json:"links"`
 	User       UserInfo        `json:"user"`
 	Rights     *UserRights     `json:"rights,omitempty"`
 	Signature  *sign.Signature `json:"signature,omitempty"`
+	ContentId  string          `json:"-"`
+}
+
+type LicenseReport struct {
+	Provider  string      `json:"provider"`
+	Id        string      `json:"id"`
+	Issued    time.Time   `json:"issued"`
+	Updated   *time.Time  `json:"updated,omitempty"`
+	User      UserInfo    `json:"user,omitempty"`
+	Rights    *UserRights `json:"rights,omitempty"`
+	ContentId string      `json:"-"`
+}
+
+func CreateLinks() {
+	var configLinks map[string]string = config.Config.License.Links
+
+	DefaultLinks = make(map[string]string)
+
+	for key := range configLinks {
+		DefaultLinks[key] = configLinks[key]
+	}
+}
+
+func DefaultLinksCopy() []Link {
+	links := new([]Link)
+	for key := range DefaultLinks {
+		link := Link{Href: DefaultLinks[key], Rel: key}
+		*links = append(*links, link)
+	}
+	return *links
 }
 
 func New() License {
-	l := License{Links: map[string]Link{}}
+	l := License{}
 	Prepare(&l)
 	return l
 }
@@ -84,17 +139,28 @@ func New() License {
 func Prepare(l *License) {
 	uuid, _ := newUUID()
 	l.Id = uuid
+
 	l.Issued = time.Now()
-	l.Updated = l.Issued
 
 	if l.Links == nil {
-		l.Links = map[string]Link{}
+		l.Links = DefaultLinksCopy()
 	}
 
 	if l.Rights == nil {
-		l.Rights = &DefaultRights
+		l.Rights = new(UserRights)
 	}
 
+	l.Encryption.Profile = DEFAULT_PROFILE
+}
+
+func createForeigns(l *License) {
+	l.Encryption = Encryption{}
+	l.Encryption.UserKey = UserKey{}
+	l.User = UserInfo{}
+	l.Rights = new(UserRights)
+	l.Signature = new(sign.Signature)
+
+	l.Links = DefaultLinksCopy()
 	l.Encryption.Profile = DEFAULT_PROFILE
 }
 

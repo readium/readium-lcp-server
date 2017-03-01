@@ -1,0 +1,23 @@
+<h1>Purchase status</h1>
+
+<div *ngIf="purchase">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a routerLink="/purchases">Purchases</a></li>
+    <li class="breadcrumb-item active">Purchase {{ purchase.id }}</li>
+  </ol>
+
+  <div *ngIf="licenseStatus">
+    <form>
+      <fieldset disabled>
+        <div class="form-group">
+          <label>Status:</label>
+          <input type="text" class="form-control" placeholder="{{ licenseStatus.status }}" />
+        </div>
+        <div class="form-group">
+          <label>Potential Right End Date:</label>
+          <input type="text" class="form-control" placeholder="{{ licenseStatus.potential_rights.end }}" />
+        </div>
+      </fieldset>
+    </form>
+  </div>
+</div>

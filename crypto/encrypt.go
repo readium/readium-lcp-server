@@ -1,69 +1,72 @@
+// Copyright (c) 2016 Readium Foundation
+//
+// Redistribution and use in source and binary forms, with or without modification,
+// are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation and/or
+//    other materials provided with the distribution.
+// 3. Neither the name of the organization nor the names of its contributors may be
+//    used to endorse or promote products derived from this software without specific
+//    prior written permission
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+
 package crypto
 
 import (
-	"bytes"
 	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
 	"io"
 )
+//"github.com/readium/readium-lcp-server/config"
+// FOR: config.Config.AES256_CBC_OR_GCM
 
-func Encrypt(key []byte, r io.Reader, w io.Writer) error {
-	r = PaddedReader(r, aes.BlockSize)
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return err
-	}
-
-	// generate the IV
-	iv := make([]byte, aes.BlockSize)
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return err
-	}
-
-	// write the IV first
-	if _, err = w.Write(iv); err != nil {
-		return err
-	}
-
-	mode := cipher.NewCBCEncrypter(block, iv)
-	buffer := make([]byte, aes.BlockSize)
-	for _, err = io.ReadFull(r, buffer); err == nil; _, err = io.ReadFull(r, buffer) {
-		mode.CryptBlocks(buffer, buffer)
-		_, wErr := w.Write(buffer)
-		if wErr != nil {
-			return wErr
-		}
-	}
-
-	if err == nil || err == io.EOF {
-		return nil
-	}
-
-	return err
+type Encrypter interface {
+	Encrypt(key ContentKey, r io.Reader, w io.Writer) error
+	GenerateKey() (ContentKey, error)
+	Signature() string
 }
 
-func Decrypt(key []byte, r io.Reader, w io.Writer) error {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return err
-	}
+type Decrypter interface {
+	Decrypt(key ContentKey, r io.Reader, w io.Writer) error
+}
 
-	var buffer bytes.Buffer
-	io.Copy(&buffer, r)
+func NewAESEncrypter_PUBLICATION_RESOURCES() Encrypter {
+	
+	return NewAESCBCEncrypter()
 
-	buf := buffer.Bytes()
-	iv := buf[:aes.BlockSize]
+	// DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
+	// if config.Config.AES256_CBC_OR_GCM == "GCM" {
+	// 	return NewAESGCMEncrypter()
+	// } else { // default to CBC
+	// 	return NewAESCBCEncrypter()
+	// }
+}
 
-	mode := cipher.NewCBCDecrypter(block, iv)
-	mode.CryptBlocks(buf[aes.BlockSize:], buf[aes.BlockSize:])
+func NewAESEncrypter_CONTENT_KEY() Encrypter {
+	// default to CBC
+	return NewAESCBCEncrypter()
+}
 
-	padding := buf[len(buf)-1]
-	w.Write(buf[aes.BlockSize : len(buf)-int(padding)])
+func NewAESEncrypter_USER_KEY_CHECK() Encrypter {
+	// default to CBC
+	return NewAESEncrypter_CONTENT_KEY()
+}
 
-	return nil
-
+func NewAESEncrypter_FIELDS() Encrypter {
+	// default to CBC
+	return NewAESEncrypter_CONTENT_KEY()
 }
 
 var (

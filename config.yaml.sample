@@ -1,7 +1,0 @@
-database: sqlite3://file:test.sqlite?cache=shared&mode=rwc
-certificate:
-             cert: /home/banux/certs/lcp.crt
-             private_key: /home/banux/certs/lcp.pem
-storage:
-         filesystem:
-                      directory: /home/www/files
