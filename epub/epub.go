@@ -21,31 +21,31 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package epub
 
 import (
 	"archive/zip"
+	"io"
 	"path/filepath"
 	"sort"
 	"strings"
-	"io"
 
 	"github.com/readium/readium-lcp-server/epub/opf"
 	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
 const (
-	ContainerFile   = "META-INF/container.xml"
-	EncryptionFile  = "META-INF/encryption.xml"
-	LicenseFile  = "META-INF/license.lcpl"
+	ContainerFile  = "META-INF/container.xml"
+	EncryptionFile = "META-INF/encryption.xml"
+	LicenseFile    = "META-INF/license.lcpl"
 
 	ContentType_XHTML = "application/xhtml+xml"
-	ContentType_HTML = "text/html"
-	
+	ContentType_HTML  = "text/html"
+
 	ContentType_NCX = "application/x-dtbncx+xml"
-	
+
 	ContentType_EPUB = "application/epub+zip"
 )
 
@@ -57,9 +57,22 @@ type Epub struct {
 }
 
 func (ep Epub) Cover() (bool, *Resource) {
+
 	for _, p := range ep.Package {
+
+		var coverImageID string
+		coverImageID = "cover-image"
+		for _, meta := range p.Metadata.Metas {
+			if meta.Name == "cover" {
+				coverImageID = meta.Content
+			}
+		}
+
 		for _, it := range p.Manifest.Items {
-			if strings.Contains(it.Properties, "cover-image") {
+
+			if strings.Contains(it.Properties, "cover-image") ||
+				it.Id == coverImageID {
+
 				path := filepath.Join(p.BasePath, it.Href)
 				for _, r := range ep.Resource {
 					if r.Path == path {

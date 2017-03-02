@@ -21,15 +21,15 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package epub
 
 import (
 	"archive/zip"
 	"encoding/xml"
-	"path/filepath"
 	"io"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -178,15 +178,28 @@ func Read(r *zip.Reader) (Epub, error) {
 	ep.Encryption = encryption
 	sort.Strings(ep.cleartextResources)
 
+	//log.Print(fmt.Sprintf("%v", ep.cleartextResources))
+
 	return ep, nil
 }
 
 func addCleartextResources(ep *Epub, p opf.Package) {
+
+	var coverImageID string
+	coverImageID = "cover-image"
+	for _, meta := range p.Metadata.Metas {
+		if meta.Name == "cover" {
+			coverImageID = meta.Content
+		}
+	}
+
 	// Look for cover, nav and NCX items
 	for _, item := range p.Manifest.Items {
 		if strings.Contains(item.Properties, "cover-image") ||
+			item.Id == coverImageID ||
 			strings.Contains(item.Properties, "nav") ||
 			item.MediaType == ContentType_NCX {
+
 			ep.addCleartextResource(filepath.Join(p.BasePath, item.Href))
 		}
 	}
