@@ -25,7 +25,11 @@
 
 package license
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/readium/readium-lcp-server/config"
+)
 
 func TestLicense(t *testing.T) {
 	l := New()
@@ -33,7 +37,12 @@ func TestLicense(t *testing.T) {
 		t.Error("Should have an id")
 	}
 
-	if l.Encryption.Profile != DEFAULT_PROFILE {
-		t.Error("Expected %s, got %s", DEFAULT_PROFILE, l.Encryption.Profile)
+	profile := BASIC_PROFILE
+	if config.Config.Profile == "1.0" {
+		profile = V1_PROFILE
+	}
+
+	if l.Encryption.Profile != profile {
+		t.Error("Expected %s, got %s", profile, l.Encryption.Profile)
 	}
 }

@@ -46,6 +46,7 @@ type Configuration struct {
 	LicenseStatus  LicenseStatus      `yaml:"license_status"`
 	Localization   Localization       `yaml:"localization"`
 	Logging        Logging            `yaml:"logging"`
+	Profile        string             `yaml:"profile,omitempty"`
 
 	// DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
 	//AES256_CBC_OR_GCM string             `yaml:"aes256_cbc_or_gcm,omitempty"`

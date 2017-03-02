@@ -84,8 +84,8 @@ type UserRights struct {
 	End   *time.Time `json:"end,omitempty"`
 }
 
-const DEFAULT_PROFILE = "http://readium.org/lcp/basic-profile"
-const LEGACY_PROFILE = "http://readium.org/lcp/profile-1.0"
+const BASIC_PROFILE = "http://readium.org/lcp/basic-profile"
+const V1_PROFILE = "http://readium.org/lcp/profile-1.0"
 
 var DefaultLinks map[string]string
 
@@ -151,7 +151,11 @@ func Prepare(l *License) {
 		l.Rights = new(UserRights)
 	}
 
-	l.Encryption.Profile = DEFAULT_PROFILE
+	if config.Config.Profile == "1.0" {
+		l.Encryption.Profile = V1_PROFILE
+	} else {
+		l.Encryption.Profile = BASIC_PROFILE
+	}
 }
 
 func createForeigns(l *License) {
@@ -162,7 +166,12 @@ func createForeigns(l *License) {
 	l.Signature = new(sign.Signature)
 
 	l.Links = DefaultLinksCopy()
-	l.Encryption.Profile = DEFAULT_PROFILE
+
+	if config.Config.Profile == "1.0" {
+		l.Encryption.Profile = V1_PROFILE
+	} else {
+		l.Encryption.Profile = BASIC_PROFILE
+	}
 }
 
 // source: http://play.golang.org/p/4FkNSiUDMg
