@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package license
 
@@ -84,7 +84,8 @@ type UserRights struct {
 	End   *time.Time `json:"end,omitempty"`
 }
 
-const DEFAULT_PROFILE = "http://readium.org/lcp/profile-1.0"
+const DEFAULT_PROFILE = "http://readium.org/lcp/basic-profile"
+const LEGACY_PROFILE = "http://readium.org/lcp/profile-1.0"
 
 var DefaultLinks map[string]string
 
