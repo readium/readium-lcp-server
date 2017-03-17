@@ -679,7 +679,7 @@ func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	// revoke possible when status ready or active (new status must be  revoked and current status must be ready or active to revoke)
-	if parsedLs.Status != status.STATUS_REVOKED || (licenseStatus.Status != status.STATUS_READY && licenseStatus.Status != status.STATUS_ACTIVE) {
+	if (parsedLs.Status != status.STATUS_REVOKED && parsedLs.Status != status.STATUS_CANCELLED) || (licenseStatus.Status != status.STATUS_READY && licenseStatus.Status != status.STATUS_ACTIVE) {
 		problem.Error(w, r, problem.Problem{Detail: "New status not compatible with license current status"}, http.StatusBadRequest)
 		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest))
 		return
