@@ -672,17 +672,19 @@ func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
+	// cancel possible only when status ready
+	if parsedLs.Status == status.STATUS_CANCELLED && licenseStatus.Status != status.STATUS_READY {
+		problem.Error(w, r, problem.Problem{Detail: "Current status cannot be cancelled"}, http.StatusBadRequest)
+		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest))
+		return
+	}
+	// revoke possible when status ready or active (new status must be  revoked and current status must be ready or active to revoke)
+	if parsedLs.Status != status.STATUS_REVOKED || (licenseStatus.Status != status.STATUS_READY && licenseStatus.Status != status.STATUS_ACTIVE) {
+		problem.Error(w, r, problem.Problem{Detail: "New status not compatible with license current status"}, http.StatusBadRequest)
+		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest))
+		return
+	}
 
-	if licenseStatus.Status == status.STATUS_READY && parsedLs.Status != status.STATUS_CANCELLED {
-		problem.Error(w, r, problem.Problem{Detail: "License status is READY, try to CANCEL instead"}, http.StatusBadRequest)
-		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest))
-		return
-	}
-	if licenseStatus.Status == status.STATUS_ACTIVE && parsedLs.Status != status.STATUS_REVOKED {
-		problem.Error(w, r, problem.Problem{Detail: "Current status is ACTIVE, try to REVOKE instead"}, http.StatusBadRequest)
-		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest))
-		return
-	}
 	currentTime := time.Now()
 
 	//update license using LCP Server
