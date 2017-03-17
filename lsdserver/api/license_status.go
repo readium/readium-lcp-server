@@ -665,12 +665,6 @@ func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	if licenseStatus.Status != status.STATUS_READY {
-		problem.Error(w, r, problem.Problem{Detail: "The new status is not compatible with current status"}, http.StatusBadRequest)
-		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest))
-		return
-	}
-
 	var parsedLs licensestatuses.LicenseStatus
 	err = decodeJsonLicenseStatus(r, &parsedLs)
 	if err != nil {
@@ -679,6 +673,16 @@ func CancelLicenseStatus(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	if licenseStatus.Status == status.STATUS_READY && parsedLs.Status != status.STATUS_CANCELLED {
+		problem.Error(w, r, problem.Problem{Detail: "License status is READY, try to CANCEL instead"}, http.StatusBadRequest)
+		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest))
+		return
+	}
+	if licenseStatus.Status == status.STATUS_ACTIVE && parsedLs.Status != status.STATUS_REVOKED {
+		problem.Error(w, r, problem.Problem{Detail: "Current status is ACTIVE, try to REVOKE instead"}, http.StatusBadRequest)
+		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest))
+		return
+	}
 	currentTime := time.Now()
 
 	//update license using LCP Server
