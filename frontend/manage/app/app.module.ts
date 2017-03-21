@@ -14,6 +14,7 @@ import { UserModule }               from './user/user.module';
 import { PublicationModule }        from './publication/publication.module';
 import { PurchaseModule }           from './purchase/purchase.module';
 
+
 @NgModule({
     imports: [
         BrowserModule,

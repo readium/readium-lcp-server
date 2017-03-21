@@ -12,6 +12,7 @@ import { PublicationEditComponent }                     from './publication-edit
 import { PublicationListComponent }                     from './publication-list.component';
 import { PublicationFormComponent }                     from './publication-form.component';
 import { FileUploadModule }                             from 'ng2-file-upload';
+import { SortModule }                                   from '../shared/pipes/sort.module';
 
 @NgModule({
     imports: [
@@ -20,7 +21,8 @@ import { FileUploadModule }                             from 'ng2-file-upload';
         FormsModule,
         ReactiveFormsModule,
         PublicationRoutingModule,
-        FileUploadModule
+        FileUploadModule,
+        SortModule
 
     ],
     declarations: [

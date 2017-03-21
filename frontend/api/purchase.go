@@ -131,7 +131,7 @@ func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-//GetPurchaseLicenseFromLicenseUUID() finds the purchase ID from a given license UUID (passed in URL),
+//GetPurchaseLicenseFromLicenseUUID () finds the purchase ID from a given license UUID (passed in URL),
 //and performs the same as GetPurchaseLicense(), returning "license.lcpl" filename
 //(as this API is meant to be accessed from the LSD JSON license link)
 func GetPurchaseLicenseFromLicenseUUID(w http.ResponseWriter, r *http.Request, s IServer) {
