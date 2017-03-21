@@ -27,6 +27,28 @@ a:hover {
     background: transparent;
 }
 
+
+
+.drop-zone
+{
+    height: 200px;
+    width: 400px;
+    text-align: center;
+    border: 2px dashed grey;
+    padding-top: 80px;
+    border-radius: 25px;
+}
+
+.nv-file-over
+{
+    border-color: green;
+}
+
+.nv-bad-file
+{
+    border-color: red;
+}
+
 lcp-header {
     position: fixed;
     z-index: 2;
@@ -137,4 +159,72 @@ lcp-header {
     #app.sidebar-open #main-container {
         margin-left: 225px;
     }
+}
+
+// Dashboard
+
+$dash-color: #222;
+$dash-radius: 5px;
+
+.dash-case
+{
+    
+    width: 200px;
+    margin: 10px 10px;
+    border: 1px solid $dash-color;
+    border-radius: $dash-radius;
+    text-align: center;
+    background-color: $dash-color;
+    display: inline-block;
+    
+}
+
+.dash-case-number
+{
+    font-size: 90px;
+    display: block;
+    background-color: $dash-color;
+    border-radius: 0px 0px $dash-radius $dash-radius;
+    text-shadow: #000 1px 1px, #000 -1px 1px, #000 -1px -1px, #000 1px -1px;
+    color: white;
+}
+
+.dash-case-title
+{
+    border-bottom: 1px solid $dash-color;
+    font-size: 110%;
+    display: block;
+    padding: 5px 0px;
+    background-color: white;
+    border-radius: $dash-radius $dash-radius 0px 0px;
+    color: black;
+}
+
+#best-table
+{
+    width: 880px;
+    font-size: 110%;
+}
+
+.dash-title
+{
+    margin: 20px 0px;
+}
+
+// Publication && Purchase
+
+.table-search-input
+{
+    margin-bottom: 10px;
+    font-size: 110%;
+}
+
+.table-search-input label
+{
+    margin-right: 20px;
+}
+
+.order-title
+{
+    cursor: pointer;
 }

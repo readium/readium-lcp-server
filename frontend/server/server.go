@@ -100,6 +100,8 @@ func New(
 	//
 	s.handleFunc(sr.R, publicationsRoutesPathPrefix, staticapi.GetPublications).Methods("GET")
 	//
+	s.handleFunc(sr.R, "/PublicationUpload", staticapi.UploadEPUB).Methods("POST")
+	//
 	s.handleFunc(sr.R, publicationsRoutesPathPrefix, staticapi.CreatePublication).Methods("POST")
 	//
 	s.handleFunc(publicationsRoutes, "/{id}", staticapi.GetPublication).Methods("GET")
@@ -138,7 +140,6 @@ func New(
 	s.handleFunc(purchasesRoutes, "/{id}/license", staticapi.GetPurchaseLicense).Methods("GET")
 	//
 	s.handleFunc(purchasesRoutes, "/license/{licenseID}", staticapi.GetPurchaseLicenseFromLicenseUUID).Methods("GET")
-
 	return s
 }
 

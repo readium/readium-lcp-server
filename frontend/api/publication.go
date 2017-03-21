@@ -27,6 +27,7 @@ package staticapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -95,7 +96,7 @@ func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-// GetPublicationByUUID searches a publication by its uuid
+// GetPublication searches a publication by its uuid
 func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
 	var id int
@@ -128,7 +129,7 @@ func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-//DecodeJSONUser transforms a json string to a User struct
+//DecodeJSONPublication transforms a json string to a User struct
 func DecodeJSONPublication(r *http.Request) (webpublication.Publication, error) {
 	var dec *json.Decoder
 	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_JSON {
@@ -147,6 +148,9 @@ func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 		problem.Error(w, r, problem.Problem{Detail: "incorrect JSON Publication " + err.Error()}, http.StatusBadRequest)
 		return
 	}
+
+	fmt.Println("Req: %s %s", r.URL.Host, r.URL.Path)
+
 	// publication ok
 	if err := s.PublicationAPI().Add(pub); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
@@ -155,6 +159,12 @@ func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	// publication added to db
 	w.WriteHeader(http.StatusCreated)
+}
+
+//UploadEPUB creates a new EPUB file
+func UploadEPUB(w http.ResponseWriter, r *http.Request, s IServer) {
+	var pub webpublication.Publication
+	s.PublicationAPI().UploadEPUB(r, w, pub)
 }
 
 // UpdatePublication updates an identified publication (id) in the database

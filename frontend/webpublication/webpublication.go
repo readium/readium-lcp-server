@@ -30,6 +30,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -66,6 +67,7 @@ type WebPublication interface {
 	Update(publication Publication) error
 	Delete(id int64) error
 	List(page int, pageNum int) func() (Publication, error)
+	UploadEPUB(*http.Request, http.ResponseWriter, Publication)
 }
 
 // Publication struct defines a publication
@@ -75,6 +77,7 @@ type Publication struct {
 	Status         string `json:"status"`
 	Title          string `json:"title,omitempty"`
 	MasterFilename string `json:"masterFilename,omitempty"`
+	File           string `json:"file"`
 }
 
 // PublicationManager helper
@@ -143,8 +146,7 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 	// Create output file path
 	contentUUID := uuid.NewV4().String()
 	outputFilename := contentUUID + ".tmp"
-	outputPath := path.Join(
-		pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
+	outputPath := path.Join(pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
 
 	// Encrypt file
 	encryptedEpub, err := encrypt.EncryptEpub(inputPath, outputPath)
@@ -219,6 +221,37 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 	return err
 }
 
+//UploadEPUB creates a new EPUB file
+func (pubManager PublicationManager) UploadEPUB(r *http.Request, w http.ResponseWriter, pub Publication) {
+
+	file, header, err := r.FormFile("file")
+
+	if err != nil {
+		fmt.Fprintln(w, err)
+		return
+	}
+
+	defer file.Close()
+
+	out, err := os.Create(path.Join(pubManager.config.FrontendServer.MasterRepository, header.Filename))
+	if err != nil {
+		fmt.Fprintln(w, err)
+		return
+	}
+
+	defer out.Close()
+
+	// write the content from POST to the file
+	_, err = io.Copy(out, file)
+	if err != nil {
+		fmt.Fprintln(w, err)
+		return
+	}
+
+	fmt.Fprintf(w, "File uploaded successfully : ")
+	fmt.Fprintf(w, header.Filename)
+}
+
 // Update publication
 func (pubManager PublicationManager) Update(pub Publication) error {
 	dbUpdate, err := pubManager.db.Prepare("UPDATE publication SET title=?, status=? WHERE id = ?")
@@ -235,8 +268,42 @@ func (pubManager PublicationManager) Update(pub Publication) error {
 
 // Delete publication
 func (pubManager PublicationManager) Delete(id int64) error {
+
+	var (
+		title string
+	)
+
 	fmt.Print("Delete:")
 	fmt.Println(id)
+
+	dbGetMasterFile, err := pubManager.db.Prepare("SELECT title FROM publication WHERE id = ?")
+	if err != nil {
+		return err
+	}
+
+	defer dbGetMasterFile.Close()
+	result, err := dbGetMasterFile.Query(id)
+	if err != nil {
+		return err
+	}
+
+	if result.Next() {
+		err = result.Scan(&title)
+		if err != nil {
+			return err
+		}
+
+		inputPath := path.Join(pubManager.config.FrontendServer.MasterRepository, title+".epub")
+
+		if _, err := os.Stat(inputPath); err == nil {
+			err = os.Remove(inputPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	result.Close()
+
 	dbDelete, err := pubManager.db.Prepare("DELETE FROM publication WHERE id = ?")
 	if err != nil {
 		return err
