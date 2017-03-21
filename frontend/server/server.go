@@ -33,6 +33,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/frontend/api"
+	"github.com/readium/readium-lcp-server/frontend/webdashboard"
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
 	"github.com/readium/readium-lcp-server/frontend/webrepository"
@@ -48,6 +49,7 @@ type Server struct {
 	publications webpublication.WebPublication
 	users        webuser.WebUser
 	purchases    webpurchase.WebPurchase
+	dashboard    webdashboard.WebDashboard
 }
 
 // HandlerFunc type define a function handled by the server
@@ -62,6 +64,7 @@ func New(
 	repositoryAPI webrepository.WebRepository,
 	publicationAPI webpublication.WebPublication,
 	userAPI webuser.WebUser,
+	dashboardAPI webdashboard.WebDashboard,
 	purchaseAPI webpurchase.WebPurchase) *Server {
 
 	sr := api.CreateServerRouter(tplPath)
@@ -76,7 +79,8 @@ func New(
 		repositories: repositoryAPI,
 		publications: publicationAPI,
 		users:        userAPI,
-		purchases:    purchaseAPI}
+		purchases:    purchaseAPI,
+		dashboard:    dashboardAPI}
 
 	// Route.PathPrefix: http://www.gorillatoolkit.org/pkg/mux#Route.PathPrefix
 	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
@@ -91,7 +95,11 @@ func New(
 	repositoriesRoutes := sr.R.PathPrefix(repositoriesRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
 	s.handleFunc(repositoriesRoutes, "/master-files", staticapi.GetRepositoryMasterFiles).Methods("GET")
-
+	//
+	// dashboard
+	//
+	s.handleFunc(sr.R, "/dashboardInfos", staticapi.GetDashboardInfos).Methods("GET")
+	s.handleFunc(sr.R, "/dashboardBestSellers", staticapi.GetDashboardBestSellers).Methods("GET")
 	//
 	// publications
 	//
@@ -161,6 +169,11 @@ func (server *Server) UserAPI() webuser.WebUser {
 //PurchaseAPI ( staticapi.IServer )returns DB interface for pruchases
 func (server *Server) PurchaseAPI() webpurchase.WebPurchase {
 	return server.purchases
+}
+
+//DashboardAPI ( staticapi.IServer )returns DB interface for dashboard
+func (server *Server) DashboardAPI() webdashboard.WebDashboard {
+	return server.dashboard
 }
 
 func (server *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *mux.Route {

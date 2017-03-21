@@ -25,7 +25,7 @@ import { PurchaseModule }           from './purchase/purchase.module';
         UserModule,
         PublicationModule,
         PurchaseModule,
-        AppRoutingModule,
+        AppRoutingModule
     ],
     declarations: [
         AppComponent,
