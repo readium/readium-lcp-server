@@ -27,16 +27,16 @@ export class Sort implements PipeTransform {
       value.sort(function (a:{}, b:{}) {
         values = getValue(a,b,filter);
         if (values.a == values.b) return 0;
-        else if (values.a > values.b) return 1;
-        else return -1;
+        else if (values.a > values.b || values.a == null) return 1;
+        else if (values.a < values.b || values.b == null) return -1;
       });
     } else {
 
       value.sort(function (a:{}, b:{}) {
         values = getValue(a,b,filter);
         if (values.a == values.b) return 0;
-        else if (values.a < values.b) return 1;
-        else return -1;
+        else if (values.a < values.b || values.a == null) return 1;
+        else  if (values.a > values.b || values.b == null) return -1;
       });
       
     }

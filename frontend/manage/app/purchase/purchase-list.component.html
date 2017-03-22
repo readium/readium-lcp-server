@@ -17,29 +17,35 @@
         <span *ngIf="order == 'id'&&!reverse" class="fa fa-caret-down"></span>
         <span *ngIf="order == 'id'&&reverse" class="fa fa-caret-up"></span>
       </th>
-       <th>
+       <th class="order-title" (click)="orderBy('transactionDate')">
         Date
+        <span *ngIf="order == 'transactionDate'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'transactionDate'&&reverse" class="fa fa-caret-up"></span>
       </th>
        <th class="order-title" (click)="orderBy('publication.title')">
         Publication
-        <span *ngIf="order == 'publication'&&!reverse" class="fa fa-caret-down"></span>
-        <span *ngIf="order == 'publication'&&reverse" class="fa fa-caret-up"></span>
+        <span *ngIf="order == 'publication.title'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'publication.title'&&reverse" class="fa fa-caret-up"></span>
       </th>
        <th class="order-title" (click)="orderBy('user.name')">
         User
-        <span *ngIf="order == 'user'&&!reverse" class="fa fa-caret-down"></span>
-        <span *ngIf="order == 'user'&&reverse" class="fa fa-caret-up"></span>
+        <span *ngIf="order == 'user.name'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'user.name'&&reverse" class="fa fa-caret-up"></span>
       </th>
        <th class="order-title" (click)="orderBy('type')">
         Type
         <span *ngIf="order == 'type'&&!reverse" class="fa fa-caret-down"></span>
         <span *ngIf="order == 'type'&&reverse" class="fa fa-caret-up"></span>
       </th>
-       <th>
+       <th class="order-title" (click)="orderBy('startDate')">
         Start Date
+        <span *ngIf="order == 'startDate'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'startDate'&&reverse" class="fa fa-caret-up"></span>
       </th>
-       <th>
+       <th class="order-title" (click)="orderBy('endDate')">
         End Date
+        <span *ngIf="order == 'endDate'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'endDate'&&reverse" class="fa fa-caret-up"></span>
       </th>
        <th>
         Delivred

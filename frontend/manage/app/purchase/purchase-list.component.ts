@@ -33,8 +33,10 @@ export class PurchaseListComponent implements OnInit {
         this.purchaseService.list().then(
             purchases => {
                 this.purchases = purchases;
+                console.log(purchases);
             }
         );
+        
     }
 
     orderBy(newOrder: string)
@@ -46,7 +48,7 @@ export class PurchaseListComponent implements OnInit {
       else
       {
         this.reverse = false;
-        this.order = newOrder
+        this.order = newOrder;
       }
     }
 
