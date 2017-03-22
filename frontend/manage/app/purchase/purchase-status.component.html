@@ -13,7 +13,7 @@
           <label>Status:</label>
           <input type="text" class="form-control" placeholder="{{ licenseStatus.status }}" />
         </div>
-        <div class="form-group">
+        <div *ngIf="licenseStatus.potential_rights" class="form-group">
           <label>Potential Right End Date:</label>
           <input type="text" class="form-control" placeholder="{{ licenseStatus.potential_rights.end }}" />
         </div>
