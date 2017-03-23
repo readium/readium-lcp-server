@@ -65,27 +65,11 @@
       <td *ngIf="keptWithFilter(purchase)"><span class="badge badge-{{buildLicenseDeliveredClass(purchase.licenseUuid)}}">{{purchase.licenseUuid != null}}</span></td>
       <td *ngIf="keptWithFilter(purchase)">
         <div *ngIf="purchase.status == 'ok'">
-          <button (click)="onDownload_LCPL(purchase)"
-            type="button" role="button"
-            class="btn btn-secondary btn-sm">
-            <i class="fa fa-download" aria-hidden="true"></i> LCPL
-          </button>
           <a [routerLink]="['/purchases', purchase.id, 'status']"
             role="button"
             class="btn btn-secondary btn-sm">
             <i class="fa fa-battery-half" aria-hidden="true"></i> Status
           </a>
-          <a *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
-            [routerLink]="['/purchases', purchase.id, 'renew']"
-            class="btn btn-secondary btn-sm" role="button">
-            <i class="fa fa-hourglass-end" aria-hidden="true"></i> Renew
-          </a>
-          <button *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
-              type="button" role="button"
-              class="btn btn-secondary btn-sm"
-              (click)="onReturn(purchase)">
-            <i class="fa fa-eject" aria-hidden="true"></i> Return
-          </button>
         </div>
       </td>
     </tr>
