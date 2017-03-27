@@ -55,6 +55,7 @@ type Dashboard struct {
 	UserCount        int64 `json:"userCount"`
 	BuyCount         int64 `json:"buyCount"`
 	LoanCount        int64 `json:"loanCount"`
+	AverageDuration  int64 `json:"averageDuration"`
 }
 
 // BestSeller struct defines a best seller
@@ -119,6 +120,18 @@ func (dashManager DashboardManager) GetDashboardInfos() (Dashboard, error) {
 	records, err = dbGet.Query()
 	if records.Next() {
 		err = records.Scan(&dash.LoanCount)
+		records.Close()
+	}
+
+	dbGet, err = dashManager.db.Prepare(`SELECT ROUND(AVG(julianday(end_date) - julianday(start_date))) FROM purchase WHERE type="LOAN"`)
+	if err != nil {
+		return Dashboard{}, err
+	}
+	defer dbGet.Close()
+
+	records, err = dbGet.Query()
+	if records.Next() {
+		err = records.Scan(&dash.AverageDuration)
 		records.Close()
 	}
 

@@ -29,7 +29,8 @@ export class DashboardService{
             publicationCount: jsonObj.publicationCount,
             userCount: jsonObj.userCount,
             buyCount: jsonObj.buyCount,
-            loanCount: jsonObj.loanCount
+            loanCount: jsonObj.loanCount,
+            averageDuration: jsonObj.averageDuration
         }
     }
 

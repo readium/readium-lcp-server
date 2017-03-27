@@ -3,6 +3,7 @@ export class DashboardInfo{
 	userCount:        number;
 	buyCount:         number;
 	loanCount:        number;
+	averageDuration:  number;
 }
 
 export class DashboardBestSeller{
