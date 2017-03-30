@@ -28,7 +28,6 @@ package apilcp
 import (
 	"archive/zip"
 	"bytes"
-	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -473,18 +472,15 @@ func completeLicense(l *license.License, contentID string, s Server) error {
 	}
 
 	l.Links = *links
-	var encryptionKey []byte
 
-	if len(l.Encryption.UserKey.Value) > 0 {
-		encryptionKey = l.Encryption.UserKey.Value
-		//l.Encryption.UserKey.Value = nil
-	} else {
-		passphrase := l.Encryption.UserKey.ClearValue
-		l.Encryption.UserKey.ClearValue = ""
-		hash := sha256.Sum256([]byte(passphrase))
-		encryptionKey = hash[:]
-	}
+	// Generate user key
+	encryptionKey := license.GenerateUserKey(l.Encryption.UserKey)
 
+	// Empty UserKey clear value to avoid clear passphrase to be sent to the
+	// final user
+	l.Encryption.UserKey.ClearValue = ""
+
+	// Encrypt content key with user key
 	encrypter_content_key := crypto.NewAESEncrypter_CONTENT_KEY()
 
 	l.Encryption.ContentKey.Algorithm = encrypter_content_key.Signature()
