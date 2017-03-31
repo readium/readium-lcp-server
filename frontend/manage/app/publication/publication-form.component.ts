@@ -29,6 +29,9 @@ export class PublicationFormComponent implements OnInit {
     submitButtonLabel: string = "Add";
     form: FormGroup;
 
+    snackMessage: string = "";
+    newPublication:boolean = true;
+
     fileName: string;
 
     public uploader:FileUploader = new FileUploader({url: URL});
@@ -99,10 +102,11 @@ export class PublicationFormComponent implements OnInit {
         this.gotoList();
     }
 
-    onSubmit() {
+    onSubmit(confirm: boolean) {
         if (this.publication) {
             // Update publication
             this.publication.title = this.form.value['title'];
+            
             this.publicationService.update(
                 this.publication
             ).then(
@@ -113,24 +117,51 @@ export class PublicationFormComponent implements OnInit {
         } else {
             this.fileName = this.form.value['title'] + '.epub';
             this.lastFile.file.name = this.fileName;
-            this.uploader.uploadItem(this.lastFile);
-            
-            
+            if (confirm){
+                this.publicationService.checkByName(this.form.value['title']).then(
+                    result => {
+                        if (result == 0)
+                        {
+                            this.uploader.uploadItem(this.lastFile);
+                        }
+                        else
+                        {
+                            this.showSnackBar();
+                        }
+                    }
+                );
+            } else {
+                this.newPublication = false;
+                this.uploader.uploadItem(this.lastFile);
+                this.gotoList();
+            }
         }
     }
 
     // When all the files are uploaded, create the publication
     AllUploaded(): void
     {
-        // Create publication
-        let publication = new Publication();
-        publication.title = this.form.value['title'];
-        publication.masterFilename = this.fileName;
-        this.publicationService.add(publication)
-        .then(
-            newPublication => {
-                this.gotoList();
-            }
-        );
+        if (this.newPublication){
+            // Create publication
+            let publication = new Publication();
+            publication.title = this.form.value['title'];
+            publication.masterFilename = this.fileName;
+            this.publicationService.add(publication)
+            .then(
+                newPublication => {
+                    this.gotoList();
+                }
+            );
+        }
+    }
+
+    showSnackBar() {
+        var x = $("#snackbar");
+        x.attr("class","show stay");
+    }
+
+    hideSnackBar() {
+        var x = $("#snackbar");
+        x.attr("class","");
     }
 }

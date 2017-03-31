@@ -1,4 +1,4 @@
-<form [formGroup]="form" (ngSubmit)="onSubmit()">
+<form [formGroup]="form" (ngSubmit)="onSubmit(true)">
   <div class="form-group">
     <label for="publication-title">Title</label>
     <input
@@ -17,6 +17,11 @@
         <div *ngIf="notAnEPUB&&lastFile">The file must be a .epub</div>
     </div>
   </div>
-  <button type="submit" [disabled]="((!uploader.getNotUploadedItems().length || !this.form.value['title'] || notAnEPUB) && !hideFilename) || (hideFilename && !this.form.value['title'])" class="btn btn-primary">{{submitButtonLabel}}</button>
+  <button type="sumbit" (click)="onSubmit(true)"[disabled]="((!uploader.getNotUploadedItems().length || !this.form.value['title'] || notAnEPUB) && !hideFilename) || (hideFilename && !this.form.value['title'])" class="btn btn-primary">{{submitButtonLabel}}</button>
   <button type="button" (click)="onCancel()" class="btn btn-secondary">Cancel</button>
 </form>
+
+<div id="snackbar">
+  <p>A publication with this name already exist. Would you replace it with this new file ?</p>
+  <button (click)="hideSnackBar();onSubmit(false)">Yes</button><button (click)="hideSnackBar()">No</button>
+</div>

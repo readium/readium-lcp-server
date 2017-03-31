@@ -232,11 +232,12 @@ $dash-radius: 5px;
 // SNACK BAR
 
 $topDistance : 60px;
+$min-width : 250px;
 
 #snackbar {
     visibility: hidden;
-    min-width: 250px;
-    margin-left: auto;
+    min-width: $min-width;
+    margin-left: -$min-width/2;
     background-color: #b33;
     color: #fff;
     text-align: center;
@@ -255,12 +256,30 @@ $topDistance : 60px;
     animation: fadein 0.5s, fadeout 0.5s 2.5s;
 }
 
+#snackbar.show.stay{
+    visibility: visible;
+    -webkit-animation: fadein 0.5s;
+    animation: fadein 0.5s;
+}
+
+#snackbar.show.quit{
+    visibility: visible;
+    animation-name: fadeout;
+    animation-duration: 0.5s;
+}
+
 #snackbar.show.success{
     background-color: #383;;
 }
 
+#snackbar button{
+    display: inline-block;
+    margin : 0px 10px 0px 10px;
+    width: 75px;
+}
+
 @-webkit-keyframes fadein {
-    from {bottom: 0; opacity: 0;} 
+    from {top: 0; opacity: 0;} 
     to {top: $topDistance; opacity: 1;}
 }
 

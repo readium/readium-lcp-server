@@ -40,6 +40,20 @@ export class PublicationService extends CrudService<Publication> {
         }
     }
 
+    checkByName(name: string): Promise<number> {
+        var self = this
+        return this.http
+            .get(
+                "http://localhost:8991/api/v1/publications/checkByTitle/" + name,
+                { headers: this.defaultHttpHeaders })
+            .toPromise()
+            .then(function (response) {
+                let jsonObj = response.json();
+                return jsonObj;
+            })
+            .catch(this.handleError);
+    }
+
     getMasterFiles(): Promise<MasterFile[]> {
         return this.http
             .get(

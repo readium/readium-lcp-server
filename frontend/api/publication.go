@@ -129,6 +129,35 @@ func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
+// CheckPublicationByTitle chack if a publication with this title exist
+func CheckPublicationByTitle(w http.ResponseWriter, r *http.Request, s IServer) {
+	vars := mux.Vars(r)
+	var title string
+	title = vars["title"]
+
+	if pub, err := s.PublicationAPI().CheckByTitle(string(title)); err == nil {
+		enc := json.NewEncoder(w)
+		if err = enc.Encode(pub); err == nil {
+			// send json of correctly encoded user info
+			w.Header().Set("Content-Type", api.ContentType_JSON)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+	} else {
+		switch err {
+		case webpublication.ErrNotFound:
+			{
+				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+			}
+		default:
+			{
+				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			}
+		}
+	}
+}
+
 //DecodeJSONPublication transforms a json string to a User struct
 func DecodeJSONPublication(r *http.Request) (webpublication.Publication, error) {
 	var dec *json.Decoder

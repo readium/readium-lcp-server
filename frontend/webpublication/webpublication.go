@@ -68,6 +68,7 @@ type WebPublication interface {
 	Delete(id int64) error
 	List(page int, pageNum int) func() (Publication, error)
 	UploadEPUB(*http.Request, http.ResponseWriter, Publication)
+	CheckByTitle(title string) (int64, error)
 }
 
 // Publication struct defines a publication
@@ -77,7 +78,6 @@ type Publication struct {
 	Status         string `json:"status"`
 	Title          string `json:"title,omitempty"`
 	MasterFilename string `json:"masterFilename,omitempty"`
-	File           string `json:"file"`
 }
 
 // PublicationManager helper
@@ -130,6 +130,26 @@ func (pubManager PublicationManager) GetByUUID(uuid string) (Publication, error)
 	}
 
 	return Publication{}, ErrNotFound
+}
+
+// CheckByName return 1 or 0 if the publication exist or not
+func (pubManager PublicationManager) CheckByTitle(name string) (int64, error) {
+	dbGetByUUID, err := pubManager.db.Prepare("SELECT CASE WHEN EXISTS (SELECT * FROM [publication] WHERE title = ?) THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END")
+	if err != nil {
+		return -1, err
+	}
+	defer dbGetByUUID.Close()
+
+	records, err := dbGetByUUID.Query(name)
+	if records.Next() {
+		var res int64
+		err = records.Scan(
+			&res)
+		records.Close()
+		return res, err
+	}
+
+	return -1, ErrNotFound
 }
 
 // Add new publication
