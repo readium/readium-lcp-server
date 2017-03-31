@@ -6,23 +6,38 @@
     <li class="breadcrumb-item active">Purchase {{ purchase.id }}</li>
   </ol>
   <h2>{{purchase.publication.title}}</h2>
-  <div *ngIf="purchase.status == 'ok'">
-      <button (click)="onDownload_LCPL(purchase)"
+      <button 
+        [disabled]="licenseStatus && (licenseStatus.status == 'revoked' || licenseStatus.status == 'cancelled')"
+        (click)="onDownload_LCPL(purchase)"
         type="button" role="button"
-        class="btn btn-secondary btn-sm">
+        class="btn btn-secondary btn-sm" >
         <i class="fa fa-download" aria-hidden="true"></i> LCPL
       </button>
-      <a *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
+      <div *ngIf="purchase.status == 'ok' && licenseStatus && licenseStatus.status != 'revoked'">
+      <a 
+        *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null && licenseStatus.status != 'revoked'"
         [routerLink]="['/purchases', purchase.id, 'renew']"
         class="btn btn-secondary btn-sm" role="button">
         <i class="fa fa-hourglass-end" aria-hidden="true"></i> Renew
       </a>
-      <button *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
+      <button 
+          [disabled]="licenseStatus.status == 'revoked' || licenseStatus.status == 'cancelled'"
+          *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
           type="button" role="button"
           class="btn btn-secondary btn-sm"
           (click)="onReturn(purchase)">
         <i class="fa fa-eject" aria-hidden="true"></i> Return
       </button>
+      <div class="revoke-zone">
+        <button 
+          [disabled]="licenseStatus.status == 'revoked' || licenseStatus.status == 'cancelled'"
+          type="button" role="button"
+          class="btn btn-secondary btn-sm"
+          (click)="onRevoke(purchase)">
+          <i class="fa fa-eject" aria-hidden="true"></i> Revoke
+        </button>
+      </div>
+  </div>
       <p>Date : {{formatDate(purchase.transactionDate)}}</p>
       <p>User : {{purchase.user.name}}</p>
       <p>Type : {{purchase.type}}</p>
@@ -44,3 +59,5 @@
     </form>
   </div>
 </div>
+
+<div id="snackbar">{{revokeMessage}}</div>

@@ -20,6 +20,7 @@ declare var Config: any;
 export class PurchaseStatusComponent implements OnInit {
     purchase: Purchase;
     licenseStatus: LicenseStatus;
+    revokeMessage: string = "";
 
     constructor(
         private route: ActivatedRoute,
@@ -93,4 +94,41 @@ export class PurchaseStatusComponent implements OnInit {
             }
         );
     }
+
+    onRevoke(purchase: Purchase): void {
+        this.purchaseService.revoke("", purchase.licenseUuid).then(
+            status => {
+                this.refreshPurchase();
+                var success:boolean = false;
+                if (status == 200) {
+                    this.revokeMessage = "The license has been revoked";
+                    success = true;
+                } else if (status == 400){
+                    this.revokeMessage = '400 The new status is not compatible with current status';
+                }
+                else if (status ==  401){
+                    this.revokeMessage = '401 License not Found';
+                }
+                else if (status == 404){
+                    this.revokeMessage = '404 License not Found';
+                }
+                else if (status >= 500){
+                    this.revokeMessage = 'An internal error appear';
+                }
+                else{
+                    this.revokeMessage = 'An internal error appear';
+                }
+                this.showSnackBar(success);
+            }
+        );
+    }
+
+    showSnackBar(success: boolean) {
+        var x = $("#snackbar");
+        var xClass = "show";
+        if (success) xClass = "show success";
+        x.attr("class",xClass);
+        setTimeout(function(){ x.attr("class",""); }, 3000);
+    }
+    
 }
