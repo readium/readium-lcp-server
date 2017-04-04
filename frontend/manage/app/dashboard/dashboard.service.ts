@@ -19,7 +19,7 @@ export class DashboardService{
 
     constructor (http: Http) {
         this.http = http;
-        this.baseUrl = Config.frontend.url + '/api/v1/publications';
+        this.baseUrl = Config.frontend.url;
         this.masterFileListUrl = Config.frontend.url + '/api/v1/repositories/master-files';
     }
 
@@ -38,7 +38,7 @@ export class DashboardService{
         var self = this
         return this.http
             .get(
-                "http://localhost:8991/dashboardInfos",
+                this.baseUrl + "/dashboardInfos",
                 { headers: this.defaultHttpHeaders })
             .toPromise()
             .then(function (response) {
@@ -52,7 +52,7 @@ export class DashboardService{
         var self = this
         return this.http
             .get(
-                "http://localhost:8991/dashboardBestSellers",
+                this.baseUrl + "/dashboardBestSellers",
                 { headers: this.defaultHttpHeaders })
             .toPromise()
             .then(function (response) {

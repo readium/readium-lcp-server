@@ -44,7 +44,7 @@ export class PublicationService extends CrudService<Publication> {
         var self = this
         return this.http
             .get(
-                "http://localhost:8991/api/v1/publications/checkByTitle/" + name,
+                this.baseUrl + "/checkByTitle/" + name,
                 { headers: this.defaultHttpHeaders })
             .toPromise()
             .then(function (response) {

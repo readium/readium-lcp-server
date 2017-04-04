@@ -11,7 +11,6 @@ import { PublicationService }                                   from './publicat
 import { MasterFile }                                           from './master-file';
 import { FileSelectDirective, FileDropDirective, FileUploader } from 'ng2-file-upload';
 
-const URL = 'http://localhost:8991/PublicationUpload';
 declare var Config: any;
 
 @Component({
@@ -24,6 +23,7 @@ export class PublicationFormComponent implements OnInit {
     @Input()
     publication: Publication;
     masterFiles: MasterFile[];
+    baseUrl: string = Config.frontend.url;
 
     hideFilename: boolean = false;
     submitButtonLabel: string = "Add";
@@ -34,7 +34,7 @@ export class PublicationFormComponent implements OnInit {
 
     fileName: string;
 
-    public uploader:FileUploader = new FileUploader({url: URL});
+    public uploader:FileUploader;
     public lastFile:any;
     public hasBaseDropZoneOver:boolean = false;
     public notAnEPUB: boolean = false;
@@ -73,6 +73,7 @@ export class PublicationFormComponent implements OnInit {
     }
 
     ngOnInit(): void {
+        this.uploader = new FileUploader({url: this.baseUrl + "/PublicationUpload"});
         this.refreshMasterFiles();
 
         // Events declarations

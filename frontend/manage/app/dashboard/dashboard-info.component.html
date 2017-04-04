@@ -16,8 +16,8 @@
         </tr>
         </thead>
         <tr *ngFor="let pub of bestSellers">
-            <td *ngIf="pub != ''">{{pub.title}}</td>
-            <td *ngIf="pub != ''">{{pub.count}}</td>
+            <td *ngIf="pub != '' && pub.count > 0">{{pub.title}}</td>
+            <td *ngIf="pub != '' && pub.count > 0">{{pub.count}}</td>
         </tr>
     </table>
 </div>
