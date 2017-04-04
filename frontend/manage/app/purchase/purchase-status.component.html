@@ -13,22 +13,21 @@
         class="btn btn-secondary btn-sm" >
         <i class="fa fa-download" aria-hidden="true"></i> LCPL
       </button>
-      <div *ngIf="purchase.status == 'ok' && licenseStatus && licenseStatus.status != 'revoked'">
-      <a 
-        *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null && licenseStatus.status != 'revoked'"
-        [routerLink]="['/purchases', purchase.id, 'renew']"
-        class="btn btn-secondary btn-sm" role="button">
-        <i class="fa fa-hourglass-end" aria-hidden="true"></i> Renew
-      </a>
-      <button 
-          [disabled]="licenseStatus.status == 'revoked' || licenseStatus.status == 'cancelled'"
-          *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
-          type="button" role="button"
-          class="btn btn-secondary btn-sm"
-          (click)="onReturn(purchase)">
-        <i class="fa fa-eject" aria-hidden="true"></i> Return
-      </button>
-      <div class="revoke-zone">
+      <span *ngIf="purchase.status == 'ok' && licenseStatus && licenseStatus.status != 'revoked'">
+        <a 
+          *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null && licenseStatus.status != 'revoked'"
+          [routerLink]="['/purchases', purchase.id, 'renew']"
+          class="btn btn-secondary btn-sm" role="button">
+          <i class="fa fa-hourglass-end" aria-hidden="true"></i> Renew
+        </a>
+        <button 
+            [disabled]="licenseStatus.status == 'revoked' || licenseStatus.status == 'cancelled'"
+            *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
+            type="button" role="button"
+            class="btn btn-secondary btn-sm"
+            (click)="onReturn(purchase)">
+          <i class="fa fa-eject" aria-hidden="true"></i> Return
+        </button>
         <button 
           [disabled]="licenseStatus.status == 'revoked' || licenseStatus.status == 'cancelled'"
           type="button" role="button"

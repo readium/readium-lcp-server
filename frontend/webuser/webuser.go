@@ -52,6 +52,7 @@ type User struct {
 	Name     string `json:"name,omitempty"`
 	Email    string `json:"email,omitempty"`
 	Password string `json:"password,omitempty"`
+	Hint     string `json:"hint,omitempty"`
 }
 
 type dbUser struct {
@@ -85,7 +86,7 @@ func (user dbUser) GetByEmail(email string) (User, error) {
 }
 
 func (user dbUser) Add(newUser User) error {
-	add, err := user.db.Prepare("INSERT INTO user (uuid, name, email, password) VALUES (?, ?, ?, ?)")
+	add, err := user.db.Prepare("INSERT INTO user (uuid, name, email, password, hint) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
@@ -94,7 +95,7 @@ func (user dbUser) Add(newUser User) error {
 	// Create uuid
 	newUser.UUID = uuid.NewV4().String()
 
-	_, err = add.Exec(newUser.UUID, newUser.Name, newUser.Email, newUser.Password)
+	_, err = add.Exec(newUser.UUID, newUser.Name, newUser.Email, newUser.Password, newUser.Hint)
 	return err
 }
 
@@ -160,17 +161,18 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	name varchar(64) NOT NULL,
 	email varchar(64) NOT NULL,
 	password varchar(64) NOT NULL,
+	hint varchar(64) NOT NULL,
 
 	constraint pk_user  primary key(id)
 	)`)
 	if err != nil {
 		return
 	}
-	get, err := db.Prepare("SELECT id, uuid, name, email, password FROM user WHERE id = ? LIMIT 1")
+	get, err := db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE id = ? LIMIT 1")
 	if err != nil {
 		return
 	}
-	getByEmail, err := db.Prepare("SELECT id, uuid, name, email, password FROM user WHERE email = ? LIMIT 1")
+	getByEmail, err := db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE email = ? LIMIT 1")
 	if err != nil {
 		return
 	}

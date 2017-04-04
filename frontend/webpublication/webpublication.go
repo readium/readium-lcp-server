@@ -283,6 +283,9 @@ func (pubManager PublicationManager) Update(pub Publication) error {
 		pub.Title,
 		pub.Status,
 		pub.ID)
+	if err != nil {
+		return err
+	}
 	return err
 }
 
