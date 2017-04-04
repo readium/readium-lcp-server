@@ -36,14 +36,13 @@
           (click)="onRevoke(purchase)">
           <i class="fa fa-eject" aria-hidden="true"></i> Revoke
         </button>
-      </div>
-  </div>
+      </span>
       <p>Date : {{formatDate(purchase.transactionDate)}}</p>
       <p>User : {{purchase.user.name}}</p>
       <p>Type : {{purchase.type}}</p>
       <p *ngIf="purchase.type == 'LOAN'">Start Date : {{formatDate(purchase.startDate)}}</p>
       <p *ngIf="purchase.type == 'LOAN'">End Date : {{formatDate(purchase.endDate)}}</p>
-      <p>Delivred : {{purchase.licenseUuid != null}}<p>
+      <p>Delivered : {{purchase.licenseUuid != null}}<p>
   <div *ngIf="licenseStatus">
     <form>
       <fieldset disabled>

@@ -132,7 +132,7 @@ func (pubManager PublicationManager) GetByUUID(uuid string) (Publication, error)
 	return Publication{}, ErrNotFound
 }
 
-// CheckByName return 1 or 0 if the publication exist or not
+// CheckByTitle return 1 or 0 if the publication exist or not
 func (pubManager PublicationManager) CheckByTitle(name string) (int64, error) {
 	dbGetByUUID, err := pubManager.db.Prepare("SELECT CASE WHEN EXISTS (SELECT * FROM [publication] WHERE title = ?) THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END")
 	if err != nil {

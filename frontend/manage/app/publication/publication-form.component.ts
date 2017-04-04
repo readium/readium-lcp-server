@@ -117,6 +117,7 @@ export class PublicationFormComponent implements OnInit {
         } else {
             this.fileName = this.form.value['title'] + '.epub';
             this.lastFile.file.name = this.fileName;
+            this.newPublication = true;
             if (confirm){
                 this.publicationService.checkByName(this.form.value['title']).then(
                     result => {
