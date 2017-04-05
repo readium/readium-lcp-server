@@ -98,11 +98,11 @@ export class PurchaseService extends CrudService<Purchase> {
                 }
                 return;
             })
-            .catch(this.handleError);
+            .catch(this.handleRevokeError);
 
             
     }
-    handleError(error: any): Promise<any> {
+    handleRevokeError(error: any): Promise<any> {
         return error.status;
     }
 }

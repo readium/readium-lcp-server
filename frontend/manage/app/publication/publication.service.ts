@@ -77,4 +77,25 @@ export class PublicationService extends CrudService<Publication> {
             })
             .catch(this.handleError);
     }
+
+    addPublication(pub: Publication): Promise<number> {
+        return this.http
+            .post(
+                this.baseUrl,
+                this.encode(pub),
+                { headers: this.defaultHttpHeaders })
+            .toPromise()
+            .then(function (response) {
+                if (response.ok) {
+                    return 200;
+                } else {
+                    throw 'Error creating publication ' + response.text;
+                }
+            })
+            .catch(this.handleAddError);
+    }
+
+    protected handleAddError(error: any): any {
+        return error.status;
+    }
 }

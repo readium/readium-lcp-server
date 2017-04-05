@@ -22,6 +22,11 @@
 </form>
 
 <div id="snackbar">
-  <p>A publication with this name already exist. Would you replace it with this new file ?</p>
-  <button (click)="hideSnackBar();onSubmit(false)">Yes</button><button (click)="hideSnackBar()">No</button>
+  <div *ngIf="uploadConfimation">
+    <p>A publication with this name already exist. Would you replace it with this new file ?</p>
+    <button (click)="hideSnackBar();onSubmit(false)">Yes</button><button (click)="hideSnackBar()">No</button>
+  </div>
+  <div *ngIf="!uploadConfimation">
+    {{errorMessage}}
+  </div>
 </div>

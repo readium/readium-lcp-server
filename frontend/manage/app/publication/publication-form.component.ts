@@ -30,7 +30,9 @@ export class PublicationFormComponent implements OnInit {
     form: FormGroup;
 
     snackMessage: string = "";
-    newPublication:boolean = true;
+    newPublication: boolean = true;
+    uploadConfimation: boolean;
+    errorMessage: string = "";
 
     fileName: string;
 
@@ -128,7 +130,8 @@ export class PublicationFormComponent implements OnInit {
                         }
                         else
                         {
-                            this.showSnackBar();
+                            this.uploadConfimation = true;
+                            this.showSnackBar(true);
                         }
                     }
                 );
@@ -148,18 +151,28 @@ export class PublicationFormComponent implements OnInit {
             let publication = new Publication();
             publication.title = this.form.value['title'];
             publication.masterFilename = this.fileName;
-            this.publicationService.add(publication)
-            .then(
-                newPublication => {
-                    this.gotoList();
+            this.publicationService.addPublication(publication)
+            .then( error => {
+                console.log(error);
+                    this.uploadConfimation = false;
+                    if (error == 200){
+                        this.gotoList();
+                    } else if (error == 400){
+                        this.errorMessage = "The file must be a real epub file."
+                        this.showSnackBar(false);
+                    }
                 }
             );
         }
     }
 
-    showSnackBar() {
+    showSnackBar(stay: boolean) {
+        var snakeClass: string = "show stay";
+
+        if (!stay) snakeClass = "show";
         var x = $("#snackbar");
-        x.attr("class","show stay");
+        x.attr("class",snakeClass);
+        if (!stay) setTimeout(function(){$("#snackbar").attr("class","");}, 3000);
     }
 
     hideSnackBar() {
