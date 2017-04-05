@@ -23,7 +23,6 @@ import { SortModule }                                   from '../shared/pipes/so
         PublicationRoutingModule,
         FileUploadModule,
         SortModule
-
     ],
     declarations: [
         PublicationAddComponent,
