@@ -292,6 +292,7 @@ func (pubManager PublicationManager) Update(pub Publication) error {
 // Delete publication
 func (pubManager PublicationManager) Delete(id int64) error {
 
+	// delete the epub file
 	var (
 		title string
 	)
@@ -327,6 +328,17 @@ func (pubManager PublicationManager) Delete(id int64) error {
 	}
 	result.Close()
 
+	// delete purchases from user
+	delPurchases, err := pubManager.db.Prepare(`DELETE FROM purchase WHERE publication_id=?`)
+	if err != nil {
+		return err
+	}
+	defer delPurchases.Close()
+	if _, err := delPurchases.Exec(id); err != nil {
+		return err
+	}
+
+	// delete user
 	dbDelete, err := pubManager.db.Prepare("DELETE FROM publication WHERE id = ?")
 	if err != nil {
 		return err
