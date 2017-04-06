@@ -27,8 +27,8 @@ import { EventModule }              from './event/event.module';
         UserModule,
         PublicationModule,
         PurchaseModule,
+        EventModule,
         AppRoutingModule,
-        EventModule
     ],
     declarations: [
         AppComponent,
