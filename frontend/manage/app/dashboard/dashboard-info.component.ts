@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { DashboardInfo, DashboardBestSeller } from './dashboardinfo';
+import { DashboardInfo, DashboardBestSeller } from './dashboardInfo';
 import { DashboardService }   from './dashboard.service';
 
 @Component({
