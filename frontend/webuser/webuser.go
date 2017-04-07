@@ -52,7 +52,7 @@ type User struct {
 	Name     string `json:"name,omitempty"`
 	Email    string `json:"email,omitempty"`
 	Password string `json:"password,omitempty"`
-	Hint     string `json:"hint,omitempty"`
+	Hint     string `json:"hint"`
 }
 
 type dbUser struct {
@@ -66,7 +66,7 @@ func (user dbUser) Get(id int64) (User, error) {
 	defer records.Close()
 	if records.Next() {
 		var c User
-		err = records.Scan(&c.ID, &c.UUID, &c.Name, &c.Email, &c.Password)
+		err = records.Scan(&c.ID, &c.UUID, &c.Name, &c.Email, &c.Password, &c.Hint)
 		return c, err
 	}
 
@@ -78,7 +78,7 @@ func (user dbUser) GetByEmail(email string) (User, error) {
 	defer records.Close()
 	if records.Next() {
 		var c User
-		err = records.Scan(&c.ID, &c.UUID, &c.Name, &c.Email, &c.Password)
+		err = records.Scan(&c.ID, &c.UUID, &c.Name, &c.Email, &c.Password, &c.Hint)
 		return c, err
 	}
 
@@ -130,7 +130,7 @@ func (user dbUser) DeleteUser(userID int64) error {
 }
 
 func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
-	listUsers, err := user.db.Query(`SELECT id, uuid, name, email, password
+	listUsers, err := user.db.Query(`SELECT id, uuid, name, email, password, hint
 	FROM user
 	ORDER BY email desc LIMIT ? OFFSET ? `, page, pageNum*page)
 	if err != nil {
@@ -139,7 +139,7 @@ func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
 	return func() (User, error) {
 		var u User
 		if listUsers.Next() {
-			err := listUsers.Scan(&u.ID, &u.UUID, &u.Name, &u.Email, &u.Password)
+			err := listUsers.Scan(&u.ID, &u.UUID, &u.Name, &u.Email, &u.Password, &u.Hint)
 
 			if err != nil {
 				return u, err
