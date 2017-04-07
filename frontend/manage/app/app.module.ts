@@ -13,7 +13,7 @@ import { DashboardModule }          from './dashboard/dashboard.module';
 import { UserModule }               from './user/user.module';
 import { PublicationModule }        from './publication/publication.module';
 import { PurchaseModule }           from './purchase/purchase.module';
-import { EventModule }              from './event/event.module';
+import { LicenseModule }            from './license/license.module';
 
 
 @NgModule({
@@ -27,8 +27,8 @@ import { EventModule }              from './event/event.module';
         UserModule,
         PublicationModule,
         PurchaseModule,
-        EventModule,
-        AppRoutingModule,
+        LicenseModule,
+        AppRoutingModule
     ],
     declarations: [
         AppComponent,

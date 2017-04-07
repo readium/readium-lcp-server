@@ -1,0 +1,27 @@
+<div >
+    <h1 class="dash-title"> Licenses </h1>
+    <table class="table">
+        <thead class="thead-inverse">
+        <tr>
+            <th>UUID</th>
+            <th>Publication</th>
+            <th>User</th>
+            <th>Type</th>
+            <th>Devices</th>
+            <th>Statues</th>
+            <th>Message</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tr *ngFor="let license of licenses">
+            <td>{{license.id}}</td>
+            <td>TITRE</td>
+            <td>USER</td>
+            <td>{{license.type}}</td>
+            <td>{{license.devices}}</td>
+            <td>{{license.status}}</td>
+            <td>{{license.message}}</td>
+            <td>BUTTON</td>
+        </tr>
+    </table>
+</div>
