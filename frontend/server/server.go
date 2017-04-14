@@ -27,13 +27,19 @@ package frontend
 
 import (
 	"crypto/tls"
+	"encoding/base64"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
+	"github.com/claudiu/gocron"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/api"
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/frontend/api"
 	"github.com/readium/readium-lcp-server/frontend/webdashboard"
+	"github.com/readium/readium-lcp-server/frontend/weblicense"
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
 	"github.com/readium/readium-lcp-server/frontend/webrepository"
@@ -48,8 +54,9 @@ type Server struct {
 	repositories webrepository.WebRepository
 	publications webpublication.WebPublication
 	users        webuser.WebUser
-	purchases    webpurchase.WebPurchase
 	dashboard    webdashboard.WebDashboard
+	license      weblicense.WebLicense
+	purchases    webpurchase.WebPurchase
 }
 
 // HandlerFunc type define a function handled by the server
@@ -65,6 +72,7 @@ func New(
 	publicationAPI webpublication.WebPublication,
 	userAPI webuser.WebUser,
 	dashboardAPI webdashboard.WebDashboard,
+	licenseAPI weblicense.WebLicense,
 	purchaseAPI webpurchase.WebPurchase) *Server {
 
 	sr := api.CreateServerRouter(tplPath)
@@ -79,12 +87,17 @@ func New(
 		repositories: repositoryAPI,
 		publications: publicationAPI,
 		users:        userAPI,
-		purchases:    purchaseAPI,
-		dashboard:    dashboardAPI}
+		dashboard:    dashboardAPI,
+		license:      licenseAPI,
+		purchases:    purchaseAPI}
 
 	// Route.PathPrefix: http://www.gorillatoolkit.org/pkg/mux#Route.PathPrefix
 	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
 	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
+
+	//Cron to get license informations
+	gocron.Start()
+	gocron.Every(10).Seconds().Do(task, s)
 
 	apiURLPrefix := "/api/v1"
 
@@ -150,7 +163,45 @@ func New(
 	s.handleFunc(purchasesRoutes, "/{id}/license", staticapi.GetPurchaseLicense).Methods("GET")
 	//
 	s.handleFunc(purchasesRoutes, "/license/{licenseID}", staticapi.GetPurchaseLicenseFromLicenseUUID).Methods("GET")
+	//
+	// licences
+	//
+	licenseRoutesPathPrefix := "/licenses"
+	//
+	s.handleFunc(sr.R, licenseRoutesPathPrefix, staticapi.GetFiltredLicenses).Methods("GET")
+
 	return s
+
+}
+
+func task(s *Server) {
+	fmt.Println("AUTOMATIC : Save of the license_status table from lsd server.")
+	url := config.Config.LsdServer.PublicBaseUrl + "/licenses"
+
+	// Get the liscences from the LSD server
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("lsd:readium")))
+	res, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+
+	err = s.license.PurgeDataBase()
+	if err != nil {
+		panic(err)
+	}
+
+	// Give licenses to the frontend server
+	err = s.license.AddFromJSON(body)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // RepositoryAPI ( staticapi.IServer ) returns interface for repositories
@@ -176,6 +227,11 @@ func (server *Server) PurchaseAPI() webpurchase.WebPurchase {
 //DashboardAPI ( staticapi.IServer )returns DB interface for dashboard
 func (server *Server) DashboardAPI() webdashboard.WebDashboard {
 	return server.dashboard
+}
+
+//LicenseAPI ( staticapi.IServer )returns DB interface for license
+func (server *Server) LicenseAPI() weblicense.WebLicense {
+	return server.license
 }
 
 func (server *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *mux.Route {

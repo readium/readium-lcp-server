@@ -1,4 +1,8 @@
-<div >
+<form>
+    <span class="table-search-input"><label>Filter : </label><input type="text" placeholder="Enter a minimum device number" #filterBox></span>
+    <button type="button" (click)=" filter = filterBox.value;onSubmit();" class="btn btn-primary">Search</button>
+</form>
+<div *ngIf="filtred">
     <h1 class="dash-title"> Licenses </h1>
     <table class="table">
         <thead class="thead-inverse">
@@ -15,13 +19,19 @@
         </thead>
         <tr *ngFor="let license of licenses">
             <td>{{license.id}}</td>
-            <td>TITRE</td>
-            <td>USER</td>
+            <td>{{license.publicationTitle}}</td>
+            <td>{{license.userName}}</td>
             <td>{{license.type}}</td>
             <td>{{license.devices}}</td>
             <td>{{license.status}}</td>
             <td>{{license.message}}</td>
-            <td>BUTTON</td>
+            <td>
+                <a [routerLink]="['/purchases', license.purchaseID, 'status']"
+                    role="button"
+                    class="btn btn-secondary btn-sm">
+                    <i class="fa fa-battery-half" aria-hidden="true"></i> Status
+                </a>
+            </td>
         </tr>
     </table>
 </div>

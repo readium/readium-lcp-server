@@ -44,6 +44,7 @@ import (
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/frontend/server"
 	"github.com/readium/readium-lcp-server/frontend/webdashboard"
+	"github.com/readium/readium-lcp-server/frontend/weblicense"
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
 	"github.com/readium/readium-lcp-server/frontend/webrepository"
@@ -111,6 +112,11 @@ func main() {
 		panic(err)
 	}
 
+	licenseDB, err := weblicense.Init(config.Config, db)
+	if err != nil {
+		panic(err)
+	}
+
 	static = config.Config.FrontendServer.Directory
 	if static == "" {
 		_, file, _, _ := runtime.Caller(0)
@@ -144,7 +150,7 @@ func main() {
 
 	fileConfigJs.WriteString(configJs)
 	HandleSignals()
-	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), static, repoManager, publicationDB, userDB, dashboardDB, purchaseDB)
+	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), static, repoManager, publicationDB, userDB, dashboardDB, licenseDB, purchaseDB)
 	log.Println("Frontend webserver for LCP running on " + config.Config.FrontendServer.Host + ":" + strconv.Itoa(config.Config.FrontendServer.Port))
 	log.Println("using database " + dbURI)
 

@@ -2,6 +2,8 @@ import { Component } from '@angular/core';
 import { License } from './license';
 import { LicenseService }   from './license.service';
 
+declare var Config: any;
+
 @Component({
     moduleId: module.id,
     selector: 'lcp-frontend-license-info',
@@ -10,8 +12,12 @@ import { LicenseService }   from './license.service';
 
 export class LicenseInfoComponent { 
     licenses: License[];
+    filter: number = 1;
+    filtred = false;
+    baseUrl: string;
 
     ngOnInit(): void {
+        this.baseUrl = Config.frontend.url;
         this.refreshInfos();
     }
 
@@ -19,9 +25,14 @@ export class LicenseInfoComponent {
         
     }
 
+    onSubmit(){
+        this.filtred = true;
+        this.refreshInfos();
+    }
+
     refreshInfos()
     {
-        this.licenseService.get(1).then(
+        this.licenseService.get(this.filter).then(
             infos => {
                 this.licenses = infos;
             }

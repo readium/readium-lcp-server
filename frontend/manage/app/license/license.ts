@@ -3,10 +3,10 @@ import { User } from '../user/user';
 
 export class License{
 	id : string
-	publication: Publication
-	user : User
+	publicationTitle: string
+	userName : string
     type: string
 	devices: number
 	status: string
-	message: string
+	purchaseID: string
 }

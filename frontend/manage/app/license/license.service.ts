@@ -27,13 +27,13 @@ export class LicenseService{
 
     decode(jsonObj: any): License {
         return {
-            id: jsonObj.id,
-            publication: null,
-            user: null,
-            type: jsonObj.loanCount,
+            id: jsonObj.ID,
+            publicationTitle: jsonObj.publication_title,
+            userName: jsonObj.user_name,
+            type: jsonObj.type,
             devices: jsonObj.device_count,
             status: jsonObj.status,
-            message: jsonObj.message
+            purchaseID: jsonObj.purchase_id
         }
     }
 
@@ -43,8 +43,8 @@ export class LicenseService{
         headers.append('Authorization', 'Basic ' + btoa('lsd:readium'));
         return this.http
             .get(
-                this.lsdUrl + "/licenses",
-                { headers: headers })
+                this.baseUrl + "/licenses?devices=" + devices,
+                { headers: this.defaultHttpHeaders })
             .toPromise()
             .then(function (response) {
                 let items: License[] = [];
