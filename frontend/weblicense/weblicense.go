@@ -86,7 +86,7 @@ type LicenseManager struct {
 
 // Get a license for a given ID
 func (licManager LicenseManager) Get(id int64) (License, error) {
-	dbGetByID, err := licManager.db.Prepare(`SELECT l.id, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license AS l 
+	dbGetByID, err := licManager.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license AS l 
 											INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 											INNER JOIN publication as pu ON p.publication_id = pu.id
 											INNER JOIN user as u ON p.user_id = u.id
@@ -117,7 +117,7 @@ func (licManager LicenseManager) Get(id int64) (License, error) {
 
 // GetFiltred give a license with more than the filtred number
 func (licManager LicenseManager) GetFiltred(filter string) ([]License, error) {
-	dbGetByID, err := licManager.db.Prepare(`SELECT l.id, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license AS l 
+	dbGetByID, err := licManager.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license AS l 
 											INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 											INNER JOIN publication as pu ON p.publication_id = pu.id
 											INNER JOIN user as u ON p.user_id = u.id
@@ -143,10 +143,9 @@ func (licManager LicenseManager) GetFiltred(filter string) ([]License, error) {
 		if err != nil {
 			fmt.Println(err)
 		}
-		records.Close()
-
 		licences = append(licences, lic)
 	}
+	records.Close()
 	return licences, nil
 }
 
