@@ -1,7 +1,5 @@
-<form>
-    <span class="table-search-input"><label>Filter : </label><input type="text" placeholder="Enter a minimum device number" #filterBox></span>
-    <button type="button" (click)=" filter = filterBox.value;onSubmit();" class="btn btn-primary">Search</button>
-</form>
+<span class="table-search-input"><label>Filter : </label><input type="text" (keypress)="filter = filterBox.value;keyPressed($event.keyCode)" placeholder="Enter a minimum device number" #filterBox></span>
+<button type="button" (click)="filter = filterBox.value;onSubmit();" class="btn btn-primary">Search</button>
 <div *ngIf="filtred">
     <h1 class="dash-title"> Licenses </h1>
     <table class="table">

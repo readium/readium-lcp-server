@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { License } from './license';
 import { LicenseService }   from './license.service';
 
@@ -10,7 +10,10 @@ declare var Config: any;
     templateUrl: './license-info.component.html'
 })
 
+
 export class LicenseInfoComponent { 
+    @Input('filterBox') filterBox: any;
+
     licenses: License[];
     filter: number = 1;
     filtred = false;
@@ -18,6 +21,8 @@ export class LicenseInfoComponent {
 
     reverse: boolean = false;
     order: string;
+
+    
 
     ngOnInit(): void {
         this.baseUrl = Config.frontend.url;
@@ -56,5 +61,12 @@ export class LicenseInfoComponent {
         this.order = newOrder
       }
     }
-
+    
+    keyPressed(key:number)
+    {
+        if (key == 13)
+        {
+            this.onSubmit()
+        }
+    }
 }
