@@ -7,11 +7,14 @@ import { LicenseRoutingModule }       from './license-routing.module';
 import { LicenseComponent }           from './license.component';
 import { LicenseInfoComponent }       from './license-info.component';
 
+import { SortModule }                 from '../shared/pipes/sort.module';
+
 @NgModule({
     imports: [
         CommonModule,
         RouterModule,
-        LicenseRoutingModule
+        LicenseRoutingModule,
+        SortModule
     ],
     declarations: [
         LicenseComponent,

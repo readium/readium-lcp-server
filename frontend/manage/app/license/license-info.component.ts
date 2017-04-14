@@ -16,9 +16,14 @@ export class LicenseInfoComponent {
     filtred = false;
     baseUrl: string;
 
+    reverse: boolean = false;
+    order: string;
+
     ngOnInit(): void {
         this.baseUrl = Config.frontend.url;
         this.refreshInfos();
+
+        this.order = "publication";
     }
 
     constructor(private licenseService: LicenseService) {
@@ -38,4 +43,18 @@ export class LicenseInfoComponent {
             }
         );
     }
+
+    orderBy(newOrder: string)
+    {
+      if (newOrder == this.order)
+      {
+        this.reverse = !this.reverse;
+      }
+      else
+      {
+        this.reverse = false;
+        this.order = newOrder
+      }
+    }
+
 }
