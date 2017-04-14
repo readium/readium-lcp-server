@@ -173,6 +173,9 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 
 	if err != nil {
 		// Unable to encrypt master file
+		if _, err := os.Stat(inputPath); err == nil {
+			os.Remove(inputPath)
+		}
 		return err
 	}
 
