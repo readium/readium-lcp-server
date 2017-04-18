@@ -97,7 +97,7 @@ func New(
 
 	//Cron to get license informations
 	gocron.Start()
-	gocron.Every(10).Seconds().Do(task, s)
+	gocron.Every(10).Minutes().Do(task, s)
 
 	apiURLPrefix := "/api/v1"
 
