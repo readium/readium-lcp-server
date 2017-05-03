@@ -86,7 +86,8 @@ export class PublicationFormComponent implements OnInit {
             this.submitButtonLabel = "Add";
             this.form = this.fb.group({
                 "title": ["", Validators.required],
-                "filename": ["", Validators.required]
+                "filename": ["", Validators.required],
+                "type": ["UPLOAD", Validators.nullValidator]
             });
         } else {
             this.hideFilename = true
@@ -106,58 +107,62 @@ export class PublicationFormComponent implements OnInit {
     }
 
     onSubmit(confirm: boolean) {
-        if (this.publication) {
-            // Update publication
-            this.publication.title = this.form.value['title'];
-            
-            this.publicationService.update(
-                this.publication
-            ).then(
-                publication => {
-                    this.gotoList();
-                }
-            );
-        } else {
-            this.fileName = this.form.value['title'] + '.epub';
-            this.lastFile.file.name = this.fileName;
-            this.newPublication = true;
-            if (confirm){
-                this.publicationService.checkByName(this.form.value['title']).then(
-                    result => {
-                        if (result == 0)
-                        {
-                            this.uploader.uploadItem(this.lastFile);
-                        }
-                        else
-                        {
-                            this.uploadConfimation = true;
-                            this.showSnackBar(true);
-                        }
+        if (this.form.value["type"] === "UPLOAD") {
+            if (this.publication) {
+                // Update publication
+                this.publication.title = this.form.value['title'];
+
+                this.publicationService.update(
+                    this.publication
+                ).then(
+                    publication => {
+                        this.gotoList();
                     }
                 );
             } else {
-                this.newPublication = false;
-                this.uploader.uploadItem(this.lastFile);
-                this.gotoList();
+                this.fileName = this.form.value['title'] + '.epub';
+                this.lastFile.file.name = this.fileName;
+                this.newPublication = true;
+                if (confirm) {
+                    this.publicationService.checkByName(this.form.value['title']).then(
+                        result => {
+                            if (result === 0) {
+                                this.uploader.uploadItem(this.lastFile);
+                            } else {
+                                this.uploadConfimation = true;
+                                this.showSnackBar(true);
+                            }
+                        }
+                    );
+                } else {
+                    this.newPublication = false;
+                    this.uploader.uploadItem(this.lastFile);
+                    this.gotoList();
+                }
             }
+        } else {
+            this.AllUploaded();
         }
     }
 
     // When all the files are uploaded, create the publication
-    AllUploaded(): void
-    {
-        if (this.newPublication){
+    AllUploaded(): void {
+        if (this.newPublication) {
             // Create publication
             let publication = new Publication();
             publication.title = this.form.value['title'];
-            publication.masterFilename = this.fileName;
+            if (this.form.value["type"] === "UPLOAD") {
+                publication.masterFilename = this.fileName;
+            } else {
+                publication.masterFilename = this.form.value['filename'];
+            }
             this.publicationService.addPublication(publication)
             .then( error => {
                 console.log(error);
                     this.uploadConfimation = false;
-                    if (error == 200){
+                    if (error === 200) {
                         this.gotoList();
-                    } else if (error == 400){
+                    } else if (error === 400) {
                         this.errorMessage = "The file must be a real epub file."
                         this.showSnackBar(false);
                     }

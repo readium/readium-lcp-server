@@ -6,18 +6,48 @@
         [formControl]="form.controls['title']">
   </div>
   <div *ngIf="!publication" class="form-group">
+
+    <label>File Origin</label>
+    <div class="form-check">
+      <label class="form-check-label">
+        <input type="radio" class="form-check-input" checked="form.value['type'] == 'UPLOAD'"
+          value="UPLOAD" [formControl]="form.controls['type']">
+        Upload
+      </label>
+    </div>
+    <div class="form-check">
+      <label class="form-check-label">
+        <input type="radio" class="form-check-input"
+          value="FOLDER" [formControl]="form.controls['type']" >
+        Choose in the folder
+      </label>
+    </div>
+
     <label for="publication-filename">Unprotected publication</label>
-    <div ng2FileDrop
-                    [ngClass]="{'nv-file-over': hasBaseDropZoneOver, 'nv-bad-file':notAnEPUB}"
-                    (fileOver)="fileOverBase($event)"
-                    [uploader]="uploader"
-                    class="drop-zone">
-        <div *ngIf="lastFile&&!notAnEPUB">{{lastFile.file.name}}</div>
-        <div *ngIf="!lastFile&&!notAnEPUB">Drop your EPUB file here</div>
-        <div *ngIf="notAnEPUB&&lastFile">The file must be a .epub</div>
+    <div *ngIf="form.value['type'] == 'UPLOAD'">
+      <div ng2FileDrop
+                      [ngClass]="{'nv-file-over': hasBaseDropZoneOver, 'nv-bad-file':notAnEPUB}"
+                      (fileOver)="fileOverBase($event)"
+                      [uploader]="uploader"
+                      class="drop-zone">
+          <div *ngIf="lastFile&&!notAnEPUB">{{lastFile.file.name}}</div>
+          <div *ngIf="!lastFile&&!notAnEPUB">Drop your EPUB file here</div>
+          <div *ngIf="notAnEPUB&&lastFile">The file must be a .epub</div>
+      </div>
+    </div>
+    <div *ngIf="form.value['type'] != 'UPLOAD'">
+      <select
+        id="publication-filename" class="form-control"
+        [formControl]="form.controls['filename']"
+      >
+        <option value="">Select a publication</option>
+        <option *ngFor="let file of masterFiles">
+          {{file.name}}
+        </option>
+      </select>
     </div>
   </div>
-  <button type="sumbit" (click)="onSubmit(true)"[disabled]="((!uploader.getNotUploadedItems().length || !this.form.value['title'] || notAnEPUB) && !hideFilename) || (hideFilename && !this.form.value['title'])" class="btn btn-primary">{{submitButtonLabel}}</button>
+  <button type="sumbit" (click)="onSubmit(true)"[disabled]="(((!uploader.getNotUploadedItems().length && !this.form.value['filename']) || !this.form.value['title'] || (!this.form.value['filename'] && notAnEPUB)) && !hideFilename) || (hideFilename && !this.form.value['title'])" class="btn btn-primary">{{submitButtonLabel}}</button>
   <button type="button" (click)="onCancel()" class="btn btn-secondary">Cancel</button>
 </form>
 
