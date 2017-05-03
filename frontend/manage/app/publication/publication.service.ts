@@ -40,6 +40,20 @@ export class PublicationService extends CrudService<Publication> {
         }
     }
 
+    checkByName(name: string): Promise<number> {
+        var self = this
+        return this.http
+            .get(
+                this.baseUrl + "/checkByTitle/" + name,
+                { headers: this.defaultHttpHeaders })
+            .toPromise()
+            .then(function (response) {
+                let jsonObj = response.json();
+                return jsonObj;
+            })
+            .catch(this.handleError);
+    }
+
     getMasterFiles(): Promise<MasterFile[]> {
         return this.http
             .get(
@@ -62,5 +76,26 @@ export class PublicationService extends CrudService<Publication> {
                 }
             })
             .catch(this.handleError);
+    }
+
+    addPublication(pub: Publication): Promise<number> {
+        return this.http
+            .post(
+                this.baseUrl,
+                this.encode(pub),
+                { headers: this.defaultHttpHeaders })
+            .toPromise()
+            .then(function (response) {
+                if (response.ok) {
+                    return 200;
+                } else {
+                    throw 'Error creating publication ' + response.text;
+                }
+            })
+            .catch(this.handleAddError);
+    }
+
+    protected handleAddError(error: any): any {
+        return error.status;
     }
 }

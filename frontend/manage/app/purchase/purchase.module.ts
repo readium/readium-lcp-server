@@ -14,6 +14,8 @@ import { PurchaseFormComponent }    from './purchase-form.component';
 import { PurchaseEditComponent }    from './purchase-edit.component';
 import { PurchaseStatusComponent }  from './purchase-status.component';
 import { PurchaseAddComponent }     from './purchase-add.component';
+import { SortModule }               from '../shared/pipes/sort.module';
+
 
 @NgModule({
     imports: [
@@ -22,7 +24,8 @@ import { PurchaseAddComponent }     from './purchase-add.component';
         FormsModule,
         ReactiveFormsModule,
         PurchaseRoutingModule,
-        Ng2DatetimePickerModule
+        Ng2DatetimePickerModule,
+        SortModule
     ],
     declarations: [
         PurchaseListComponent,

@@ -52,6 +52,7 @@ type User struct {
 	Name     string `json:"name,omitempty"`
 	Email    string `json:"email,omitempty"`
 	Password string `json:"password,omitempty"`
+	Hint     string `json:"hint"`
 }
 
 type dbUser struct {
@@ -65,7 +66,7 @@ func (user dbUser) Get(id int64) (User, error) {
 	defer records.Close()
 	if records.Next() {
 		var c User
-		err = records.Scan(&c.ID, &c.UUID, &c.Name, &c.Email, &c.Password)
+		err = records.Scan(&c.ID, &c.UUID, &c.Name, &c.Email, &c.Password, &c.Hint)
 		return c, err
 	}
 
@@ -77,7 +78,7 @@ func (user dbUser) GetByEmail(email string) (User, error) {
 	defer records.Close()
 	if records.Next() {
 		var c User
-		err = records.Scan(&c.ID, &c.UUID, &c.Name, &c.Email, &c.Password)
+		err = records.Scan(&c.ID, &c.UUID, &c.Name, &c.Email, &c.Password, &c.Hint)
 		return c, err
 	}
 
@@ -85,7 +86,7 @@ func (user dbUser) GetByEmail(email string) (User, error) {
 }
 
 func (user dbUser) Add(newUser User) error {
-	add, err := user.db.Prepare("INSERT INTO user (uuid, name, email, password) VALUES (?, ?, ?, ?)")
+	add, err := user.db.Prepare("INSERT INTO user (uuid, name, email, password, hint) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
@@ -94,7 +95,7 @@ func (user dbUser) Add(newUser User) error {
 	// Create uuid
 	newUser.UUID = uuid.NewV4().String()
 
-	_, err = add.Exec(newUser.UUID, newUser.Name, newUser.Email, newUser.Password)
+	_, err = add.Exec(newUser.UUID, newUser.Name, newUser.Email, newUser.Password, newUser.Hint)
 	return err
 }
 
@@ -129,7 +130,7 @@ func (user dbUser) DeleteUser(userID int64) error {
 }
 
 func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
-	listUsers, err := user.db.Query(`SELECT id, uuid, name, email, password
+	listUsers, err := user.db.Query(`SELECT id, uuid, name, email, password, hint
 	FROM user
 	ORDER BY email desc LIMIT ? OFFSET ? `, page, pageNum*page)
 	if err != nil {
@@ -138,7 +139,7 @@ func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
 	return func() (User, error) {
 		var u User
 		if listUsers.Next() {
-			err := listUsers.Scan(&u.ID, &u.UUID, &u.Name, &u.Email, &u.Password)
+			err := listUsers.Scan(&u.ID, &u.UUID, &u.Name, &u.Email, &u.Password, &u.Hint)
 
 			if err != nil {
 				return u, err
@@ -160,17 +161,18 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	name varchar(64) NOT NULL,
 	email varchar(64) NOT NULL,
 	password varchar(64) NOT NULL,
+	hint varchar(64) NOT NULL,
 
 	constraint pk_user  primary key(id)
 	)`)
 	if err != nil {
 		return
 	}
-	get, err := db.Prepare("SELECT id, uuid, name, email, password FROM user WHERE id = ? LIMIT 1")
+	get, err := db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE id = ? LIMIT 1")
 	if err != nil {
 		return
 	}
-	getByEmail, err := db.Prepare("SELECT id, uuid, name, email, password FROM user WHERE email = ? LIMIT 1")
+	getByEmail, err := db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE email = ? LIMIT 1")
 	if err != nil {
 		return
 	}

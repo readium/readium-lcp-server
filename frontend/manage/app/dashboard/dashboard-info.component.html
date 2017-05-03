@@ -1,0 +1,23 @@
+<div *ngIf="infos">
+    <h1  class="dash-title"> Database Content </h1>
+    <div class="dash-case"><span class="dash-case-title">Publication</span> <span class="dash-case-number">{{infos.publicationCount}}</span></div>
+    <div class="dash-case"><span class="dash-case-title">User</span> <span class="dash-case-number">{{infos.userCount}}</span></div>
+    <div class="dash-case"><span class="dash-case-title">Loan</span> <span class="dash-case-number">{{infos.loanCount}}</span></div>
+    <div class="dash-case"><span class="dash-case-title">Purchase</span> <span class="dash-case-number">{{infos.buyCount}}</span></div>
+    <div class="dash-case"><span class="dash-case-title">Average</span> <span class="dash-case-number">{{infos.averageDuration}}</span></div>
+</div>
+<div *ngIf="bestSellers && bestSellers.length > 0">
+    <h1 class="dash-title"> Best Sellers </h1>
+    <table id="best-table" class="table">
+        <thead class="thead-inverse">
+        <tr>
+            <th>Title</th>
+            <th>Nbr</th>
+        </tr>
+        </thead>
+        <tr *ngFor="let pub of bestSellers">
+            <td *ngIf="pub != '' && pub.count > 0">{{pub.title}}</td>
+            <td *ngIf="pub != '' && pub.count > 0">{{pub.count}}</td>
+        </tr>
+    </table>
+</div>

@@ -1,4 +1,4 @@
-  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+<form [formGroup]="form" (ngSubmit)="onSubmit(true)">
   <div class="form-group">
     <label for="publication-title">Title</label>
     <input
@@ -7,15 +7,26 @@
   </div>
   <div *ngIf="!publication" class="form-group">
     <label for="publication-filename">Unprotected publication</label>
-    <select
-        id="publication-filename" class="form-control"
-        [formControl]="form.controls['filename']">
-      <option value="">Select a publication</option>
-      <option *ngFor="let file of masterFiles">
-      {{file.name}}
-      </option>
-    </select>
+    <div ng2FileDrop
+                    [ngClass]="{'nv-file-over': hasBaseDropZoneOver, 'nv-bad-file':notAnEPUB}"
+                    (fileOver)="fileOverBase($event)"
+                    [uploader]="uploader"
+                    class="drop-zone">
+        <div *ngIf="lastFile&&!notAnEPUB">{{lastFile.file.name}}</div>
+        <div *ngIf="!lastFile&&!notAnEPUB">Drop your EPUB file here</div>
+        <div *ngIf="notAnEPUB&&lastFile">The file must be a .epub</div>
+    </div>
   </div>
-  <button type="submit" [disabled]="!form.valid" class="btn btn-primary">{{submitButtonLabel}}</button>
+  <button type="sumbit" (click)="onSubmit(true)"[disabled]="((!uploader.getNotUploadedItems().length || !this.form.value['title'] || notAnEPUB) && !hideFilename) || (hideFilename && !this.form.value['title'])" class="btn btn-primary">{{submitButtonLabel}}</button>
   <button type="button" (click)="onCancel()" class="btn btn-secondary">Cancel</button>
 </form>
+
+<div id="snackbar">
+  <div *ngIf="uploadConfimation">
+    <p>A publication with this name already exist. Would you replace it with this new file ?</p>
+    <button (click)="hideSnackBar();onSubmit(false)">Yes</button><button (click)="hideSnackBar()">No</button>
+  </div>
+  <div *ngIf="!uploadConfimation">
+    {{errorMessage}}
+  </div>
+</div>

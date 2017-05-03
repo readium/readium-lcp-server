@@ -24,14 +24,15 @@
       '@angular/forms': 'npm:@angular/forms/bundles/forms.umd.js',
 
       // other libraries
-      'rxjs':                      'npm:rxjs',
+      'rxjs': 'npm:rxjs',
       'angular-in-memory-web-api': 'npm:angular-in-memory-web-api/bundles/in-memory-web-api.umd.js',
       'ng2-slugify': 'npm:ng2-slugify',
       'jssha': 'npm:jssha/src',
       'ng2-datetime-picker': 'npm:ng2-datetime-picker/dist',
       'moment': 'node_modules/moment',
       'config': '/config.js',
-      'file-saver': 'npm:file-saver'
+      'file-saver': 'npm:file-saver',
+      'ng2-file-upload':'npm:ng2-file-upload/bundles/ng2-file-upload.umd.js'
     },
     // packages tells the System loader how to load when no filename and/or no extension
     packages: {

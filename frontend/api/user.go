@@ -90,7 +90,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-//GetUserByEmail searches a client by his email
+//GetUser searches a client by his email
 func GetUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])

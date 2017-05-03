@@ -55,7 +55,7 @@ p.id, p.uuid,
 p.type, p.transaction_date,
 p.license_uuid,
 p.start_date, p.end_date, p.status,
-u.id, u.uuid, u.name, u.email, u.password,
+u.id, u.uuid, u.name, u.email, u.password, u.hint,
 pu.id, pu.uuid, pu.title, pu.status
 FROM purchase p
 left join user u on (p.user_id=u.id)
@@ -146,6 +146,7 @@ func convertRecordToPurchase(records *sql.Rows) (Purchase, error) {
 		&user.Name,
 		&user.Email,
 		&user.Password,
+		&user.Hint,
 		&pub.ID,
 		&pub.UUID,
 		&pub.Title,
@@ -222,7 +223,7 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 
 	userKey := license.UserKey{}
 	userKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
-	userKey.Hint = "Enter your passphrase"
+	userKey.Hint = purchase.User.Hint
 	userKey.Value = userKeyValue
 	partialLicense.Encryption.UserKey = userKey
 

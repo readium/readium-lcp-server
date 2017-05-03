@@ -1,0 +1,55 @@
+<span class="table-search-input"><label>Filter : </label><input type="text" (keypress)="filter = filterBox.value;keyPressed($event.keyCode)" placeholder="Enter a minimum device number" #filterBox></span>
+<button type="button" (click)="filter = filterBox.value;onSubmit();" class="btn btn-primary">Search</button>
+<div *ngIf="filtred">
+    <h1 class="dash-title"> Licenses </h1>
+    <table class="table">
+        <thead class="thead-inverse">
+        <tr>
+            <th>UUID</th>
+            <th class="order-title" (click)="orderBy('publication')">
+                Publication
+                <span *ngIf="order == 'publication'&&!reverse" class="fa fa-caret-down"></span>
+                <span *ngIf="order == 'publication'&&reverse" class="fa fa-caret-up"></span>
+            </th>
+            <th class="order-title" (click)="orderBy('user')">
+                User
+                <span *ngIf="order == 'user'&&!reverse" class="fa fa-caret-down"></span>
+                <span *ngIf="order == 'user'&&reverse" class="fa fa-caret-up"></span>
+            </th>
+            <th class="order-title" (click)="orderBy('type')">
+                Type
+                <span *ngIf="order == 'type'&&!reverse" class="fa fa-caret-down"></span>
+                <span *ngIf="order == 'type'&&reverse" class="fa fa-caret-up"></span>
+            </th>
+            <th class="order-title" (click)="orderBy('devices')">
+                Devices
+                <span *ngIf="order == 'devices'&&!reverse" class="fa fa-caret-down"></span>
+                <span *ngIf="order == 'devices'&&reverse" class="fa fa-caret-up"></span>
+            </th>
+            <th class="order-title" (click)="orderBy('status')">
+                Statues
+                <span *ngIf="order == 'status'&&!reverse" class="fa fa-caret-down"></span>
+                <span *ngIf="order == 'status'&&reverse" class="fa fa-caret-up"></span>
+            </th>
+            <th>Message</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tr *ngFor="let license of licenses | test:order:reverse">
+            <td>{{license.id}}</td>
+            <td>{{license.publicationTitle}}</td>
+            <td>{{license.userName}}</td>
+            <td>{{license.type}}</td>
+            <td>{{license.devices}}</td>
+            <td>{{license.status}}</td>
+            <td>{{license.message}}</td>
+            <td>
+                <a [routerLink]="['/purchases', license.purchaseID, 'status']"
+                    role="button"
+                    class="btn btn-secondary btn-sm">
+                    <i class="fa fa-battery-half" aria-hidden="true"></i> Status
+                </a>
+            </td>
+        </tr>
+    </table>
+</div>
