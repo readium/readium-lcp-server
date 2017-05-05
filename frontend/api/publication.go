@@ -131,9 +131,8 @@ func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 
 // CheckPublicationByTitle chack if a publication with this title exist
 func CheckPublicationByTitle(w http.ResponseWriter, r *http.Request, s IServer) {
-	vars := mux.Vars(r)
 	var title string
-	title = vars["title"]
+	title = r.URL.Query()["title"][0]
 
 	if pub, err := s.PublicationAPI().CheckByTitle(string(title)); err == nil {
 		enc := json.NewEncoder(w)

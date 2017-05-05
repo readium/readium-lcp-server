@@ -125,7 +125,7 @@ func New(
 	//
 	s.handleFunc(sr.R, publicationsRoutesPathPrefix, staticapi.CreatePublication).Methods("POST")
 	//
-	s.handleFunc(publicationsRoutes, "/checkByTitle/{title}", staticapi.CheckPublicationByTitle).Methods("GET")
+	s.handleFunc(publicationsRoutes, "/check-by-title", staticapi.CheckPublicationByTitle).Methods("GET")
 	//
 	s.handleFunc(publicationsRoutes, "/{id}", staticapi.GetPublication).Methods("GET")
 	s.handleFunc(publicationsRoutes, "/{id}", staticapi.UpdatePublication).Methods("PUT")

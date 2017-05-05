@@ -107,41 +107,48 @@ export class PublicationFormComponent implements OnInit {
     }
 
     onSubmit(confirm: boolean) {
-        if (this.form.value["type"] === "UPLOAD") {
-            if (this.publication) {
-                // Update publication
-                this.publication.title = this.form.value['title'];
+        if (this.publication) {
+            // Update publication
+            this.publication.title = this.form.value['title'];
 
-                this.publicationService.update(
-                    this.publication
-                ).then(
-                    publication => {
-                        this.gotoList();
+            this.publicationService.update(
+                this.publication
+            ).then(
+                publication => {
+                    this.gotoList();
+                }
+            );
+
+        } else {
+            this.fileName = this.form.value['title'] + '.epub';
+            if (this.form.value["type"] === "UPLOAD") {
+                this.lastFile.file.name = this.fileName;
+            }
+            this.newPublication = true;
+            if (confirm) {
+                this.publicationService.checkByName(this.form.value['title']).then(
+                    result => {
+                        if (result === 0) {
+                            if (this.form.value["type"] === "UPLOAD") {
+                                this.uploader.uploadItem(this.lastFile);
+                            } else {
+                                this.AllUploaded();
+                            }
+                        } else {
+                            this.uploadConfimation = true;
+                            this.showSnackBar(true);
+                        }
                     }
                 );
             } else {
-                this.fileName = this.form.value['title'] + '.epub';
-                this.lastFile.file.name = this.fileName;
-                this.newPublication = true;
-                if (confirm) {
-                    this.publicationService.checkByName(this.form.value['title']).then(
-                        result => {
-                            if (result === 0) {
-                                this.uploader.uploadItem(this.lastFile);
-                            } else {
-                                this.uploadConfimation = true;
-                                this.showSnackBar(true);
-                            }
-                        }
-                    );
-                } else {
-                    this.newPublication = false;
+                this.newPublication = false;
+                if (this.form.value["type"] === "UPLOAD") {
                     this.uploader.uploadItem(this.lastFile);
-                    this.gotoList();
+                } else {
+                    this.AllUploaded();
                 }
+                this.gotoList();
             }
-        } else {
-            this.AllUploaded();
         }
     }
 
