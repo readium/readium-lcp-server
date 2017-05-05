@@ -1,20 +1,20 @@
+<h1 class="dash-title"> Licenses </h1>
 <span class="table-search-input"><label>Filter : </label><input type="text" (keypress)="filter = filterBox.value;keyPressed($event.keyCode)" placeholder="Enter a minimum device number" #filterBox></span>
 <button type="button" (click)="filter = filterBox.value;onSubmit();" class="btn btn-primary">Search</button>
 <div *ngIf="filtred">
-    <h1 class="dash-title"> Licenses </h1>
     <table class="table">
         <thead class="thead-inverse">
         <tr>
             <th>UUID</th>
-            <th class="order-title" (click)="orderBy('publication')">
+            <th class="order-title" (click)="orderBy('publicationTitle')">
                 Publication
-                <span *ngIf="order == 'publication'&&!reverse" class="fa fa-caret-down"></span>
-                <span *ngIf="order == 'publication'&&reverse" class="fa fa-caret-up"></span>
+                <span *ngIf="order == 'publicationTitle'&&!reverse" class="fa fa-caret-down"></span>
+                <span *ngIf="order == 'publicationTitle'&&reverse" class="fa fa-caret-up"></span>
             </th>
-            <th class="order-title" (click)="orderBy('user')">
+            <th class="order-title" (click)="orderBy('userName')">
                 User
-                <span *ngIf="order == 'user'&&!reverse" class="fa fa-caret-down"></span>
-                <span *ngIf="order == 'user'&&reverse" class="fa fa-caret-up"></span>
+                <span *ngIf="order == 'userName'&&!reverse" class="fa fa-caret-down"></span>
+                <span *ngIf="order == 'userName'&&reverse" class="fa fa-caret-up"></span>
             </th>
             <th class="order-title" (click)="orderBy('type')">
                 Type
