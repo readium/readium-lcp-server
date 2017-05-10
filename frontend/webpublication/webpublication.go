@@ -31,6 +31,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -152,17 +153,8 @@ func (pubManager PublicationManager) CheckByTitle(name string) (int64, error) {
 	return -1, ErrNotFound
 }
 
-// Add new publication
-func (pubManager PublicationManager) Add(pub Publication) error {
-	// Get repository file
-	inputPath := path.Join(
-		pubManager.config.FrontendServer.MasterRepository, pub.MasterFilename)
-
-	if _, err := os.Stat(inputPath); err != nil {
-		// Master file does not exist
-		return err
-	}
-
+// EncrypteEPUB Encrypte an EPUB File
+func EncrypteEPUB(inputPath string, pub Publication, pubManager PublicationManager) error {
 	// Create output file path
 	contentUUID := uuid.NewV4().String()
 	outputFilename := contentUUID + ".tmp"
@@ -244,31 +236,46 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 	return err
 }
 
+// Add new publication
+func (pubManager PublicationManager) Add(pub Publication) error {
+	// Get repository file
+	inputPath := path.Join(
+		pubManager.config.FrontendServer.MasterRepository, pub.MasterFilename)
+
+	if _, err := os.Stat(inputPath); err != nil {
+		// Master file does not exist
+		return err
+	}
+
+	err := EncrypteEPUB(inputPath, pub, pubManager)
+
+	return err
+}
+
 //UploadEPUB creates a new EPUB file
 func (pubManager PublicationManager) UploadEPUB(r *http.Request, w http.ResponseWriter, pub Publication) {
 
 	file, header, err := r.FormFile("file")
 
+	tmpfile, err := ioutil.TempFile("", "example")
+
+	defer os.Remove(tmpfile.Name())
+
 	if err != nil {
 		fmt.Fprintln(w, err)
 		return
 	}
 
-	defer file.Close()
+	defer os.Remove(tmpfile.Name())
 
-	out, err := os.Create(path.Join(pubManager.config.FrontendServer.MasterRepository, header.Filename))
-	if err != nil {
-		fmt.Fprintln(w, err)
-		return
+	_, err = io.Copy(tmpfile, file)
+
+	if err := tmpfile.Close(); err != nil {
+		log.Fatal(err)
 	}
 
-	defer out.Close()
-
-	// write the content from POST to the file
-	_, err = io.Copy(out, file)
-	if err != nil {
-		fmt.Fprintln(w, err)
-		return
+	if err := EncrypteEPUB(tmpfile.Name(), pub, pubManager); err != nil {
+		log.Fatal(err)
 	}
 
 	fmt.Fprintf(w, "File uploaded successfully : ")
