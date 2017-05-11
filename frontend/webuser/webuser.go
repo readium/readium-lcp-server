@@ -100,12 +100,12 @@ func (user dbUser) Add(newUser User) error {
 }
 
 func (user dbUser) Update(changedUser User) error {
-	add, err := user.db.Prepare("UPDATE user SET name=? , email=?, password=? WHERE id=?")
+	add, err := user.db.Prepare("UPDATE user SET name=? , email=?, password=?, hint=? WHERE id=?")
 	if err != nil {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(changedUser.Name, changedUser.Email, changedUser.Password, changedUser.ID)
+	_, err = add.Exec(changedUser.Name, changedUser.Email, changedUser.Password, changedUser.Hint, changedUser.ID)
 	return err
 }
 
