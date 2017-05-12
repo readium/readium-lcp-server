@@ -32,7 +32,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let publication of publications | test:order:reverse">
+    <tr *ngFor="let publication of publications | sortBy:order:reverse">
         <td *ngIf="keptWithFilter(publication)">{{publication.id}}</td>
         <td *ngIf="keptWithFilter(publication)">{{publication.title}}</td>
         <td *ngIf="keptWithFilter(publication)">{{publication.uuid}}</td>

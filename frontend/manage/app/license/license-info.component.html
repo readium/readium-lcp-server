@@ -35,7 +35,7 @@
             <th></th>
         </tr>
         </thead>
-        <tr *ngFor="let license of licenses | test:order:reverse">
+        <tr *ngFor="let license of licenses | sortBy:order:reverse">
             <td>{{license.id}}</td>
             <td>{{license.publicationTitle}}</td>
             <td>{{license.userName}}</td>

@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-@Pipe({name: 'test'})
+@Pipe({name: 'sortBy'})
 export class Sort implements PipeTransform {
   transform(value: {}[], filter: string, reverse: boolean): any {
     var values: {a:string, b:string};
@@ -38,13 +38,13 @@ export class Sort implements PipeTransform {
         else if (values.a < values.b || values.a == null) return 1;
         else  if (values.a > values.b || values.b == null) return -1;
       });
-      
+
     }
     return value;
 
-    
+
   }
 
-  
-  
+
+
 }

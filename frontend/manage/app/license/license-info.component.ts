@@ -11,7 +11,7 @@ declare var Config: any;
 })
 
 
-export class LicenseInfoComponent { 
+export class LicenseInfoComponent {
     @Input('filterBox') filterBox: any;
 
     licenses: License[];
@@ -22,17 +22,17 @@ export class LicenseInfoComponent {
     reverse: boolean = false;
     order: string;
 
-    
+
 
     ngOnInit(): void {
         this.baseUrl = Config.frontend.url;
         this.refreshInfos();
 
-        this.order = "publication";
+        this.order = "publicationTitle";
     }
 
     constructor(private licenseService: LicenseService) {
-        
+
     }
 
     onSubmit(){
@@ -61,7 +61,7 @@ export class LicenseInfoComponent {
         this.order = newOrder
       }
     }
-    
+
     keyPressed(key:number)
     {
         if (key == 13)

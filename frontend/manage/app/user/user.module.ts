@@ -11,6 +11,7 @@ import { UserListComponent }    from './user-list.component';
 import { UserFormComponent }    from './user-form.component';
 import { UserAddComponent }     from './user-add.component';
 import { UserEditComponent }    from './user-edit.component';
+import { SortModule }           from '../shared/pipes/sort.module';
 
 @NgModule({
     imports: [
@@ -18,7 +19,8 @@ import { UserEditComponent }    from './user-edit.component';
         RouterModule,
         FormsModule,
         ReactiveFormsModule,
-        UserRoutingModule
+        UserRoutingModule,
+        SortModule
     ],
     declarations: [
         UserListComponent,
