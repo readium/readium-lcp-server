@@ -205,14 +205,14 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 	return
 }
 
-const tableDef = `CREATE TABLE IF NOT EXISTS license_status (
-  id INTEGER PRIMARY KEY,
-  status int(11) NOT NULL,
-  license_updated datetime NOT NULL,
-  status_updated datetime NOT NULL,
-  device_count int(11) DEFAULT NULL,
-  potential_rights_end datetime DEFAULT NULL,
-  license_ref varchar(255) NOT NULL,
-  rights_end datetime DEFAULT NULL  
-);
-CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);`
+const tableDef = "CREATE TABLE IF NOT EXISTS license_status (" +
+  "id INTEGER PRIMARY KEY," +
+  "`status` int(11) NOT NULL," +
+  "license_updated datetime NOT NULL," +
+  "status_updated datetime NOT NULL," +
+  "device_count int(11) DEFAULT NULL," +
+  "potential_rights_end datetime DEFAULT NULL," +
+  "license_ref varchar(255) NOT NULL," +
+  "rights_end datetime DEFAULT NULL  " +
+");" +
+"CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);"

@@ -105,13 +105,13 @@ func (i dbIndex) List() func() (Content, error) {
 }
 
 func Open(db *sql.DB) (i Index, err error) {
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS content (
-	id varchar(255) PRIMARY KEY, 
-	encryption_key varchar(64) NOT NULL, 
-	location text NOT NULL, 
-	length bigint,
-	sha256 varchar(64),
-	FOREIGN KEY(id) REFERENCES license(content_fk))`)
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS content (" +
+	"id varchar(255) PRIMARY KEY," +
+	"encryption_key varchar(64) NOT NULL," +
+	"location text NOT NULL," +
+	"`length` bigint," +
+	"sha256 varchar(64)," +
+	"FOREIGN KEY(id) REFERENCES license(content_fk))")
 	if err != nil {
 		return
 	}
