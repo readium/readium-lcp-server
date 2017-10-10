@@ -196,7 +196,7 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 		return err
 	}
 
-	// Post content to LCP
+	// Post content to the LCP server
 	lcpServerConfig := pubManager.config.LcpServer
 	lcpURL := lcpServerConfig.PublicBaseUrl + "/contents/" + contentUUID
 	log.Println("PUT " + lcpURL)
