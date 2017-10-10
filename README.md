@@ -1,6 +1,10 @@
 Readium LCP Server
 ==================
 
+Documentation
+============
+Detailed documentation can be found in the [Wiki pages](../../wiki) of the project.
+
 Requirements
 ============
 
@@ -56,6 +60,15 @@ Private functionalities (authentication needed):
 * Revoke/cancel a license
 
 
+## [frontend]
+
+A Frontend Test server, which offers a GUI and API for having a complete experience.
+
+Public functionalities (accessible from the web):
+* Fetch a license from its id
+* Fetch a licensed publication from the license id
+
+
 Install
 =======
 
@@ -92,54 +105,65 @@ cd $GOPATH
 go get github.com/readium/readium-lcp-server/lcpserver
 ```
 
-Server Configuration
-====================
+To install properly the Frontend Test Server, you must also install several npm packages.
+
+Move to $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
+To install the packages and test your install, type
+```sh
+npm install
+npm start
+````
+
+If this gives no error, your install is ready; type Ctrl-C to move out of the test mode. In case of errors, read Readme.md in the "manage" directory to get more details.
+
+Configuration
+==============
 
 The server is controlled by a yaml configuration file (e.g. "config.yaml").  
-The License Server and License Status Server will search their configuration file in the bin directory by default;
-but the path to this file can be changed using the environment variable READIUM_LICENSE_CONFIG.
-The License Server and License Status Server may share the same configuration file (if they are both executed on the same server)
-or they can have their own configucation file. In the first case, the htpasswd file and database may also be shared.
+
+The License Server, License Status Server and Frontend test server will search their configuration file in the bin directory by default; but the path to this file can be changed using the environment variable:
+
+* READIUM_LCPSERVER_CONFIG for the LCP server
+* READIUM_LSDSERVER_CONFIG for the LSD server
+* READIUM_FRONTEND_CONFIG for the frontend test server
+
+The three servers may share the same configuration file (if they are both executed on the same server) or they may have their own configuration file. In the first case, the htpasswd file and database may also be shared.
 In the latter case, the License Server will have a "lcp" section and a "lsd_notify_auth" section;
 the License Status Server will have a "lsd" section and a "lcp_update_auth" section.
 
-"certificate":	parameters related to the signature of the licenses	
-- "cert": the provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature.
-- "private_key": the private key (.pem). It will be used for signing  licenses.
+Here are details about all configuration properties:
 
-"lcp" (License Server) & "lsd" (License Status Server) sections have an identical structure:
+*License Server*
+
+"lcp" section: parameters associated with the License sServer.
 - "host": the public server hostname, `hostname` by default
 - "port": the listening port, `8989` by default
 - "public_base_url": the public base URL, combination of the host and port values on http by default 
 - "database": the URI formatted connection string to the database, `sqlite3://file:lcpserve.sqlite?cache=shared&mode=rwc` by default
 - "auth_file": mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
-	The source example for creating password is http://www.htaccesstools.com/htpasswd-generator/. 
-	The format of the file is:
+
+A source example for creating a password file is http://www.htaccesstools.com/htpasswd-generator/. 
+The htpasswd file format is e.g.:
 ```sh
 	User1:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
 	User2:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKMT
 ```
 
-"lsd_notify_auth": authentication parameters used by the License Server for notifying the License Status Server 
-of a license generation. The notification endpoint is configured in the "lsd" section.
-- "username": mandatory, authentication username
-- "password": mandatory, authentication password
+"storage" section: parameters related to the storage of encrypted publications. 
+- "filesystem" section: parameters related to a file system storage.
+  - "directory": absolute path to the directory in which the encrypted publications are stored.
 
-"lcp_update_auth": authentication parameters used by the License Status Server for updating a license via the License Server.
-The notification endpoint is configured in the "lcp" section.
-- "username": mandatory, authentication username
-- "password": mandatory, authentication password
+"certificate" section:	parameters related to the signature of licenses: 	
+- "cert": the provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature.
+- "private_key": the private key (.pem). It will be used for signing  licenses.
 
-"storage": parameters related to the storage of the protected publications.
-- "filesystem": parameters related to a file system storage
-  - "directory": absolute path to the directory in which the protected publications are stored.
-
-"license": parameters related to static information to be included in all licenses generated by the License Server
+"license" section: parameters related to static information to be included in all licenses generated by the License Server:
 - "links": links that will be included in all licenses. "hint" and "publication" links are required in a Readium LCP license.
   If no such link exists in the partial license passed from the frontend when a new license his requested, 
   these link values will be inserted in the partial license.  
   If no value is present in the configuration file and no value is inserted in the partial license, 
   the License server will reply with a 500 Server Error at license creation.
+  The sub-properties of the "links" section are:
   - "hint": required; location where a Reading System can redirect a User looking for additional information about the User Passphrase. 
   - "publication": optional, templated URL; 
     location where the Publication associated with the License Document can be downloaded.
@@ -147,41 +171,133 @@ The notification endpoint is configured in the "lcp" section.
   - "status": optional, templated URL; location of the Status Document associated with a License Document.
     The license identifier is inserted via the variable {license_id}.
 
-NOTE: here is a license section snippet:
+"lsd_notify_auth" section: authentication parameters used by the License Server for notifying the License Status Server 
+of a license generation. The notification endpoint is configured in the "lsd" section.
+- "username": mandatory, authentication username
+- "password": mandatory, authentication password
+
+Here is a License Server sample config (assuming the License Status Server is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
 ```json
+lcp:
+    host: "127.0.0.1"
+    port: 8989
+    public_base_url: "http://127.0.0.1:8989"
+    database: "sqlite3://file:/readiumlcp/lcpdb/lcp.sqlite?cache=shared&mode=rwc"
+    auth_file: "/readiumlcp/lcpconfig/htpasswd"
+storage:
+    filesystem:
+        directory: "/readiumlcp/lcpfiles/storage"
+certificate:
+    cert: "/readiumlcp/lcpconfig/cert.pem"
+    private_key: "/readiumlcp/lcpconfig/privkey.pem"
 license:
     links:
-        hint: "http://www.edrlab.org/readiumlcp/static/hint.html"
-        publication: "http://www.edrlab.org/readiumlcp/files/{publication_id}"
-        status: "http://www.edrlab.org/readiumlcp/licenses/{license_id}/status"
+        status: "http://127.0.0.1:8990/licenses/{license_id}/status"     
+        hint: "http://127.0.0.1:8991/static/hint.html"
+        publication: "http://127.0.0.1:8991/licenses/{license_id}/publication" 
+lsd:
+  public_base_url:  "http://127.0.0.1:8990"
+lsd_notify_auth: 
+    username: "adm_username"
+    password: "adm_password"
+
 ```
 
-"license_status": parameters related to the interactions implemented by the License Status server, if any
-- renting_days: number of days be the license ends.
-- renew: boolean; if `true`, rental renewal is possible. 
-- renew_days: number of days added to the license if renewal is active.
-- return: boolean; if `true`,  early return is possible.  
-- register: boolean; if `true`,  registering a device is possible.
+*License Status Server*
 
-"localization": parameters related to the localization of the messages sent by the server
-- languages: array of supported localization languages
-- folder: point to localization file (a .json)
-- default_language: default language for localization
+"lsd" section: parameters associated with the License Status Server. This section holds the same properties as a the lcp section, plus:
+- "license_link_url": the url template representing the url from which a license can be fetched from the provider's frontend. This url will be inserted in the 'license' link of every status document.
 
-NOTE: list files for localization (ex: 'en-US.json, de-DE.json') must match the array of supported localization languages
+"license_status" section: parameters related to the interactions implemented by the License Status server, if any:
+- "renting_days": default number of days allowed for a loan. 
+- "renew": boolean; if `true`, the renewal of a loan is possible. 
+- "renew_days": default number of additional days allowed after a renewal.
+- "return": boolean; if `true`,  an early return is possible.  
+- "register": boolean; if `true`,  registering a device is possible.
 
-"logging": parameters for logging results of API methods
-- log_directory: point to log file (a .log).
-- compliance_tests_mode_on: boolean; if `true`, logging is turned on.
+"logging" section: parameters for logging results of API method calls on the License Status server:
+- "log_directory": the complete path to the log file.
+- "compliance_tests_mode_on": boolean; if `true`, logging is turned on.
 
+"lcp_update_auth" section: authentication parameters used by the License Status Server for updating a license via the License Server. The notification endpoint is configured in the "lcp" section.
+- "username": mandatory, authentication username
+- "password": mandatory, authentication password
 
-The following CBC / GCM configurable property is DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
+Here is a License Status Server sample config (assuming the License Status Server is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
+```json
+lsd:
+    host: "127.0.0.1"
+    port: 8990
+    public_base_url: "http://127.0.0.1:8990"
+    database: "sqlite3://file:/readiumlcp/lcpdb/lsd.sqlite?cache=shared&mode=rwc"
+    auth_file: "/Users/laurentlemeur/Work/lcpconfig/htpasswd"
+    license_link_url: "http://127.0.0.1:8991/licenses/{license_id}"
+license_status:
+    register: true
+    renew: true
+    return: true
+    renting_days: 60
+    renew_days: 7
+logging: 
+    log_directory: "/readiumlcp/lcpfiles/lsdserver.log"
+    compliance_tests_mode_on: false
+lcp:
+  public_base_url:  "http://127.0.0.1:8989"
+lcp_update_auth: 
+    username: "adm_username"
+    password: "adm_password"
+```
+
+*Frontend Server*
+
+"frontend" section: parameters associated with the Frontend Test Server. This section holds the same host, port and databases properties as a the lcp section, plus:
+- "provider_id": identifier of the provider (to be checked, mayb deprecated). 
+- "master_repository": repository where the uploaded EPUB files are stored before encryption. 
+- "encrypted_repository": repository where the encrypted EPUB files are stored after upload.
+- "directory": the directory containing the client app; by default $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage.
+
+The config file of a Frontend Test Server must define a "lcp" "public_base_url", "lsd" "public_base_url", "lcp_update_auth" "username" and "password".
+
+Here is a Frontend Test Server sample config:
+```json
+frontend:
+    host: "127.0.0.1"
+    port: 8991
+    database: "sqlite3://file:/readiumlcp/lcpdb/frontend.sqlite?cache=shared&mode=rwc"
+    provider_id: 1
+    master_repository: "/readiumlcp/lcpfiles/master"
+    encrypted_repository: "/readiumlcp/lcpfiles/encrypted"
+    directory: "/src/github.com/readium/readium-lcp-server/frontend/manage"
+lcp:
+  public_base_url:  "http://127.0.0.1:8989"
+lsd:
+  public_base_url:  "http://127.0.0.1:8990"
+lcp_update_auth: 
+    username: "adm_username"
+    password: "adm_password"
+```
+
+*All servers*
+
+"localization" section: parameters related to the localization of the messages sent by all three servers.
+- "languages": array of supported localization languages
+- "folder": point to localization file (a .json)
+- "default_language": default language for localization
+
+NOTE: the localization file names (ex: 'en-US.json, de-DE.json') must match the set of supported localization languages.
+
+The following CBC / GCM configurable property has been DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
 "aes256_cbc_or_gcm": either "GCM" or "CBC" (which is the default value). This is used only for encrypting publication resources, not the content key, not the user key check, not the LCP license fields.
 
+Execution
+==========
+each server must be launched in a different context (i.e. a different shell for local use), from 
+ $GOPATH/src/github.com/readium/readium-lcp-server
 
-Documentation
-============
-Detailed documentation can be found in the [Wiki pages](../../wiki) of the project.
+Each server is executed with no parameter:
+- lcpserver
+- lsdserver
+- frontend
 
 
 Contributing
