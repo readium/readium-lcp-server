@@ -135,6 +135,10 @@ Here are details about all configuration properties:
 
 *License Server*
 
+"profile": value of the LCP profile; values are 
+- "basic" (default value, as described in the Readium LCP specification, used for tests only);
+- "1.0" (i.e. the current production profile, managed by EDRLab).
+
 "lcp" section: parameters associated with the License sServer.
 - "host": the public server hostname, `hostname` by default
 - "port": the listening port, `8989` by default
