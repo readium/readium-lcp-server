@@ -204,8 +204,6 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	// Create LCP license
 	partialLicense := license.License{}
 
-	log.Println("provuri:" + config.Config.FrontendServer.ProviderUri)
-
 	// Provider
 	partialLicense.Provider = config.Config.FrontendServer.ProviderUri
 
@@ -230,7 +228,6 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	partialLicense.Encryption.UserKey = userKey
 
 	// Rights
-	// FIXME: Do not use harcoded values
 	var copy int32
 	var print int32
 	copy = config.Config.FrontendServer.RightCopy
