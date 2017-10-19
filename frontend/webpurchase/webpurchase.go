@@ -204,8 +204,10 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	// Create LCP license
 	partialLicense := license.License{}
 
+	log.Println("provuri:" + config.Config.FrontendServer.ProviderUri)
+
 	// Provider
-	partialLicense.Provider = "provider"
+	partialLicense.Provider = config.Config.FrontendServer.ProviderUri
 
 	// User
 	encryptedAttrs := []string{"email", "name"}
@@ -231,8 +233,8 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	// FIXME: Do not use harcoded values
 	var copy int32
 	var print int32
-	copy = 2048
-	print = 100
+	copy = config.Config.FrontendServer.RightCopy
+	print = config.Config.FrontendServer.RightPrint
 	userRights := license.UserRights{}
 	userRights.Copy = &copy
 	userRights.Print = &print
@@ -315,6 +317,7 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 
 // GetPartialLicense
 func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.License, error) {
+
 	if purchase.LicenseUUID == nil {
 		return license.License{}, errors.New("No license has been yet delivered")
 	}
