@@ -162,6 +162,8 @@ func convertRecordToPurchase(records *sql.Rows) (Purchase, error) {
 	return purchase, err
 }
 
+// Get a purchase using its id
+//
 func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 	dbGetQuery := purchaseManagerQuery + ` WHERE p.id = ? LIMIT 1`
 	dbGet, err := pManager.db.Prepare(dbGetQuery)
@@ -199,7 +201,8 @@ func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 	return Purchase{}, ErrNotFound
 }
 
-// GenerateLicense
+// GenerateLicense: generate the license associated with a purchase
+//
 func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.License, error) {
 	// Create LCP license
 	partialLicense := license.License{}
@@ -312,7 +315,8 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	return fullLicense, nil
 }
 
-// GetPartialLicense
+// GetPartialLicense: get a partial license associated with a purchase
+//
 func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.License, error) {
 
 	if purchase.LicenseUUID == nil {
@@ -362,6 +366,8 @@ func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 	return partialLicense, nil
 }
 
+// GetLicenseStatusDocument: get a license status document associated with a purchase
+//
 func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (licensestatuses.LicenseStatus, error) {
 	if purchase.LicenseUUID == nil {
 		return licensestatuses.LicenseStatus{}, errors.New("No license has been yet delivered")
@@ -408,6 +414,8 @@ func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 	return statusDocument, nil
 }
 
+// GetByLicenseID: get a license from its id
+//
 func (pManager purchaseManager) GetByLicenseID(licenseID string) (Purchase, error) {
 	dbGetByLicenseIDQuery := purchaseManagerQuery + ` WHERE p.license_uuid = ? LIMIT 1`
 	dbGetByLicenseID, err := pManager.db.Prepare(dbGetByLicenseIDQuery)
@@ -425,6 +433,8 @@ func (pManager purchaseManager) GetByLicenseID(licenseID string) (Purchase, erro
 	return Purchase{}, ErrNotFound
 }
 
+// List purchases, with pagination
+//
 func (pManager purchaseManager) List(page int, pageNum int) func() (Purchase, error) {
 	dbListByUserQuery := purchaseManagerQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
 	dbListByUser, err := pManager.db.Prepare(dbListByUserQuery)
@@ -438,6 +448,8 @@ func (pManager purchaseManager) List(page int, pageNum int) func() (Purchase, er
 	return convertRecordsToPurchases(records)
 }
 
+// ListByUser: list the purchases of a given user, with pagination
+//
 func (pManager purchaseManager) ListByUser(userID int64, page int, pageNum int) func() (Purchase, error) {
 	dbListByUserQuery := purchaseManagerQuery + ` WHERE u.id = ?
 ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
@@ -451,6 +463,8 @@ ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
 	return convertRecordsToPurchases(records)
 }
 
+// Add a purchase
+//
 func (pManager purchaseManager) Add(p Purchase) error {
 	add, err := pManager.db.Prepare(`INSERT INTO purchase
 	(uuid, publication_id, user_id,
@@ -483,6 +497,8 @@ func (pManager purchaseManager) Add(p Purchase) error {
 	return err
 }
 
+// Update a purchase
+//
 func (pManager purchaseManager) Update(p Purchase) error {
 	// Get original purchase
 	origPurchase, err := pManager.Get(p.ID)
@@ -571,7 +587,8 @@ func (pManager purchaseManager) Update(p Purchase) error {
 	return err
 }
 
-// Init purchaseManager
+// Init: initialize the purchaseManager
+//
 func Init(config config.Configuration, db *sql.DB) (i WebPurchase, err error) {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS purchase (
 	id integer NOT NULL,

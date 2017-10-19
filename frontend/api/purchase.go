@@ -28,6 +28,7 @@ package staticapi
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -40,7 +41,8 @@ import (
 	"github.com/Machiel/slugify"
 )
 
-//DecodeJSONPurchase transforms a json string to a User struct
+//DecodeJSONPurchase: transform a json string to a User struct
+//
 func DecodeJSONPurchase(r *http.Request) (webpurchase.Purchase, error) {
 	var dec *json.Decoder
 	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_JSON {
@@ -51,7 +53,8 @@ func DecodeJSONPurchase(r *http.Request) (webpurchase.Purchase, error) {
 	return purchase, err
 }
 
-// GetPurchases searches all purchases for a client
+// GetPurchases: search all purchases for a client
+//
 func GetPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	var err error
 
@@ -78,7 +81,8 @@ func GetPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-//GetUserPurchases searches all purchases for a client
+//GetUserPurchases: search all purchases for a client
+//
 func GetUserPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	var err error
 	var userId int64
@@ -112,7 +116,8 @@ func GetUserPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-//CreatePurchase creates a purchase in the database
+//CreatePurchase: create a purchase in the database
+
 func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	var purchase webpurchase.Purchase
 	var err error
@@ -129,6 +134,12 @@ func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	// publication added to db
 	w.WriteHeader(http.StatusCreated)
+
+	if purchase.Type == webpurchase.LOAN {
+		log.Println("user " + strconv.Itoa(int(purchase.User.ID)) + " lent publication " + strconv.Itoa(int(purchase.Publication.ID)) + " until " + purchase.EndDate.String())
+	} else {
+		log.Println("user " + strconv.Itoa(int(purchase.User.ID)) + " bought publication " + strconv.Itoa(int(purchase.Publication.ID)))
+	}
 }
 
 //GetPurchaseLicenseFromLicenseUUID () finds the purchase ID from a given license UUID (passed in URL),
@@ -170,6 +181,7 @@ func GetPurchaseLicenseFromLicenseUUID(w http.ResponseWriter, r *http.Request, s
 }
 
 //GetPurchaseLicense contacts LCP server and asks a license for the purchase using the partial license and resourceID
+//
 func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
 	var id int
@@ -207,6 +219,7 @@ func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 }
 
 //GetPurchase gets a purchase by its ID in the database
+//
 func GetPurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
 	var id int
@@ -241,6 +254,7 @@ func GetPurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 }
 
 //GetPurchaseByLicenseID gets a purchase by a LicenseID in the database
+//
 func GetPurchaseByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) {
 	var purchase webpurchase.Purchase
 	vars := mux.Vars(r)
@@ -267,6 +281,7 @@ func GetPurchaseByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) {
 }
 
 // getLicenseInfo decoldes a license in data (bytes, response.body)
+//
 func getLicenseInfo(data []byte, lic *license.License) error {
 	var dec *json.Decoder
 	dec = json.NewDecoder(bytes.NewReader(data))
@@ -277,6 +292,7 @@ func getLicenseInfo(data []byte, lic *license.License) error {
 }
 
 //UpdatePurchase updates a purchase in the database
+//
 func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	var newPurchase webpurchase.Purchase
 	vars := mux.Vars(r)
