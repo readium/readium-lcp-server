@@ -34,7 +34,8 @@ import (
 	"github.com/readium/readium-lcp-server/problem"
 )
 
-// GetDashboardInfos searches a publication by its uuid
+// GetFiltredLicenses searches licenses activated by more than n devices
+//
 func GetFiltredLicenses(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	rDevices := r.FormValue("devices")

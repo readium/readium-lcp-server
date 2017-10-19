@@ -41,7 +41,7 @@ import (
 	"github.com/Machiel/slugify"
 )
 
-//DecodeJSONPurchase: transform a json string to a User struct
+//DecodeJSONPurchase transform a json string to a User struct
 //
 func DecodeJSONPurchase(r *http.Request) (webpurchase.Purchase, error) {
 	var dec *json.Decoder
@@ -53,7 +53,7 @@ func DecodeJSONPurchase(r *http.Request) (webpurchase.Purchase, error) {
 	return purchase, err
 }
 
-// GetPurchases: search all purchases for a client
+// GetPurchases search all purchases for a client
 //
 func GetPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	var err error
@@ -81,7 +81,7 @@ func GetPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-//GetUserPurchases: search all purchases for a client
+//GetUserPurchases search all purchases for a client
 //
 func GetUserPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	var err error
@@ -116,8 +116,8 @@ func GetUserPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-//CreatePurchase: create a purchase in the database
-
+//CreatePurchase create a purchase in the database
+//
 func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	var purchase webpurchase.Purchase
 	var err error
