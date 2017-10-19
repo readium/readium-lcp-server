@@ -28,6 +28,7 @@ package staticapi
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -129,10 +130,12 @@ func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-// CheckPublicationByTitle chack if a publication with this title exist
+// CheckPublicationByTitle check if a publication with this title exist
 func CheckPublicationByTitle(w http.ResponseWriter, r *http.Request, s IServer) {
 	var title string
 	title = r.URL.Query()["title"][0]
+
+	log.Println("Check publication stored with name " + string(title))
 
 	if pub, err := s.PublicationAPI().CheckByTitle(string(title)); err == nil {
 		enc := json.NewEncoder(w)
@@ -147,7 +150,8 @@ func CheckPublicationByTitle(w http.ResponseWriter, r *http.Request, s IServer) 
 		switch err {
 		case webpublication.ErrNotFound:
 			{
-				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+				log.Println("No publication stored with name " + string(title))
+				//	problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 			}
 		default:
 			{

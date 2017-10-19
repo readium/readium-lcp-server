@@ -175,16 +175,16 @@ func New(
 }
 
 func task(s *Server) {
-	fmt.Println("AUTOMATIC : Save of the license_status table from lsd server.")
+	fmt.Println("AUTOMATIC : Fetch the license_status table from lsd server and save in db.")
 	url := config.Config.LsdServer.PublicBaseUrl + "/licenses"
 
-	// Get the liscences from the LSD server
+	// Get the licences from the LSD server
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		panic(err)
 	}
-	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("lsd:readium")))
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("laurent:laurent")))
 	res, err := client.Do(req)
 	if err != nil {
 		panic(err)

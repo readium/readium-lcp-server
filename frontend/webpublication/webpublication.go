@@ -87,7 +87,7 @@ type PublicationManager struct {
 	db     *sql.DB
 }
 
-// Get a publication for a given ID
+// Get a publication by its ID
 func (pubManager PublicationManager) Get(id int64) (Publication, error) {
 	dbGetByID, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication WHERE id = ? LIMIT 1")
 	if err != nil {
@@ -110,7 +110,7 @@ func (pubManager PublicationManager) Get(id int64) (Publication, error) {
 	return Publication{}, ErrNotFound
 }
 
-// GetByUUID returns a publication for a given uuid
+// GetByUUID returns a publication by its uuid
 func (pubManager PublicationManager) GetByUUID(uuid string) (Publication, error) {
 	dbGetByUUID, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication WHERE uuid = ? LIMIT 1")
 	if err != nil {
@@ -133,29 +133,31 @@ func (pubManager PublicationManager) GetByUUID(uuid string) (Publication, error)
 	return Publication{}, ErrNotFound
 }
 
-// CheckByTitle return 1 or 0 if the publication exist or not
-func (pubManager PublicationManager) CheckByTitle(name string) (int64, error) {
-	dbGetByUUID, err := pubManager.db.Prepare("SELECT CASE WHEN EXISTS (SELECT * FROM [publication] WHERE title = ?) THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END")
+// CheckByTitle checks if the publication exists or not, by its title
+func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
+	dbGetByTitle, err := pubManager.db.Prepare("SELECT CASE WHEN EXISTS (SELECT * FROM [publication] WHERE title = ?) THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END")
 	if err != nil {
 		return -1, err
 	}
-	defer dbGetByUUID.Close()
+	defer dbGetByTitle.Close()
 
-	records, err := dbGetByUUID.Query(name)
+	records, err := dbGetByTitle.Query(title)
 	if records.Next() {
 		var res int64
 		err = records.Scan(
 			&res)
 		records.Close()
+
+		// returns 1 or 0
 		return res, err
 	}
-
+	// only if the db query fails
 	return -1, ErrNotFound
 }
 
-// EncrypteEPUB Encrypte an EPUB File
-func EncrypteEPUB(inputPath string, pub Publication, pubManager PublicationManager) error {
-	// Create output file path
+// EncryptEPUB encrypts an EPUB File and sends the content to the LCP server
+func EncryptEPUB(inputPath string, pub Publication, pubManager PublicationManager) error {
+	// Create an output file path, as a temp file
 	contentUUID := uuid.NewV4().String()
 	outputFilename := contentUUID + ".tmp"
 	outputPath := path.Join(pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
@@ -171,8 +173,7 @@ func EncrypteEPUB(inputPath string, pub Publication, pubManager PublicationManag
 		return err
 	}
 
-	// Prepare request
-	// POST LCP content
+	// Prepare the PUT request
 	contentDisposition := slugify.Slugify(pub.Title)
 	lcpPublication := apilcp.LcpPublication{}
 	lcpPublication.ContentId = contentUUID
@@ -188,7 +189,7 @@ func EncrypteEPUB(inputPath string, pub Publication, pubManager PublicationManag
 		return err
 	}
 
-	// Post content to LCP
+	// Send the content to the LCP server
 	lcpServerConfig := pubManager.config.LcpServer
 	lcpURL := lcpServerConfig.PublicBaseUrl + "/contents/" + contentUUID
 	log.Println("PUT " + lcpURL)
@@ -214,13 +215,13 @@ func EncrypteEPUB(inputPath string, pub Publication, pubManager PublicationManag
 		return err
 	}
 
-	// Remove temporary file
+	// Remove the temporary file
 	err = os.Remove(outputPath)
 	if err != nil {
 		return err
 	}
 
-	// Store new publication
+	// Store the new publication in the db
 	pub.UUID = contentUUID
 	pub.Status = StatusOk
 	dbAdd, err := pubManager.db.Prepare("INSERT INTO publication (uuid, title, status) VALUES ( ?, ?, ?)")
@@ -236,9 +237,9 @@ func EncrypteEPUB(inputPath string, pub Publication, pubManager PublicationManag
 	return err
 }
 
-// Add new publication
+// Add a new publication
 func (pubManager PublicationManager) Add(pub Publication) error {
-	// Get repository file
+	// Get the source file path in the master repository
 	inputPath := path.Join(
 		pubManager.config.FrontendServer.MasterRepository, pub.MasterFilename)
 
@@ -247,12 +248,12 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 		return err
 	}
 
-	err := EncrypteEPUB(inputPath, pub, pubManager)
+	err := EncryptEPUB(inputPath, pub, pubManager)
 
 	return err
 }
 
-//UploadEPUB creates a new EPUB file
+// UploadEPUB creates a new EPUB file
 func (pubManager PublicationManager) UploadEPUB(r *http.Request, w http.ResponseWriter, pub Publication) {
 
 	file, header, err := r.FormFile("file")
@@ -274,7 +275,7 @@ func (pubManager PublicationManager) UploadEPUB(r *http.Request, w http.Response
 		log.Fatal(err)
 	}
 
-	if err := EncrypteEPUB(tmpfile.Name(), pub, pubManager); err != nil {
+	if err := EncryptEPUB(tmpfile.Name(), pub, pubManager); err != nil {
 		log.Fatal(err)
 	}
 
@@ -282,7 +283,8 @@ func (pubManager PublicationManager) UploadEPUB(r *http.Request, w http.Response
 	fmt.Fprintf(w, header.Filename)
 }
 
-// Update publication
+// Update a publication
+// Only the title is updated
 func (pubManager PublicationManager) Update(pub Publication) error {
 	dbUpdate, err := pubManager.db.Prepare("UPDATE publication SET title=?, status=? WHERE id = ?")
 	if err != nil {
@@ -299,10 +301,9 @@ func (pubManager PublicationManager) Update(pub Publication) error {
 	return err
 }
 
-// Delete publication
+// Delete a publication
 func (pubManager PublicationManager) Delete(id int64) error {
 
-	// delete the epub file
 	var (
 		title string
 	)
@@ -327,6 +328,7 @@ func (pubManager PublicationManager) Delete(id int64) error {
 			return err
 		}
 
+		// delete the epub file from the marster repository
 		inputPath := path.Join(pubManager.config.FrontendServer.MasterRepository, title+".epub")
 
 		if _, err := os.Stat(inputPath); err == nil {
@@ -338,7 +340,7 @@ func (pubManager PublicationManager) Delete(id int64) error {
 	}
 	result.Close()
 
-	// delete purchases from user
+	// delete all purchases relative to this publication
 	delPurchases, err := pubManager.db.Prepare(`DELETE FROM purchase WHERE publication_id=?`)
 	if err != nil {
 		return err
@@ -348,7 +350,7 @@ func (pubManager PublicationManager) Delete(id int64) error {
 		return err
 	}
 
-	// delete user
+	// delete the publication
 	dbDelete, err := pubManager.db.Prepare("DELETE FROM publication WHERE id = ?")
 	if err != nil {
 		return err
@@ -358,7 +360,8 @@ func (pubManager PublicationManager) Delete(id int64) error {
 	return err
 }
 
-// List publications
+// List a range of publications
+// Parameters: page = number of items per page; pageNum = page offset (0 for the first page)
 func (pubManager PublicationManager) List(page int, pageNum int) func() (Publication, error) {
 	dbList, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY title desc LIMIT ? OFFSET ?")
 	if err != nil {
@@ -389,7 +392,8 @@ func (pubManager PublicationManager) List(page int, pageNum int) func() (Publica
 	}
 }
 
-// Init publication manager
+// Initializes the publication manager
+// Create the db publication table.
 func Init(config config.Configuration, db *sql.DB) (i WebPublication, err error) {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS publication (
 	id integer NOT NULL,

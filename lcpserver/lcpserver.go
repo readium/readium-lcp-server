@@ -174,7 +174,7 @@ func main() {
 	} else {
 		log.Println("License server running on port " + parsedPort)
 	}
-	log.Println("using database " + dbURI)
+	log.Println("Using database " + dbURI)
 	log.Println("Public base URL=" + config.Config.LcpServer.PublicBaseUrl)
 	log.Println("License links:")
 	for nameOfLink, link := range config.Config.License.Links {
