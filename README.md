@@ -105,7 +105,7 @@ the License Status Server will have a "lsd" section and a "lcp_update_auth" sect
 
 "certificate":	parameters related to the signature of the licenses	
 - "cert": the provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature.
-- "private_key": the private key (.pem). It will be used for signing  licenses.
+- "private_key": the private key associated with the provider certificate (.pem). It will be used for signing licenses.
 
 "lcp" (License Server) & "lsd" (License Status Server) sections have an identical structure:
 - "host": the public server hostname, `hostname` by default
