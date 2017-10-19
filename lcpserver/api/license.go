@@ -73,8 +73,9 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	var lic license.License
 	err := DecodeJsonLicense(r, &lic)
 
-	log.Println("PARTIAL LICENSE RECEIVED IN REQUEST BODY:")
-	spew.Dump(lic)
+	// debug log
+	//log.Println("PARTIAL LICENSE RECEIVED IN REQUEST BODY:")
+	//spew.Dump(lic)
 
 	if err != nil { // no or incorrect (json) license found in body
 
@@ -103,8 +104,9 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
 
-		log.Println("PARTIAL LICENSE FOR RESPONSE:")
-		spew.Dump(ExistingLicense)
+		// debug log
+		//log.Println("PARTIAL LICENSE FOR RESPONSE:")
+		//spew.Dump(ExistingLicense)
 
 		return
 
