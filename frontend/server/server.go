@@ -177,6 +177,7 @@ func New(
 func task(s *Server) {
 	fmt.Println("AUTOMATIC : Fetch the license_status table from lsd server and save in db.")
 	url := config.Config.LsdServer.PublicBaseUrl + "/licenses"
+	auth := config.Config.LsdNotifyAuth
 
 	// Get the licences from the LSD server
 	client := &http.Client{}
@@ -184,7 +185,7 @@ func task(s *Server) {
 	if err != nil {
 		panic(err)
 	}
-	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("laurent:laurent")))
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(auth.Username+":"+auth.Password)))
 	res, err := client.Do(req)
 	if err != nil {
 		panic(err)
