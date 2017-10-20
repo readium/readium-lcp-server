@@ -97,7 +97,7 @@ func New(
 
 	//Cron to get license informations
 	gocron.Start()
-	gocron.Every(10).Minutes().Do(task, s)
+	gocron.Every(10).Minutes().Do(fetchLicenseStatusesTask, s)
 
 	apiURLPrefix := "/api/v1"
 
@@ -168,13 +168,13 @@ func New(
 	//
 	licenseRoutesPathPrefix := "/licenses"
 	//
-	s.handleFunc(sr.R, licenseRoutesPathPrefix, staticapi.GetFiltredLicenses).Methods("GET")
+	s.handleFunc(sr.R, licenseRoutesPathPrefix, staticapi.GetFilteredLicenses).Methods("GET")
 
 	return s
 
 }
 
-func task(s *Server) {
+func fetchLicenseStatusesTask(s *Server) {
 	fmt.Println("AUTOMATIC : Fetch the license_status table from lsd server and save in db.")
 	url := config.Config.LsdServer.PublicBaseUrl + "/licenses"
 	auth := config.Config.LsdNotifyAuth

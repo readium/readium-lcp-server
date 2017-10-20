@@ -34,16 +34,16 @@ import (
 	"github.com/readium/readium-lcp-server/problem"
 )
 
-// GetFiltredLicenses searches licenses activated by more than n devices
+// GetFilteredLicenses searches licenses activated by more than n devices
 //
-func GetFiltredLicenses(w http.ResponseWriter, r *http.Request, s IServer) {
+func GetFilteredLicenses(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	rDevices := r.FormValue("devices")
 	if rDevices == "" {
 		rDevices = "1"
 	}
 
-	if lic, err := s.LicenseAPI().GetFiltred(rDevices); err == nil {
+	if lic, err := s.LicenseAPI().GetFiltered(rDevices); err == nil {
 		enc := json.NewEncoder(w)
 		if err = enc.Encode(lic); err == nil {
 			// send json of correctly encoded user info
