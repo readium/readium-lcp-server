@@ -82,7 +82,7 @@ func New(bindAddr string, readonly bool, complianceMode bool, lst *licensestatus
 	s.handleFunc(licenseRoutes, "/{key}/status", apilsd.GetLicenseStatusDocument).Methods("GET")
 
 	if complianceMode {
-		s.handleFunc(sr.R, "/compliancetest", apilsd.AddLogToFile).Methods("GET")
+		s.handleFunc(sr.R, "/compliancetest", apilsd.AddLogToFile).Methods("POST")
 	}
 
 	s.handlePrivateFunc(licenseRoutes, "/{key}/registered", apilsd.ListRegisteredDevices, basicAuth).Methods("GET")

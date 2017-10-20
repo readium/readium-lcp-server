@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package logging
 
@@ -54,7 +54,8 @@ const (
 func Init(logPath string, cm bool) error {
 	complianceMode = cm
 	if complianceMode == true {
-		file, err := os.OpenFile(logPath, os.O_RDWR|os.O_APPEND, 0666)
+		log.Println("Open compliance mode log file in " + logPath)
+		file, err := os.OpenFile(logPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 		if err != nil {
 			return err
 		}
@@ -106,7 +107,6 @@ func CountTotal(lines []string) (string, error) {
 		if splitted[3] == "success" {
 			positive++
 		}
-
 
 		total++
 	}
