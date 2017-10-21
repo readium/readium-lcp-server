@@ -41,7 +41,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 
 	"github.com/readium/readium-lcp-server/api"
@@ -104,13 +103,13 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
 
-		// debug log
+		// debug only
 		//log.Println("PARTIAL LICENSE FOR RESPONSE:")
 		//spew.Dump(ExistingLicense)
 
 		return
 
-	} else { // add information to license , sign and return (real) License
+	} else { // add information to the license , sign and return (real) License
 
 		if lic.User.Email == "" {
 			problem.Error(w, r, problem.Problem{Detail: "User information must be passed in INPUT"}, http.StatusBadRequest)
@@ -139,8 +138,9 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		enc := json.NewEncoder(w)
 		enc.Encode(ExistingLicense)
 
-		log.Println("COMPLETE LICENSE FOR RESPONSE:")
-		spew.Dump(ExistingLicense)
+		// debug only
+		//log.Println("COMPLETE LICENSE FOR RESPONSE:")
+		//spew.Dump(ExistingLicense)
 
 		return
 	}
