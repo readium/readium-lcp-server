@@ -201,23 +201,26 @@ func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 	return Purchase{}, ErrNotFound
 }
 
-// GenerateLicense: generate the license associated with a purchase
+// GenerateLicense generates the license associated with a purchase
 //
 func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.License, error) {
-	// Create LCP license
+	// Create an LCP license
 	partialLicense := license.License{}
 
-	// Provider
+	// Set the Provider uri
+	if config.Config.FrontendServer.ProviderUri == "" {
+		return license.License{}, errors.New("Mandatory provider URI missing in the configuration")
+	}
 	partialLicense.Provider = config.Config.FrontendServer.ProviderUri
 
-	// User
+	// Get user info from the purchase info
 	encryptedAttrs := []string{"email", "name"}
 	partialLicense.User.Email = purchase.User.Email
 	partialLicense.User.Name = purchase.User.Name
 	partialLicense.User.Id = purchase.User.UUID
 	partialLicense.User.Encrypted = encryptedAttrs
 
-	// Encryption
+	// get the hashed passphrase from the purchase
 	userKeyValue, err := hex.DecodeString(purchase.User.Password)
 
 	if err != nil {
@@ -233,6 +236,8 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	// Rights
 	var copy int32
 	var print int32
+	// in case of undefined conf values for copy and print,
+	// these rights will be set to zero
 	copy = config.Config.FrontendServer.RightCopy
 	print = config.Config.FrontendServer.RightPrint
 	userRights := license.UserRights{}
@@ -254,7 +259,7 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 		return license.License{}, err
 	}
 
-	// Post partial license to LCP
+	// Post the partial license to the lcp server
 	lcpServerConfig := pManager.config.LcpServer
 	var lcpURL string
 
@@ -315,7 +320,7 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	return fullLicense, nil
 }
 
-// GetPartialLicense: get a partial license associated with a purchase
+// GetPartialLicense gets a partial license associated with a purchase
 //
 func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.License, error) {
 
@@ -366,7 +371,7 @@ func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 	return partialLicense, nil
 }
 
-// GetLicenseStatusDocument: get a license status document associated with a purchase
+// GetLicenseStatusDocument gets a license status document associated with a purchase
 //
 func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (licensestatuses.LicenseStatus, error) {
 	if purchase.LicenseUUID == nil {
@@ -414,7 +419,7 @@ func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 	return statusDocument, nil
 }
 
-// GetByLicenseID: get a license from its id
+// GetByLicenseID gets a purchase by the associated license id
 //
 func (pManager purchaseManager) GetByLicenseID(licenseID string) (Purchase, error) {
 	dbGetByLicenseIDQuery := purchaseManagerQuery + ` WHERE p.license_uuid = ? LIMIT 1`
@@ -429,7 +434,7 @@ func (pManager purchaseManager) GetByLicenseID(licenseID string) (Purchase, erro
 	if records.Next() {
 		return convertRecordToPurchase(records)
 	}
-
+	// no purchase found
 	return Purchase{}, ErrNotFound
 }
 
@@ -587,7 +592,7 @@ func (pManager purchaseManager) Update(p Purchase) error {
 	return err
 }
 
-// Init: initialize the purchaseManager
+// Init initializes the purchaseManager
 //
 func Init(config config.Configuration, db *sql.DB) (i WebPurchase, err error) {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS purchase (
