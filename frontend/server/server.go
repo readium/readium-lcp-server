@@ -121,9 +121,9 @@ func New(
 	//
 	s.handleFunc(sr.R, publicationsRoutesPathPrefix, staticapi.GetPublications).Methods("GET")
 	//
-	s.handleFunc(sr.R, "/PublicationUpload", staticapi.UploadEPUB).Methods("POST")
-	//
 	s.handleFunc(sr.R, publicationsRoutesPathPrefix, staticapi.CreatePublication).Methods("POST")
+	//
+	s.handleFunc(sr.R, "/PublicationUpload", staticapi.UploadEPUB).Methods("POST")
 	//
 	s.handleFunc(publicationsRoutes, "/check-by-title", staticapi.CheckPublicationByTitle).Methods("GET")
 	//
@@ -159,16 +159,18 @@ func New(
 	//
 	s.handleFunc(purchasesRoutes, "/{id}", staticapi.GetPurchase).Methods("GET")
 	s.handleFunc(purchasesRoutes, "/{id}", staticapi.UpdatePurchase).Methods("PUT")
-	//
-	s.handleFunc(purchasesRoutes, "/{id}/license", staticapi.GetPurchaseLicense).Methods("GET")
-	//
-	s.handleFunc(purchasesRoutes, "/license/{licenseID}", staticapi.GetPurchaseLicenseFromLicenseUUID).Methods("GET")
+	// Get a license from the associated purchase id
+	s.handleFunc(purchasesRoutes, "/{id}/license", staticapi.GetPurchasedLicense).Methods("GET")
 	//
 	// licences
 	//
-	licenseRoutesPathPrefix := "/licenses"
+	licenseRoutesPathPrefix := apiURLPrefix + "/licenses"
+	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
+	// Get a list of licenses
 	s.handleFunc(sr.R, licenseRoutesPathPrefix, staticapi.GetFilteredLicenses).Methods("GET")
+	// Get a license by its id
+	s.handleFunc(licenseRoutes, "/{license_id}", staticapi.GetLicense).Methods("GET")
 
 	return s
 

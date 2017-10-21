@@ -142,58 +142,22 @@ func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-//GetPurchaseLicenseFromLicenseUUID () finds the purchase ID from a given license UUID (passed in URL),
-//and performs the same as GetPurchaseLicense(), returning "license.lcpl" filename
-//(as this API is meant to be accessed from the LSD JSON license link)
-func GetPurchaseLicenseFromLicenseUUID(w http.ResponseWriter, r *http.Request, s IServer) {
-
-	vars := mux.Vars(r)
-	var purchase webpurchase.Purchase
-	var err error
-
-	if purchase, err = s.PurchaseAPI().GetByLicenseID(vars["licenseID"]); err != nil {
-		switch err {
-		case webpurchase.ErrNotFound:
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
-		default:
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	fullLicense, err := s.PurchaseAPI().GenerateLicense(purchase)
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
-	}
-
-	//attachmentName := slugify.Slugify(purchase.Publication.Title)
-	w.Header().Set("Content-Type", api.ContentType_LCP_JSON)
-	w.Header().Set("Content-Disposition", "attachment; filename=\"license.lcpl\"")
-
-	enc := json.NewEncoder(w)
-	err = enc.Encode(fullLicense)
-
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
-	}
-}
-
-//GetPurchaseLicense contacts LCP server and asks a license for the purchase using the partial license and resourceID
+// GetPurchasedLicense gets a license from the corresponding purchase id (passed as a section of the REST URL).
+// It fetches the license from the lcp server and returns it to the caller.
+// This API method is called from the client app (angular?js) when a license is requested after a purchase.
 //
-func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
+func GetPurchasedLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
-	var id int
+	var id int64
 	var err error
 
-	if id, err = strconv.Atoi(vars["id"]); err != nil {
-		// id is not a number
+	if id, err = strconv.ParseInt(vars["id"], 10, 64); err != nil {
+		// id is not an integer (int64)
 		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
 		return
 	}
 
-	purchase, err := s.PurchaseAPI().Get(int64(id))
+	purchase, err := s.PurchaseAPI().Get(id)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		return
@@ -216,9 +180,12 @@ func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
+	// message to the console
+	log.Println("Return license / id " + vars["id"] + " / " + purchase.Publication.Title + " / purchase " + strconv.FormatInt(purchase.ID, 10))
+
 }
 
-//GetPurchase gets a purchase by its ID in the database
+// GetPurchase gets a purchase by its ID in the database
 //
 func GetPurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
@@ -253,7 +220,7 @@ func GetPurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 }
 
-//GetPurchaseByLicenseID gets a purchase by a LicenseID in the database
+// GetPurchaseByLicenseID gets a purchase by a LicenseID in the database
 //
 func GetPurchaseByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) {
 	var purchase webpurchase.Purchase
@@ -280,7 +247,7 @@ func GetPurchaseByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) {
 	problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 }
 
-// getLicenseInfo decoldes a license in data (bytes, response.body)
+// getLicenseInfo decodes a license in data (bytes, response.body)
 //
 func getLicenseInfo(data []byte, lic *license.License) error {
 	var dec *json.Decoder
@@ -291,7 +258,7 @@ func getLicenseInfo(data []byte, lic *license.License) error {
 	return nil
 }
 
-//UpdatePurchase updates a purchase in the database
+// UpdatePurchase updates a purchase in the database
 //
 func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	var newPurchase webpurchase.Purchase
