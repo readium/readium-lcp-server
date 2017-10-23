@@ -12,16 +12,16 @@
         [formControl]="form.controls['email']">
   </div>
   <div class="form-group">
-    <label for="user-password">Password</label>
-    <input
-        id="user-passphrase" type="passphrase" class="form-control" placeholder="Passphrase"
-        [formControl]="form.controls['password']">
-  </div>
-  <div class="form-group">
     <label for="user-password">Passphrase Hint</label>
     <input
         id="user-passphrase-hint" class="form-control" placeholder="Passphrase hint"
         [formControl]="form.controls['hint']">
+  </div>
+  <div class="form-group">
+    <label for="user-password">Passphrase</label>
+    <input
+        id="user-passphrase" type="passphrase" class="form-control" placeholder="Passphrase"
+        [formControl]="form.controls['password']">
   </div>
   <button type="submit" [disabled]="!form.valid" class="btn btn-primary">{{submitButtonLabel}}</button>
   <button type="button" (click)="onCancel()" class="btn btn-secondary">Cancel</button>

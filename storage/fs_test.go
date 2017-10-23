@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package storage
 
@@ -58,8 +58,16 @@ func TestFileSystemStorage(t *testing.T) {
 		t.Errorf("expected item key to be test, got %s", item.Key())
 	}
 
-	if item.PublicUrl() != "http://localhost/assets/test" {
-		t.Errorf("expected item url to be http://localhost/assets/test, got %s", item.Key())
+	fileInfo, err := store.Info("test")
+	if fileInfo.Name() != "test" {
+		t.Errorf("expected item file name to be test, got %s", fileInfo.Name())
+	}
+	if fileInfo.Size() != 8 {
+		t.Errorf("expected item file size to be 8, got %d", fileInfo.Size())
+	}
+
+	if item.PublicURL() != "http://localhost/assets/test" {
+		t.Errorf("expected item url to be http://localhost/assets/test, got %s", item.PublicURL())
 	}
 
 	var buf [8]byte
@@ -85,5 +93,3 @@ func TestFileSystemStorage(t *testing.T) {
 	}
 
 }
-
-//func NewFileSystem(fs http.FileSystem, basePath string) storage.Store

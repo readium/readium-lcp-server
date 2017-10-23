@@ -174,7 +174,7 @@ func main() {
 	} else {
 		log.Println("License server running on port " + parsedPort)
 	}
-	log.Println("using database " + dbURI)
+	log.Println("Using database " + dbURI)
 	log.Println("Public base URL=" + config.Config.LcpServer.PublicBaseUrl)
 	log.Println("License links:")
 	for nameOfLink, link := range config.Config.License.Links {
@@ -210,7 +210,7 @@ func HandleSignals() {
 func s3ConfigFromYAML() storage.S3Config {
 	s3config := storage.S3Config{}
 
-	s3config.Id = config.Config.Storage.AccessId
+	s3config.ID = config.Config.Storage.AccessId
 	s3config.Secret = config.Config.Storage.Secret
 	s3config.Token = config.Config.Storage.Token
 

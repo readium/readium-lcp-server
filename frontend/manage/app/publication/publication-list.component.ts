@@ -17,7 +17,8 @@ export class PublicationListComponent implements OnInit {
 
     constructor(private publicationService: PublicationService) {
         this.publications = [];
-        this.order = "title";
+        this.order = "id";
+        this.reverse = true;
     }
 
     refreshPublications(): void {

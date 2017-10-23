@@ -69,7 +69,9 @@ type LsdServerInfo struct {
 
 type FrontendServerInfo struct {
 	ServerInfo          `yaml:",inline"`
-	ProviderID          string `yaml:"provider_id"`
+	ProviderUri         string `yaml:"provider_uri"`
+	RightPrint          int32  `yaml:"right_print"`
+	RightCopy           int32  `yaml:"right_copy"`
 	MasterRepository    string `yaml:"master_repository"`
 	EncryptedRepository string `yaml:"encrypted_repository"`
 }

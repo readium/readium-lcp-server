@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package main
 
@@ -33,19 +33,16 @@ import (
 )
 
 func main() {
-	logFilePath := flag.String("logfilepath", "", "path to .log file")
-	parsedFilePath := flag.String("parsedfilepath", "", "path to .log file")
-
-	fmt.Println(parsedFilePath)
+	logFilePath := flag.String("log", "", "path to .log file")
 
 	flag.Parse()
 
-	err := logging.Init(*logFilePath, true)
-	if err != nil {
-		panic(err)
+	if *logFilePath == "" {
+		fmt.Println("use -log file path")
+		return
 	}
 
-	fmt.Println("Parsing log file...")
+	fmt.Println("Parsing the log file...")
 	logs, err := logging.ReadLogs(*logFilePath)
 	summary, err := logging.CountTotal(logs)
 

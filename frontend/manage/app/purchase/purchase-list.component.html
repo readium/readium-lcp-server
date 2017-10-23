@@ -54,7 +54,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let purchase of purchases | test:order:reverse">
+    <tr *ngFor="let purchase of purchases | sortBy:order:reverse">
       <td *ngIf="keptWithFilter(purchase)">{{purchase.id}}</td>
       <td *ngIf="keptWithFilter(purchase)">{{formatDate(purchase.transactionDate)}}</td>
       <td *ngIf="keptWithFilter(purchase)">{{purchase.publication.title}}</td>

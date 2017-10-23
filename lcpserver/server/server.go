@@ -95,20 +95,33 @@ func New(bindAddr string, static string, readonly bool, idx *index.Index, st *st
 	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
 	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
 
+	// methods related to EPUB encrypted content
+
 	contentRoutesPathPrefix := "/contents"
 	contentRoutes := sr.R.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
 
 	s.handleFunc(sr.R, contentRoutesPathPrefix, apilcp.ListContents).Methods("GET")
 
-	s.handleFunc(contentRoutes, "/{key}", apilcp.GetContent).Methods("GET")
-	s.handlePrivateFunc(contentRoutes, "/{key}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")
+	// get encrypted content by content id (a uuid)
+	s.handleFunc(contentRoutes, "/{content_id}", apilcp.GetContent).Methods("GET")
+	// get all licenses associated with a given content
+	s.handlePrivateFunc(contentRoutes, "/{content_id}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")
+
 	if !readonly {
 		s.handleFunc(contentRoutes, "/{name}", apilcp.StoreContent).Methods("POST")
-		s.handlePrivateFunc(contentRoutes, "/{key}", apilcp.AddContent, basicAuth).Methods("PUT")
+		// put content to the storage
+		s.handlePrivateFunc(contentRoutes, "/{content_id}", apilcp.AddContent, basicAuth).Methods("PUT")
+		// generate a license for given content
+		s.handlePrivateFunc(contentRoutes, "/{content_id}/license", apilcp.GenerateLicense, basicAuth).Methods("POST")
+		// deprecated, from a typo in the lcp server spec
 		s.handlePrivateFunc(contentRoutes, "/{content_id}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
-		s.handlePrivateFunc(contentRoutes, "/{content_id}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
+		// generate a licensed publication
 		s.handlePrivateFunc(contentRoutes, "/{content_id}/publication", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
+		// deprecated, from a typo in the lcp server spec
+		s.handlePrivateFunc(contentRoutes, "/{content_id}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 	}
+
+	// methods related to licenses
 
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
