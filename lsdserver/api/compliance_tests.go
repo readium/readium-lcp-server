@@ -15,6 +15,7 @@ var results = map[string]string{
 	"e": "error",
 }
 
+// Possible values of test stage
 const (
 	LICENSE_STATUS        = "status"
 	REGISTER_DEVICE       = "register"
@@ -23,6 +24,8 @@ const (
 	CANCEL_REVOKE_LICENSE = "cancel_revoke"
 )
 
+// AddLogToFile adds a log message to the log file
+//
 func AddLogToFile(w http.ResponseWriter, r *http.Request, s Server) {
 	testStage := r.FormValue("test_stage")
 	testNumber := r.FormValue("test_number")
@@ -38,25 +41,18 @@ func AddLogToFile(w http.ResponseWriter, r *http.Request, s Server) {
 	if testStage == "start" {
 		if len(testNumber) == 0 {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "The number of compliance test cannot be null"}, http.StatusBadRequest)
-			return
 		} else {
 			complianceTestNumber = testNumber
 			testResult = "-"
-			writeLogToFile(testStage, testResult)
-			return
+			logging.WriteToFile(complianceTestNumber, testStage, testResult)
 		}
 	} else {
 		if testResult != "e" && testResult != "s" {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "The result of compliance test must be either 'e' or 's'"}, http.StatusBadRequest)
-			return
 		} else {
 			testResult = results[testResult]
-			writeLogToFile(testStage, testResult)
+			logging.WriteToFile(complianceTestNumber, testStage, testResult)
 			complianceTestNumber = ""
 		}
 	}
-}
-
-func writeLogToFile(testStage string, result string) {
-	logging.WriteToFile(complianceTestNumber, testStage, result)
 }
