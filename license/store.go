@@ -244,4 +244,5 @@ const tableDef = `CREATE TABLE IF NOT EXISTS license (
 	user_key_hash varchar(64) NOT NULL,
 	user_key_algorithm varchar(255) NOT NULL,
 	content_fk varchar(255) NOT NULL,
-	lsd_status integer default 0)`
+	lsd_status integer default 0,
+	FOREIGN KEY(content_fk) REFERENCES content(id))`
