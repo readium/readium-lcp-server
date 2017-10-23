@@ -420,12 +420,11 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	if (licenseStatus.Status != status.STATUS_ACTIVE) && (licenseStatus.Status != status.STATUS_READY) {
-		problem.Error(w, r, problem.Problem{Detail: "License is not active"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "This license is not active anymore"}, http.StatusBadRequest)
 		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusBadRequest))
 		return
 	}
-
-	//check if the device is active
+	//check if the device is active for this license
 	if deviceId != "" {
 		deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
 		if err != nil {
@@ -434,14 +433,14 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 		if deviceStatus != status.EVENT_REGISTERED && deviceStatus != status.EVENT_RENEWED { // deviceStatus == "" || deviceStatus == status.EVENT_RETURNED
-			problem.Error(w, r, problem.Problem{Detail: "The device is not active for this license"}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Detail: "This device is not active for this license"}, http.StatusBadRequest)
 			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusBadRequest))
 			return
 		}
 	}
-
+	// check if the license contains a potential date end property = the max renew date
 	if licenseStatus.PotentialRights == nil || licenseStatus.PotentialRights.End == nil || (*licenseStatus.PotentialRights.End).IsZero() {
-		problem.Error(w, r, problem.Problem{Detail: "Potential rights end not set"}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Detail: "This license has no upper date for the loan; may not be a loan license"}, http.StatusInternalServerError)
 		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 		return
 	}
@@ -455,7 +454,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	if timeEndString == "" {
 		renewDays := config.Config.LicenseStatus.RenewDays
 		if renewDays == 0 {
-			problem.Error(w, r, problem.Problem{Detail: "renew_days not found"}, http.StatusInternalServerError)
+			problem.Error(w, r, problem.Problem{Detail: "No explicit end value and renew_days not found"}, http.StatusInternalServerError)
 			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError))
 			return
 		}
@@ -486,13 +485,13 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	if suggestedEnd.After(*licenseStatus.PotentialRights.End) {
-		problem.Error(w, r, problem.Problem{Detail: "attempt to renew with date greater than potential rights end"}, http.StatusForbidden)
+		problem.Error(w, r, problem.Problem{Detail: "Attempt to renew with a date greater than potential rights end"}, http.StatusForbidden)
 		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusForbidden))
 		return
 	}
 
 	if suggestedEnd.Before(time.Now()) {
-		problem.Error(w, r, problem.Problem{Detail: "attempt to renew with date before now"}, http.StatusForbidden)
+		problem.Error(w, r, problem.Problem{Detail: "Attempt to renew with a date before now"}, http.StatusForbidden)
 		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusForbidden))
 		return
 	}
