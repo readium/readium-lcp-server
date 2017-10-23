@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS license (
 
 CREATE TABLE IF NOT EXISTS license_status (
   id INTEGER PRIMARY KEY,
-  status int(11) NOT NULL,
+  `status` int(11) NOT NULL,
   license_updated datetime NOT NULL,
   status_updated datetime NOT NULL,
   device_count int(11) DEFAULT NULL,
@@ -34,11 +34,11 @@ CREATE TABLE IF NOT EXISTS license_status (
 
 CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);
 
-CREATE TABLE IF NOT EXISTS event (
+CREATE TABLE IF NOT EXISTS `event` (
 	id INTEGER PRIMARY KEY,
 	device_name varchar(255) DEFAULT NULL,
-	timestamp datetime NOT NULL,
-	type int NOT NULL,
+	`timestamp` datetime NOT NULL,
+	`type` int NOT NULL,
 	device_id varchar(255) DEFAULT NULL,
 	license_status_fk int NOT NULL,
   FOREIGN KEY(license_status_fk) REFERENCES license_status(id)
