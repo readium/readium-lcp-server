@@ -58,6 +58,7 @@ type sqlStore struct {
 
 // notifyLsdServer informs LSD server of a new License
 // and saves the result of the http request in the DB (using the *Store)
+//
 func notifyLsdServer(l License, s Store) {
 	if config.Config.LsdServer.PublicBaseUrl != "" {
 		var lsdClient = &http.Client{
@@ -93,8 +94,9 @@ func notifyLsdServer(l License, s Store) {
 	}
 }
 
-//ListAll, lists all licenses in ante-chronological order
-// pageNum starting at 0
+// ListAll lists all licenses in ante-chronological order
+// pageNum starts at 0
+//
 func (s *sqlStore) ListAll(page int, pageNum int) func() (LicenseReport, error) {
 	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end, content_fk
@@ -123,8 +125,9 @@ func (s *sqlStore) ListAll(page int, pageNum int) func() (LicenseReport, error) 
 	}
 }
 
-//List() list licenses for a given ContentId
-//pageNum starting at 0
+// List() list licenses for a given ContentId
+// pageNum starting at 0
+//
 func (s *sqlStore) List(ContentId string, page int, pageNum int) func() (LicenseReport, error) {
 	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end, content_fk
@@ -151,6 +154,9 @@ func (s *sqlStore) List(ContentId string, page int, pageNum int) func() (License
 		return l, err
 	}
 }
+
+// UpdateRights
+//
 func (s *sqlStore) UpdateRights(l License) error {
 	result, err := s.db.Exec("UPDATE license SET rights_print=?, rights_copy=?, rights_start=?, rights_end=?,updated=?  WHERE id=?",
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End, time.Now(), l.Id)
@@ -162,6 +168,9 @@ func (s *sqlStore) UpdateRights(l License) error {
 	}
 	return err
 }
+
+// Add
+//
 func (s *sqlStore) Add(l License) error {
 	_, err := s.db.Exec(`INSERT INTO license (id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end,
@@ -174,6 +183,8 @@ func (s *sqlStore) Add(l License) error {
 	return err
 }
 
+// Update
+//
 func (s *sqlStore) Update(l License) error {
 	_, err := s.db.Exec(`UPDATE license SET user_id=?,provider=?,issued=?,updated=?,
 				rights_print=?,	rights_copy=?,	rights_start=?,	rights_end=?,
@@ -187,6 +198,8 @@ func (s *sqlStore) Update(l License) error {
 	return err
 }
 
+// UpdateLsdStatus
+//
 func (s *sqlStore) UpdateLsdStatus(id string, status int32) error {
 	_, err := s.db.Exec(`UPDATE license SET lsd_status =?
 				WHERE id=?`, // user_key_hash=?, user_key_algorithm=?,
@@ -196,6 +209,8 @@ func (s *sqlStore) UpdateLsdStatus(id string, status int32) error {
 	return err
 }
 
+// Get
+//
 func (s *sqlStore) Get(id string) (License, error) {
 
 	var l License
@@ -221,6 +236,8 @@ func (s *sqlStore) Get(id string) (License, error) {
 	return l, nil
 }
 
+// NewSqlStore
+//
 func NewSqlStore(db *sql.DB) (Store, error) {
 	_, err := db.Exec(tableDef)
 	if err != nil {

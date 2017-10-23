@@ -28,6 +28,7 @@ package staticapi
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -37,7 +38,7 @@ import (
 	"github.com/readium/readium-lcp-server/problem"
 )
 
-//GetPublications returns a list of publications
+// GetPublications returns a list of publications
 func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 	var page int64
 	var perPage int64
@@ -96,14 +97,15 @@ func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-// GetPublication searches a publication by its uuid
+// GetPublication returns a publication from its numeric id, given as part of the calling url
+//
 func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
 	var id int
 	var err error
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
-		problem.Error(w, r, problem.Problem{Detail: "Plublication ID must be an integer"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "The publication id must be an integer"}, http.StatusBadRequest)
 	}
 
 	if pub, err := s.PublicationAPI().Get(int64(id)); err == nil {
@@ -129,11 +131,12 @@ func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-// CheckPublicationByTitle chack if a publication with this title exist
+// CheckPublicationByTitle check if a publication with this title exist
 func CheckPublicationByTitle(w http.ResponseWriter, r *http.Request, s IServer) {
-	vars := mux.Vars(r)
 	var title string
-	title = vars["title"]
+	title = r.URL.Query()["title"][0]
+
+	log.Println("Check publication stored with name " + string(title))
 
 	if pub, err := s.PublicationAPI().CheckByTitle(string(title)); err == nil {
 		enc := json.NewEncoder(w)
@@ -148,7 +151,8 @@ func CheckPublicationByTitle(w http.ResponseWriter, r *http.Request, s IServer) 
 		switch err {
 		case webpublication.ErrNotFound:
 			{
-				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+				log.Println("No publication stored with name " + string(title))
+				//	problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 			}
 		default:
 			{
@@ -180,7 +184,7 @@ func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	fmt.Println("Req: %s %s", r.URL.Host, r.URL.Path)
 
-	// publication ok
+	// add publication
 	if err := s.PublicationAPI().Add(pub); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
@@ -193,6 +197,7 @@ func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 //UploadEPUB creates a new EPUB file
 func UploadEPUB(w http.ResponseWriter, r *http.Request, s IServer) {
 	var pub webpublication.Publication
+	pub.Title = r.URL.Query()["title"][0]
 	s.PublicationAPI().UploadEPUB(r, w, pub)
 }
 

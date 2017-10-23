@@ -59,7 +59,7 @@ type Server struct {
 	purchases    webpurchase.WebPurchase
 }
 
-// HandlerFunc type define a function handled by the server
+// HandlerFunc defines a function handled by the server
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, s staticapi.IServer)
 
 //type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s staticapi.IServer)
@@ -91,18 +91,14 @@ func New(
 		license:      licenseAPI,
 		purchases:    purchaseAPI}
 
-	// Route.PathPrefix: http://www.gorillatoolkit.org/pkg/mux#Route.PathPrefix
-	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
-	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
-
-	//Cron to get license informations
+	// Cron, get license status information
 	gocron.Start()
-	gocron.Every(10).Minutes().Do(task, s)
+	gocron.Every(10).Minutes().Do(fetchLicenseStatusesTask, s)
 
 	apiURLPrefix := "/api/v1"
 
 	//
-	// repositories
+	//  repositories of master files
 	//
 	repositoriesRoutesPathPrefix := apiURLPrefix + "/repositories"
 	repositoriesRoutes := sr.R.PathPrefix(repositoriesRoutesPathPrefix).Subrouter().StrictSlash(false)
@@ -121,16 +117,15 @@ func New(
 	//
 	s.handleFunc(sr.R, publicationsRoutesPathPrefix, staticapi.GetPublications).Methods("GET")
 	//
-	s.handleFunc(sr.R, "/PublicationUpload", staticapi.UploadEPUB).Methods("POST")
-	//
 	s.handleFunc(sr.R, publicationsRoutesPathPrefix, staticapi.CreatePublication).Methods("POST")
 	//
-	s.handleFunc(publicationsRoutes, "/checkByTitle/{title}", staticapi.CheckPublicationByTitle).Methods("GET")
+	s.handleFunc(sr.R, "/PublicationUpload", staticapi.UploadEPUB).Methods("POST")
+	//
+	s.handleFunc(publicationsRoutes, "/check-by-title", staticapi.CheckPublicationByTitle).Methods("GET")
 	//
 	s.handleFunc(publicationsRoutes, "/{id}", staticapi.GetPublication).Methods("GET")
 	s.handleFunc(publicationsRoutes, "/{id}", staticapi.UpdatePublication).Methods("PUT")
 	s.handleFunc(publicationsRoutes, "/{id}", staticapi.DeletePublication).Methods("DELETE")
-
 	//
 	// user functions
 	//
@@ -144,7 +139,7 @@ func New(
 	s.handleFunc(usersRoutes, "/{id}", staticapi.GetUser).Methods("GET")
 	s.handleFunc(usersRoutes, "/{id}", staticapi.UpdateUser).Methods("PUT")
 	s.handleFunc(usersRoutes, "/{id}", staticapi.DeleteUser).Methods("DELETE")
-	//
+	// get all purchases for a given user
 	s.handleFunc(usersRoutes, "/{user_id}/purchases", staticapi.GetUserPurchases).Methods("GET")
 
 	//
@@ -152,52 +147,58 @@ func New(
 	//
 	purchasesRoutesPathPrefix := apiURLPrefix + "/purchases"
 	purchasesRoutes := sr.R.PathPrefix(purchasesRoutesPathPrefix).Subrouter().StrictSlash(false)
-	//
+	// get all purchases
 	s.handleFunc(sr.R, purchasesRoutesPathPrefix, staticapi.GetPurchases).Methods("GET")
-	//
+	// create a purchase
 	s.handleFunc(sr.R, purchasesRoutesPathPrefix, staticapi.CreatePurchase).Methods("POST")
-	//
-	s.handleFunc(purchasesRoutes, "/{id}", staticapi.GetPurchase).Methods("GET")
+	// update a purchase
 	s.handleFunc(purchasesRoutes, "/{id}", staticapi.UpdatePurchase).Methods("PUT")
-	//
-	s.handleFunc(purchasesRoutes, "/{id}/license", staticapi.GetPurchaseLicense).Methods("GET")
-	//
-	s.handleFunc(purchasesRoutes, "/license/{licenseID}", staticapi.GetPurchaseLicenseFromLicenseUUID).Methods("GET")
+	// get a purchase by purchase id
+	s.handleFunc(purchasesRoutes, "/{id}", staticapi.GetPurchase).Methods("GET")
+	// get a license from the associated purchase id
+	s.handleFunc(purchasesRoutes, "/{id}/license", staticapi.GetPurchasedLicense).Methods("GET")
 	//
 	// licences
 	//
-	licenseRoutesPathPrefix := "/licenses"
+	licenseRoutesPathPrefix := apiURLPrefix + "/licenses"
+	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
-	s.handleFunc(sr.R, licenseRoutesPathPrefix, staticapi.GetFiltredLicenses).Methods("GET")
+	// get a list of licenses
+	s.handleFunc(sr.R, licenseRoutesPathPrefix, staticapi.GetFilteredLicenses).Methods("GET")
+	// get a license by id
+	s.handleFunc(licenseRoutes, "/{license_id}", staticapi.GetLicense).Methods("GET")
 
 	return s
-
 }
 
-func task(s *Server) {
-	fmt.Println("AUTOMATIC : Save of the license_status table from lsd server.")
+func fetchLicenseStatusesTask(s *Server) {
+	fmt.Println("AUTOMATIC : Fetch and save all license status documents")
 	url := config.Config.LsdServer.PublicBaseUrl + "/licenses"
+	auth := config.Config.LsdNotifyAuth
 
-	// Get the liscences from the LSD server
+	// prepare the request
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		panic(err)
 	}
-	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("lsd:readium")))
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(auth.Username+":"+auth.Password)))
 	res, err := client.Do(req)
 	if err != nil {
 		panic(err)
 	}
+
+	// get all licence status documents from the lsd server
 	body, err := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
 
+	// clear the db
 	err = s.license.PurgeDataBase()
 	if err != nil {
 		panic(err)
 	}
 
-	// Give licenses to the frontend server
+	// fill the db
 	err = s.license.AddFromJSON(body)
 	if err != nil {
 		panic(err)
@@ -219,7 +220,7 @@ func (server *Server) UserAPI() webuser.WebUser {
 	return server.users
 }
 
-//PurchaseAPI ( staticapi.IServer )returns DB interface for pruchases
+//PurchaseAPI ( staticapi.IServer )returns DB interface for purchases
 func (server *Server) PurchaseAPI() webpurchase.WebPurchase {
 	return server.purchases
 }

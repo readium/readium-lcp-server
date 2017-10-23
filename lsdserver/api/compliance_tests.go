@@ -1,6 +1,7 @@
 package apilsd
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/readium/readium-lcp-server/logging"
@@ -27,14 +28,16 @@ func AddLogToFile(w http.ResponseWriter, r *http.Request, s Server) {
 	testNumber := r.FormValue("test_number")
 	testResult := r.FormValue("test_result")
 
+	log.Println("compliance test number " + testNumber + ", " + testStage + ", result " + testResult)
+
 	if testStage != "start" && testStage != "end" {
-		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "You must type the regular stage of the compliance test"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "The stage of the compliance test must be either 'start' or 'end'"}, http.StatusBadRequest)
 		return
 	}
 
 	if testStage == "start" {
 		if len(testNumber) == 0 {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "You must type the number of compliance test"}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "The number of compliance test cannot be null"}, http.StatusBadRequest)
 			return
 		} else {
 			complianceTestNumber = testNumber
@@ -44,7 +47,7 @@ func AddLogToFile(w http.ResponseWriter, r *http.Request, s Server) {
 		}
 	} else {
 		if testResult != "e" && testResult != "s" {
-			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "You must type the result of compliance test"}, http.StatusBadRequest)
+			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "The result of compliance test must be either 'e' or 's'"}, http.StatusBadRequest)
 			return
 		} else {
 			testResult = results[testResult]

@@ -26,16 +26,16 @@
 package api
 
 import (
-	"log"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
-	"github.com/urfave/negroni"
 	"github.com/jeffbmartinez/delay"
-	"github.com/technoweenie/grohl"
 	"github.com/rs/cors"
+	"github.com/technoweenie/grohl"
+	"github.com/urfave/negroni"
 
 	"github.com/readium/readium-lcp-server/problem"
 )
@@ -68,7 +68,7 @@ func CreateServerRouter(tplPath string) ServerRouter {
 	//n := negroni.Classic() == negroni.New(negroni.NewRecovery(), negroni.NewLogger(), negroni.NewStatic(...))
 	n := negroni.New()
 
-	// HTTP client can emit requests with custom header: 
+	// HTTP client can emit requests with custom header:
 	//X-Add-Delay: 300ms
 	//X-Add-Delay: 2.5s
 	n.Use(delay.Middleware{})
@@ -85,22 +85,26 @@ func CreateServerRouter(tplPath string) ServerRouter {
 	//https://github.com/urfave/negroni#logger
 	n.Use(negroni.NewLogger())
 
-	n.Use(negroni.HandlerFunc(ExtraLogger))
+	// debug: log request details
+	//n.Use(negroni.HandlerFunc(ExtraLogger))
 
 	if tplPath != "" {
 		//https://github.com/urfave/negroni#static
 		n.Use(negroni.NewStatic(http.Dir(tplPath)))
 	}
 
-	n.Use(negroni.HandlerFunc(CORSHeaders))
+	// debug: log CORS details
+	//n.Use(negroni.HandlerFunc(CORSHeaders))
+
 	// Does not insert CORS headers as intended, depends on Origin check in the HTTP request...we want the same headers, always.
 	// IMPORT "github.com/rs/cors"
 	// //https://github.com/rs/cors#parameters
+	// [cors] logs depend on the Debug option (false/true)
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"PATCH", "HEAD", "POST", "GET", "OPTIONS", "PUT", "DELETE"},
 		AllowedHeaders: []string{"Range", "Content-Type", "Origin", "X-Requested-With", "Accept", "Accept-Language", "Content-Language", "Authorization"},
-		Debug: true,
+		Debug:          false,
 	})
 	n.Use(c)
 
@@ -128,13 +132,13 @@ func ExtraLogger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc)
 	next(rw, r)
 	// after
 
-	contentType := rw.Header().Get("Content-Type");
+	contentType := rw.Header().Get("Content-Type")
 	if contentType == problem.ContentType_PROBLEM_JSON {
 		log.Print("^^^^ " + problem.ContentType_PROBLEM_JSON + " ^^^^")
 	}
 
 	log.Printf("RESPONSE headers: %#v", rw.Header())
-	
+
 	log.Print(" >> -------------------")
 }
 

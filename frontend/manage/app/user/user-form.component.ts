@@ -48,7 +48,7 @@ export class UserFormComponent implements OnInit {
                 "name": [this.user.name, Validators.required],
                 "email": [this.user.email, Validators.required],
                 "password": "",
-                "hint": ""
+                "hint": [this.user.hint, Validators.required]
             });
         }
     }
@@ -87,18 +87,13 @@ export class UserFormComponent implements OnInit {
     bindForm(): void {
         this.user.name = this.form.value['name'];
         this.user.email = this.form.value['email'];
+        this.user.hint = this.form.value['hint'];
 
         let newPassword: string = this.form.value['password'];
         newPassword = newPassword.trim();
 
         if (newPassword.length > 0) {
             this.user.clearPassword = newPassword;
-        }
-
-        let newHint: string = this.form.value['hint'];
-
-        if (newHint.length > 0) {
-            this.user.hint = newHint;
         }
     }
 }

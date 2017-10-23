@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package status
 
@@ -38,9 +38,9 @@ const (
 	STATUS_CANCELLED = "cancelled"
 	STATUS_EXPIRED   = "expired"
 
-	TYPE_REGISTER = "register"
-	TYPE_RETURN   = "return"
-	TYPE_RENEW    = "renew"
+	EVENT_REGISTERED = "registered"
+	EVENT_RETURNED   = "returned"
+	EVENT_RENEWED    = "renewed"
 )
 
 var statuses = map[int]string{
@@ -53,9 +53,9 @@ var statuses = map[int]string{
 }
 
 var Types = map[int]string{
-	1: TYPE_REGISTER,
-	2: TYPE_RETURN,
-	3: TYPE_RENEW,
+	1: EVENT_REGISTERED,
+	2: EVENT_RETURNED,
+	3: EVENT_RENEWED,
 }
 
 //GetStatus translate status number to status string

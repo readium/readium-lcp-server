@@ -71,6 +71,9 @@ export class PublicationFormComponent implements OnInit {
             this.notAnEPUB = true;
         }
         this.uploader.queue = [fileItem];
+        let publication : Publication = new Publication();
+        publication.title = this.form.value['title']
+        publication.masterFilename = this.fileName;
         this.lastFile = fileItem;
     }
 
@@ -86,7 +89,8 @@ export class PublicationFormComponent implements OnInit {
             this.submitButtonLabel = "Add";
             this.form = this.fb.group({
                 "title": ["", Validators.required],
-                "filename": ["", Validators.required]
+                "filename": ["", Validators.required],
+                "type": ["UPLOAD", Validators.nullValidator]
             });
         } else {
             this.hideFilename = true
@@ -109,7 +113,7 @@ export class PublicationFormComponent implements OnInit {
         if (this.publication) {
             // Update publication
             this.publication.title = this.form.value['title'];
-            
+
             this.publicationService.update(
                 this.publication
             ).then(
@@ -117,19 +121,40 @@ export class PublicationFormComponent implements OnInit {
                     this.gotoList();
                 }
             );
+
         } else {
             this.fileName = this.form.value['title'] + '.epub';
-            this.lastFile.file.name = this.fileName;
+            if (this.form.value["type"] === "UPLOAD") {
+                this.lastFile.file.name = this.fileName;
+            }
             this.newPublication = true;
-            if (confirm){
+            if (confirm) {
                 this.publicationService.checkByName(this.form.value['title']).then(
                     result => {
-                        if (result == 0)
-                        {
-                            this.uploader.uploadItem(this.lastFile);
-                        }
-                        else
-                        {
+                        if (result === 0) {
+                            if (this.form.value["type"] === "UPLOAD") {
+                                let options = {url: this.baseUrl + "/PublicationUpload?title=" + this.form.value['title']};
+                                this.uploader.setOptions(options);
+                                this.uploader.uploadItem(this.lastFile);
+                            } else {
+                                let publication = new Publication();
+                                publication.title = this.form.value['title'];
+                                publication.masterFilename = this.form.value['filename'];
+
+                                this.publicationService.addPublication(publication)
+                                .then( error => {
+                                    console.log(error);
+                                        this.uploadConfimation = false;
+                                        if (error === 200) {
+                                            this.gotoList();
+                                        } else if (error === 400) {
+                                            this.errorMessage = "The file must be a real epub file."
+                                            this.showSnackBar(false);
+                                        }
+                                    }
+                                );
+                            }
+                        } else {
                             this.uploadConfimation = true;
                             this.showSnackBar(true);
                         }
@@ -137,33 +162,21 @@ export class PublicationFormComponent implements OnInit {
                 );
             } else {
                 this.newPublication = false;
-                this.uploader.uploadItem(this.lastFile);
+                if (this.form.value["type"] === "UPLOAD") {
+                    let options = {url: this.baseUrl + "/PublicationUpload?title=" + this.form.value['title']};
+                    this.uploader.setOptions(options);
+                    this.uploader.uploadItem(this.lastFile);
+                } else {
+                    this.AllUploaded();
+                }
                 this.gotoList();
             }
         }
     }
 
     // When all the files are uploaded, create the publication
-    AllUploaded(): void
-    {
-        if (this.newPublication){
-            // Create publication
-            let publication = new Publication();
-            publication.title = this.form.value['title'];
-            publication.masterFilename = this.fileName;
-            this.publicationService.addPublication(publication)
-            .then( error => {
-                console.log(error);
-                    this.uploadConfimation = false;
-                    if (error == 200){
-                        this.gotoList();
-                    } else if (error == 400){
-                        this.errorMessage = "The file must be a real epub file."
-                        this.showSnackBar(false);
-                    }
-                }
-            );
-        }
+    AllUploaded(): void {
+        this.gotoList();
     }
 
     showSnackBar(stay: boolean) {

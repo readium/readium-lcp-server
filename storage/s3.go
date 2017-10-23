@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package storage
 
@@ -50,7 +50,7 @@ func (i s3item) Key() string {
 	return i.key
 }
 
-func (i s3item) PublicUrl() string {
+func (i s3item) PublicURL() string {
 	return fmt.Sprintf("http://%s/%s/%s", i.store.client.Endpoint, i.bucket, i.key)
 }
 
@@ -110,12 +110,13 @@ func (s *s3store) List() ([]Item, error) {
 	return items, nil
 }
 
+// S3Config structure
 type S3Config struct {
 	Bucket   string
 	Endpoint string
 	Region   string
 
-	Id     string
+	ID     string
 	Secret string
 	Token  string
 
@@ -123,9 +124,10 @@ type S3Config struct {
 	ForcePathStyle bool
 }
 
+// S3 inits and S3 storage
 func S3(config S3Config) (Store, error) {
 	client := s3.New(session.New(&aws.Config{
-		Credentials:      credentials.NewStaticCredentials(config.Id, config.Secret, config.Token),
+		Credentials:      credentials.NewStaticCredentials(config.ID, config.Secret, config.Token),
 		DisableSSL:       aws.Bool(config.DisableSSL),
 		S3ForcePathStyle: aws.Bool(config.ForcePathStyle),
 		Region:           aws.String(config.Region),

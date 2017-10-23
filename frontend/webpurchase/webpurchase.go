@@ -162,6 +162,8 @@ func convertRecordToPurchase(records *sql.Rows) (Purchase, error) {
 	return purchase, err
 }
 
+// Get a purchase using its id
+//
 func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 	dbGetQuery := purchaseManagerQuery + ` WHERE p.id = ? LIMIT 1`
 	dbGet, err := pManager.db.Prepare(dbGetQuery)
@@ -199,22 +201,26 @@ func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 	return Purchase{}, ErrNotFound
 }
 
-// GenerateLicense
+// GenerateLicense returns the license associated with a purchase
+//
 func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.License, error) {
-	// Create LCP license
+	// Create an LCP license
 	partialLicense := license.License{}
 
-	// Provider
-	partialLicense.Provider = "provider"
+	// Set the Provider uri
+	if config.Config.FrontendServer.ProviderUri == "" {
+		return license.License{}, errors.New("Mandatory provider URI missing in the configuration")
+	}
+	partialLicense.Provider = config.Config.FrontendServer.ProviderUri
 
-	// User
+	// Get user info from the purchase info
 	encryptedAttrs := []string{"email", "name"}
 	partialLicense.User.Email = purchase.User.Email
 	partialLicense.User.Name = purchase.User.Name
 	partialLicense.User.Id = purchase.User.UUID
 	partialLicense.User.Encrypted = encryptedAttrs
 
-	// Encryption
+	// get the hashed passphrase from the purchase
 	userKeyValue, err := hex.DecodeString(purchase.User.Password)
 
 	if err != nil {
@@ -228,11 +234,12 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	partialLicense.Encryption.UserKey = userKey
 
 	// Rights
-	// FIXME: Do not use harcoded values
 	var copy int32
 	var print int32
-	copy = 2048
-	print = 100
+	// in case of undefined conf values for copy and print rights,
+	// these rights will be set to zero
+	copy = config.Config.FrontendServer.RightCopy
+	print = config.Config.FrontendServer.RightPrint
 	userRights := license.UserRights{}
 	userRights.Copy = &copy
 	userRights.Print = &print
@@ -252,7 +259,7 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 		return license.License{}, err
 	}
 
-	// Post partial license to LCP
+	// Post the partial license to the lcp server
 	lcpServerConfig := pManager.config.LcpServer
 	var lcpURL string
 
@@ -286,10 +293,11 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 
 	defer resp.Body.Close()
 
+	// if the status code from the request to the lcp server
+	// is neither 201 Created or 200 ok, return an internal error
 	if (purchase.LicenseUUID == nil && resp.StatusCode != 201) ||
 		(purchase.LicenseUUID != nil && resp.StatusCode != 200) {
-		// Bad status code
-		return license.License{}, errors.New("Bad status code")
+		return license.License{}, errors.New("The License Server returned an error")
 	}
 
 	// Decode full license
@@ -313,8 +321,10 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	return fullLicense, nil
 }
 
-// GetPartialLicense
+// GetPartialLicense gets a partial license associated with a purchase
+//
 func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.License, error) {
+
 	if purchase.LicenseUUID == nil {
 		return license.License{}, errors.New("No license has been yet delivered")
 	}
@@ -346,7 +356,7 @@ func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 
 	if resp.StatusCode != 206 {
 		// Bad status code
-		return license.License{}, errors.New("Bad status code")
+		return license.License{}, errors.New("The License Server returned an error")
 	}
 
 	// Decode full license
@@ -362,6 +372,8 @@ func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 	return partialLicense, nil
 }
 
+// GetLicenseStatusDocument gets a license status document associated with a purchase
+//
 func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (licensestatuses.LicenseStatus, error) {
 	if purchase.LicenseUUID == nil {
 		return licensestatuses.LicenseStatus{}, errors.New("No license has been yet delivered")
@@ -390,7 +402,7 @@ func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 
 	if resp.StatusCode != 200 {
 		// Bad status code
-		return licensestatuses.LicenseStatus{}, errors.New("Unable to find license")
+		return licensestatuses.LicenseStatus{}, errors.New("The License Status Document server returned an error")
 	}
 
 	// Decode status document
@@ -408,6 +420,8 @@ func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 	return statusDocument, nil
 }
 
+// GetByLicenseID gets a purchase by the associated license id
+//
 func (pManager purchaseManager) GetByLicenseID(licenseID string) (Purchase, error) {
 	dbGetByLicenseIDQuery := purchaseManagerQuery + ` WHERE p.license_uuid = ? LIMIT 1`
 	dbGetByLicenseID, err := pManager.db.Prepare(dbGetByLicenseIDQuery)
@@ -421,10 +435,12 @@ func (pManager purchaseManager) GetByLicenseID(licenseID string) (Purchase, erro
 	if records.Next() {
 		return convertRecordToPurchase(records)
 	}
-
+	// no purchase found
 	return Purchase{}, ErrNotFound
 }
 
+// List purchases, with pagination
+//
 func (pManager purchaseManager) List(page int, pageNum int) func() (Purchase, error) {
 	dbListByUserQuery := purchaseManagerQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
 	dbListByUser, err := pManager.db.Prepare(dbListByUserQuery)
@@ -438,6 +454,8 @@ func (pManager purchaseManager) List(page int, pageNum int) func() (Purchase, er
 	return convertRecordsToPurchases(records)
 }
 
+// ListByUser: list the purchases of a given user, with pagination
+//
 func (pManager purchaseManager) ListByUser(userID int64, page int, pageNum int) func() (Purchase, error) {
 	dbListByUserQuery := purchaseManagerQuery + ` WHERE u.id = ?
 ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
@@ -451,6 +469,8 @@ ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
 	return convertRecordsToPurchases(records)
 }
 
+// Add a purchase
+//
 func (pManager purchaseManager) Add(p Purchase) error {
 	add, err := pManager.db.Prepare(`INSERT INTO purchase
 	(uuid, publication_id, user_id,
@@ -483,6 +503,8 @@ func (pManager purchaseManager) Add(p Purchase) error {
 	return err
 }
 
+// Update a purchase
+//
 func (pManager purchaseManager) Update(p Purchase) error {
 	// Get original purchase
 	origPurchase, err := pManager.Get(p.ID)
@@ -571,7 +593,8 @@ func (pManager purchaseManager) Update(p Purchase) error {
 	return err
 }
 
-// Init purchaseManager
+// Init initializes the purchaseManager
+//
 func Init(config config.Configuration, db *sql.DB) (i WebPurchase, err error) {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS purchase (
 	id integer NOT NULL,

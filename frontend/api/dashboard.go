@@ -59,6 +59,9 @@ func GetDashboardInfos(w http.ResponseWriter, r *http.Request, s IServer) {
 		}
 	}
 }
+
+// GetDashboardBestSellers gets the dashboard bestsellers
+//
 func GetDashboardBestSellers(w http.ResponseWriter, r *http.Request, s IServer) {
 	if pub, err := s.DashboardAPI().GetDashboardBestSellers(); err == nil {
 		enc := json.NewEncoder(w)

@@ -11,8 +11,13 @@ import { UserService } from './user.service';
 export class UserListComponent implements OnInit {
     users: User[];
 
+    order: string;
+    reverse: boolean = false;
+
     constructor(private userService: UserService) {
         this.users = [];
+        this.order = "id";
+        this.reverse = true;
     }
 
     refreshUsers(): void {
@@ -21,6 +26,19 @@ export class UserListComponent implements OnInit {
                 this.users = users;
             }
         );
+    }
+
+    orderBy(newOrder: string)
+    {
+      if (newOrder == this.order)
+      {
+        this.reverse = !this.reverse;
+      }
+      else
+      {
+        this.reverse = false;
+        this.order = newOrder
+      }
     }
 
     ngOnInit(): void {
