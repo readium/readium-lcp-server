@@ -84,19 +84,6 @@ func (s fsStorage) Get(key string) (Item, error) {
 	return &fsItem{name: key, storageDir: s.fspath, baseURL: s.url}, nil
 }
 
-// FileInfo returns useful information about the file
-//
-func (s fsStorage) Info(key string) (os.FileInfo, error) {
-	fileInfo, err := os.Stat(filepath.Join(s.fspath, key))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, ErrNotFound
-		}
-		return nil, err
-	}
-
-	return fileInfo, nil
-}
 
 func (s fsStorage) Remove(key string) error {
 	return os.Remove(filepath.Join(s.fspath, key))
