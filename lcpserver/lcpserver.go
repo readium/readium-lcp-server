@@ -210,7 +210,7 @@ func HandleSignals() {
 func s3ConfigFromYAML() storage.S3Config {
 	s3config := storage.S3Config{}
 
-	s3config.Id = config.Config.Storage.AccessId
+	s3config.ID = config.Config.Storage.AccessId
 	s3config.Secret = config.Config.Storage.Secret
 	s3config.Token = config.Config.Storage.Token
 

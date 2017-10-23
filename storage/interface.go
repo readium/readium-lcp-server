@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package storage
 
@@ -30,14 +30,17 @@ import (
 	"io"
 )
 
-var NotFound = errors.New("Item could not be found")
+// ErrNotFound is not found
+var ErrNotFound = errors.New("Item could not be found")
 
+// Item interface
 type Item interface {
 	Key() string
-	PublicUrl() string
+	PublicURL() string
 	Contents() (io.ReadCloser, error)
 }
 
+// Store interface
 type Store interface {
 	Add(key string, r io.ReadSeeker) (Item, error)
 	Get(key string) (Item, error)

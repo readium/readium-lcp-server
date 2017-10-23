@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package storage
 
@@ -40,19 +40,20 @@ type fsStorage struct {
 type fsItem struct {
 	name       string
 	storageDir string
-	baseUrl    string
+	baseURL    string
 }
 
 func (i fsItem) Key() string {
 	return i.name
 }
 
-func (i fsItem) PublicUrl() string {
-	return i.baseUrl + "/" + i.name
+func (i fsItem) PublicURL() string {
+	return i.baseURL + "/" + i.name
 }
 
 func (i fsItem) Contents() (io.ReadCloser, error) {
 	return os.Open(filepath.Join(i.storageDir, i.name))
+	// FIXME: process errors
 }
 
 func (s fsStorage) Add(key string, r io.ReadSeeker) (Item, error) {
@@ -66,21 +67,35 @@ func (s fsStorage) Add(key string, r io.ReadSeeker) (Item, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return &fsItem{name: key, storageDir: s.fspath, baseUrl: s.url}, nil
+	return &fsItem{name: key, storageDir: s.fspath, baseURL: s.url}, nil
 }
 
+// Get returns an Item in the storage, by its key
+// the key is the file name
+//
 func (s fsStorage) Get(key string) (Item, error) {
 	_, err := os.Stat(filepath.Join(s.fspath, key))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, NotFound
-		} else {
-			return nil, err
+			return nil, ErrNotFound
 		}
+		return nil, err
+	}
+	return &fsItem{name: key, storageDir: s.fspath, baseURL: s.url}, nil
+}
+
+// FileInfo returns useful information about the file
+//
+func (s fsStorage) Info(key string) (os.FileInfo, error) {
+	fileInfo, err := os.Stat(filepath.Join(s.fspath, key))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrNotFound
+		}
+		return nil, err
 	}
 
-	return &fsItem{name: key, storageDir: s.fspath, baseUrl: s.url}, nil
+	return fileInfo, nil
 }
 
 func (s fsStorage) Remove(key string) error {
@@ -96,12 +111,14 @@ func (s fsStorage) List() ([]Item, error) {
 	}
 
 	for _, fi := range files {
-		items = append(items, &fsItem{name: fi.Name(), storageDir: s.fspath, baseUrl: s.url})
+		items = append(items, &fsItem{name: fi.Name(), storageDir: s.fspath, baseURL: s.url})
 	}
 
 	return items, nil
 }
 
+// NewFileSystem creates a new storage
+//
 func NewFileSystem(dir, basePath string) Store {
 	return fsStorage{dir, basePath}
 }
