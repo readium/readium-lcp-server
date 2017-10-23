@@ -201,7 +201,7 @@ func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 	return Purchase{}, ErrNotFound
 }
 
-// GenerateLicense generates the license associated with a purchase
+// GenerateLicense returns the license associated with a purchase
 //
 func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.License, error) {
 	// Create an LCP license
@@ -236,7 +236,7 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	// Rights
 	var copy int32
 	var print int32
-	// in case of undefined conf values for copy and print,
+	// in case of undefined conf values for copy and print rights,
 	// these rights will be set to zero
 	copy = config.Config.FrontendServer.RightCopy
 	print = config.Config.FrontendServer.RightPrint
@@ -293,10 +293,11 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 
 	defer resp.Body.Close()
 
+	// if the status code from the request to the lcp server
+	// is neither 201 Created or 200 ok, return an internal error
 	if (purchase.LicenseUUID == nil && resp.StatusCode != 201) ||
 		(purchase.LicenseUUID != nil && resp.StatusCode != 200) {
-		// Bad status code
-		return license.License{}, errors.New("Bad status code")
+		return license.License{}, errors.New("The License Server returned an error")
 	}
 
 	// Decode full license
@@ -355,7 +356,7 @@ func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 
 	if resp.StatusCode != 206 {
 		// Bad status code
-		return license.License{}, errors.New("Bad status code")
+		return license.License{}, errors.New("The License Server returned an error")
 	}
 
 	// Decode full license
@@ -401,7 +402,7 @@ func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 
 	if resp.StatusCode != 200 {
 		// Bad status code
-		return licensestatuses.LicenseStatus{}, errors.New("Unable to find license")
+		return licensestatuses.LicenseStatus{}, errors.New("The License Status Document server returned an error")
 	}
 
 	// Decode status document

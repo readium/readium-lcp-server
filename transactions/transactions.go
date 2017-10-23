@@ -131,7 +131,8 @@ func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event,
 	}
 }
 
-//ListRegisteredDevices returns all devices which has status 'regitered' by licensestatus id
+// ListRegisteredDevices returns all devices which has status 'regitered' by licensestatus id
+//
 func (i dbTransactions) ListRegisteredDevices(licenseStatusFk int) func() (Device, error) {
 	rows, err := i.listregistereddevices.Query(licenseStatusFk)
 	if err != nil {
@@ -171,13 +172,16 @@ func (i dbTransactions) CheckDeviceStatus(licenseStatusFk int, deviceId string) 
 	return typeString, err
 }
 
-//Open defines scripts for queries & create the 'event' table if it does not exist
+// Open defines scripts for queries & create the 'event' table if it does not exist
 //
 func Open(db *sql.DB) (t Transactions, err error) {
+	// create the event table if it does not exist
 	_, err = db.Exec(tableDef)
 	if err != nil {
 		return
 	}
+
+	// select an event by its id
 	get, err := db.Prepare("SELECT * FROM event WHERE id = ? LIMIT 1")
 	if err != nil {
 		return
@@ -185,7 +189,7 @@ func Open(db *sql.DB) (t Transactions, err error) {
 
 	getbylicensestatusid, err := db.Prepare("SELECT * FROM event WHERE license_status_fk = ?")
 
-	// The status of a device corresponds to the latest event stored in the db.
+	// the status of a device corresponds to the latest event stored in the db.
 	checkdevicestatus, err := db.Prepare(`SELECT type FROM event WHERE license_status_fk = ?
 	AND device_id = ? ORDER BY timestamp DESC LIMIT 1`)
 

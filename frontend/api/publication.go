@@ -38,7 +38,7 @@ import (
 	"github.com/readium/readium-lcp-server/problem"
 )
 
-//GetPublications returns a list of publications
+// GetPublications returns a list of publications
 func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 	var page int64
 	var perPage int64
@@ -97,14 +97,15 @@ func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-// GetPublication searches a publication by its uuid
+// GetPublication returns a publication from its numeric id, given as part of the calling url
+//
 func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
 	var id int
 	var err error
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
-		problem.Error(w, r, problem.Problem{Detail: "Plublication ID must be an integer"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "The publication id must be an integer"}, http.StatusBadRequest)
 	}
 
 	if pub, err := s.PublicationAPI().Get(int64(id)); err == nil {
@@ -183,7 +184,7 @@ func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	fmt.Println("Req: %s %s", r.URL.Host, r.URL.Path)
 
-	// publication ok
+	// add publication
 	if err := s.PublicationAPI().Add(pub); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
