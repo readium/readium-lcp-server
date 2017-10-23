@@ -59,7 +59,7 @@ type Server interface {
 //
 func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
 	var lic license.License
-	err := apilcp.DecodeJsonLicense(r, &lic)
+	err := apilcp.DecodeJSONLicense(r, &lic)
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
