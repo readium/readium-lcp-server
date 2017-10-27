@@ -78,11 +78,11 @@ export class PublicationFormComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        this.uploader = new FileUploader({url: this.baseUrl + "/PublicationUpload"});
+        this.uploader = new FileUploader({url: this.baseUrl + "/PublicationUpload"});        
         this.refreshMasterFiles();
 
         // Events declarations
-        this.uploader.onAfterAddingFile = (fileItem: any) => {this.onItemAdded(fileItem)}
+        this.uploader.onAfterAddingFile = (fileItem: any) => {this.onItemAdded(fileItem); fileItem.withCredentials = false; }
         this.uploader.onCompleteAll = () => {this.AllUploaded()}
 
         if (this.publication == null) {
