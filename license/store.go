@@ -56,8 +56,8 @@ type sqlStore struct {
 	db *sql.DB
 }
 
-// notifyLsdServer informs LSD server of a new License
-// and saves the result of the http request in the DB (using the *Store)
+// notifyLsdServer informs the License Status Server of the creation of a new license
+// and saves the result of the http request in the DB (using *Store)
 //
 func notifyLsdServer(l License, s Store) {
 	if config.Config.LsdServer.PublicBaseUrl != "" {
@@ -71,7 +71,9 @@ func notifyLsdServer(l License, s Store) {
 			pw.Close() // signal end writing
 		}()
 		req, err := http.NewRequest("PUT", config.Config.LsdServer.PublicBaseUrl+"/licenses", pr)
-
+		if err != nil {
+			return
+		}
 		// Set credentials on lsd request
 		notifyAuth := config.Config.LsdNotifyAuth
 		if notifyAuth.Username != "" {
@@ -87,9 +89,8 @@ func notifyLsdServer(l License, s Store) {
 		} else {
 			defer req.Body.Close()
 			_ = s.UpdateLsdStatus(l.Id, int32(response.StatusCode))
-			if response.StatusCode != 201 { //bad request or server error
-				log.Println("Notify LsdServer of new License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
-			}
+			// message to the console
+			log.Println("Notify LsdServer of new License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
 		}
 	}
 }
@@ -179,6 +180,8 @@ func (s *sqlStore) Add(l License) error {
 		l.Id, l.User.Id, l.Provider, l.Issued, nil, l.Rights.Print, l.Rights.Copy, l.Rights.Start,
 		l.Rights.End, l.Encryption.UserKey.Hint, l.Encryption.UserKey.Check,
 		l.Encryption.UserKey.Key.Algorithm, l.ContentId)
+	// notify the lsd server of the creation of the license
+	// FIXME: placed in a bad area. This is a db interface. Should be called by the caller. Difficult to find.
 	go notifyLsdServer(l, s)
 	return err
 }

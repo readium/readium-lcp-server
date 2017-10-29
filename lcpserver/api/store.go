@@ -124,10 +124,9 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 // this method adds the <protected_content_location>  in the store (of encrypted files)
 // and the key in the database in order to create the licenses
 func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
+	// parse the json payload
 	vars := mux.Vars(r)
 	decoder := json.NewDecoder(r.Body)
-
-	// parse the json payload
 	var publication LcpPublication
 	err := decoder.Decode(&publication)
 	if err != nil {
@@ -139,7 +138,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: "The content id must be set in the url"}, http.StatusBadRequest)
 		return
 	}
-	// open the encrypted file from the path given in the json paylod
+	// open the encrypted file from the path given in the json payload
 	file, err := os.Open(publication.Output)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
