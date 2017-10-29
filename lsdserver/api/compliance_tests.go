@@ -44,14 +44,14 @@ func AddLogToFile(w http.ResponseWriter, r *http.Request, s Server) {
 		} else {
 			complianceTestNumber = testNumber
 			testResult = "-"
-			logging.WriteToFile(complianceTestNumber, testStage, testResult)
+			logging.WriteToFile(complianceTestNumber, testStage, testResult, "")
 		}
 	} else {
 		if testResult != "e" && testResult != "s" {
 			problem.Error(w, r, problem.Problem{Type: "about:blank", Detail: "The result of compliance test must be either 'e' or 's'"}, http.StatusBadRequest)
 		} else {
 			testResult = results[testResult]
-			logging.WriteToFile(complianceTestNumber, testStage, testResult)
+			logging.WriteToFile(complianceTestNumber, testStage, testResult, "")
 			complianceTestNumber = ""
 		}
 	}

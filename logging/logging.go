@@ -50,11 +50,11 @@ func Init(logPath string, cm bool) error {
 }
 
 //WriteToFile writes the result of the execution of a function to the log file
-func WriteToFile(testID string, status string, result string) {
+func WriteToFile(testID string, status string, result string, remark string) {
 	if complianceMode == true {
 		currentTime := time.Now().UTC().Format(time.RFC3339)
 
-		LogFile.Println(currentTime + "\t" + testID + " \t" + status + "\t" + result)
+		LogFile.Println(currentTime + "\t" + testID + " \t" + status + "\t" + result + "\t" + remark)
 	}
 }
 
