@@ -1,27 +1,7 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2017 European Digital Reading Lab. All rights reserved.
+// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package webpurchase
 
@@ -64,7 +44,7 @@ left join publication pu on (p.publication_id=pu.id)`
 //WebPurchase defines possible interactions with DB
 type WebPurchase interface {
 	Get(id int64) (Purchase, error)
-	GenerateLicense(purchase Purchase) (license.License, error)
+	GenerateOrGetLicense(purchase Purchase) (license.License, error)
 	GetPartialLicense(purchase Purchase) (license.License, error)
 	GetLicenseStatusDocument(purchase Purchase) (licensestatuses.LicenseStatus, error)
 	GetByLicenseID(licenseID string) (Purchase, error)
@@ -104,7 +84,7 @@ type Purchase struct {
 	MaxEndDate      *time.Time                 `json:"maxEndDate, omitempty"`
 }
 
-type purchaseManager struct {
+type PurchaseManager struct {
 	config config.Configuration
 	db     *sql.DB
 }
@@ -164,7 +144,7 @@ func convertRecordToPurchase(records *sql.Rows) (Purchase, error) {
 
 // Get a purchase using its id
 //
-func (pManager purchaseManager) Get(id int64) (Purchase, error) {
+func (pManager PurchaseManager) Get(id int64) (Purchase, error) {
 	dbGetQuery := purchaseManagerQuery + ` WHERE p.id = ? LIMIT 1`
 	dbGet, err := pManager.db.Prepare(dbGetQuery)
 	if err != nil {
@@ -184,6 +164,7 @@ func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 
 		if purchase.LicenseUUID != nil {
 			// Query LSD to retrieve max end date (PotentialRights.End)
+			// FIXME: calling the lsd server at this point is too heavy: the max end date should be in the db.
 			statusDocument, err := pManager.GetLicenseStatusDocument(purchase)
 
 			if err != nil {
@@ -201,19 +182,20 @@ func (pManager purchaseManager) Get(id int64) (Purchase, error) {
 	return Purchase{}, ErrNotFound
 }
 
-// GenerateLicense returns the license associated with a purchase
+// GenerateOrGetLicense generates a new license associated with a purchase, ir gets an existing license,
+// depending on the calue of the license id in the purchase.
 //
-func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.License, error) {
-	// Create an LCP license
+func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license.License, error) {
+	// create a partial license
 	partialLicense := license.License{}
 
-	// Set the Provider uri
+	// set the mandatory provider URI
 	if config.Config.FrontendServer.ProviderUri == "" {
 		return license.License{}, errors.New("Mandatory provider URI missing in the configuration")
 	}
 	partialLicense.Provider = config.Config.FrontendServer.ProviderUri
 
-	// Get user info from the purchase info
+	// get user info from the purchase info
 	encryptedAttrs := []string{"email", "name"}
 	partialLicense.User.Email = purchase.User.Email
 	partialLicense.User.Name = purchase.User.Name
@@ -233,7 +215,7 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	userKey.Value = userKeyValue
 	partialLicense.Encryption.UserKey = userKey
 
-	// Rights
+	// rights
 	var copy int32
 	var print int32
 	// in case of undefined conf values for copy and print rights,
@@ -244,7 +226,7 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 	userRights.Copy = &copy
 	userRights.Print = &print
 
-	// Do not include start and end date for a BUY purchase
+	// if this is a loan, include start and end date
 	if purchase.Type == LOAN {
 		userRights.Start = purchase.StartDate
 		userRights.End = purchase.EndDate
@@ -259,33 +241,38 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 		return license.License{}, err
 	}
 
-	// Post the partial license to the lcp server
 	lcpServerConfig := pManager.config.LcpServer
 	var lcpURL string
 
 	if purchase.LicenseUUID == nil {
+		// if the purchase contains no license id, generate a new license
 		lcpURL = lcpServerConfig.PublicBaseUrl + "/contents/" +
-			purchase.Publication.UUID + "/licenses"
+			purchase.Publication.UUID + "/license"
 	} else {
+		// if the purchase contains a license id, fetch an existing license
+		// note: this will not update the license rights
 		lcpURL = lcpServerConfig.PublicBaseUrl + "/licenses/" +
 			*purchase.LicenseUUID
 	}
-
+	// message to the console
 	log.Println("POST " + lcpURL)
 
+	// add the partial license to the POST request
 	req, err := http.NewRequest("POST", lcpURL, bytes.NewReader(jsonBody))
-
+	if err != nil {
+		return license.License{}, err
+	}
 	lcpUpdateAuth := pManager.config.LcpUpdateAuth
 	if pManager.config.LcpUpdateAuth.Username != "" {
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
 	}
-
+	// the body is a partial license in json format
 	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
 
 	var lcpClient = &http.Client{
 		Timeout: time.Second * 5,
 	}
-
+	// POST the request
 	resp, err := lcpClient.Do(req)
 	if err != nil {
 		return license.License{}, err
@@ -300,7 +287,7 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 		return license.License{}, errors.New("The License Server returned an error")
 	}
 
-	// Decode full license
+	// decode the full license
 	fullLicense := license.License{}
 	var dec *json.Decoder
 	dec = json.NewDecoder(resp.Body)
@@ -310,63 +297,69 @@ func (pManager purchaseManager) GenerateLicense(purchase Purchase) (license.Lice
 		return license.License{}, errors.New("Unable to decode license")
 	}
 
-	// Store license uuid
-	purchase.LicenseUUID = &fullLicense.Id
-	pManager.Update(purchase)
-
-	if err != nil {
-		return license.License{}, errors.New("Unable to update license uuid")
+	// store the license id if it was not already set
+	if purchase.LicenseUUID == nil {
+		purchase.LicenseUUID = &fullLicense.Id
+		pManager.Update(purchase)
+		if err != nil {
+			return license.License{}, errors.New("Unable to update the license id")
+		}
 	}
 
 	return fullLicense, nil
 }
 
-// GetPartialLicense gets a partial license associated with a purchase
+// GetPartialLicense gets the license associated with a purchase, from the license server
 //
-func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.License, error) {
+func (pManager PurchaseManager) GetPartialLicense(purchase Purchase) (license.License, error) {
 
 	if purchase.LicenseUUID == nil {
 		return license.License{}, errors.New("No license has been yet delivered")
 	}
 
-	// Post partial license to LCP
 	lcpServerConfig := pManager.config.LcpServer
 	lcpURL := lcpServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID
+	// message to the console
 	log.Println("GET " + lcpURL)
-
+	// prepare the request
 	req, err := http.NewRequest("GET", lcpURL, nil)
-
+	if err != nil {
+		return license.License{}, err
+	}
+	// set credentials
 	lcpUpdateAuth := pManager.config.LcpUpdateAuth
 	if pManager.config.LcpUpdateAuth.Username != "" {
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
 	}
 
-	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
+	// FIXME: no use
+	//req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
 
 	var lcpClient = &http.Client{
 		Timeout: time.Second * 5,
 	}
-
+	// send the request
 	resp, err := lcpClient.Do(req)
 	if err != nil {
 		return license.License{}, err
 	}
-
+	// FIXME: why this Close()?
 	defer resp.Body.Close()
 
+	// the call must return 206 (partial content) because there is no input partial license
 	if resp.StatusCode != 206 {
-		// Bad status code
+		// bad status code
 		return license.License{}, errors.New("The License Server returned an error")
 	}
 
-	// Decode full license
+	// decode the license
 	partialLicense := license.License{}
 	var dec *json.Decoder
 	dec = json.NewDecoder(resp.Body)
 	err = dec.Decode(&partialLicense)
 
 	if err != nil {
-		return license.License{}, errors.New("Unable to decode license")
+		return license.License{}, errors.New("Unable to decode the license")
 	}
 
 	return partialLicense, nil
@@ -374,7 +367,7 @@ func (pManager purchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 
 // GetLicenseStatusDocument gets a license status document associated with a purchase
 //
-func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (licensestatuses.LicenseStatus, error) {
+func (pManager PurchaseManager) GetLicenseStatusDocument(purchase Purchase) (licensestatuses.LicenseStatus, error) {
 	if purchase.LicenseUUID == nil {
 		return licensestatuses.LicenseStatus{}, errors.New("No license has been yet delivered")
 	}
@@ -383,12 +376,9 @@ func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 	lsdURL := lsdServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID + "/status"
 	log.Println("GET " + lsdURL)
 	req, err := http.NewRequest("GET", lsdURL, nil)
-
-	lsdAuth := pManager.config.LsdNotifyAuth
-	if lsdAuth.Username != "" {
-		req.SetBasicAuth(lsdAuth.Username, lsdAuth.Password)
+	if err != nil {
+		return licensestatuses.LicenseStatus{}, err
 	}
-
 	req.Header.Add("Content-Type", api.ContentType_JSON)
 
 	var lsdClient = &http.Client{
@@ -422,7 +412,7 @@ func (pManager purchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 
 // GetByLicenseID gets a purchase by the associated license id
 //
-func (pManager purchaseManager) GetByLicenseID(licenseID string) (Purchase, error) {
+func (pManager PurchaseManager) GetByLicenseID(licenseID string) (Purchase, error) {
 	dbGetByLicenseIDQuery := purchaseManagerQuery + ` WHERE p.license_uuid = ? LIMIT 1`
 	dbGetByLicenseID, err := pManager.db.Prepare(dbGetByLicenseIDQuery)
 	if err != nil {
@@ -441,7 +431,7 @@ func (pManager purchaseManager) GetByLicenseID(licenseID string) (Purchase, erro
 
 // List purchases, with pagination
 //
-func (pManager purchaseManager) List(page int, pageNum int) func() (Purchase, error) {
+func (pManager PurchaseManager) List(page int, pageNum int) func() (Purchase, error) {
 	dbListByUserQuery := purchaseManagerQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
 	dbListByUser, err := pManager.db.Prepare(dbListByUserQuery)
 
@@ -456,7 +446,7 @@ func (pManager purchaseManager) List(page int, pageNum int) func() (Purchase, er
 
 // ListByUser: list the purchases of a given user, with pagination
 //
-func (pManager purchaseManager) ListByUser(userID int64, page int, pageNum int) func() (Purchase, error) {
+func (pManager PurchaseManager) ListByUser(userID int64, page int, pageNum int) func() (Purchase, error) {
 	dbListByUserQuery := purchaseManagerQuery + ` WHERE u.id = ?
 ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
 	dbListByUser, err := pManager.db.Prepare(dbListByUserQuery)
@@ -471,7 +461,7 @@ ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
 
 // Add a purchase
 //
-func (pManager purchaseManager) Add(p Purchase) error {
+func (pManager PurchaseManager) Add(p Purchase) error {
 	add, err := pManager.db.Prepare(`INSERT INTO purchase
 	(uuid, publication_id, user_id,
 	type, transaction_date,
@@ -503,10 +493,12 @@ func (pManager purchaseManager) Add(p Purchase) error {
 	return err
 }
 
-// Update a purchase
+// Update modifies a purchase on a renew or return request
+// parameters: a Purchase structure withID,	LicenseUUID, StartDate,	EndDate, Status
+// EndDate may be undefined (nil), in which case the lsd server will choose the renew period
 //
-func (pManager purchaseManager) Update(p Purchase) error {
-	// Get original purchase
+func (pManager PurchaseManager) Update(p Purchase) error {
+	// Get the original purchase from the db
 	origPurchase, err := pManager.Get(p.ID)
 
 	if err != nil {
@@ -543,41 +535,41 @@ func (pManager purchaseManager) Update(p Purchase) error {
 			p.Status = StatusOk
 		}
 
+		// message to the console
 		log.Println("PUT " + lsdURL)
+		// prepare the request for renew or return to the license status server
 		req, err := http.NewRequest("PUT", lsdURL, nil)
-
+		if err != nil {
+			return err
+		}
+		// set credentials
 		lsdAuth := pManager.config.LsdNotifyAuth
 		if lsdAuth.Username != "" {
 			req.SetBasicAuth(lsdAuth.Username, lsdAuth.Password)
 		}
-
-		req.Header.Add("Content-Type", api.ContentType_JSON)
-
+		// call the lsd server
 		var lsdClient = &http.Client{
 			Timeout: time.Second * 5,
 		}
-
 		resp, err := lsdClient.Do(req)
 		if err != nil {
 			return err
 		}
-
-		// FIXME: Check status code
-
+		// FIXME: what is the use of the resp.Body.Close?
 		defer resp.Body.Close()
 
-		// Get new end date from LCP server
+		// get the new end date from the license server
+		// FIXME: really needed? heavy...
 		license, err := pManager.GetPartialLicense(origPurchase)
-
 		if err != nil {
 			return err
 		}
-
 		p.EndDate = license.Rights.End
 	} else {
+		// status is not "to be renewed"
 		p.Status = StatusOk
 	}
-
+	// update the db with the updated license id, start date, end date, status
 	update, err := pManager.db.Prepare(`UPDATE purchase
 	SET license_uuid=?, start_date=?, end_date=?, status=? WHERE id=?`)
 	if err != nil {
@@ -593,7 +585,7 @@ func (pManager purchaseManager) Update(p Purchase) error {
 	return err
 }
 
-// Init initializes the purchaseManager
+// Init initializes the PurchaseManager
 //
 func Init(config config.Configuration, db *sql.DB) (i WebPurchase, err error) {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS purchase (
@@ -621,6 +613,6 @@ func Init(config config.Configuration, db *sql.DB) (i WebPurchase, err error) {
 		return
 	}
 
-	i = purchaseManager{config, db}
+	i = PurchaseManager{config, db}
 	return
 }

@@ -126,9 +126,9 @@ func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-// GetPurchasedLicense gets a license from the corresponding purchase id (passed as a section of the REST URL).
+// GetPurchasedLicense generates a new license from the corresponding purchase id (passed as a section of the REST URL).
 // It fetches the license from the lcp server and returns it to the caller.
-// This API method is called from the client app (angular?js) when a license is requested after a purchase.
+// This API method is called from the client app (angular) when a license is requested after a purchase.
 //
 func GetPurchasedLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
@@ -147,7 +147,7 @@ func GetPurchasedLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 		return
 	}
 
-	fullLicense, err := s.PurchaseAPI().GenerateLicense(purchase)
+	fullLicense, err := s.PurchaseAPI().GenerateOrGetLicense(purchase)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -257,7 +257,11 @@ func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-	// update the purchase, license id, start and end dates, status.
+
+	// console
+	log.Printf("Update purchase %v, license id %v, start %v, end %v, status %v", newPurchase.ID, *newPurchase.LicenseUUID, newPurchase.StartDate, newPurchase.EndDate, newPurchase.Status)
+
+	// update the purchase, license id, start and end dates, status
 	if err := s.PurchaseAPI().Update(webpurchase.Purchase{
 		ID:          int64(id),
 		LicenseUUID: newPurchase.LicenseUUID,
@@ -275,7 +279,4 @@ func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-
-	// console
-	log.Printf("Update purchase %s, license id %v, start %v, end %v, status %v", vars["id"], newPurchase.LicenseUUID, newPurchase.StartDate, newPurchase.EndDate, newPurchase.Status)
 }
