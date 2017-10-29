@@ -15,7 +15,7 @@ export class LicenseInfoComponent {
     @Input('filterBox') filterBox: any;
 
     licenses: License[];
-    filter: number = 1;
+    filter: number = 0;
     filtred = false;
     baseUrl: string;
 
