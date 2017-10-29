@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package main
 
@@ -116,8 +116,8 @@ func main() {
 	htpasswd := auth.HtpasswdFileProvider(authFile)
 	authenticator := auth.NewBasicAuthenticator("Basic Realm", htpasswd)
 
-	complianceMode := config.Config.Logging.ComplianceTestsModeOn
-	logDirectory := config.Config.Logging.LogDirectory
+	complianceMode := config.Config.ComplianceTestsModeOn
+	logDirectory := config.Config.LsdServer.LogDirectory
 	err = logging.Init(logDirectory, complianceMode)
 	if err != nil {
 		panic(err)
@@ -126,7 +126,7 @@ func main() {
 	HandleSignals()
 
 	parsedPort := strconv.Itoa(config.Config.LsdServer.Port)
-	s := lsdserver.New(":"+parsedPort, readonly, complianceMode, &hist, &trns, authenticator, )
+	s := lsdserver.New(":"+parsedPort, readonly, complianceMode, &hist, &trns, authenticator)
 	if readonly {
 		log.Println("License status server running in readonly mode on port " + parsedPort)
 	} else {
