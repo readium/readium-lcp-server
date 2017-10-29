@@ -1,27 +1,7 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2017 European Digital Reading Lab. All rights reserved.
+// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package apilcp
 
@@ -34,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"reflect"
@@ -54,7 +33,10 @@ import (
 	"github.com/readium/readium-lcp-server/storage"
 )
 
-// GetLicense returns a license, out of a license id and partial license given as input
+// GetLicense returns a license,
+// selected by a license id and a partial license both given as input
+// the input partial license is optional: if absent, a partial license
+// is returned to the caller.
 //
 func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
@@ -62,8 +44,8 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	licenceID := vars["license_id"]
 
 	// get the license from the db, by its id
-	var ExistingLicense license.License
-	ExistingLicense, e := s.Licenses().Get(licenceID)
+	var aLicense license.License
+	aLicense, e := s.Licenses().Get(licenceID)
 	if e != nil {
 		if e == license.NotFound {
 			problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusNotFound)
@@ -76,124 +58,123 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	var lic license.License
 	err := DecodeJSONLicense(r, &lic)
 
-	// debug log
-	//log.Println("PARTIAL LICENSE RECEIVED IN REQUEST BODY:")
-	//spew.Dump(lic)
+	if err.Error() == "EOF" { // no partial license as a payload
 
-	if err != nil { // no or incorrect (json) license found in body
+		log.Println("Get license, no payload")
 
-		log.Println("PARTIAL CONTENT:(error: " + err.Error() + ")")
-		body, _ := ioutil.ReadAll(r.Body)
-		log.Println("BODY=" + string(body))
-		err = prepareLinks(ExistingLicense, s)
+		err = prepareLinks(aLicense, s)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 			return
 		}
-
 		w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
-
-		// must come *after* w.Header().Add()/Set(), but before w.Write()
+		// partial content
 		w.WriteHeader(http.StatusPartialContent)
 
 		//delete some sensitive data from license
-		ExistingLicense.Encryption.UserKey.Check = nil
-		ExistingLicense.Encryption.UserKey.Value = nil
-		ExistingLicense.Encryption.UserKey.Hint = ""
-		ExistingLicense.Encryption.UserKey.ClearValue = ""
-		ExistingLicense.Encryption.UserKey.Key.Algorithm = ""
-		ExistingLicense.Encryption.Profile = ""
-
+		aLicense.Encryption.UserKey.Check = nil
+		aLicense.Encryption.UserKey.Value = nil
+		aLicense.Encryption.UserKey.Hint = ""
+		aLicense.Encryption.UserKey.ClearValue = ""
+		aLicense.Encryption.UserKey.Key.Algorithm = ""
+		aLicense.Encryption.Profile = ""
+		// return the partial license
 		enc := json.NewEncoder(w)
-		enc.Encode(ExistingLicense)
+		enc.Encode(aLicense)
+		return
 
-		// debug only
-		//log.Println("PARTIAL LICENSE FOR RESPONSE:")
-		//spew.Dump(ExistingLicense)
-
+	} else if err != nil {
+		// unknow error
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
-
-	// add information to the license, sign and return it
-	if lic.User.Email == "" {
-		problem.Error(w, r, problem.Problem{Detail: "User information must be passed in INPUT"}, http.StatusBadRequest)
+	// check that the user id is available
+	if lic.User.Id == "" {
+		problem.Error(w, r, problem.Problem{Detail: "User identification must be available"}, http.StatusBadRequest)
 		return
 	}
-	ExistingLicense.User = lic.User
-
-	if ExistingLicense.Links == nil {
-		ExistingLicense.Links = license.DefaultLinksCopy()
+	// set user information in the license
+	aLicense.User = lic.User
+	// set
+	if aLicense.Links == nil {
+		aLicense.Links = license.DefaultLinksCopy()
 	}
-
-	ExistingLicense.Encryption.UserKey.Value = lic.Encryption.UserKey.Value
-
-	err = completeLicense(&ExistingLicense, ExistingLicense.ContentId, s)
+	// set the userkey in the license
+	aLicense.Encryption.UserKey.Value = lic.Encryption.UserKey.Value
+	// add information to the license, sign
+	err = completeLicense(&aLicense, aLicense.ContentId, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-
+	// set the http headers
 	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 	w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
-
-	// must come *after* w.Header().Add()/Set(), but before w.Write()
+	// note: must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusOK)
-
+	// return the license
 	enc := json.NewEncoder(w)
-	enc.Encode(ExistingLicense)
-
-	// debug only
-	//log.Println("COMPLETE LICENSE FOR RESPONSE:")
-	//spew.Dump(ExistingLicense)
+	enc.Encode(aLicense)
 }
 
-// this function only updates the license in the database given a partial license input
+// updateLicenseInDatabase updates the license in the database
+// parameters:
+//	 partial license optionaly containing a new:
+//		 provider
+//		 usage rights: start and end dates, copy and print
+//		 passphrase hint
+//		 content id
+// return: a partial license fetched from the db and containing all updated properties
+//
 func updateLicenseInDatabase(licenseID string, partialLicense license.License, s Server) (license.License, error) {
 
-	var ExistingLicense license.License
-	ExistingLicense, err := s.Licenses().Get(licenseID)
+	var aLicense license.License
+	aLicense, err := s.Licenses().Get(licenseID)
 	if err != nil {
-		return ExistingLicense, err
+		return aLicense, err
 	}
 
 	// update rights of license in database / verify validity of lic / existingLicense
 	if partialLicense.Provider != "" {
-		ExistingLicense.Provider = partialLicense.Provider
+		aLicense.Provider = partialLicense.Provider
 	}
 	if partialLicense.Rights != nil {
 		if partialLicense.Rights.Copy != nil {
-			ExistingLicense.Rights.Copy = partialLicense.Rights.Copy
+			aLicense.Rights.Copy = partialLicense.Rights.Copy
 		}
 		if partialLicense.Rights.Print != nil {
-			ExistingLicense.Rights.Print = partialLicense.Rights.Print
+			aLicense.Rights.Print = partialLicense.Rights.Print
 		}
 		if partialLicense.Rights.Start != nil {
-			ExistingLicense.Rights.Start = partialLicense.Rights.Start
+			aLicense.Rights.Start = partialLicense.Rights.Start
 		}
 		if partialLicense.Rights.End != nil {
-			ExistingLicense.Rights.End = partialLicense.Rights.End
+			aLicense.Rights.End = partialLicense.Rights.End
 		}
 	} else {
-		ExistingLicense.Rights.Copy = nil
-		ExistingLicense.Rights.Print = nil
-		ExistingLicense.Rights.Start = nil
-		ExistingLicense.Rights.End = nil
+		aLicense.Rights.Copy = nil
+		aLicense.Rights.Print = nil
+		aLicense.Rights.Start = nil
+		aLicense.Rights.End = nil
 	}
 
 	if partialLicense.Encryption.UserKey.Hint != "" {
-		ExistingLicense.Encryption.UserKey.Hint = partialLicense.Encryption.UserKey.Hint
+		aLicense.Encryption.UserKey.Hint = partialLicense.Encryption.UserKey.Hint
 	}
-	if partialLicense.ContentId != "" { //change content
-		ExistingLicense.ContentId = partialLicense.ContentId
+	if partialLicense.ContentId != "" {
+		aLicense.ContentId = partialLicense.ContentId
 	}
-	err = s.Licenses().Update(ExistingLicense)
-	if err != nil { // no or incorrect (json) license found in body
-		return ExistingLicense, err
-	}
-	return ExistingLicense, err
+	err = s.Licenses().Update(aLicense)
+
+	return aLicense, err
 }
 
-// UpdateLicense updates an existing license and returns the new license (lcpl)
+// UpdateLicense updates an existing license.
+// parameters:
+// 		{license_id} in the calling URL
+// 		partial license containing properties which should be updated (and only these)
+// return: an http status code (200, 400 or 404)
+// Usually called from the License Status Server after a renew, return or cancel/revoke action
 //
 func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
@@ -201,10 +182,11 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	licenseID := vars["license_id"]
 	var lic license.License
 	err := DecodeJSONLicense(r, &lic)
-	if err != nil { // no or incorrect (json) license found in body
+	if err != nil { // no or incorrect (json) partial license found in the body
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
+	// FIXME: no use for that, remove the id in the payload.
 	if lic.Id != licenseID {
 		problem.Error(w, r, problem.Problem{Detail: "Different license IDs"}, http.StatusNotFound)
 		return
@@ -219,16 +201,19 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	// go on and GET license io to return the updated license
-	GetLicense(w, r, s)
+	// must pass a partial license (id + rights)
+	// FIXME: does not return a partial license, only a 200 ok. The doc must be modified.
+	// GetLicense(w, r, s)
 }
 
 // TODO: the UpdateRightsLicense function appears to be unused?
+// => in fact, UpdateLicense makes exactely that already
 // func UpdateRightsLicense(w http.ResponseWriter, r *http.Request, s Server) {
 // 	vars := mux.Vars(r)
 // 	licenceId := vars["key"]
 // 	// search existing license using key
-// 	var ExistingLicense license.License
-// 	ExistingLicense, e := s.Licenses().Get(licenceId)
+// 	var aLicense license.License
+// 	aLicense, e := s.Licenses().Get(licenceId)
 // 	if e != nil {
 // 		if e == license.NotFound {
 // 			problem.Error(w, r, problem.Problem{Detail: license.NotFound.Error()}, http.StatusNotFound)
@@ -249,18 +234,18 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 // 	}
 // 	// update rights of license in database
 // 	if lic.Rights.Copy != nil {
-// 		ExistingLicense.Rights.Copy = lic.Rights.Copy
+// 		aLicense.Rights.Copy = lic.Rights.Copy
 // 	}
 // 	if lic.Rights.Print != nil {
-// 		ExistingLicense.Rights.Print = lic.Rights.Print
+// 		aLicense.Rights.Print = lic.Rights.Print
 // 	}
 // 	if lic.Rights.Start != nil {
-// 		ExistingLicense.Rights.Start = lic.Rights.Start
+// 		aLicense.Rights.Start = lic.Rights.Start
 // 	}
 // 	if lic.Rights.End != nil {
-// 		ExistingLicense.Rights.End = lic.Rights.End
+// 		aLicense.Rights.End = lic.Rights.End
 // 	}
-// 	err = s.Licenses().UpdateRights(ExistingLicense)
+// 	err = s.Licenses().UpdateRights(aLicense)
 // 	if err != nil { // no or incorrect (json) license found in body
 // 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 // 		return
@@ -545,6 +530,8 @@ func completeLicense(l *license.License, contentID string, s Server) error {
 	return nil
 }
 
+// buildKeyCheck
+//
 func buildKeyCheck(encrypter crypto.Encrypter, l *license.License, key []byte) error {
 	var out bytes.Buffer
 	err := encrypter.Encrypt(key, bytes.NewBufferString(l.Id), &out)
@@ -555,6 +542,8 @@ func buildKeyCheck(encrypter crypto.Encrypter, l *license.License, key []byte) e
 	return nil
 }
 
+// encryptFields
+//
 func encryptFields(encrypter crypto.Encrypter, l *license.License, key []byte) error {
 	for _, toEncrypt := range l.User.Encrypted {
 		var out bytes.Buffer
@@ -568,11 +557,15 @@ func encryptFields(encrypter crypto.Encrypter, l *license.License, key []byte) e
 	return nil
 }
 
+// getField
+//
 func getField(u *license.UserInfo, field string) reflect.Value {
 	v := reflect.ValueOf(u).Elem()
 	return v.FieldByName(strings.Title(field))
 }
 
+// signLicense
+//
 func signLicense(l *license.License, cert *tls.Certificate) error {
 	sig, err := sign.NewSigner(cert)
 	if err != nil {
@@ -587,6 +580,8 @@ func signLicense(l *license.License, cert *tls.Certificate) error {
 	return nil
 }
 
+// encryptKey
+//
 func encryptKey(encrypter crypto.Encrypter, key []byte, kek []byte) []byte {
 	var out bytes.Buffer
 	in := bytes.NewReader(key)
@@ -594,8 +589,11 @@ func encryptKey(encrypter crypto.Encrypter, key []byte, kek []byte) []byte {
 	return out.Bytes()
 }
 
-//ListLicenses returns a JSON struct with information about emitted licenses
-// optional GET parameters are "page" (page number) and "per_page" (items par page)
+// ListLicenses returns a JSON struct with information about the existing licenses
+// parameters:
+// 	page: page number
+//	per_page: number of items par page
+//
 func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 	var page int64
 	var per_page int64
@@ -650,8 +648,11 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 // ListLicensesForContent lists all licenses associated with a given content
-// the content id is passed in the calling url
-// optional GET parameters are "page" (page number) and "per_page" (items par page)
+// parameters:
+//	content_id: content identifier
+// 	page: page number (default 1)
+//	per_page: number of items par page (default 30)
+//
 func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	var page int64
@@ -714,6 +715,8 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 }
 
+// prepareLinks
+//
 func prepareLinks(license license.License, s Server) error {
 	for i := 0; i < len(license.Links); i++ {
 		if license.Links[i].Rel == "publication" {
