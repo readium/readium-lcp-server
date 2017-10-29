@@ -178,38 +178,41 @@ func EncryptEPUB(inputPath string, pub Publication, pubManager PublicationManage
 		return err
 	}
 
-	// prepare the PUT request
+	// prepare the request for import to the lcp server
 	contentDisposition := slugify.Slugify(pub.Title)
 	lcpPublication := apilcp.LcpPublication{}
 	lcpPublication.ContentId = contentUUID
 	lcpPublication.ContentKey = encryptedEpub.EncryptionKey
-	lcpPublication.Output = path.Join(
-		pubManager.config.Storage.FileSystem.Directory, outputFilename)
+	lcpPublication.Output = outputPath
 	lcpPublication.ContentDisposition = &contentDisposition
 	lcpPublication.Checksum = &encryptedEpub.Checksum
 	lcpPublication.Size = &encryptedEpub.Size
 
+	// json encode the payload
 	jsonBody, err := json.Marshal(lcpPublication)
 	if err != nil {
 		return err
 	}
-
 	// send the content to the LCP server
 	lcpServerConfig := pubManager.config.LcpServer
 	lcpURL := lcpServerConfig.PublicBaseUrl + "/contents/" + contentUUID
 	log.Println("PUT " + lcpURL)
 	req, err := http.NewRequest("PUT", lcpURL, bytes.NewReader(jsonBody))
-
+	if err != nil {
+		return err
+	}
+	// authenticate
 	lcpUpdateAuth := pubManager.config.LcpUpdateAuth
 	if pubManager.config.LcpUpdateAuth.Username != "" {
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
 	}
-
+	// set the payload type
 	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
 
 	var lcpClient = &http.Client{
 		Timeout: time.Second * 5,
 	}
+	// sends a request for import to the lcp server
 	resp, err := lcpClient.Do(req)
 	if err != nil {
 		return err
