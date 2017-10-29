@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //This tool is for testers to control and log the tests
 package main
@@ -72,6 +72,9 @@ func notifyLsdServer(testNumber string, result string, testStage string, publicB
 	}
 
 	req, err := http.NewRequest("GET", publicBaseUrl+"/compliancetest", nil)
+	if err != nil {
+		return
+	}
 	q := req.URL.Query()
 	q.Add("test_stage", testStage)
 	q.Add("test_number", testNumber)
