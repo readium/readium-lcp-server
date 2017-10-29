@@ -40,10 +40,9 @@ export class LicenseService{
     get(devices: number): Promise<License[]> {
         var self = this
         var headers: Headers = new Headers;
-        headers.append('Authorization', 'Basic ' + btoa('lsd:readium'));
         return this.http
             .get(
-                this.baseUrl + "/licenses?devices=" + devices,
+                this.baseUrl + "/api/v1/licenses?devices=" + devices,
                 { headers: this.defaultHttpHeaders })
             .toPromise()
             .then(function (response) {
