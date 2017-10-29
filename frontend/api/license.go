@@ -43,20 +43,18 @@ import (
 func GetFilteredLicenses(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	rDevices := r.FormValue("devices")
+	log.Println("Licenses used by " + rDevices + " devices")
 	if rDevices == "" {
-		rDevices = "1"
+		rDevices = "0"
 	}
 
 	if lic, err := s.LicenseAPI().GetFiltered(rDevices); err == nil {
+		w.Header().Set("Content-Type", api.ContentType_JSON)
+		//w.WriteHeader(http.StatusOK)
 		enc := json.NewEncoder(w)
-		if err = enc.Encode(lic); err == nil {
-			// send json of correctly encoded user info
-			w.Header().Set("Content-Type", api.ContentType_JSON)
-			w.WriteHeader(http.StatusOK)
-			return
+		if err = enc.Encode(lic); err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
-
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 	} else {
 		switch err {
 		case webpublication.ErrNotFound:
@@ -71,8 +69,9 @@ func GetFilteredLicenses(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-// GetLicense gets a license by its id (passed as a section of the REST URL).
-// It fetches the license from the lcp server and returns it to the caller.
+// GetLicense gets an existing license by its id (passed as a section of the REST URL).
+// It generates a partial license from the purchase info,
+// fetches the license from the lcp server and returns it to the caller.
 // This API method is called from a link in the license status document.
 //
 func GetLicense(w http.ResponseWriter, r *http.Request, s IServer) {
@@ -92,18 +91,18 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 		}
 		return
 	}
-	// fetch the license from the lcp server
-	fullLicense, err := s.PurchaseAPI().GenerateLicense(purchase)
+	// get an existing license from the lcp server
+	fullLicense, err := s.PurchaseAPI().GenerateOrGetLicense(purchase)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
-
+	// return a json payload
 	w.Header().Set("Content-Type", api.ContentType_LCP_JSON)
 	// the file name is license.lcpl
 	w.Header().Set("Content-Disposition", "attachment; filename=\"license.lcpl\"")
 
-	// returns the license to the caller
+	// returns the full license to the caller
 	enc := json.NewEncoder(w)
 	err = enc.Encode(fullLicense)
 	if err != nil {
