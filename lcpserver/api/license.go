@@ -57,37 +57,47 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the partial license given as input
 	var lic license.License
 	err := DecodeJSONLicense(r, &lic)
+	if err != nil {
+		// no partial license as payload
+		if err.Error() == "EOF" {
 
-	if err.Error() == "EOF" { // no partial license as a payload
+			log.Println("No payload, get a partial license")
 
-		log.Println("Get license, no payload")
+			err = prepareLinks(aLicense, s)
+			if err != nil {
+				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+				return
+			}
+			w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
+			// partial content
+			w.WriteHeader(http.StatusPartialContent)
 
-		err = prepareLinks(aLicense, s)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			//delete some sensitive data from license
+			aLicense.Encryption.UserKey.Check = nil
+			aLicense.Encryption.UserKey.Value = nil
+			aLicense.Encryption.UserKey.Hint = ""
+			aLicense.Encryption.UserKey.ClearValue = ""
+			aLicense.Encryption.UserKey.Key.Algorithm = ""
+			aLicense.Encryption.Profile = ""
+			// return the partial license
+			enc := json.NewEncoder(w)
+			enc.Encode(aLicense)
 			return
 		}
-		w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
-		// partial content
-		w.WriteHeader(http.StatusPartialContent)
-
-		//delete some sensitive data from license
-		aLicense.Encryption.UserKey.Check = nil
-		aLicense.Encryption.UserKey.Value = nil
-		aLicense.Encryption.UserKey.Hint = ""
-		aLicense.Encryption.UserKey.ClearValue = ""
-		aLicense.Encryption.UserKey.Key.Algorithm = ""
-		aLicense.Encryption.Profile = ""
-		// return the partial license
-		enc := json.NewEncoder(w)
-		enc.Encode(aLicense)
-		return
-
-	} else if err != nil {
 		// unknow error
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
+
+	// debug message, in case the iput license causes problems
+	/*
+		jsonBody, err := json.Marshal(lic)
+		if err != nil {
+			return
+		}
+		log.Print(string(jsonBody))
+	*/
+
 	// check that the user id is available
 	if lic.User.Id == "" {
 		problem.Error(w, r, problem.Problem{Detail: "User identification must be available"}, http.StatusBadRequest)
@@ -119,12 +129,12 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 // updateLicenseInDatabase updates the license in the database
 // parameters:
-//	 partial license optionaly containing a new:
+//	 partial license, containing any of:
 //		 provider
 //		 usage rights: start and end dates, copy and print
 //		 passphrase hint
 //		 content id
-// return: a partial license fetched from the db and containing all updated properties
+// return: a partial license with updated properties
 //
 func updateLicenseInDatabase(licenseID string, partialLicense license.License, s Server) (license.License, error) {
 
@@ -175,6 +185,7 @@ func updateLicenseInDatabase(licenseID string, partialLicense license.License, s
 // 		partial license containing properties which should be updated (and only these)
 // return: an http status code (200, 400 or 404)
 // Usually called from the License Status Server after a renew, return or cancel/revoke action
+// -> updates the end date.
 //
 func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
@@ -191,6 +202,7 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: "Different license IDs"}, http.StatusNotFound)
 		return
 	}
+	// update the license in the database
 	_, err = updateLicenseInDatabase(licenseID, lic, s)
 	if err != nil {
 		if err == license.NotFound {
@@ -205,54 +217,6 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	// FIXME: does not return a partial license, only a 200 ok. The doc must be modified.
 	// GetLicense(w, r, s)
 }
-
-// TODO: the UpdateRightsLicense function appears to be unused?
-// => in fact, UpdateLicense makes exactely that already
-// func UpdateRightsLicense(w http.ResponseWriter, r *http.Request, s Server) {
-// 	vars := mux.Vars(r)
-// 	licenceId := vars["key"]
-// 	// search existing license using key
-// 	var aLicense license.License
-// 	aLicense, e := s.Licenses().Get(licenceId)
-// 	if e != nil {
-// 		if e == license.NotFound {
-// 			problem.Error(w, r, problem.Problem{Detail: license.NotFound.Error()}, http.StatusNotFound)
-// 		} else {
-// 			problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusBadRequest)
-// 		}
-// 		return
-// 	}
-// 	var lic license.License
-// 	err := DecodeJSONLicense(r, &lic)
-// 	if err != nil { // no or incorrect (json) license found in body
-// 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-// 		return
-// 	}
-// 	if lic.Id != licenceId {
-// 		problem.Error(w, r, problem.Problem{Detail: "Different license IDs"}, http.StatusNotFound)
-// 		return
-// 	}
-// 	// update rights of license in database
-// 	if lic.Rights.Copy != nil {
-// 		aLicense.Rights.Copy = lic.Rights.Copy
-// 	}
-// 	if lic.Rights.Print != nil {
-// 		aLicense.Rights.Print = lic.Rights.Print
-// 	}
-// 	if lic.Rights.Start != nil {
-// 		aLicense.Rights.Start = lic.Rights.Start
-// 	}
-// 	if lic.Rights.End != nil {
-// 		aLicense.Rights.End = lic.Rights.End
-// 	}
-// 	err = s.Licenses().UpdateRights(aLicense)
-// 	if err != nil { // no or incorrect (json) license found in body
-// 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-// 		return
-// 	}
-// 	// go on to GET license io to return the existing license
-// 	GetLicense(w, r, s)
-// }
 
 // GenerateLicense generates and returns a new license,
 // for a given content identified by its id
@@ -330,6 +294,7 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 		}
 		newLicense.User = partialLicense.User //pass user information in updated license
 		newLicense.Encryption.UserKey.Value = partialLicense.Encryption.UserKey.Value
+		// FIXME: remove the clear value
 		newLicense.Encryption.UserKey.ClearValue = partialLicense.Encryption.UserKey.ClearValue
 
 		// contentID is not set, get it from the license
@@ -411,6 +376,7 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 	//set HTTP headers
 	w.Header().Add("Content-Type", epub.ContentType_EPUB)
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, content.Location))
+	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
 	w.Header().Add("X-Lcp-License", newLicense.Id)
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusCreated)
@@ -452,7 +418,7 @@ func completeLicense(l *license.License, contentID string, s Server) error {
 	}
 	links := new([]license.Link)
 
-	// verify that mandatory hint link is present in the configuration
+	// verify that mandatory hint link is present in the input license
 	if value, present := license.DefaultLinks["hint"]; present {
 		hint := license.Link{Href: value, Rel: "hint"}
 		*links = append(*links, hint)
@@ -460,7 +426,7 @@ func completeLicense(l *license.License, contentID string, s Server) error {
 		return errors.New("No hint link present in the config file")
 	}
 
-	// verify that mandatory publication link is present in the configuration
+	// verify that mandatory publication link is present in the input license
 	// replace the publication_id template by the actual value
 	if value, present := license.DefaultLinks["publication"]; present {
 		if !strings.Contains(value, "{publication_id}") {
@@ -491,14 +457,13 @@ func completeLicense(l *license.License, contentID string, s Server) error {
 
 	l.Links = *links
 
-	// Generate user key
+	// generate the user key
 	encryptionKey := license.GenerateUserKey(l.Encryption.UserKey)
 
-	// Empty UserKey clear value to avoid clear passphrase to be sent to the
-	// final user
+	// empty the user key clear value to avoid the clear passphrase be sent to the user
 	l.Encryption.UserKey.ClearValue = ""
 
-	// Encrypt content key with user key
+	// encrypt content key with user key
 	encrypterContentKey := crypto.NewAESEncrypter_CONTENT_KEY()
 
 	l.Encryption.ContentKey.Algorithm = encrypterContentKey.Signature()
