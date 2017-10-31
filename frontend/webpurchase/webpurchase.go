@@ -216,34 +216,32 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 	userKey.Value = userKeyValue
 	partialLicense.Encryption.UserKey = userKey
 
-	// rights
-	var copy int32
-	var print int32
-	// in case of undefined conf values for copy and print rights,
-	// these rights will be set to zero
-	copy = config.Config.FrontendServer.RightCopy
-	print = config.Config.FrontendServer.RightPrint
-	userRights := license.UserRights{}
-	userRights.Copy = &copy
-	userRights.Print = &print
+	// In case of a creation of license, add the user rights
+	var copy, print int32
+	if purchase.LicenseUUID == nil {
+		// in case of undefined conf values for copy and print rights,
+		// these rights will be set to zero
+		copy = config.Config.FrontendServer.RightCopy
+		print = config.Config.FrontendServer.RightPrint
+		userRights := license.UserRights{}
+		userRights.Copy = &copy
+		userRights.Print = &print
 
-	// if this is a loan, include start and end date, UTC formatted, with no ms
-	var start, end time.Time
-	if purchase.Type == LOAN {
-		start = purchase.StartDate.UTC().Truncate(time.Second)
-		end = purchase.EndDate.UTC().Truncate(time.Second)
-		userRights.Start = &start
-		userRights.End = &end
+		// if this is a loan, include start and end dates from the purchase info
+		if purchase.Type == LOAN {
+			userRights.Start = purchase.StartDate
+			userRights.End = purchase.EndDate
+		}
+		partialLicense.Rights = &userRights
 	}
 
-	partialLicense.Rights = &userRights
-
-	// Encode in json
+	// encode in json
 	jsonBody, err := json.Marshal(partialLicense)
 	if err != nil {
 		return license.License{}, err
 	}
 
+	// get the url of the lcp server
 	lcpServerConfig := pManager.config.LcpServer
 	var lcpURL string
 
