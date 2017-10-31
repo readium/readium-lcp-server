@@ -182,8 +182,9 @@ func (pManager PurchaseManager) Get(id int64) (Purchase, error) {
 	return Purchase{}, ErrNotFound
 }
 
-// GenerateOrGetLicense generates a new license associated with a purchase, ir gets an existing license,
-// depending on the calue of the license id in the purchase.
+// GenerateOrGetLicense generates a new license associated with a purchase,
+// or gets an existing license,
+// depending on the value of the license id in the purchase.
 //
 func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license.License, error) {
 	// create a partial license
@@ -226,17 +227,19 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 	userRights.Copy = &copy
 	userRights.Print = &print
 
-	// if this is a loan, include start and end date
+	// if this is a loan, include start and end date, UTC formatted, with no ms
+	var start, end time.Time
 	if purchase.Type == LOAN {
-		userRights.Start = purchase.StartDate
-		userRights.End = purchase.EndDate
+		start = purchase.StartDate.UTC().Truncate(time.Second)
+		end = purchase.EndDate.UTC().Truncate(time.Second)
+		userRights.Start = &start
+		userRights.End = &end
 	}
 
 	partialLicense.Rights = &userRights
 
 	// Encode in json
 	jsonBody, err := json.Marshal(partialLicense)
-
 	if err != nil {
 		return license.License{}, err
 	}
@@ -246,13 +249,11 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 
 	if purchase.LicenseUUID == nil {
 		// if the purchase contains no license id, generate a new license
-		lcpURL = lcpServerConfig.PublicBaseUrl + "/contents/" +
-			purchase.Publication.UUID + "/license"
+		lcpURL = lcpServerConfig.PublicBaseUrl + "/contents/" + purchase.Publication.UUID + "/license"
 	} else {
 		// if the purchase contains a license id, fetch an existing license
 		// note: this will not update the license rights
-		lcpURL = lcpServerConfig.PublicBaseUrl + "/licenses/" +
-			*purchase.LicenseUUID
+		lcpURL = lcpServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID
 	}
 	// message to the console
 	log.Println("POST " + lcpURL)
@@ -331,14 +332,10 @@ func (pManager PurchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 	if pManager.config.LcpUpdateAuth.Username != "" {
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
 	}
-
-	// FIXME: no use
-	//req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
-
+	// send the request
 	var lcpClient = &http.Client{
 		Timeout: time.Second * 5,
 	}
-	// send the request
 	resp, err := lcpClient.Do(req)
 	if err != nil {
 		return license.License{}, err
@@ -351,7 +348,6 @@ func (pManager PurchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 		// bad status code
 		return license.License{}, errors.New("The License Server returned an error")
 	}
-
 	// decode the license
 	partialLicense := license.License{}
 	var dec *json.Decoder
@@ -474,7 +470,7 @@ func (pManager PurchaseManager) Add(p Purchase) error {
 
 	// Fill default values
 	if p.TransactionDate.IsZero() {
-		p.TransactionDate = time.Now()
+		p.TransactionDate = time.Now().UTC().Truncate(time.Second)
 	}
 
 	if p.Type == LOAN && p.StartDate == nil {
@@ -504,11 +500,9 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 	if err != nil {
 		return ErrNotFound
 	}
-
 	if origPurchase.Status != StatusOk {
 		return errors.New("Cannot update an invalid purchase")
 	}
-
 	if p.Status == StatusToBeRenewed ||
 		p.Status == StatusToBeReturned {
 
@@ -534,7 +528,6 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 			// Next status if LSD raises no error
 			p.Status = StatusOk
 		}
-
 		// message to the console
 		log.Println("PUT " + lsdURL)
 		// prepare the request for renew or return to the license status server
@@ -559,6 +552,7 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 		defer resp.Body.Close()
 
 		// get the new end date from the license server
+
 		// FIXME: really needed? heavy...
 		license, err := pManager.GetPartialLicense(origPurchase)
 		if err != nil {

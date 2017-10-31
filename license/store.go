@@ -1,27 +1,7 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/// Copyright 2017 European Digital Reading Lab. All rights reserved.
+// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package license
 
@@ -74,7 +54,7 @@ func notifyLsdServer(l License, s Store) {
 		if err != nil {
 			return
 		}
-		// Set credentials on lsd request
+		// set credentials on lsd request
 		notifyAuth := config.Config.LsdNotifyAuth
 		if notifyAuth.Username != "" {
 			req.SetBasicAuth(notifyAuth.Username, notifyAuth.Password)
@@ -90,7 +70,7 @@ func notifyLsdServer(l License, s Store) {
 			defer req.Body.Close()
 			_ = s.UpdateLsdStatus(l.Id, int32(response.StatusCode))
 			// message to the console
-			log.Println("Notify LsdServer of new License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
+			log.Println("Notify Lsd Server of new License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
 		}
 	}
 }
@@ -160,7 +140,7 @@ func (s *sqlStore) List(ContentId string, page int, pageNum int) func() (License
 //
 func (s *sqlStore) UpdateRights(l License) error {
 	result, err := s.db.Exec("UPDATE license SET rights_print=?, rights_copy=?, rights_start=?, rights_end=?,updated=?  WHERE id=?",
-		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End, time.Now(), l.Id)
+		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End, time.Now().UTC().Truncate(time.Second), l.Id)
 
 	if err == nil {
 		if r, _ := result.RowsAffected(); r == 0 {
@@ -193,7 +173,7 @@ func (s *sqlStore) Update(l License) error {
 				rights_print=?,	rights_copy=?,	rights_start=?,	rights_end=?,
 				user_key_hint=?, content_fk =?
 				WHERE id=?`, // user_key_hash=?, user_key_algorithm=?,
-		l.User.Id, l.Provider, l.Issued, time.Now(),
+		l.User.Id, l.Provider, l.Issued, time.Now().UTC().Truncate(time.Second),
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End,
 		l.Encryption.UserKey.Hint, l.ContentId,
 		l.Id)

@@ -80,7 +80,7 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 		return
 	}
 
-	currentDateTime := time.Now()
+	currentDateTime := time.Now().UTC().Truncate(time.Second)
 
 	if licenseStatus.PotentialRights != nil && licenseStatus.PotentialRights.End != nil && !(*licenseStatus.PotentialRights.End).IsZero() {
 		diff := currentDateTime.Sub(*(licenseStatus.PotentialRights.End))
@@ -110,7 +110,6 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 	enc := json.NewEncoder(w)
 	// write the JSON encoding of the license status to the stream, followed by a newline character
 	err = enc.Encode(licenseStatus)
-
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		logging.WriteToFile(complianceTestNumber, LICENSE_STATUS, strconv.Itoa(http.StatusInternalServerError), "")
@@ -421,7 +420,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 	}
-	// check if the license contains a potential date end property = the max renew date
+	// check if the license contains a potential date end property (the max renew date)
 	if licenseStatus.PotentialRights == nil || licenseStatus.PotentialRights.End == nil || (*licenseStatus.PotentialRights.End).IsZero() {
 		problem.Error(w, r, problem.Problem{Detail: "This license has no upper date for the loan; may not be a loan license"}, http.StatusInternalServerError)
 		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError), "")
@@ -705,7 +704,7 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	// the new expiration time is now
-	currentTime := time.Now()
+	currentTime := time.Now().UTC().Truncate(time.Second)
 
 	// update the license with the new expiration time, via a call to the lcp Server
 	httpStatusCode, erru := updateLicense(currentTime, licenseID)
@@ -796,7 +795,7 @@ func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatu
 	ls.Updated = new(licensestatuses.Updated)
 	ls.Updated.License = &license.Issued
 
-	currentTime := time.Now()
+	currentTime := time.Now().UTC().Truncate(time.Second)
 	ls.Updated.Status = &currentTime
 
 	count := 0
@@ -871,7 +870,7 @@ func makeEvent(status string, deviceName string, deviceId string, licenseStatusF
 	event := transactions.Event{}
 	event.DeviceId = deviceId
 	event.DeviceName = deviceName
-	event.Timestamp = time.Now()
+	event.Timestamp = time.Now().UTC().Truncate(time.Second)
 	event.Type = status
 	event.LicenseStatusFk = licenseStatusFk
 
@@ -913,12 +912,13 @@ func updateLicense(timeEnd time.Time, licenseID string) (int, error) {
 	var lcpClient = &http.Client{
 		Timeout: time.Second * 10,
 	}
-
+	// FIXME: this Pipe thing should be replaced by a json.Marshal
 	pr, pw := io.Pipe()
 	go func() {
 		_ = json.NewEncoder(pw).Encode(minLicense)
 		pw.Close()
 	}()
+	// prepare the request
 	lcpURL := lcpBaseUrl + "/licenses/" + licenseID
 	// message to the console
 	log.Println("PATCH " + lcpURL)
@@ -927,12 +927,12 @@ func updateLicense(timeEnd time.Time, licenseID string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	// set credentials
+	// set the credentials
 	updateAuth := config.Config.LcpUpdateAuth
 	if updateAuth.Username != "" {
 		req.SetBasicAuth(updateAuth.Username, updateAuth.Password)
 	}
-	// set the content type = json
+	// set the content type
 	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
 	// send the request to the lcp server
 	response, err := lcpClient.Do(req)

@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -89,7 +90,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	// debug message, in case the iput license causes problems
+	// debug message, in case the input license causes problems
 	/*
 		jsonBody, err := json.Marshal(lic)
 		if err != nil {
@@ -233,6 +234,13 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	// normalize the start and end date, UTC, no milliseconds
+	var start, end time.Time
+	start = lic.Rights.Start.UTC().Truncate(time.Second)
+	end = lic.Rights.End.UTC().Truncate(time.Second)
+	lic.Rights.Start = &start
+	lic.Rights.End = &end
+
 	contentID := vars["content_id"]
 	lic.ContentId = ""
 	err = completeLicense(&lic, contentID, s)
@@ -246,6 +254,7 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	// store the license info in the db
 	err = s.Licenses().Add(lic)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: contentID}, http.StatusInternalServerError)
@@ -440,7 +449,7 @@ func completeLicense(l *license.License, contentID string, s Server) error {
 		return errors.New("Missing publication link in config file")
 	}
 
-	// verify that mandatory status link is present in the configuration
+	// verify that the mandatory status link is present in the configuration
 	// note that the status link is made mandatory in the production lcp ecosystem
 	// replace the license_id template by the actual value
 	if value, present := config.Config.License.Links["status"]; present { // add status server to License
@@ -476,14 +485,14 @@ func completeLicense(l *license.License, contentID string, s Server) error {
 	if err != nil {
 		return err
 	}
-
+	// build the key check
 	encrypterUserKeyCheck := crypto.NewAESEncrypter_USER_KEY_CHECK()
 
 	err = buildKeyCheck(encrypterUserKeyCheck, l, encryptionKey[:])
 	if err != nil {
 		return err
 	}
-
+	// sign the license
 	if l.Signature != nil {
 		log.Println("Signature is NOT nil (it should)")
 		l.Signature = nil
