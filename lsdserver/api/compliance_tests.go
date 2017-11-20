@@ -8,7 +8,7 @@ import (
 	"github.com/readium/readium-lcp-server/problem"
 )
 
-var complianceTestNumber string = ""
+var complianceTestNumber string
 
 var results = map[string]string{
 	"s": "success",
@@ -21,7 +21,7 @@ const (
 	REGISTER_DEVICE       = "register"
 	RENEW_LICENSE         = "renew"
 	RETURN_LICENSE        = "return"
-	CANCEL_REVOKE_LICENSE = "cancel_revoke"
+	CANCEL_REVOKE_LICENSE = "revoke"
 )
 
 // AddLogToFile adds a log message to the log file
