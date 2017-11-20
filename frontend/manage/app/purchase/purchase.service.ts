@@ -83,13 +83,13 @@ export class PurchaseService extends CrudService<Purchase> {
 
     revoke(message:string, licenseID:string): Promise<number> {
         var headers: Headers = new Headers;
-        headers.append('Authorization', 'Basic ' + btoa('lsd:readium'));
+        headers.append('Authorization', 'Basic ' + btoa(Config.lsd.user + ":" + Config.lsd.password));
 
         return this.http
             .patch(
                 this.baseLSDUrl + "/licenses/" + licenseID + "/status",
                 {status: "revoked",
-                message: "Your license has been revoked because over using."},
+                message: "Your license has been revoked because overused."},
                 { headers: headers })
             .toPromise()
             .then(function (response) {

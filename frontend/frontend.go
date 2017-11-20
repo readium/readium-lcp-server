@@ -142,8 +142,8 @@ func main() {
 	// git update-index --assume-unchanged frontend/manage/config.js
 	window.Config = {`
 	configJs += "\n\tfrontend: {url: '" + config.Config.FrontendServer.PublicBaseUrl + "' },\n"
-	configJs += "\tlcp: {url: '" + config.Config.LcpServer.PublicBaseUrl + "'},\n"
-	configJs += "\tlsd: {url: '" + config.Config.LsdServer.PublicBaseUrl + "'}\n}"
+	configJs += "\tlcp: {url: '" + config.Config.LcpServer.PublicBaseUrl + "', user: '" + config.Config.LcpUpdateAuth.Username + "', password: '" + config.Config.LcpUpdateAuth.Password + "'},\n"
+	configJs += "\tlsd: {url: '" + config.Config.LsdServer.PublicBaseUrl + "', user: '" + config.Config.LsdNotifyAuth.Username + "', password: '" + config.Config.LsdNotifyAuth.Password + "'}\n}"
 
 	log.Println("manage/index.html config.js:")
 	log.Println(configJs)
