@@ -127,11 +127,13 @@ func New(bindAddr string, static string, readonly bool, idx *index.Index, st *st
 	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
 	s.handlePrivateFunc(sr.R, licenseRoutesPathPrefix, apilcp.ListLicenses, basicAuth).Methods("GET")
-
+	// get a license
 	s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.GetLicense, basicAuth).Methods("GET")
 	s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.GetLicense, basicAuth).Methods("POST")
+	// get a protected publication via the license id
 	s.handlePrivateFunc(licenseRoutes, "/{license_id}/publication", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 	if !readonly {
+		// update a license
 		s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.UpdateLicense, basicAuth).Methods("PATCH")
 	}
 

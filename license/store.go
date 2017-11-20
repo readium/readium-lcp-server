@@ -70,7 +70,7 @@ func notifyLsdServer(l License, s Store) {
 			defer req.Body.Close()
 			_ = s.UpdateLsdStatus(l.Id, int32(response.StatusCode))
 			// message to the console
-			log.Println("Notify Lsd Server of new License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
+			log.Println("Notify Lsd Server of a new License with id " + l.Id + " = " + strconv.Itoa(response.StatusCode))
 		}
 	}
 }
