@@ -235,11 +235,16 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// normalize the start and end date, UTC, no milliseconds
+	// start/ end may be null
 	var start, end time.Time
-	start = lic.Rights.Start.UTC().Truncate(time.Second)
-	end = lic.Rights.End.UTC().Truncate(time.Second)
-	lic.Rights.Start = &start
-	lic.Rights.End = &end
+	if lic.Rights.Start != nil {
+		start = lic.Rights.Start.UTC().Truncate(time.Second)
+		lic.Rights.Start = &start
+	}
+	if lic.Rights.End != nil {
+		end = lic.Rights.End.UTC().Truncate(time.Second)
+		lic.Rights.End = &end
+	}
 
 	contentID := vars["content_id"]
 	lic.ContentId = ""
