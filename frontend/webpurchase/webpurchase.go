@@ -587,13 +587,13 @@ func Init(config config.Configuration, db *sql.DB) (i WebPurchase, err error) {
 	user_id integer NOT NULL,
 	license_uuid varchar(255) NULL,
 	type varchar(32) NOT NULL,
-    transaction_date datetime,
+  transaction_date datetime,
 	start_date datetime,
 	end_date datetime,
 	status varchar(255) NOT NULL,
 	constraint pk_purchase  primary key(id),
-	constraint fk_purchase_publication foreign key (publication_id) references publication(id)
-    constraint fk_purchase_user foreign key (user_id) references user(id)
+	constraint fk_purchase_publication foreign key (publication_id) references publication(id),
+  constraint fk_purchase_user foreign key (user_id) references user(id)
 	)`)
 	if err != nil {
 		log.Println("Error creating purchase table")
