@@ -1,31 +1,31 @@
 [
   {
     "id": "ready",
-    "translation":"Your license is ready for usage"
+    "translation":"The license is ready for use"
   },
    {
     "id": "active",
-    "translation":"Your license is actively used"
+    "translation":"The license is active"
   },
    {
     "id": "cancelled",
-    "translation":"It was canсelled"
+    "translation":"The license was canсelled"
   },
    {
     "id": "expired",
-    "translation":"It was expired"
+    "translation":"The license has expired"
   },
    {
     "id": "revoked",
-    "translation": "It was revoked"
+    "translation": "The license was revoked"
   },
    {
     "id": "returned",
-    "translation": "It was returned"
+    "translation": "The publication was returned"
   },
    {
 	"id": "Not Found",
-	"translation": "Page not found"
+	"translation": "Service not found"
   },
   {
 	"id": "Internal Server Error",
