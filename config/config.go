@@ -35,18 +35,19 @@ import (
 )
 
 type Configuration struct {
-	Certificate           Certificate        `yaml:"certificate"`
-	Storage               Storage            `yaml:"storage"`
-	License               License            `yaml:"license"`
-	LcpServer             ServerInfo         `yaml:"lcp"`
-	LsdServer             LsdServerInfo      `yaml:"lsd"`
-	FrontendServer        FrontendServerInfo `yaml:"frontend"`
-	LsdNotifyAuth         Auth               `yaml:"lsd_notify_auth"`
-	LcpUpdateAuth         Auth               `yaml:"lcp_update_auth"`
-	LicenseStatus         LicenseStatus      `yaml:"license_status"`
-	Localization          Localization       `yaml:"localization"`
-	ComplianceTestsModeOn bool               `yaml:"compliance_tests"`
-	Profile               string             `yaml:"profile,omitempty"`
+	Certificate    Certificate        `yaml:"certificate"`
+	Storage        Storage            `yaml:"storage"`
+	License        License            `yaml:"license"`
+	LcpServer      ServerInfo         `yaml:"lcp"`
+	LsdServer      LsdServerInfo      `yaml:"lsd"`
+	FrontendServer FrontendServerInfo `yaml:"frontend"`
+	LsdNotifyAuth  Auth               `yaml:"lsd_notify_auth"`
+	LcpUpdateAuth  Auth               `yaml:"lcp_update_auth"`
+	LicenseStatus  LicenseStatus      `yaml:"license_status"`
+	Localization   Localization       `yaml:"localization"`
+	ComplianceMode bool               `yaml:"compliance_mode"`
+	GoofyMode      bool               `yaml:"goofy_mode"`
+	Profile        string             `yaml:"profile,omitempty"`
 
 	// DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
 	//AES256_CBC_OR_GCM string             `yaml:"aes256_cbc_or_gcm,omitempty"`
