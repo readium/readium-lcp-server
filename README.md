@@ -180,8 +180,9 @@ of a license generation. The notification endpoint is configured in the "lsd" se
 - "username": mandatory, authentication username
 - "password": mandatory, authentication password
 
-Here is a License Server sample config (assuming the License Status Server is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
+Here is a License Server sample config (assuming the License Status Server is using the 'basic' LCP profile, is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
 ```json
+profile: "basic"
 lcp:
     host: "127.0.0.1"
     port: 8989
@@ -200,7 +201,7 @@ license:
         hint: "http://127.0.0.1:8991/static/hint.html"
         publication: "http://127.0.0.1:8991/licenses/{license_id}/publication" 
 lsd:
-  public_base_url:  "http://127.0.0.1:8990"
+    public_base_url:  "http://127.0.0.1:8990"
 lsd_notify_auth: 
     username: "adm_username"
     password: "adm_password"
@@ -255,12 +256,14 @@ lcp_update_auth:
 *Frontend Server*
 
 "frontend" section: parameters associated with the Frontend Test Server. This section holds the same host, port and databases properties as a the lcp section, plus:
-- "provider_id": identifier of the provider (to be checked, mayb deprecated). 
 - "master_repository": repository where the uploaded EPUB files are stored before encryption. 
 - "encrypted_repository": repository where the encrypted EPUB files are stored after upload.
 - "directory": the directory containing the client app; by default $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage.
+- "provider_uri": provider uri, which will be inserted in all licenses produced via this test frontend.
+- "right_print": allowed number of printed pages, which will be inserted in all licenses produced via this test frontend.
+- "right_copy": allowed number of copied characters, which will be inserted in all licenses produced via this test frontend.
 
-The config file of a Frontend Test Server must define a "lcp" "public_base_url", "lsd" "public_base_url", "lcp_update_auth" "username" and "password".
+The config file of a Frontend Test Server must define a "lcp" "public_base_url", "lsd" "public_base_url", "lcp_update_auth" "username" and "password", and "lsd_notify_auth" "username" and "password".
 
 Here is a Frontend Test Server sample config:
 ```json
@@ -268,10 +271,12 @@ frontend:
     host: "127.0.0.1"
     port: 8991
     database: "sqlite3://file:/readiumlcp/lcpdb/frontend.sqlite?cache=shared&mode=rwc"
-    provider_id: 1
     master_repository: "/readiumlcp/lcpfiles/master"
     encrypted_repository: "/readiumlcp/lcpfiles/encrypted"
     directory: "/src/github.com/readium/readium-lcp-server/frontend/manage"
+    provider_uri: "https://www.edrlab.org"
+    right_print: 10
+    right_copy: 2000
 lcp:
   public_base_url:  "http://127.0.0.1:8989"
 lsd:
@@ -279,6 +284,10 @@ lsd:
 lcp_update_auth: 
     username: "adm_username"
     password: "adm_password"
+lsd_notify_auth: 
+    username: "adm_username"
+    password: "adm_password"
+
 ```
 
 *All servers*
