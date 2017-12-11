@@ -110,8 +110,9 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	if aLicense.Links == nil {
 		aLicense.Links = license.DefaultLinksCopy()
 	}
-	// set the userkey in the license
+	// set the passphrase hash in the license for later use
 	aLicense.Encryption.UserKey.Value = lic.Encryption.UserKey.Value
+
 	// add information to the license, sign
 	err = completeLicense(&aLicense, aLicense.ContentId, s)
 	if err != nil {
@@ -307,9 +308,10 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 			return
 		}
 		newLicense.User = partialLicense.User //pass user information in updated license
+		// set the passphrase hash in the license for later use
 		newLicense.Encryption.UserKey.Value = partialLicense.Encryption.UserKey.Value
-		// FIXME: remove the clear value
-		newLicense.Encryption.UserKey.ClearValue = partialLicense.Encryption.UserKey.ClearValue
+		// FIXME: remove clear value
+		//newLicense.Encryption.UserKey.ClearValue = partialLicense.Encryption.UserKey.ClearValue
 
 		// contentID is not set, get it from the license
 		contentID = newLicense.ContentId
@@ -474,8 +476,8 @@ func completeLicense(l *license.License, contentID string, s Server) error {
 	// generate the user key
 	encryptionKey := license.GenerateUserKey(l.Encryption.UserKey)
 
-	// empty the user key clear value to avoid the clear passphrase be sent to the user
-	l.Encryption.UserKey.ClearValue = ""
+	// empty the passphrase hash to avoid sending it to the user
+	l.Encryption.UserKey.Value = nil
 
 	// encrypt content key with user key
 	encrypterContentKey := crypto.NewAESEncrypter_CONTENT_KEY()
