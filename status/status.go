@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// List of status values
+// List of status values as strings
 const (
 	STATUS_READY     = "ready"
 	STATUS_ACTIVE    = "active"
@@ -21,25 +21,36 @@ const (
 	EVENT_RENEWED    = "renewed"
 )
 
+// List of status values as int
+const (
+	STATUS_READY_INT     = 0
+	STATUS_ACTIVE_INT    = 1
+	STATUS_REVOKED_INT   = 2
+	STATUS_RETURNED_INT  = 3
+	STATUS_CANCELLED_INT = 4
+	STATUS_EXPIRED_INT   = 5
+	EVENT_RENEWED_INT    = 6
+)
+
 // StatusValues defines event types, used in events logged in license status documents
 var StatusValues = map[int]string{
-	0: STATUS_READY,
-	1: STATUS_ACTIVE,
-	2: STATUS_REVOKED,
-	3: STATUS_RETURNED,
-	4: STATUS_CANCELLED,
-	5: STATUS_EXPIRED,
+	STATUS_READY_INT:     STATUS_READY,
+	STATUS_ACTIVE_INT:    STATUS_ACTIVE,
+	STATUS_REVOKED_INT:   STATUS_REVOKED,
+	STATUS_RETURNED_INT:  STATUS_RETURNED,
+	STATUS_CANCELLED_INT: STATUS_CANCELLED,
+	STATUS_EXPIRED_INT:   STATUS_EXPIRED,
 }
 
 // EventTypes defines additional event types.
 // It reuses all status values and adds one for renewed licenses.
 var EventTypes = map[int]string{
-	1: STATUS_ACTIVE,
-	2: STATUS_REVOKED,
-	3: STATUS_RETURNED,
-	4: STATUS_CANCELLED,
-	5: STATUS_EXPIRED,
-	6: EVENT_RENEWED,
+	STATUS_ACTIVE_INT:    STATUS_ACTIVE,
+	STATUS_REVOKED_INT:   STATUS_REVOKED,
+	STATUS_RETURNED_INT:  STATUS_RETURNED,
+	STATUS_CANCELLED_INT: STATUS_CANCELLED,
+	STATUS_EXPIRED_INT:   STATUS_EXPIRED,
+	EVENT_RENEWED_INT:    EVENT_RENEWED,
 }
 
 // GetStatus translates status number to status string

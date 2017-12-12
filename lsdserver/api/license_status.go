@@ -136,6 +136,8 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
 	vars := mux.Vars(r)
 
+	var msg string
+
 	// get the license id from the url
 	licenseID := vars["key"]
 	// check the existence of the license in the lsd server
@@ -143,8 +145,9 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	if err != nil {
 		if licenseStatus == nil {
 			// the license is not stored in the lsd server
-			problem.NotFoundHandler(w, r)
-			logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusNotFound), "")
+			msg = "The license id " + licenseID + " was not found in the database"
+			problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusNotFound)
+			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusNotFound), msg)
 			return
 		}
 		// unknown error
@@ -158,8 +161,6 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 
 	dILen := len(deviceId)
 	dNLen := len(deviceName)
-
-	var msg string
 
 	// check the mandatory request parameters
 	if (dILen == 0) || (dILen > 255) || (dNLen == 0) || (dNLen > 255) {
@@ -181,25 +182,29 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	// the device cannot be registered if the license has been revoked, returned, cancelled or expired
 	if (licenseStatus.Status != status.STATUS_ACTIVE) && (licenseStatus.Status != status.STATUS_READY) {
 		msg = "License is neither ready or active"
-		problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusBadRequest)
-		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusBadRequest), msg)
+		problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusForbidden)
+		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusForbidden), msg)
 		return
 	}
 
-	// check if the device has already been registered with this license
+	// check if the device has already been registered for this license
 	deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusInternalServerError), err.Error())
 		return
 	}
-	if deviceStatus != "" {
-		log.Println("The device with id " + deviceId + " and name " + deviceName + " has already been registered; it won't be twice.")
+	if deviceStatus != "" { // this is  considered  an error, as per the lsd spec
+		msg = "The device with id " + deviceId + " and name " + deviceName + " has already been registered"
+		problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusForbidden)
+		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusForbidden), msg)
+		return
+
 	} else {
 
 		// create a registered event
 		event := makeEvent(status.STATUS_ACTIVE, deviceName, deviceId, licenseStatus.Id)
-		err = s.Transactions().Add(*event, 1)
+		err = s.Transactions().Add(*event, status.STATUS_ACTIVE_INT)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 			logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusInternalServerError), err.Error())
@@ -262,8 +267,9 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseID)
 	if err != nil {
 		if licenseStatus == nil {
-			problem.NotFoundHandler(w, r)
-			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusNotFound), "License id not found")
+			msg = "The license id " + licenseID + " was not found in the database"
+			problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusNotFound)
+			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusNotFound), msg)
 			return
 		}
 
@@ -297,7 +303,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	// check if the device has already been registered with this license
+	// check if the device has already been registered for this license
 	var deviceStatus string
 	if deviceId != "" {
 		var err error
@@ -313,7 +319,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	// refuse to return a license if the device has not been registered.
 	// this is a security against rogue returns
 	if deviceStatus == "" {
-		msg = "This device has never been registered with this license; return forbidden"
+		msg = "This device has never been registered for this license; return forbidden"
 		problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusBadRequest)
 		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusBadRequest), msg)
 		return
@@ -321,7 +327,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// create a return event
 	event := makeEvent(status.STATUS_RETURNED, deviceName, deviceId, licenseStatus.Id)
-	err = s.Transactions().Add(*event, 2)
+	err = s.Transactions().Add(*event, status.STATUS_RETURNED_INT)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError), err.Error())
@@ -378,11 +384,11 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 }
 
-// LendingRenewal checks that the calling device is activated,
+// LendingRenewal checks that the calling device is registered with the license,
 // then modifies the end date associated with the license
 // and returns an updated license status to the caller.
 // the 'end' parameter is optional; if absent, the end date is computed from
-// current end date plus a configuration parameter
+// the current end date plus a configuration parameter.
 //
 func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
@@ -396,8 +402,9 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 
 	if err != nil {
 		if licenseStatus == nil {
-			problem.NotFoundHandler(w, r)
-			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusNotFound), "License id not found")
+			msg = "The license id " + licenseID + " was not found in the database"
+			problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusNotFound)
+			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusNotFound), msg)
 			return
 		}
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
@@ -414,7 +421,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusBadRequest), err.Error())
 		return
 	}
-	// check that the license statiu active.
+	// check that the license status is active.
 	// note: renewing an unactive (ready) license is forbidden
 	if licenseStatus.Status != status.STATUS_ACTIVE {
 		msg = "The current license status is " + licenseStatus.Status + "; renew forbidden"
@@ -423,7 +430,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	// check if the device has already been registered with this license
+	// check if the device has already been registered for this license
 	var deviceStatus string
 	if deviceId != "" {
 		var err error
@@ -439,7 +446,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	// refuse to renew a license if the device has never been registered before.
 	// this is a security against rogue renews
 	if deviceStatus == "" {
-		msg = "This device has never been registered with this license; renew forbidden"
+		msg = "This device has never been registered for this license; renew forbidden"
 		problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusBadRequest)
 		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusBadRequest), msg)
 		return
@@ -511,7 +518,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	// create a renew event
 	event := makeEvent(status.EVENT_RENEWED, deviceName, deviceId, licenseStatus.Id)
-	err = s.Transactions().Add(*event, 3)
+	err = s.Transactions().Add(*event, status.EVENT_RENEWED_INT)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusInternalServerError), err.Error())
@@ -760,10 +767,10 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 	var ty int
 	if newStatus.Status == status.STATUS_CANCELLED {
 		st = status.STATUS_CANCELLED
-		ty = 4
+		ty = status.STATUS_CANCELLED_INT
 	} else {
 		st = status.STATUS_REVOKED
-		ty = 5
+		ty = status.STATUS_REVOKED_INT
 	}
 	// the event source is not a device.
 	deviceName := "system"
