@@ -37,7 +37,7 @@ var NotFound = errors.New("Event not found")
 
 type Transactions interface {
 	Get(id int) (Event, error)
-	Add(e Event, typeEvent int) error
+	Add(e Event, eventType int) error
 	GetByLicenseStatusId(licenseStatusFk int) func() (Event, error)
 	CheckDeviceStatus(licenseStatusFk int, deviceId string) (string, error)
 	ListRegisteredDevices(licenseStatusFk int) func() (Device, error)
@@ -83,7 +83,7 @@ func (i dbTransactions) Get(id int) (Event, error) {
 		var e Event
 		err = records.Scan(&e.Id, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
 		if err == nil {
-			e.Type = status.Types[typeInt]
+			e.Type = status.EventTypes[typeInt]
 		}
 		return e, err
 	}
@@ -92,9 +92,9 @@ func (i dbTransactions) Get(id int) (Event, error) {
 }
 
 // Add adds an event in the database,
-// The parameter typeEvent corresponds to the field 'type' in table 'event'
-// its values are 1 when registered, 2 when returned and 3 when renewed
-func (i dbTransactions) Add(e Event, typeEvent int) error {
+// The parameter eventType corresponds to the field 'type' in table 'event'
+//
+func (i dbTransactions) Add(e Event, eventType int) error {
 	add, err := i.db.Prepare("INSERT INTO event (device_name, timestamp, type, device_id, license_status_fk) VALUES (?, ?, ?, ?, ?)")
 
 	if err != nil {
@@ -102,11 +102,11 @@ func (i dbTransactions) Add(e Event, typeEvent int) error {
 	}
 
 	defer add.Close()
-	_, err = add.Exec(e.DeviceName, e.Timestamp, typeEvent, e.DeviceId, e.LicenseStatusFk)
+	_, err = add.Exec(e.DeviceName, e.Timestamp, eventType, e.DeviceId, e.LicenseStatusFk)
 	return err
 }
 
-// GetByLicenseStatusId returns all events by licensestatus id
+// GetByLicenseStatusId returns all events by license status id
 //
 func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event, error) {
 	rows, err := i.getbylicensestatusid.Query(licenseStatusFk)
@@ -121,7 +121,7 @@ func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event,
 		if rows.Next() {
 			err = rows.Scan(&e.Id, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
 			if err == nil {
-				e.Type = status.Types[typeInt]
+				e.Type = status.EventTypes[typeInt]
 			}
 		} else {
 			rows.Close()
@@ -162,7 +162,7 @@ func (i dbTransactions) CheckDeviceStatus(licenseStatusFk int, deviceId string) 
 	err := row.Scan(&typeInt)
 
 	if err == nil {
-		typeString = status.Types[typeInt]
+		typeString = status.EventTypes[typeInt]
 	} else {
 		if err == sql.ErrNoRows {
 			return typeString, nil
@@ -211,6 +211,6 @@ const tableDef = "CREATE TABLE IF NOT EXISTS `event` (" +
 	"`type` int NOT NULL," +
 	"device_id varchar(255) DEFAULT NULL," +
 	"license_status_fk int NOT NULL," +
-  	"FOREIGN KEY(license_status_fk) REFERENCES license_status(id)" +
-");" +
-"CREATE INDEX IF NOT EXISTS license_status_fk_index on event (license_status_fk);"
+	"FOREIGN KEY(license_status_fk) REFERENCES license_status(id)" +
+	");" +
+	"CREATE INDEX IF NOT EXISTS license_status_fk_index on event (license_status_fk);"

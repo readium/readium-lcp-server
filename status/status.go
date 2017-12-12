@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// List of status values
 const (
 	STATUS_READY     = "ready"
 	STATUS_ACTIVE    = "active"
@@ -17,15 +18,11 @@ const (
 	STATUS_RETURNED  = "returned"
 	STATUS_CANCELLED = "cancelled"
 	STATUS_EXPIRED   = "expired"
-
-	EVENT_REGISTERED = "registered"
-	EVENT_RETURNED   = "returned"
 	EVENT_RENEWED    = "renewed"
-	EVENT_CANCELLED  = "cancelled"
-	EVENT_REVOKED    = "revoked"
 )
 
-var statuses = map[int]string{
+// StatusValues defines event types, used in events logged in license status documents
+var StatusValues = map[int]string{
 	0: STATUS_READY,
 	1: STATUS_ACTIVE,
 	2: STATUS_REVOKED,
@@ -34,33 +31,36 @@ var statuses = map[int]string{
 	5: STATUS_EXPIRED,
 }
 
-var Types = map[int]string{
-	1: EVENT_REGISTERED,
-	2: EVENT_RETURNED,
-	3: EVENT_RENEWED,
-	4: EVENT_CANCELLED,
-	5: EVENT_REVOKED,
+// EventTypes defines additional event types.
+// It reuses all status values and adds one for renewed licenses.
+var EventTypes = map[int]string{
+	1: STATUS_ACTIVE,
+	2: STATUS_REVOKED,
+	3: STATUS_RETURNED,
+	4: STATUS_CANCELLED,
+	5: STATUS_EXPIRED,
+	6: EVENT_RENEWED,
 }
 
-//GetStatus translate status number to status string
+// GetStatus translates status number to status string
 func GetStatus(statusDB int64, status *string) {
 	resultStr := reverse(strconv.FormatInt(statusDB, 2))
 
 	if count := strings.Count(resultStr, "1"); count == 1 {
 		index := strings.Index(resultStr, "1")
 
-		if len(statuses) >= index+1 {
-			*status = statuses[index]
+		if len(StatusValues) >= index+1 {
+			*status = StatusValues[index]
 		}
 	}
 }
 
-//SetStatus translate status string to status number
+// SetStatus translates status string to status number
 func SetStatus(status string) (int64, error) {
-	reg := make([]string, len(statuses))
+	reg := make([]string, len(StatusValues))
 
-	for key := range statuses {
-		if statuses[key] == status {
+	for key := range StatusValues {
+		if StatusValues[key] == status {
 			reg[key] = "1"
 		} else {
 			reg[key] = "0"
