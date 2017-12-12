@@ -131,7 +131,7 @@ func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event,
 	}
 }
 
-// ListRegisteredDevices returns all devices which has status 'regitered' by licensestatus id
+// ListRegisteredDevices returns all devices which have an 'active' status by licensestatus id
 //
 func (i dbTransactions) ListRegisteredDevices(licenseStatusFk int) func() (Device, error) {
 	rows, err := i.listregistereddevices.Query(licenseStatusFk)
