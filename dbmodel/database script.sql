@@ -2,7 +2,9 @@
 CREATE TABLE IF NOT EXISTS content (
   id varchar(255) PRIMARY KEY NOT NULL,
   encryption_key varchar(64) NOT NULL,
-  location text NOT NULL
+  location text NOT NULL, 
+  `length` bigint,
+  sha256 varchar(64)
 );
 
 CREATE TABLE IF NOT EXISTS license (
@@ -19,6 +21,7 @@ CREATE TABLE IF NOT EXISTS license (
   user_key_hash varchar(64) NOT NULL,
   user_key_algorithm varchar(255) NOT NULL,
   content_fk varchar(255) NOT NULL,
+  lsd_status integer default 0,
   FOREIGN KEY(content_fk) REFERENCES content(id)
 );
 
@@ -29,13 +32,14 @@ CREATE TABLE IF NOT EXISTS license_status (
   status_updated datetime NOT NULL,
   device_count int(11) DEFAULT NULL,
   potential_rights_end datetime DEFAULT NULL,
-  license_ref varchar(255) NOT NULL
+  license_ref varchar(255) NOT NULL,
+  rights_end datetime DEFAULT NULL 
 );
 
-CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);
+CREATE INDEX license_ref_index ON license_status (license_ref);
 
 CREATE TABLE IF NOT EXISTS `event` (
-	id INTEGER PRIMARY KEY,
+	id integer PRIMARY KEY,
 	device_name varchar(255) DEFAULT NULL,
 	`timestamp` datetime NOT NULL,
 	`type` int NOT NULL,
@@ -44,4 +48,47 @@ CREATE TABLE IF NOT EXISTS `event` (
   FOREIGN KEY(license_status_fk) REFERENCES license_status(id)
 );
 
-CREATE INDEX IF NOT EXISTS license_status_fk_index on event (license_status_fk);
+CREATE INDEX license_status_fk_index on event (license_status_fk);
+
+CREATE TABLE IF NOT EXISTS publication (
+  id integer NOT NULL PRIMARY KEY,
+  uuid varchar(255) NOT NULL,	// == content id
+  title varchar(255) NOT NULL,
+  `status` varchar(255) NOT NULL
+);
+
+CREATE INDEX uuid_index ON publication (uuid);
+
+CREATE TABLE IF NOT EXISTS purchase (
+  id integer NOT NULL PRIMARY KEY,
+  uuid varchar(255) NOT NULL,
+  publication_id integer NOT NULL,
+  user_id integer NOT NULL,
+  license_uuid varchar(255) NULL,
+  `type` varchar(32) NOT NULL,
+  transaction_date datetime,
+  start_date datetime,
+  end_date datetime,
+  `status` varchar(255) NOT NULL,
+  FOREIGN KEY (publication_id) REFERENCES publication(id),
+  FOREIGN KEY (user_id) REFERENCES user(id)
+);
+  
+CREATE INDEX idx_purchase ON purchase (license_uuid)
+
+CREATE TABLE IF NOT EXISTS user (
+  id integer NOT NULL PRIMARY KEY,
+  uuid varchar(255) NOT NULL,
+  name varchar(64) NOT NULL,
+  email varchar(64) NOT NULL,
+  password varchar(64) NOT NULL,
+  hint varchar(64) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS license_view (
+  id integer NOT NULL PRIMARY KEY,
+  uuid varchar(255) NOT NULL,
+  device_count integer NOT NULL,
+  `status` varchar(255) NOT NULL,
+  message varchar(255) NOT NULL
+);
