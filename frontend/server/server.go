@@ -30,6 +30,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 
@@ -185,7 +186,8 @@ func fetchLicenseStatusesTask(s *Server) {
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(auth.Username+":"+auth.Password)))
 	res, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		log.Println("No http connection - no fetch this time")
+		return
 	}
 
 	// get all licence status documents from the lsd server
