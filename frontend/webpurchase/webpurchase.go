@@ -604,4 +604,4 @@ const tableDef = "CREATE TABLE IF NOT EXISTS purchase (" +
 	"FOREIGN KEY (publication_id) REFERENCES publication(id)," +
 	"FOREIGN KEY (user_id) REFERENCES user(id)" +
 	");" +
-	"CREATE INDEX idx_purchase ON purchase (license_uuid)"
+	"CREATE INDEX IF NOT EXISTS idx_purchase ON purchase (license_uuid)"

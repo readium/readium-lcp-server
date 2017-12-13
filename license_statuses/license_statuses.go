@@ -28,6 +28,7 @@ package licensestatuses
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/readium/readium-lcp-server/status"
@@ -182,10 +183,11 @@ func (i dbLicenseStatuses) Update(ls LicenseStatus) error {
 	return err
 }
 
-//Open defines scripts for queries & create table 'licensestatus' if not exist
+//Open defines scripts for queries & create table license_status if it does not exist
 func Open(db *sql.DB) (l LicenseStatuses, err error) {
 	_, err = db.Exec(tableDef)
 	if err != nil {
+		log.Println("Error creating license_status table")
 		return
 	}
 	get, err := db.Prepare("SELECT * FROM license_status WHERE id = ? LIMIT 1")
@@ -206,13 +208,13 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 }
 
 const tableDef = "CREATE TABLE IF NOT EXISTS license_status (" +
-  "id INTEGER PRIMARY KEY," +
-  "`status` int(11) NOT NULL," +
-  "license_updated datetime NOT NULL," +
-  "status_updated datetime NOT NULL," +
-  "device_count int(11) DEFAULT NULL," +
-  "potential_rights_end datetime DEFAULT NULL," +
-  "license_ref varchar(255) NOT NULL," +
-  "rights_end datetime DEFAULT NULL  " +
-");" +
-"CREATE INDEX license_ref_index on license_status (license_ref);"
+	"id INTEGER PRIMARY KEY," +
+	"`status` int(11) NOT NULL," +
+	"license_updated datetime NOT NULL," +
+	"status_updated datetime NOT NULL," +
+	"device_count int(11) DEFAULT NULL," +
+	"potential_rights_end datetime DEFAULT NULL," +
+	"license_ref varchar(255) NOT NULL," +
+	"rights_end datetime DEFAULT NULL  " +
+	");" +
+	"CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);"

@@ -426,4 +426,4 @@ const tableDef = "CREATE TABLE IF NOT EXISTS publication (" +
 	"title varchar(255) NOT NULL," +
 	"`status` varchar(255) NOT NULL" +
 	");" +
-	"CREATE INDEX uuid_index ON publication (uuid);"
+	"CREATE INDEX IF NOT EXISTS uuid_index ON publication (uuid);"

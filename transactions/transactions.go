@@ -215,4 +215,4 @@ const tableDef = "CREATE TABLE IF NOT EXISTS `event` (" +
 	"license_status_fk int NOT NULL," +
 	"FOREIGN KEY(license_status_fk) REFERENCES license_status(id)" +
 	");" +
-	"CREATE INDEX license_status_fk_index on event (license_status_fk);"
+	"CREATE INDEX IF NOT EXISTS license_status_fk_index on event (license_status_fk);"
