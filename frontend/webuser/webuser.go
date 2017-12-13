@@ -28,6 +28,7 @@ package webuser
 import (
 	"database/sql"
 	"errors"
+	"log"
 
 	"github.com/satori/go.uuid"
 )
@@ -155,17 +156,9 @@ func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
 
 //Open  returns a WebUser interface (db interaction)
 func Open(db *sql.DB) (i WebUser, err error) {
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS user (
-	id integer NOT NULL,
-	uuid varchar(255) NOT NULL,
-	name varchar(64) NOT NULL,
-	email varchar(64) NOT NULL,
-	password varchar(64) NOT NULL,
-	hint varchar(64) NOT NULL,
-
-	constraint pk_user  primary key(id)
-	)`)
+	_, err = db.Exec(tableDef)
 	if err != nil {
+		log.Println("Error creating user table")
 		return
 	}
 	get, err := db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE id = ? LIMIT 1")
@@ -179,3 +172,11 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	i = dbUser{db, get, getByEmail}
 	return
 }
+
+const tableDef = "CREATE TABLE IF NOT EXISTS user (" +
+	"id integer NOT NULL PRIMARY KEY," +
+	"uuid varchar(255) NOT NULL," +
+	"name varchar(64) NOT NULL," +
+	"email varchar(64) NOT NULL," +
+	"password varchar(64) NOT NULL," +
+	"hint varchar(64) NOT NULL)"

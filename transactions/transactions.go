@@ -28,6 +28,7 @@ package transactions
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/readium/readium-lcp-server/status"
@@ -178,6 +179,7 @@ func Open(db *sql.DB) (t Transactions, err error) {
 	// create the event table if it does not exist
 	_, err = db.Exec(tableDef)
 	if err != nil {
+		log.Println("Error creating event table")
 		return
 	}
 
@@ -205,7 +207,7 @@ func Open(db *sql.DB) (t Transactions, err error) {
 }
 
 const tableDef = "CREATE TABLE IF NOT EXISTS `event` (" +
-	"id INTEGER PRIMARY KEY," +
+	"id integer PRIMARY KEY," +
 	"device_name varchar(255) DEFAULT NULL," +
 	"`timestamp` datetime NOT NULL," +
 	"`type` int NOT NULL," +
@@ -213,4 +215,4 @@ const tableDef = "CREATE TABLE IF NOT EXISTS `event` (" +
 	"license_status_fk int NOT NULL," +
 	"FOREIGN KEY(license_status_fk) REFERENCES license_status(id)" +
 	");" +
-	"CREATE INDEX IF NOT EXISTS license_status_fk_index on event (license_status_fk);"
+	"CREATE INDEX license_status_fk_index on event (license_status_fk);"

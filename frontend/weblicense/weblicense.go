@@ -30,6 +30,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/readium/readium-lcp-server/config"
 )
@@ -116,7 +117,7 @@ func (licManager LicenseManager) Get(id int64) (License, error) {
 	return License{}, ErrNotFound
 }
 
-// GetFiltered give a license with more than the filtred number
+// GetFiltered give a license with more than the filtered number
 //
 func (licManager LicenseManager) GetFiltered(filter string) ([]License, error) {
 	dbGetByID, err := licManager.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license AS l 
@@ -231,6 +232,7 @@ func (licManager LicenseManager) Delete(id int64) error {
 	// delete license
 	dbDelete, err := licManager.db.Prepare("DELETE FROM license WHERE id = ?")
 	if err != nil {
+		log.Println("Error creating license table")
 		return err
 	}
 	defer dbDelete.Close()
@@ -241,15 +243,7 @@ func (licManager LicenseManager) Delete(id int64) error {
 // Init inits the license manager
 //
 func Init(config config.Configuration, db *sql.DB) (i WebLicense, err error) {
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS license (
-	id integer NOT NULL,
-	uuid varchar(255) NOT NULL,
-	device_count integer NOT NULL,
-	status varchar(255) NOT NULL,
-	message varchar(255) NOT NULL,
-
-	PRIMARY KEY (id)
-	)`)
+	_, err = db.Exec(tableDef)
 	if err != nil {
 		return
 	}
@@ -257,3 +251,10 @@ func Init(config config.Configuration, db *sql.DB) (i WebLicense, err error) {
 	i = LicenseManager{config, db}
 	return
 }
+
+const tableDef = "CREATE TABLE IF NOT EXISTS license (" +
+	"id integer NOT NULL PRIMARY KEY," +
+	"uuid varchar(255) NOT NULL," +
+	"device_count integer NOT NULL," +
+	"`status` varchar(255) NOT NULL," +
+	"message varchar(255) NOT NULL)"

@@ -580,31 +580,28 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 // Init initializes the PurchaseManager
 //
 func Init(config config.Configuration, db *sql.DB) (i WebPurchase, err error) {
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS purchase (
-	id integer NOT NULL,
-	uuid varchar(255) NOT NULL,
-	publication_id integer NOT NULL,
-	user_id integer NOT NULL,
-	license_uuid varchar(255) NULL,
-	type varchar(32) NOT NULL,
-  transaction_date datetime,
-	start_date datetime,
-	end_date datetime,
-	status varchar(255) NOT NULL,
-	constraint pk_purchase  primary key(id),
-	constraint fk_purchase_publication foreign key (publication_id) references publication(id),
-  constraint fk_purchase_user foreign key (user_id) references user(id)
-	)`)
+	_, err = db.Exec(tableDef)
 	if err != nil {
 		log.Println("Error creating purchase table")
-		return
-	}
-	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_purchase ON purchase (license_uuid)`)
-	if err != nil {
-		log.Println("Error creating idx_purchase table")
 		return
 	}
 
 	i = PurchaseManager{config, db}
 	return
 }
+
+const tableDef = "CREATE TABLE IF NOT EXISTS purchase (" +
+	"id integer NOT NULL PRIMARY KEY," +
+	"uuid varchar(255) NOT NULL," +
+	"publication_id integer NOT NULL," +
+	"user_id integer NOT NULL," +
+	"license_uuid varchar(255) NULL," +
+	"`type` varchar(32) NOT NULL," +
+	"transaction_date datetime," +
+	"start_date datetime," +
+	"end_date datetime," +
+	"`status` varchar(255) NOT NULL," +
+	"FOREIGN KEY (publication_id) REFERENCES publication(id)," +
+	"FOREIGN KEY (user_id) REFERENCES user(id)" +
+	");" +
+	"CREATE INDEX idx_purchase ON purchase (license_uuid)"

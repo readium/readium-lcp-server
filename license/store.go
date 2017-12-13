@@ -224,25 +224,26 @@ func (s *sqlStore) Get(id string) (License, error) {
 func NewSqlStore(db *sql.DB) (Store, error) {
 	_, err := db.Exec(tableDef)
 	if err != nil {
+		log.Println("Error creating license table")
 		return nil, err
 	}
 
 	return &sqlStore{db}, nil
 }
 
-const tableDef = `CREATE TABLE IF NOT EXISTS license (
-	id varchar(255) PRIMARY KEY,
-	user_id varchar(255) NOT NULL,
-	provider varchar(255) NOT NULL,
-	issued datetime NOT NULL,
-	updated datetime DEFAULT NULL,
-	rights_print int(11) DEFAULT NULL,
-	rights_copy int(11) DEFAULT NULL,
-	rights_start datetime DEFAULT NULL,
-	rights_end datetime DEFAULT NULL,
-	user_key_hint text NOT NULL,
-	user_key_hash varchar(64) NOT NULL,
-	user_key_algorithm varchar(255) NOT NULL,
-	content_fk varchar(255) NOT NULL,
-	lsd_status integer default 0,
-	FOREIGN KEY(content_fk) REFERENCES content(id))`
+const tableDef = "CREATE TABLE IF NOT EXISTS license (" +
+	"id varchar(255) PRIMARY KEY," +
+	"user_id varchar(255) NOT NULL," +
+	"provider varchar(255) NOT NULL," +
+	"issued datetime NOT NULL," +
+	"updated datetime DEFAULT NULL," +
+	"rights_print int(11) DEFAULT NULL," +
+	"rights_copy int(11) DEFAULT NULL," +
+	"rights_start datetime DEFAULT NULL," +
+	"rights_end datetime DEFAULT NULL," +
+	"user_key_hint text NOT NULL," +
+	"user_key_hash varchar(64) NOT NULL," +
+	"user_key_algorithm varchar(255) NOT NULL," +
+	"content_fk varchar(255) NOT NULL," +
+	"lsd_status integer default 0," +
+	"FOREIGN KEY(content_fk) REFERENCES content(id))"

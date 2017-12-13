@@ -410,18 +410,20 @@ func (pubManager PublicationManager) List(page int, pageNum int) func() (Publica
 // Creates the publication db table.
 //
 func Init(config config.Configuration, db *sql.DB) (i WebPublication, err error) {
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS publication (
-	id integer NOT NULL,
-	uuid varchar(255) NOT NULL,
-	title varchar(255) NOT NULL,
-	status varchar(255) NOT NULL,
-
-	constraint pk_publication  primary key(id)
-	)`)
+	_, err = db.Exec(tableDef)
 	if err != nil {
+		log.Println("Error creating publication table")
 		return
 	}
 
 	i = PublicationManager{config, db}
 	return
 }
+
+const tableDef = "CREATE TABLE IF NOT EXISTS publication (" +
+	"id integer NOT NULL PRIMARY KEY," +
+	"uuid varchar(255) NOT NULL," +
+	"title varchar(255) NOT NULL," +
+	"`status` varchar(255) NOT NULL" +
+	");" +
+	"CREATE INDEX uuid_index ON publication (uuid);"

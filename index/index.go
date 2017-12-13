@@ -105,12 +105,7 @@ func (i dbIndex) List() func() (Content, error) {
 }
 
 func Open(db *sql.DB) (i Index, err error) {
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS content (" +
-		"id varchar(255) PRIMARY KEY," +
-		"encryption_key varchar(64) NOT NULL," +
-		"location text NOT NULL," +
-		"`length` bigint," +
-		"sha256 varchar(64))")
+	_, err = db.Exec(tableDef)
 	if err != nil {
 		return
 	}
@@ -125,3 +120,10 @@ func Open(db *sql.DB) (i Index, err error) {
 	i = dbIndex{db, get, nil, list}
 	return
 }
+
+const tableDef = "CREATE TABLE IF NOT EXISTS content (" +
+	"id varchar(255) PRIMARY KEY," +
+	"encryption_key varchar(64) NOT NULL," +
+	"location text NOT NULL," +
+	"`length` bigint," +
+	"sha256 varchar(64))"
