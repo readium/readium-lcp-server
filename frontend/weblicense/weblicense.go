@@ -88,7 +88,7 @@ type LicenseManager struct {
 // Get a license for a given ID
 //
 func (licManager LicenseManager) Get(id int64) (License, error) {
-	dbGetByID, err := licManager.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license AS l 
+	dbGetByID, err := licManager.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license_view AS l 
 											INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 											INNER JOIN publication as pu ON p.publication_id = pu.id
 											INNER JOIN user as u ON p.user_id = u.id
@@ -120,7 +120,7 @@ func (licManager LicenseManager) Get(id int64) (License, error) {
 // GetFiltered give a license with more than the filtered number
 //
 func (licManager LicenseManager) GetFiltered(filter string) ([]License, error) {
-	dbGetByID, err := licManager.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license AS l 
+	dbGetByID, err := licManager.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license_view AS l 
 											INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 											INNER JOIN publication as pu ON p.publication_id = pu.id
 											INNER JOIN user as u ON p.user_id = u.id
@@ -155,7 +155,7 @@ func (licManager LicenseManager) GetFiltered(filter string) ([]License, error) {
 // Add adds a new license
 //
 func (licManager LicenseManager) Add(licenses License) error {
-	add, err := licManager.db.Prepare("INSERT INTO license (uuid, device_count, status, message) VALUES (?, ?, ?)")
+	add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?)")
 	if err != nil {
 		return err
 	}
@@ -177,7 +177,7 @@ func (licManager LicenseManager) AddFromJSON(licensesJSON []byte) error {
 		return err
 	}
 	for _, l := range licenses {
-		add, err := licManager.db.Prepare("INSERT INTO license (uuid, device_count, status, message) VALUES (?, ?, ?, ?)")
+		add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)")
 		if err != nil {
 			return err
 		}
@@ -191,10 +191,10 @@ func (licManager LicenseManager) AddFromJSON(licensesJSON []byte) error {
 	return nil
 }
 
-// PurgeDataBase erases all the content of the license table
+// PurgeDataBase erases all the content of the license_view table
 //
 func (licManager LicenseManager) PurgeDataBase() error {
-	dbPurge, err := licManager.db.Prepare("DELETE FROM license")
+	dbPurge, err := licManager.db.Prepare("DELETE FROM license_view")
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (licManager LicenseManager) PurgeDataBase() error {
 // Update updates a license
 //
 func (licManager LicenseManager) Update(lic License) error {
-	dbUpdate, err := licManager.db.Prepare("UPDATE license SET device_count=?, uuid=?, status=? , message=? WHERE id = ?")
+	dbUpdate, err := licManager.db.Prepare("UPDATE license_view SET device_count=?, uuid=?, status=? , message=? WHERE id = ?")
 	if err != nil {
 		return err
 	}
@@ -225,14 +225,14 @@ func (licManager LicenseManager) Update(lic License) error {
 	return err
 }
 
-// Delete deletes license
+// Delete deletes a license
 //
 func (licManager LicenseManager) Delete(id int64) error {
 
-	// delete license
-	dbDelete, err := licManager.db.Prepare("DELETE FROM license WHERE id = ?")
+	// delete a license
+	dbDelete, err := licManager.db.Prepare("DELETE FROM license_view WHERE id = ?")
 	if err != nil {
-		log.Println("Error creating license table")
+		log.Println("Error creating license_view table")
 		return err
 	}
 	defer dbDelete.Close()
@@ -252,7 +252,7 @@ func Init(config config.Configuration, db *sql.DB) (i WebLicense, err error) {
 	return
 }
 
-const tableDef = "CREATE TABLE IF NOT EXISTS license (" +
+const tableDef = "CREATE TABLE IF NOT EXISTS license_view (" +
 	"id integer NOT NULL PRIMARY KEY," +
 	"uuid varchar(255) NOT NULL," +
 	"device_count integer NOT NULL," +
