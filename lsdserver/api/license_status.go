@@ -303,28 +303,6 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	// check if the device has already been registered for this license
-	var deviceStatus string
-	if deviceId != "" {
-		var err error
-		deviceStatus, err = s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError), err.Error())
-			return
-		}
-	} else {
-		deviceStatus = ""
-	}
-	// refuse to return a license if the device has not been registered.
-	// this is a security against rogue returns
-	if deviceStatus == "" {
-		msg = "This device has never been registered for this license; return forbidden"
-		problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusBadRequest)
-		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusBadRequest), msg)
-		return
-	}
-
 	// create a return event
 	event := makeEvent(status.STATUS_RETURNED, deviceName, deviceId, licenseStatus.Id)
 	err = s.Transactions().Add(*event, status.STATUS_RETURNED_INT)
@@ -389,6 +367,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 // and returns an updated license status to the caller.
 // the 'end' parameter is optional; if absent, the end date is computed from
 // the current end date plus a configuration parameter.
+// Note: as per the spec, a non-registered device can renew a loan.
 //
 func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
@@ -427,28 +406,6 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		msg = "The current license status is " + licenseStatus.Status + "; renew forbidden"
 		problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusForbidden)
 		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusForbidden), msg)
-		return
-	}
-
-	// check if the device has already been registered for this license
-	var deviceStatus string
-	if deviceId != "" {
-		var err error
-		deviceStatus, err = s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceId)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-			logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusInternalServerError), err.Error())
-			return
-		}
-	} else {
-		deviceStatus = ""
-	}
-	// refuse to renew a license if the device has never been registered before.
-	// this is a security against rogue renews
-	if deviceStatus == "" {
-		msg = "This device has never been registered for this license; renew forbidden"
-		problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusBadRequest)
-		logging.WriteToFile(complianceTestNumber, RETURN_LICENSE, strconv.Itoa(http.StatusBadRequest), msg)
 		return
 	}
 
@@ -693,7 +650,7 @@ func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 }
 
-// LendingCancellation cancels (before use) or revokes (after use)  a license
+// LendingCancellation cancels (before use) or revokes (after use)  a license.
 // parameters:
 //	key: license id
 //	partial license status: the new status and a message indicating why the status is being changed
@@ -741,7 +698,7 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	// revocation is only possible when the status is ready or active
 	if newStatus.Status == status.STATUS_REVOKED && licenseStatus.Status != status.STATUS_READY && licenseStatus.Status != status.STATUS_ACTIVE {
-		msg := "The license is not on ready or active state, it an't be revoked"
+		msg := "The license is not on ready or active state, it can't be revoked"
 		problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusBadRequest)
 		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest), msg)
 		return
@@ -796,7 +753,7 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	// log
-	logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusOK), "Device count: "+strconv.Itoa(*licenseStatus.DeviceCount))
+	logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusOK), "license "+st+"; Device count: "+strconv.Itoa(*licenseStatus.DeviceCount))
 }
 
 // makeLicenseStatus sets fields of license status according to the config file
