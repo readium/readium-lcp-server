@@ -158,6 +158,8 @@ func GetPurchasedLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+attachmentName+".lcpl\"")
 
 	enc := json.NewEncoder(w)
+	// does not escape characters
+	enc.SetEscapeHTML(false)
 	err = enc.Encode(fullLicense)
 
 	if err != nil {

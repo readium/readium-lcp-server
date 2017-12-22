@@ -82,6 +82,8 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			aLicense.Encryption.Profile = ""
 			// return the partial license
 			enc := json.NewEncoder(w)
+			// does not escape characters
+			enc.SetEscapeHTML(false)
 			enc.Encode(aLicense)
 			return
 		}
@@ -92,6 +94,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// debug message, in case the input license causes problems
 	/*
+		log.Print("Partial license:")
 		jsonBody, err := json.Marshal(lic)
 		if err != nil {
 			return
@@ -126,6 +129,8 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	w.WriteHeader(http.StatusOK)
 	// return the license
 	enc := json.NewEncoder(w)
+	// does not escape characters
+	enc.SetEscapeHTML(false)
 	enc.Encode(aLicense)
 }
 
@@ -274,6 +279,8 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	w.WriteHeader(http.StatusCreated)
 
 	enc := json.NewEncoder(w)
+	// does not escape characters
+	enc.SetEscapeHTML(false)
 	enc.Encode(lic)
 }
 
@@ -381,15 +388,19 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: contentID}, http.StatusInternalServerError)
 		return
 	}
-	//add license to publication
+	// add the license to publication
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
+	// do not escape characters
+	enc.SetEscapeHTML(false)
 	enc.Encode(newLicense)
+	// Suppress the trailing newline
+	// FIXME/ try to optimize with buf.ReadBytes(byte('\n')) instead of creating a new buffer.
 	var buf2 bytes.Buffer
 	buf2.Write(bytes.TrimRight(buf.Bytes(), "\n"))
 	ep.Add(epub.LicenseFile, &buf2, uint64(buf2.Len()))
 
-	//set HTTP headers
+	// set HTTP headers
 	w.Header().Add("Content-Type", epub.ContentType_EPUB)
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, content.Location))
 	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
@@ -621,6 +632,8 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", api.ContentType_JSON)
 
 	enc := json.NewEncoder(w)
+	// do not escape characters
+	enc.SetEscapeHTML(false)
 	err = enc.Encode(licenses)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
@@ -688,6 +701,8 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	w.Header().Set("Content-Type", api.ContentType_JSON)
 	enc := json.NewEncoder(w)
+	// do not escape characters
+	enc.SetEscapeHTML(false)
 	err = enc.Encode(licenses)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)

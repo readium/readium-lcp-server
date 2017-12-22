@@ -83,6 +83,8 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	// returns the full license to the caller
 	enc := json.NewEncoder(w)
+	// do not escape characters
+	enc.SetEscapeHTML(false)
 	err = enc.Encode(fullLicense)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
