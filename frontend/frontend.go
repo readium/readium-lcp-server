@@ -74,6 +74,7 @@ func main() {
 	log.Println("LCP server = " + config.Config.LcpServer.PublicBaseUrl)
 	log.Println("using login  " + config.Config.LcpUpdateAuth.Username)
 
+	// use a sqlite db by default
 	if dbURI = config.Config.FrontendServer.Database; dbURI == "" {
 		dbURI = "sqlite3://file:frontend.sqlite?cache=shared&mode=rwc"
 	}
