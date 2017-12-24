@@ -77,7 +77,6 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			aLicense.Encryption.UserKey.Check = nil
 			aLicense.Encryption.UserKey.Value = nil
 			aLicense.Encryption.UserKey.Hint = ""
-			aLicense.Encryption.UserKey.ClearValue = ""
 			aLicense.Encryption.UserKey.Key.Algorithm = ""
 			aLicense.Encryption.Profile = ""
 			// return the partial license
@@ -317,8 +316,6 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 		newLicense.User = partialLicense.User //pass user information in updated license
 		// set the passphrase hash in the license for later use
 		newLicense.Encryption.UserKey.Value = partialLicense.Encryption.UserKey.Value
-		// FIXME: remove clear value
-		//newLicense.Encryption.UserKey.ClearValue = partialLicense.Encryption.UserKey.ClearValue
 
 		// contentID is not set, get it from the license
 		contentID = newLicense.ContentId
