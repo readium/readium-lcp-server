@@ -1,5 +1,5 @@
 
-CREATE TABLE IF NOT EXISTS content (
+CREATE TABLE content (
   id varchar(255) PRIMARY KEY NOT NULL,
   encryption_key varchar(64) NOT NULL,
   location text NOT NULL, 
@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS content (
   sha256 varchar(64)
 );
 
-CREATE TABLE IF NOT EXISTS license (
+CREATE TABLE license (
   id varchar(255) PRIMARY KEY NOT NULL,
   user_id varchar(255) NOT NULL,
   provider varchar(255) NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS license (
   FOREIGN KEY(content_fk) REFERENCES content(id)
 );
 
-CREATE TABLE IF NOT EXISTS license_status (
+CREATE TABLE license_status (
   id INTEGER PRIMARY KEY,
   `status` int(11) NOT NULL,
   license_updated datetime NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS license_status (
 
 CREATE INDEX license_ref_index ON license_status (license_ref);
 
-CREATE TABLE IF NOT EXISTS `event` (
+CREATE TABLE `event` (
 	id integer PRIMARY KEY,
 	device_name varchar(255) DEFAULT NULL,
 	`timestamp` datetime NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS `event` (
 
 CREATE INDEX license_status_fk_index on event (license_status_fk);
 
-CREATE TABLE IF NOT EXISTS publication (
+CREATE TABLE publication (
   id integer NOT NULL PRIMARY KEY,
   uuid varchar(255) NOT NULL,	// == content id
   title varchar(255) NOT NULL,
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS publication (
 
 CREATE INDEX uuid_index ON publication (uuid);
 
-CREATE TABLE IF NOT EXISTS purchase (
+CREATE TABLE purchase (
   id integer NOT NULL PRIMARY KEY,
   uuid varchar(255) NOT NULL,
   publication_id integer NOT NULL,
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS purchase (
   
 CREATE INDEX idx_purchase ON purchase (license_uuid)
 
-CREATE TABLE IF NOT EXISTS user (
+CREATE TABLE user (
   id integer NOT NULL PRIMARY KEY,
   uuid varchar(255) NOT NULL,
   name varchar(64) NOT NULL,
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS user (
   hint varchar(64) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS license_view (
+CREATE TABLE license_view (
   id integer NOT NULL PRIMARY KEY,
   uuid varchar(255) NOT NULL,
   device_count integer NOT NULL,
