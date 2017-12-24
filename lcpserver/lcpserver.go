@@ -103,8 +103,9 @@ func main() {
 
 	fileConfigJs.WriteString(configJs)
 
+	// use a sqlite db by default
 	if dbURI = config.Config.LcpServer.Database; dbURI == "" {
-		dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
+		dbURI = "sqlite3://file:lcp.sqlite?cache=shared&mode=rwc"
 	}
 	if storagePath = config.Config.Storage.FileSystem.Directory; storagePath == "" {
 		storagePath = "files"

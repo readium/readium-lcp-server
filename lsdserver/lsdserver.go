@@ -57,8 +57,9 @@ func main() {
 		panic(err)
 	}
 
+	// use a sqlite db by default
 	if dbURI = config.Config.LsdServer.Database; dbURI == "" {
-		dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
+		dbURI = "sqlite3://file:lsd.sqlite?cache=shared&mode=rwc"
 	}
 
 	driver, cnxn := dbFromURI(dbURI)
