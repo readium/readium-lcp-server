@@ -7,10 +7,9 @@ package license
 
 import "crypto/sha256"
 
-// GenerateUserKey function generates a user key from a hashed passphrase
-// FIXME: UserKey struct is badly named it should be HashedPassphrase
-func GenerateUserKey(hashedPassphrase UserKey) []byte {
+// GenerateUserKey function prepares the user key
+func GenerateUserKey(key UserKey) []byte {
 	var userKey []byte
-	userKey = hashedPassphrase.Value
+	userKey = key.Value
 	return userKey
 }
