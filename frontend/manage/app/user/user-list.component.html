@@ -13,17 +13,35 @@
 <table *ngIf="users.length > 0" class="table">
   <thead class="thead-inverse">
     <tr>
-      <th>#</th>
-      <th>Name</th>
-      <th>Email</th>
+      <th class="order-title" (click)="orderBy('id')">
+        #
+        <span *ngIf="order == 'id'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'id'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+      <th class="order-title" (click)="orderBy('name')">
+        Name
+        <span *ngIf="order == 'name'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'name'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+      <th class="order-title" (click)="orderBy('email')">
+        Email
+        <span *ngIf="order == 'email'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'email'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+      <th class="order-title" (click)="orderBy('hint')">
+        Hint
+        <span *ngIf="order == 'hint'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'hint'&&reverse" class="fa fa-caret-up"></span>
+      </th>
       <th>Actions</th>
     </tr>
   </thead>
   <tbody>
-     <tr *ngFor="let user of users">
+     <tr *ngFor="let user of users | sortBy:order:reverse">
       <td>{{user.id}}</td>
       <td>{{user.name}}</td>
       <td>{{user.email}}</td>
+      <td>{{user.hint}}</td>
       <td>
         <button
             type="button" class="btn btn-secondary btn-sm"

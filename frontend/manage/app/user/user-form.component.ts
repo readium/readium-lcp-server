@@ -38,7 +38,8 @@ export class UserFormComponent implements OnInit {
             this.form = this.fb.group({
                 "name": ["", Validators.required],
                 "email": ["", Validators.required],
-                "password": ["", Validators.required]
+                "password": ["", Validators.required],
+                "hint": ["", Validators.required]
             });
         } else {
             this.edit = true;
@@ -46,7 +47,8 @@ export class UserFormComponent implements OnInit {
             this.form = this.fb.group({
                 "name": [this.user.name, Validators.required],
                 "email": [this.user.email, Validators.required],
-                "password": ""
+                "password": "",
+                "hint": [this.user.hint, Validators.required]
             });
         }
     }
@@ -85,6 +87,7 @@ export class UserFormComponent implements OnInit {
     bindForm(): void {
         this.user.name = this.form.value['name'];
         this.user.email = this.form.value['email'];
+        this.user.hint = this.form.value['hint'];
 
         let newPassword: string = this.form.value['password'];
         newPassword = newPassword.trim();

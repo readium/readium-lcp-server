@@ -1,27 +1,7 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// Copyright 2017 European Digital Reading Lab. All rights reserved.
+// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package license
 
@@ -84,7 +64,8 @@ type UserRights struct {
 	End   *time.Time `json:"end,omitempty"`
 }
 
-const DEFAULT_PROFILE = "http://readium.org/lcp/profile-1.0"
+const BASIC_PROFILE = "http://readium.org/lcp/basic-profile"
+const V1_PROFILE = "http://readium.org/lcp/profile-1.0"
 
 var DefaultLinks map[string]string
 
@@ -140,7 +121,7 @@ func Prepare(l *License) {
 	uuid, _ := newUUID()
 	l.Id = uuid
 
-	l.Issued = time.Now()
+	l.Issued = time.Now().UTC().Truncate(time.Second)
 
 	if l.Links == nil {
 		l.Links = DefaultLinksCopy()
@@ -150,7 +131,11 @@ func Prepare(l *License) {
 		l.Rights = new(UserRights)
 	}
 
-	l.Encryption.Profile = DEFAULT_PROFILE
+	if config.Config.Profile == "1.0" {
+		l.Encryption.Profile = V1_PROFILE
+	} else {
+		l.Encryption.Profile = BASIC_PROFILE
+	}
 }
 
 func createForeigns(l *License) {
@@ -161,7 +146,12 @@ func createForeigns(l *License) {
 	l.Signature = new(sign.Signature)
 
 	l.Links = DefaultLinksCopy()
-	l.Encryption.Profile = DEFAULT_PROFILE
+
+	if config.Config.Profile == "1.0" {
+		l.Encryption.Profile = V1_PROFILE
+	} else {
+		l.Encryption.Profile = BASIC_PROFILE
+	}
 }
 
 // source: http://play.golang.org/p/4FkNSiUDMg

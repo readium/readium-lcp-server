@@ -103,8 +103,9 @@ func main() {
 
 	fileConfigJs.WriteString(configJs)
 
+	// use a sqlite db by default
 	if dbURI = config.Config.LcpServer.Database; dbURI == "" {
-		dbURI = "sqlite3://file:test.sqlite?cache=shared&mode=rwc"
+		dbURI = "sqlite3://file:lcp.sqlite?cache=shared&mode=rwc"
 	}
 	if storagePath = config.Config.Storage.FileSystem.Directory; storagePath == "" {
 		storagePath = "files"
@@ -174,7 +175,7 @@ func main() {
 	} else {
 		log.Println("License server running on port " + parsedPort)
 	}
-	log.Println("using database " + dbURI)
+	log.Println("Using database " + dbURI)
 	log.Println("Public base URL=" + config.Config.LcpServer.PublicBaseUrl)
 	log.Println("License links:")
 	for nameOfLink, link := range config.Config.License.Links {
@@ -210,7 +211,7 @@ func HandleSignals() {
 func s3ConfigFromYAML() storage.S3Config {
 	s3config := storage.S3Config{}
 
-	s3config.Id = config.Config.Storage.AccessId
+	s3config.ID = config.Config.Storage.AccessId
 	s3config.Secret = config.Config.Storage.Secret
 	s3config.Token = config.Config.Storage.Token
 

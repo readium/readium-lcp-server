@@ -1,27 +1,7 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/// Copyright 2017 European Digital Reading Lab. All rights reserved.
+// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package license
 
@@ -33,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/readium/readium-lcp-server/api"
@@ -56,8 +37,9 @@ type sqlStore struct {
 	db *sql.DB
 }
 
-// notifyLsdServer informs LSD server of a new License
-// and saves the result of the http request in the DB (using the *Store)
+// notifyLsdServer informs the License Status Server of the creation of a new license
+// and saves the result of the http request in the DB (using *Store)
+//
 func notifyLsdServer(l License, s Store) {
 	if config.Config.LsdServer.PublicBaseUrl != "" {
 		var lsdClient = &http.Client{
@@ -70,8 +52,10 @@ func notifyLsdServer(l License, s Store) {
 			pw.Close() // signal end writing
 		}()
 		req, err := http.NewRequest("PUT", config.Config.LsdServer.PublicBaseUrl+"/licenses", pr)
-
-		// Set credentials on lsd request
+		if err != nil {
+			return
+		}
+		// set credentials on lsd request
 		notifyAuth := config.Config.LsdNotifyAuth
 		if notifyAuth.Username != "" {
 			req.SetBasicAuth(notifyAuth.Username, notifyAuth.Password)
@@ -86,15 +70,15 @@ func notifyLsdServer(l License, s Store) {
 		} else {
 			defer req.Body.Close()
 			_ = s.UpdateLsdStatus(l.Id, int32(response.StatusCode))
-			if response.StatusCode != 201 { //bad request or server error
-				log.Println("Notify LsdServer of new License (" + l.Id + ") = " + strconv.Itoa(response.StatusCode))
-			}
+			// message to the console
+			log.Println("Notify Lsd Server of a new License with id " + l.Id + " = " + strconv.Itoa(response.StatusCode))
 		}
 	}
 }
 
-//ListAll, lists all licenses in ante-chronological order
-// pageNum starting at 0
+// ListAll lists all licenses in ante-chronological order
+// pageNum starts at 0
+//
 func (s *sqlStore) ListAll(page int, pageNum int) func() (LicenseReport, error) {
 	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end, content_fk
@@ -123,8 +107,9 @@ func (s *sqlStore) ListAll(page int, pageNum int) func() (LicenseReport, error) 
 	}
 }
 
-//List() list licenses for a given ContentId
-//pageNum starting at 0
+// List() list licenses for a given ContentId
+// pageNum starting at 0
+//
 func (s *sqlStore) List(ContentId string, page int, pageNum int) func() (LicenseReport, error) {
 	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end, content_fk
@@ -151,9 +136,12 @@ func (s *sqlStore) List(ContentId string, page int, pageNum int) func() (License
 		return l, err
 	}
 }
+
+// UpdateRights
+//
 func (s *sqlStore) UpdateRights(l License) error {
 	result, err := s.db.Exec("UPDATE license SET rights_print=?, rights_copy=?, rights_start=?, rights_end=?,updated=?  WHERE id=?",
-		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End, time.Now(), l.Id)
+		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End, time.Now().UTC().Truncate(time.Second), l.Id)
 
 	if err == nil {
 		if r, _ := result.RowsAffected(); r == 0 {
@@ -162,6 +150,9 @@ func (s *sqlStore) UpdateRights(l License) error {
 	}
 	return err
 }
+
+// Add
+//
 func (s *sqlStore) Add(l License) error {
 	_, err := s.db.Exec(`INSERT INTO license (id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end,
@@ -170,16 +161,20 @@ func (s *sqlStore) Add(l License) error {
 		l.Id, l.User.Id, l.Provider, l.Issued, nil, l.Rights.Print, l.Rights.Copy, l.Rights.Start,
 		l.Rights.End, l.Encryption.UserKey.Hint, l.Encryption.UserKey.Check,
 		l.Encryption.UserKey.Key.Algorithm, l.ContentId)
+	// notify the lsd server of the creation of the license
+	// FIXME: placed in a bad area. This is a db interface. Should be called by the caller. Difficult to find.
 	go notifyLsdServer(l, s)
 	return err
 }
 
+// Update
+//
 func (s *sqlStore) Update(l License) error {
 	_, err := s.db.Exec(`UPDATE license SET user_id=?,provider=?,issued=?,updated=?,
 				rights_print=?,	rights_copy=?,	rights_start=?,	rights_end=?,
 				user_key_hint=?, content_fk =?
 				WHERE id=?`, // user_key_hash=?, user_key_algorithm=?,
-		l.User.Id, l.Provider, l.Issued, time.Now(),
+		l.User.Id, l.Provider, l.Issued, time.Now().UTC().Truncate(time.Second),
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End,
 		l.Encryption.UserKey.Hint, l.ContentId,
 		l.Id)
@@ -187,6 +182,8 @@ func (s *sqlStore) Update(l License) error {
 	return err
 }
 
+// UpdateLsdStatus
+//
 func (s *sqlStore) UpdateLsdStatus(id string, status int32) error {
 	_, err := s.db.Exec(`UPDATE license SET lsd_status =?
 				WHERE id=?`, // user_key_hash=?, user_key_algorithm=?,
@@ -196,6 +193,8 @@ func (s *sqlStore) UpdateLsdStatus(id string, status int32) error {
 	return err
 }
 
+// Get
+//
 func (s *sqlStore) Get(id string) (License, error) {
 
 	var l License
@@ -221,27 +220,33 @@ func (s *sqlStore) Get(id string) (License, error) {
 	return l, nil
 }
 
+// NewSqlStore
+//
 func NewSqlStore(db *sql.DB) (Store, error) {
-	_, err := db.Exec(tableDef)
-	if err != nil {
-		return nil, err
+	// if sqlite, create the license table if it does not exist
+	if strings.HasPrefix(config.Config.LcpServer.Database, "sqlite") {
+		_, err := db.Exec(tableDef)
+		if err != nil {
+			log.Println("Error creating sqlite license table")
+			return nil, err
+		}
 	}
-
 	return &sqlStore{db}, nil
 }
 
-const tableDef = `CREATE TABLE IF NOT EXISTS license (
-	id varchar(255) PRIMARY KEY,
-	user_id varchar(255) NOT NULL,
-	provider varchar(255) NOT NULL,
-	issued datetime NOT NULL,
-	updated datetime DEFAULT NULL,
-	rights_print int(11) DEFAULT NULL,
-	rights_copy int(11) DEFAULT NULL,
-	rights_start datetime DEFAULT NULL,
-	rights_end datetime DEFAULT NULL,
-	user_key_hint text NOT NULL,
-	user_key_hash varchar(64) NOT NULL,
-	user_key_algorithm varchar(255) NOT NULL,
-	content_fk varchar(255) NOT NULL,
-	lsd_status integer default 0)`
+const tableDef = "CREATE TABLE IF NOT EXISTS license (" +
+	"id varchar(255) PRIMARY KEY," +
+	"user_id varchar(255) NOT NULL," +
+	"provider varchar(255) NOT NULL," +
+	"issued datetime NOT NULL," +
+	"updated datetime DEFAULT NULL," +
+	"rights_print int(11) DEFAULT NULL," +
+	"rights_copy int(11) DEFAULT NULL," +
+	"rights_start datetime DEFAULT NULL," +
+	"rights_end datetime DEFAULT NULL," +
+	"user_key_hint text NOT NULL," +
+	"user_key_hash varchar(64) NOT NULL," +
+	"user_key_algorithm varchar(255) NOT NULL," +
+	"content_fk varchar(255) NOT NULL," +
+	"lsd_status integer default 0," +
+	"FOREIGN KEY(content_fk) REFERENCES content(id))"

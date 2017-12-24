@@ -8,54 +8,68 @@
     </li>
   </ol>
 </div>
-
+<span class="table-search-input"><label>Search : </label><input type="text" placeholder="Enter a title or an user name" [(ngModel)]="search"></span>
 <table *ngIf="purchases.length > 0" class="table">
   <thead class="thead-inverse">
     <tr>
-      <th>#</th>
-      <th>Date</th>
-      <th>Publication</th>
-      <th>User</th>
-      <th>Type</th>
-      <th>Start date</th>
-      <th>End date</th>
-      <th>Delivered</th>
+       <th class="order-title" (click)="orderBy('id')">
+        #
+        <span *ngIf="order == 'id'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'id'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+       <th class="order-title" (click)="orderBy('transactionDate')">
+        Date
+        <span *ngIf="order == 'transactionDate'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'transactionDate'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+       <th class="order-title" (click)="orderBy('publication.title')">
+        Publication
+        <span *ngIf="order == 'publication.title'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'publication.title'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+       <th class="order-title" (click)="orderBy('user.name')">
+        User
+        <span *ngIf="order == 'user.name'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'user.name'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+       <th class="order-title" (click)="orderBy('type')">
+        Type
+        <span *ngIf="order == 'type'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'type'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+       <th class="order-title" (click)="orderBy('startDate')">
+        Start Date
+        <span *ngIf="order == 'startDate'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'startDate'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+       <th class="order-title" (click)="orderBy('endDate')">
+        End Date
+        <span *ngIf="order == 'endDate'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'endDate'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+       <th>
+        Delivred
+      </th>
       <th>Actions</th>
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let purchase of purchases">
-      <td>{{purchase.id}}</td>
-      <td>{{formatDate(purchase.transactionDate)}}</td>
-      <td>{{purchase.publication.title}}</td>
-      <td>{{purchase.user.name}}</td>
-      <td>{{purchase.type}}</td>
-      <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.startDate)}}</span></td>
-      <td><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.endDate)}}</span></td>
-      <td><span class="badge badge-{{buildLicenseDeliveredClass(purchase.licenseUuid)}}">{{purchase.licenseUuid != null}}</span></td>
-      <td>
+    <tr *ngFor="let purchase of purchases | sortBy:order:reverse">
+      <td *ngIf="keptWithFilter(purchase)">{{purchase.id}}</td>
+      <td *ngIf="keptWithFilter(purchase)">{{formatDate(purchase.transactionDate)}}</td>
+      <td *ngIf="keptWithFilter(purchase)">{{purchase.publication.title}}</td>
+      <td *ngIf="keptWithFilter(purchase)">{{purchase.user.name}}</td>
+      <td *ngIf="keptWithFilter(purchase)">{{purchase.type}}</td>
+      <td *ngIf="keptWithFilter(purchase)"><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.startDate)}}</span></td>
+      <td *ngIf="keptWithFilter(purchase)"><span *ngIf="purchase.type == 'LOAN'">{{formatDate(purchase.endDate)}}</span></td>
+      <td *ngIf="keptWithFilter(purchase)"><span class="badge badge-{{buildLicenseDeliveredClass(purchase.licenseUuid)}}">{{purchase.licenseUuid != null}}</span></td>
+      <td *ngIf="keptWithFilter(purchase)">
         <div *ngIf="purchase.status == 'ok'">
-          <button (click)="onDownload_LCPL(purchase)"
-            type="button" role="button"
-            class="btn btn-secondary btn-sm">
-            <i class="fa fa-download" aria-hidden="true"></i> LCPL
-          </button>
           <a [routerLink]="['/purchases', purchase.id, 'status']"
             role="button"
             class="btn btn-secondary btn-sm">
             <i class="fa fa-battery-half" aria-hidden="true"></i> Status
           </a>
-          <a *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
-            [routerLink]="['/purchases', purchase.id, 'renew']"
-            class="btn btn-secondary btn-sm" role="button">
-            <i class="fa fa-hourglass-end" aria-hidden="true"></i> Renew
-          </a>
-          <button *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
-              type="button" role="button"
-              class="btn btn-secondary btn-sm"
-              (click)="onReturn(purchase)">
-            <i class="fa fa-eject" aria-hidden="true"></i> Return
-          </button>
         </div>
       </td>
     </tr>

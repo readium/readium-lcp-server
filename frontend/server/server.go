@@ -27,12 +27,20 @@ package frontend
 
 import (
 	"crypto/tls"
+	"encoding/base64"
+	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 
+	"github.com/claudiu/gocron"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/api"
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/frontend/api"
+	"github.com/readium/readium-lcp-server/frontend/webdashboard"
+	"github.com/readium/readium-lcp-server/frontend/weblicense"
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
 	"github.com/readium/readium-lcp-server/frontend/webrepository"
@@ -47,10 +55,12 @@ type Server struct {
 	repositories webrepository.WebRepository
 	publications webpublication.WebPublication
 	users        webuser.WebUser
+	dashboard    webdashboard.WebDashboard
+	license      weblicense.WebLicense
 	purchases    webpurchase.WebPurchase
 }
 
-// HandlerFunc type define a function handled by the server
+// HandlerFunc defines a function handled by the server
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, s staticapi.IServer)
 
 //type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s staticapi.IServer)
@@ -62,6 +72,8 @@ func New(
 	repositoryAPI webrepository.WebRepository,
 	publicationAPI webpublication.WebPublication,
 	userAPI webuser.WebUser,
+	dashboardAPI webdashboard.WebDashboard,
+	licenseAPI weblicense.WebLicense,
 	purchaseAPI webpurchase.WebPurchase) *Server {
 
 	sr := api.CreateServerRouter(tplPath)
@@ -76,22 +88,28 @@ func New(
 		repositories: repositoryAPI,
 		publications: publicationAPI,
 		users:        userAPI,
+		dashboard:    dashboardAPI,
+		license:      licenseAPI,
 		purchases:    purchaseAPI}
 
-	// Route.PathPrefix: http://www.gorillatoolkit.org/pkg/mux#Route.PathPrefix
-	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
-	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
+	// Cron, get license status information
+	gocron.Start()
+	gocron.Every(10).Minutes().Do(fetchLicenseStatusesTask, s)
 
 	apiURLPrefix := "/api/v1"
 
 	//
-	// repositories
+	//  repositories of master files
 	//
 	repositoriesRoutesPathPrefix := apiURLPrefix + "/repositories"
 	repositoriesRoutes := sr.R.PathPrefix(repositoriesRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
 	s.handleFunc(repositoriesRoutes, "/master-files", staticapi.GetRepositoryMasterFiles).Methods("GET")
-
+	//
+	// dashboard
+	//
+	s.handleFunc(sr.R, "/dashboardInfos", staticapi.GetDashboardInfos).Methods("GET")
+	s.handleFunc(sr.R, "/dashboardBestSellers", staticapi.GetDashboardBestSellers).Methods("GET")
 	//
 	// publications
 	//
@@ -102,10 +120,13 @@ func New(
 	//
 	s.handleFunc(sr.R, publicationsRoutesPathPrefix, staticapi.CreatePublication).Methods("POST")
 	//
+	s.handleFunc(sr.R, "/PublicationUpload", staticapi.UploadEPUB).Methods("POST")
+	//
+	s.handleFunc(publicationsRoutes, "/check-by-title", staticapi.CheckPublicationByTitle).Methods("GET")
+	//
 	s.handleFunc(publicationsRoutes, "/{id}", staticapi.GetPublication).Methods("GET")
 	s.handleFunc(publicationsRoutes, "/{id}", staticapi.UpdatePublication).Methods("PUT")
 	s.handleFunc(publicationsRoutes, "/{id}", staticapi.DeletePublication).Methods("DELETE")
-
 	//
 	// user functions
 	//
@@ -119,7 +140,7 @@ func New(
 	s.handleFunc(usersRoutes, "/{id}", staticapi.GetUser).Methods("GET")
 	s.handleFunc(usersRoutes, "/{id}", staticapi.UpdateUser).Methods("PUT")
 	s.handleFunc(usersRoutes, "/{id}", staticapi.DeleteUser).Methods("DELETE")
-	//
+	// get all purchases for a given user
 	s.handleFunc(usersRoutes, "/{user_id}/purchases", staticapi.GetUserPurchases).Methods("GET")
 
 	//
@@ -127,19 +148,63 @@ func New(
 	//
 	purchasesRoutesPathPrefix := apiURLPrefix + "/purchases"
 	purchasesRoutes := sr.R.PathPrefix(purchasesRoutesPathPrefix).Subrouter().StrictSlash(false)
-	//
+	// get all purchases
 	s.handleFunc(sr.R, purchasesRoutesPathPrefix, staticapi.GetPurchases).Methods("GET")
-	//
+	// create a purchase
 	s.handleFunc(sr.R, purchasesRoutesPathPrefix, staticapi.CreatePurchase).Methods("POST")
-	//
-	s.handleFunc(purchasesRoutes, "/{id}", staticapi.GetPurchase).Methods("GET")
+	// update a purchase
 	s.handleFunc(purchasesRoutes, "/{id}", staticapi.UpdatePurchase).Methods("PUT")
+	// get a purchase by purchase id
+	s.handleFunc(purchasesRoutes, "/{id}", staticapi.GetPurchase).Methods("GET")
+	// get a license from the associated purchase id
+	s.handleFunc(purchasesRoutes, "/{id}/license", staticapi.GetPurchasedLicense).Methods("GET")
 	//
-	s.handleFunc(purchasesRoutes, "/{id}/license", staticapi.GetPurchaseLicense).Methods("GET")
+	// licences
 	//
-	s.handleFunc(purchasesRoutes, "/license/{licenseID}", staticapi.GetPurchaseLicenseFromLicenseUUID).Methods("GET")
+	licenseRoutesPathPrefix := apiURLPrefix + "/licenses"
+	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
+	//
+	// get a list of licenses
+	s.handleFunc(sr.R, licenseRoutesPathPrefix, staticapi.GetFilteredLicenses).Methods("GET")
+	// get a license by id
+	s.handleFunc(licenseRoutes, "/{license_id}", staticapi.GetLicense).Methods("GET")
 
 	return s
+}
+
+func fetchLicenseStatusesTask(s *Server) {
+	fmt.Println("AUTOMATIC : Fetch and save all license status documents")
+	url := config.Config.LsdServer.PublicBaseUrl + "/licenses"
+	auth := config.Config.LsdNotifyAuth
+
+	// prepare the request
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(auth.Username+":"+auth.Password)))
+	res, err := client.Do(req)
+	if err != nil {
+		log.Println("No http connection - no fetch this time")
+		return
+	}
+
+	// get all licence status documents from the lsd server
+	body, err := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+
+	// clear the db
+	err = s.license.PurgeDataBase()
+	if err != nil {
+		panic(err)
+	}
+
+	// fill the db
+	err = s.license.AddFromJSON(body)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // RepositoryAPI ( staticapi.IServer ) returns interface for repositories
@@ -157,9 +222,19 @@ func (server *Server) UserAPI() webuser.WebUser {
 	return server.users
 }
 
-//PurchaseAPI ( staticapi.IServer )returns DB interface for pruchases
+//PurchaseAPI ( staticapi.IServer )returns DB interface for purchases
 func (server *Server) PurchaseAPI() webpurchase.WebPurchase {
 	return server.purchases
+}
+
+//DashboardAPI ( staticapi.IServer )returns DB interface for dashboard
+func (server *Server) DashboardAPI() webdashboard.WebDashboard {
+	return server.dashboard
+}
+
+//LicenseAPI ( staticapi.IServer )returns DB interface for license
+func (server *Server) LicenseAPI() weblicense.WebLicense {
+	return server.license
 }
 
 func (server *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *mux.Route {

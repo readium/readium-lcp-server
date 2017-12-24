@@ -1,27 +1,7 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// Copyright 2017 European Digital Reading Lab. All rights reserved.
+// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package status
 
@@ -30,6 +10,7 @@ import (
 	"strings"
 )
 
+// List of status values as strings
 const (
 	STATUS_READY     = "ready"
 	STATUS_ACTIVE    = "active"
@@ -37,46 +18,60 @@ const (
 	STATUS_RETURNED  = "returned"
 	STATUS_CANCELLED = "cancelled"
 	STATUS_EXPIRED   = "expired"
-
-	TYPE_REGISTER = "register"
-	TYPE_RETURN   = "return"
-	TYPE_RENEW    = "renew"
+	EVENT_RENEWED    = "renewed"
 )
 
-var statuses = map[int]string{
-	0: STATUS_READY,
-	1: STATUS_ACTIVE,
-	2: STATUS_REVOKED,
-	3: STATUS_RETURNED,
-	4: STATUS_CANCELLED,
-	5: STATUS_EXPIRED,
+// List of status values as int
+const (
+	STATUS_READY_INT     = 0
+	STATUS_ACTIVE_INT    = 1
+	STATUS_REVOKED_INT   = 2
+	STATUS_RETURNED_INT  = 3
+	STATUS_CANCELLED_INT = 4
+	STATUS_EXPIRED_INT   = 5
+	EVENT_RENEWED_INT    = 6
+)
+
+// StatusValues defines event types, used in events logged in license status documents
+var StatusValues = map[int]string{
+	STATUS_READY_INT:     STATUS_READY,
+	STATUS_ACTIVE_INT:    STATUS_ACTIVE,
+	STATUS_REVOKED_INT:   STATUS_REVOKED,
+	STATUS_RETURNED_INT:  STATUS_RETURNED,
+	STATUS_CANCELLED_INT: STATUS_CANCELLED,
+	STATUS_EXPIRED_INT:   STATUS_EXPIRED,
 }
 
-var Types = map[int]string{
-	1: TYPE_REGISTER,
-	2: TYPE_RETURN,
-	3: TYPE_RENEW,
+// EventTypes defines additional event types.
+// It reuses all status values and adds one for renewed licenses.
+var EventTypes = map[int]string{
+	STATUS_ACTIVE_INT:    STATUS_ACTIVE,
+	STATUS_REVOKED_INT:   STATUS_REVOKED,
+	STATUS_RETURNED_INT:  STATUS_RETURNED,
+	STATUS_CANCELLED_INT: STATUS_CANCELLED,
+	STATUS_EXPIRED_INT:   STATUS_EXPIRED,
+	EVENT_RENEWED_INT:    EVENT_RENEWED,
 }
 
-//GetStatus translate status number to status string
+// GetStatus translates status number to status string
 func GetStatus(statusDB int64, status *string) {
 	resultStr := reverse(strconv.FormatInt(statusDB, 2))
 
 	if count := strings.Count(resultStr, "1"); count == 1 {
 		index := strings.Index(resultStr, "1")
 
-		if len(statuses) >= index+1 {
-			*status = statuses[index]
+		if len(StatusValues) >= index+1 {
+			*status = StatusValues[index]
 		}
 	}
 }
 
-//SetStatus translate status string to status number
+// SetStatus translates status string to status number
 func SetStatus(status string) (int64, error) {
-	reg := make([]string, len(statuses))
+	reg := make([]string, len(StatusValues))
 
-	for key := range statuses {
-		if statuses[key] == status {
+	for key := range StatusValues {
+		if StatusValues[key] == status {
 			reg[key] = "1"
 		} else {
 			reg[key] = "0"

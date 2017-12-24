@@ -21,11 +21,15 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package license
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/readium/readium-lcp-server/config"
+)
 
 func TestLicense(t *testing.T) {
 	l := New()
@@ -33,7 +37,12 @@ func TestLicense(t *testing.T) {
 		t.Error("Should have an id")
 	}
 
-	if l.Encryption.Profile != DEFAULT_PROFILE {
-		t.Error("Expected %s, got %s", DEFAULT_PROFILE, l.Encryption.Profile)
+	profile := BASIC_PROFILE
+	if config.Config.Profile == "1.0" {
+		profile = V1_PROFILE
+	}
+
+	if l.Encryption.Profile != profile {
+		t.Error("Expected %s, got %s", profile, l.Encryption.Profile)
 	}
 }

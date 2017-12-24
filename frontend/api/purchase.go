@@ -1,33 +1,14 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2017 European Digital Reading Lab. All rights reserved.
+// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package staticapi
 
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -40,7 +21,8 @@ import (
 	"github.com/Machiel/slugify"
 )
 
-//DecodeJSONPurchase transforms a json string to a User struct
+// DecodeJSONPurchase transforms a json object into an golang object
+//
 func DecodeJSONPurchase(r *http.Request) (webpurchase.Purchase, error) {
 	var dec *json.Decoder
 	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_JSON {
@@ -52,6 +34,7 @@ func DecodeJSONPurchase(r *http.Request) (webpurchase.Purchase, error) {
 }
 
 // GetPurchases searches all purchases for a client
+//
 func GetPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	var err error
 
@@ -69,16 +52,19 @@ func GetPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 		purchases = append(purchases, it)
 	}
 
+	PrepareListHeaderResponse(len(purchases), "/api/v1/purchases", pagination, w)
+	w.Header().Set("Content-Type", api.ContentType_JSON)
+
 	enc := json.NewEncoder(w)
 	err = enc.Encode(purchases)
-	PrepareListHeaderResponse(len(purchases), "/api/v1/purchases", pagination, w)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 }
 
-//GetUserPurchases searches all purchases for a client
+// GetUserPurchases searches all purchases for a client
+//
 func GetUserPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	var err error
 	var userId int64
@@ -103,16 +89,19 @@ func GetUserPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 		purchases = append(purchases, it)
 	}
 
+	PrepareListHeaderResponse(len(purchases), "/api/v1/users/"+vars["user_id"]+"/purchases", pagination, w)
+	w.Header().Set("Content-Type", api.ContentType_JSON)
+
 	enc := json.NewEncoder(w)
 	err = enc.Encode(purchases)
-	PrepareListHeaderResponse(len(purchases), "/api/v1/users/"+vars["user_id"]+"/purchases", pagination, w)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 }
 
-//CreatePurchase creates a purchase in the database
+// CreatePurchase creates a purchase in the database
+//
 func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	var purchase webpurchase.Purchase
 	var err error
@@ -129,65 +118,36 @@ func CreatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	// publication added to db
 	w.WriteHeader(http.StatusCreated)
-}
 
-//GetPurchaseLicenseFromLicenseUUID() finds the purchase ID from a given license UUID (passed in URL),
-//and performs the same as GetPurchaseLicense(), returning "license.lcpl" filename
-//(as this API is meant to be accessed from the LSD JSON license link)
-func GetPurchaseLicenseFromLicenseUUID(w http.ResponseWriter, r *http.Request, s IServer) {
-
-	vars := mux.Vars(r)
-	var purchase webpurchase.Purchase
-	var err error
-
-	if purchase, err = s.PurchaseAPI().GetByLicenseID(vars["licenseID"]); err != nil {
-		switch err {
-		case webpurchase.ErrNotFound:
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
-		default:
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	fullLicense, err := s.PurchaseAPI().GenerateLicense(purchase)
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
-	}
-
-	//attachmentName := slugify.Slugify(purchase.Publication.Title)
-	w.Header().Set("Content-Type", api.ContentType_LCP_JSON)
-	w.Header().Set("Content-Disposition", "attachment; filename=\"license.lcpl\"")
-
-	enc := json.NewEncoder(w)
-	err = enc.Encode(fullLicense)
-
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
+	if purchase.Type == webpurchase.LOAN {
+		log.Println("user " + strconv.Itoa(int(purchase.User.ID)) + " lent publication " + strconv.Itoa(int(purchase.Publication.ID)) + " until " + purchase.EndDate.String())
+	} else {
+		log.Println("user " + strconv.Itoa(int(purchase.User.ID)) + " bought publication " + strconv.Itoa(int(purchase.Publication.ID)))
 	}
 }
 
-//GetPurchaseLicense contacts LCP server and asks a license for the purchase using the partial license and resourceID
-func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
+// GetPurchasedLicense generates a new license from the corresponding purchase id (passed as a section of the REST URL).
+// It fetches the license from the lcp server and returns it to the caller.
+// This API method is called from the client app (angular) when a license is requested after a purchase.
+//
+func GetPurchasedLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
-	var id int
+	var id int64
 	var err error
 
-	if id, err = strconv.Atoi(vars["id"]); err != nil {
-		// id is not a number
+	if id, err = strconv.ParseInt(vars["id"], 10, 64); err != nil {
+		// id is not an integer (int64)
 		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
 		return
 	}
 
-	purchase, err := s.PurchaseAPI().Get(int64(id))
+	purchase, err := s.PurchaseAPI().Get(id)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		return
 	}
 
-	fullLicense, err := s.PurchaseAPI().GenerateLicense(purchase)
+	fullLicense, err := s.PurchaseAPI().GenerateOrGetLicense(purchase)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -198,15 +158,21 @@ func GetPurchaseLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+attachmentName+".lcpl\"")
 
 	enc := json.NewEncoder(w)
+	// does not escape characters
+	enc.SetEscapeHTML(false)
 	err = enc.Encode(fullLicense)
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
+	// message to the console
+	log.Println("Return license / id " + vars["id"] + " / " + purchase.Publication.Title + " / purchase " + strconv.FormatInt(purchase.ID, 10))
+
 }
 
-//GetPurchase gets a purchase by its ID in the database
+// GetPurchase gets a purchase by its id in the database
+//
 func GetPurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
 	var id int
@@ -228,19 +194,17 @@ func GetPurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 		return
 	}
 
-	// purchase found
-	// purchase.PartialLicense = "*" //hide partialLicense?
+	w.Header().Set("Content-Type", api.ContentType_JSON)
+	// json encode the purchase info into the output stream
 	enc := json.NewEncoder(w)
-	if err = enc.Encode(purchase); err == nil {
-		// send json of correctly encoded user info
-		w.Header().Set("Content-Type", api.ContentType_JSON)
-		w.WriteHeader(http.StatusOK)
+	if err = enc.Encode(purchase); err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
-	problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 }
 
-//GetPurchaseByLicenseID gets a purchase by a LicenseID in the database
+// GetPurchaseByLicenseID gets a purchase by a license id in the database
+//
 func GetPurchaseByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) {
 	var purchase webpurchase.Purchase
 	vars := mux.Vars(r)
@@ -256,17 +220,17 @@ func GetPurchaseByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) {
 		return
 	}
 	// purchase found
+	w.Header().Set("Content-Type", api.ContentType_JSON)
 	enc := json.NewEncoder(w)
-	if err = enc.Encode(purchase); err == nil {
-		// send json of correctly encoded user info
-		w.Header().Set("Content-Type", api.ContentType_JSON)
-		w.WriteHeader(http.StatusOK)
+	if err = enc.Encode(purchase); err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
-	problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 }
 
-// getLicenseInfo decoldes a license in data (bytes, response.body)
+// getLicenseInfo decodes a license in data (bytes, response.body)
+// FIXME : seems unused
+//
 func getLicenseInfo(data []byte, lic *license.License) error {
 	var dec *json.Decoder
 	dec = json.NewDecoder(bytes.NewReader(data))
@@ -276,24 +240,30 @@ func getLicenseInfo(data []byte, lic *license.License) error {
 	return nil
 }
 
-//UpdatePurchase updates a purchase in the database
+// UpdatePurchase updates a purchase in the database
+// Only updates the license id (uuid), start and end date, status
+//
 func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	var newPurchase webpurchase.Purchase
 	vars := mux.Vars(r)
 	var id int
 	var err error
+
+	// check that the purchase id is an integer
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
-		// id is not a number
-		problem.Error(w, r, problem.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "The purchase id must be an integer"}, http.StatusBadRequest)
 		return
 	}
-	//ID is a number, check user (json)
+	// parse the update info
 	if newPurchase, err = DecodeJSONPurchase(r); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
-	// purchase found
+	// console
+	log.Printf("Update purchase %v, license id %v, start %v, end %v, status %v", newPurchase.ID, *newPurchase.LicenseUUID, newPurchase.StartDate, newPurchase.EndDate, newPurchase.Status)
+
+	// update the purchase, license id, start and end dates, status
 	if err := s.PurchaseAPI().Update(webpurchase.Purchase{
 		ID:          int64(id),
 		LicenseUUID: newPurchase.LicenseUUID,

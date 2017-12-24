@@ -7,4 +7,5 @@ export class User implements CrudItem {
     email:          string;
     password?:      string | undefined | null; // Hashed password
     clearPassword?: string | undefined | null;
+    hint?:          string | undefined | null;
 }

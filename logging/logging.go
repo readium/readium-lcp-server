@@ -1,27 +1,7 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// Copyright 2017 European Digital Reading Lab. All rights reserved.
+// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package logging
 
@@ -35,6 +15,7 @@ import (
 	"time"
 )
 
+// LogFile is the Logger file
 var (
 	LogFile        *log.Logger
 	complianceMode bool
@@ -50,11 +31,12 @@ const (
 	REJECT_RENEW         = "2.3.2.4.2"
 )
 
-//Init inits log file and opens it
+//Init inits the log file and opens it
 func Init(logPath string, cm bool) error {
 	complianceMode = cm
 	if complianceMode == true {
-		file, err := os.OpenFile(logPath, os.O_RDWR|os.O_APPEND, 0666)
+		log.Println("Open compliance mode log file in " + logPath)
+		file, err := os.OpenFile(logPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 		if err != nil {
 			return err
 		}
@@ -67,32 +49,37 @@ func Init(logPath string, cm bool) error {
 	return nil
 }
 
-//WriteToFile writes result of function execution in log file
-func WriteToFile(testId string, status string, result string) {
+//WriteToFile writes the result of the execution of a function to the log file
+func WriteToFile(testID string, status string, result string, remark string) {
 	if complianceMode == true {
 		currentTime := time.Now().UTC().Format(time.RFC3339)
 
-		LogFile.Println(currentTime + "\t" + testId + " \t" + status + "\t" + result)
+		LogFile.Println(currentTime + "\t" + testID + " \t" + status + "\t" + result + "\t" + remark)
 	}
 }
 
-//ReadLogs reads logs from file
+//ReadLogs reads all logs from the log file
 func ReadLogs(logPath string) ([]string, error) {
 	var lines []string
 	file, err := os.OpenFile(logPath, os.O_RDONLY, 0666)
 	if err == nil {
 		reader := bufio.NewReader(file)
+		// read all logs at once
 		contents, err := ioutil.ReadAll(reader)
-
 		if err == nil {
+			// create the lines array
 			lines = strings.Split(string(contents), "\n")
 		}
 	}
+	// remove the last line (\n)
 	lines = lines[:len(lines)-1]
+	// close the file
+	file.Close()
 	return lines, err
 }
 
-//CountTotal summarize the data in log file
+//CountTotal summarizes data found in the log file
+// TODO: compute useful info.
 func CountTotal(lines []string) (string, error) {
 	var total, positive, negative int
 	var result string
@@ -106,7 +93,6 @@ func CountTotal(lines []string) (string, error) {
 		if splitted[3] == "success" {
 			positive++
 		}
-
 
 		total++
 	}

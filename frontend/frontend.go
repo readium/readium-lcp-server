@@ -43,6 +43,8 @@ import (
 
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/frontend/server"
+	"github.com/readium/readium-lcp-server/frontend/webdashboard"
+	"github.com/readium/readium-lcp-server/frontend/weblicense"
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
 	"github.com/readium/readium-lcp-server/frontend/webrepository"
@@ -72,6 +74,7 @@ func main() {
 	log.Println("LCP server = " + config.Config.LcpServer.PublicBaseUrl)
 	log.Println("using login  " + config.Config.LcpUpdateAuth.Username)
 
+	// use a sqlite db by default
 	if dbURI = config.Config.FrontendServer.Database; dbURI == "" {
 		dbURI = "sqlite3://file:frontend.sqlite?cache=shared&mode=rwc"
 	}
@@ -105,6 +108,16 @@ func main() {
 		panic(err)
 	}
 
+	dashboardDB, err := webdashboard.Init(config.Config, db)
+	if err != nil {
+		panic(err)
+	}
+
+	licenseDB, err := weblicense.Init(config.Config, db)
+	if err != nil {
+		panic(err)
+	}
+
 	static = config.Config.FrontendServer.Directory
 	if static == "" {
 		_, file, _, _ := runtime.Caller(0)
@@ -130,15 +143,15 @@ func main() {
 	// git update-index --assume-unchanged frontend/manage/config.js
 	window.Config = {`
 	configJs += "\n\tfrontend: {url: '" + config.Config.FrontendServer.PublicBaseUrl + "' },\n"
-	configJs += "\tlcp: {url: '" + config.Config.LcpServer.PublicBaseUrl + "'},\n"
-	configJs += "\tlsd: {url: '" + config.Config.LsdServer.PublicBaseUrl + "'}\n}"
+	configJs += "\tlcp: {url: '" + config.Config.LcpServer.PublicBaseUrl + "', user: '" + config.Config.LcpUpdateAuth.Username + "', password: '" + config.Config.LcpUpdateAuth.Password + "'},\n"
+	configJs += "\tlsd: {url: '" + config.Config.LsdServer.PublicBaseUrl + "', user: '" + config.Config.LsdNotifyAuth.Username + "', password: '" + config.Config.LsdNotifyAuth.Password + "'}\n}"
 
 	log.Println("manage/index.html config.js:")
 	log.Println(configJs)
 
 	fileConfigJs.WriteString(configJs)
 	HandleSignals()
-	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), static, repoManager, publicationDB, userDB, purchaseDB)
+	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), static, repoManager, publicationDB, userDB, dashboardDB, licenseDB, purchaseDB)
 	log.Println("Frontend webserver for LCP running on " + config.Config.FrontendServer.Host + ":" + strconv.Itoa(config.Config.FrontendServer.Port))
 	log.Println("using database " + dbURI)
 

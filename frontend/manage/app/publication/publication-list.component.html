@@ -9,32 +9,44 @@
   </ol>
 </div>
 
-
+<span class="table-search-input"><label>Search : </label><input type="text" placeholder="Enter a title" [(ngModel)]="search"></span>
 <table *ngIf="publications.length > 0" class="table">
   <thead class="thead-inverse">
     <tr>
-      <th>#</th>
-      <th>UUID</th>
-      <th>Title</th>
+      <th class="order-title" (click)="orderBy('id')">
+        #
+        <span *ngIf="order == 'id'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'id'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+      <th class="order-title" (click)="orderBy('title')">
+        Title
+        <span *ngIf="order == 'title'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'title'&&reverse" class="fa fa-caret-up"></span>
+      </th>
+      <th class="order-title" (click)="orderBy('uuid')">
+        UUID
+        <span *ngIf="order == 'uuid'&&!reverse" class="fa fa-caret-down"></span>
+        <span *ngIf="order == 'uuid'&&reverse" class="fa fa-caret-up"></span>
+      </th>
       <th>Actions</th>
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let publication of publications">
-      <td>{{publication.id}}</td>
-      <td>{{publication.uuid}}</td>
-      <td>{{publication.title}}</td>
-      <td>
-        <button
-            type="button" class="btn btn-secondary btn-sm"
-            (click)="onRemove(publication.id)">
-          <i class="fa fa-trash" aria-hidden="true"></i> Remove
-        </button>
-        <a [routerLink]="['/publications', publication.id, 'edit']"
-           class="btn btn-secondary btn-sm" role="button">
-           <i class="fa fa-edit" aria-hidden="true"></i> Edit
-        </a>
-      </td>
+    <tr *ngFor="let publication of publications | sortBy:order:reverse">
+        <td *ngIf="keptWithFilter(publication)">{{publication.id}}</td>
+        <td *ngIf="keptWithFilter(publication)">{{publication.title}}</td>
+        <td *ngIf="keptWithFilter(publication)">{{publication.uuid}}</td>
+        <td *ngIf="keptWithFilter(publication)">
+          <button
+              type="button" class="btn btn-secondary btn-sm"
+              (click)="onRemove(publication.id)">
+            <i class="fa fa-trash" aria-hidden="true"></i> Remove
+          </button>
+          <a [routerLink]="['/publications', publication.id, 'edit']"
+            class="btn btn-secondary btn-sm" role="button">
+            <i class="fa fa-edit" aria-hidden="true"></i> Edit
+          </a>
+        </td>
     </tr>
   </tbody>
 </table>

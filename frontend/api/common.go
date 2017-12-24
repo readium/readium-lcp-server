@@ -30,6 +30,8 @@ import (
 	"strconv"
 
 	"github.com/readium/readium-lcp-server/api"
+	"github.com/readium/readium-lcp-server/frontend/webdashboard"
+	"github.com/readium/readium-lcp-server/frontend/weblicense"
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
 	"github.com/readium/readium-lcp-server/frontend/webrepository"
@@ -42,6 +44,8 @@ type IServer interface {
 	PublicationAPI() webpublication.WebPublication
 	UserAPI() webuser.WebUser
 	PurchaseAPI() webpurchase.WebPurchase
+	DashboardAPI() webdashboard.WebDashboard
+	LicenseAPI() weblicense.WebLicense
 }
 
 // Pagination used to paginate listing
@@ -88,12 +92,9 @@ func ExtractPaginationFromRequest(r *http.Request) (Pagination, error) {
 	return pagination, err
 }
 
-// PrepareListHeaderResponse Set http headers
-func PrepareListHeaderResponse(
-	resourceCount int,
-	resourceLink string,
-	pagination Pagination,
-	w http.ResponseWriter) {
+// PrepareListHeaderResponse set several http headers
+// sets previous and next link headers
+func PrepareListHeaderResponse(resourceCount int, resourceLink string, pagination Pagination, w http.ResponseWriter) {
 	if resourceCount > 0 {
 		nextPage := strconv.Itoa(int(pagination.Page) + 1)
 		w.Header().Set("Link", "<"+resourceLink+"?page="+nextPage+">; rel=\"next\"; title=\"next\"")

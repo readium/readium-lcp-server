@@ -1,6 +1,8 @@
 import { User } from './user';
 
-export const PROFILE = 'http://readium.org/lcp/profile-1.0';
+export const BASIC_PROFILE = 'http://readium.org/lcp/basic-profile';
+export const V1_PROFILE = 'http://readium.org/lcp/profile-1.0';
+
 export const USERKEY_ALGO = 'http://www.w3.org/2001/04/xmlenc#sha256';
 export const PROVIDER = 'http://edrlab.org';
 

@@ -114,7 +114,8 @@ export class PurchaseFormComponent implements OnInit{
     }
 
     gotoList() {
-        this.router.navigate(['/purchases']);
+        if (this.edit) this.router.navigate(['/purchases/' + this.purchase.id + "/status"]);
+        else this.router.navigate(['/purchases']);
     }
 
     onCancel() {
@@ -123,7 +124,7 @@ export class PurchaseFormComponent implements OnInit{
 
     onSubmit() {
         this.bindForm();
-
+        console.log(this.purchase);
         if (this.edit) {
             this.purchaseService.update(
                 this.purchase

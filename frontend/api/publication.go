@@ -2,31 +2,16 @@
 //
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2017 European Digital Reading Lab. All rights reserved.
+// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package staticapi
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -36,7 +21,7 @@ import (
 	"github.com/readium/readium-lcp-server/problem"
 )
 
-//GetPublications returns a list of publications
+// GetPublications returns a list of publications
 func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 	var page int64
 	var perPage int64
@@ -95,14 +80,15 @@ func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-// GetPublicationByUUID searches a publication by its uuid
+// GetPublication returns a publication from its numeric id, given as part of the calling url
+//
 func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
 	var id int
 	var err error
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
-		problem.Error(w, r, problem.Problem{Detail: "Plublication ID must be an integer"}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "The publication id must be an integer"}, http.StatusBadRequest)
 	}
 
 	if pub, err := s.PublicationAPI().Get(int64(id)); err == nil {
@@ -128,7 +114,38 @@ func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-//DecodeJSONUser transforms a json string to a User struct
+// CheckPublicationByTitle check if a publication with this title exist
+func CheckPublicationByTitle(w http.ResponseWriter, r *http.Request, s IServer) {
+	var title string
+	title = r.URL.Query()["title"][0]
+
+	log.Println("Check publication stored with name " + string(title))
+
+	if pub, err := s.PublicationAPI().CheckByTitle(string(title)); err == nil {
+		enc := json.NewEncoder(w)
+		if err = enc.Encode(pub); err == nil {
+			// send json of correctly encoded user info
+			w.Header().Set("Content-Type", api.ContentType_JSON)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+	} else {
+		switch err {
+		case webpublication.ErrNotFound:
+			{
+				log.Println("No publication stored with name " + string(title))
+				//	problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+			}
+		default:
+			{
+				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			}
+		}
+	}
+}
+
+//DecodeJSONPublication transforms a json string to a User struct
 func DecodeJSONPublication(r *http.Request) (webpublication.Publication, error) {
 	var dec *json.Decoder
 	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_JSON {
@@ -147,7 +164,8 @@ func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 		problem.Error(w, r, problem.Problem{Detail: "incorrect JSON Publication " + err.Error()}, http.StatusBadRequest)
 		return
 	}
-	// publication ok
+
+	// add publication
 	if err := s.PublicationAPI().Add(pub); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
@@ -155,6 +173,13 @@ func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	// publication added to db
 	w.WriteHeader(http.StatusCreated)
+}
+
+//UploadEPUB creates a new EPUB file
+func UploadEPUB(w http.ResponseWriter, r *http.Request, s IServer) {
+	var pub webpublication.Publication
+	pub.Title = r.URL.Query()["title"][0]
+	s.PublicationAPI().UploadEPUB(r, w, pub)
 }
 
 // UpdatePublication updates an identified publication (id) in the database

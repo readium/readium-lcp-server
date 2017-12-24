@@ -21,13 +21,16 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package index
 
 import (
 	"database/sql"
 	"errors"
+	"strings"
+
+	"github.com/readium/readium-lcp-server/config"
 )
 
 var NotFound = errors.New("Content not found")
@@ -105,16 +108,14 @@ func (i dbIndex) List() func() (Content, error) {
 }
 
 func Open(db *sql.DB) (i Index, err error) {
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS content (
-	id varchar(255) PRIMARY KEY, 
-	encryption_key varchar(64) NOT NULL, 
-	location text NOT NULL, 
-	length bigint,
-	sha256 varchar(64),
-	FOREIGN KEY(id) REFERENCES license(content_fk))`)
-	if err != nil {
-		return
+	// if sqlite, create the content table in the lcp db if it does not exist
+	if strings.HasPrefix(config.Config.LcpServer.Database, "sqlite") {
+		_, err = db.Exec(tableDef)
+		if err != nil {
+			return
+		}
 	}
+
 	get, err := db.Prepare("SELECT id,encryption_key,location,length,sha256 FROM content WHERE id = ? LIMIT 1")
 	if err != nil {
 		return
@@ -126,3 +127,10 @@ func Open(db *sql.DB) (i Index, err error) {
 	i = dbIndex{db, get, nil, list}
 	return
 }
+
+const tableDef = "CREATE TABLE IF NOT EXISTS content (" +
+	"id varchar(255) PRIMARY KEY," +
+	"encryption_key varchar(64) NOT NULL," +
+	"location text NOT NULL," +
+	"`length` bigint," +
+	"sha256 varchar(64))"

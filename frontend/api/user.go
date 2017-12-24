@@ -90,7 +90,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-//GetUserByEmail searches a client by his email
+//GetUser searches a client by his email
 func GetUser(w http.ResponseWriter, r *http.Request, s IServer) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -176,7 +176,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request, s IServer) {
 		}
 	} else {
 		// client is found!
-		if err := s.UserAPI().Update(webuser.User{ID: int64(id), Name: user.Name, Email: user.Email, Password: user.Password}); err != nil {
+		if err := s.UserAPI().Update(webuser.User{ID: int64(id), Name: user.Name, Email: user.Email, Password: user.Password, Hint: user.Hint}); err != nil {
 			//update failed!
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 			return

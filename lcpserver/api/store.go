@@ -53,7 +53,7 @@ type Server interface {
 	Source() *pack.ManualSource
 }
 
-// struct for communication with lcp-server
+// LcpPublication is a struct for communication with lcp-server
 type LcpPublication struct {
 	ContentId          string  `json:"content-id"`
 	ContentKey         []byte  `json:"content-encryption-key"`
@@ -87,6 +87,10 @@ func cleanupTemp(f *os.File) {
 	os.Remove(f.Name())
 }
 
+// StoreContent stores content in the storage
+// the content name is given in the url (name)
+// a temporary file is created, then deleted after the content has been stored
+//
 func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 
@@ -112,44 +116,45 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 	json.NewEncoder(w).Encode(result.Id)
 }
 
-// AddContent()
+// AddContent adds content to the storage
 // lcp spec : store data resulting from an external encryption
 // PUT method with PAYLOAD : LcpPublication in json format
-// content_id is also present in also url.
-// if contentId is different , url key overrides the contentId in the json payload
-// this method adds ths <protected_content_location>  in the store (of encrypted files)
-// and the needed key in the database in order to create the licenses
+// content_id is also present in the url.
+// if contentID is different , url key overrides the content id in the json payload
+// this method adds the <protected_content_location>  in the store (of encrypted files)
+// and the key in the database in order to create the licenses
 func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
+	// parse the json payload
 	vars := mux.Vars(r)
 	decoder := json.NewDecoder(r.Body)
-
 	var publication LcpPublication
 	err := decoder.Decode(&publication)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
-	contentId := vars["key"]
-	if contentId == "" {
-		problem.Error(w, r, problem.Problem{Detail: "Content ID must be set in url"}, http.StatusBadRequest)
+	// get the content ID in the url
+	contentID := vars["content_id"]
+	if contentID == "" {
+		problem.Error(w, r, problem.Problem{Detail: "The content id must be set in the url"}, http.StatusBadRequest)
 		return
 	}
-	//read encrypted file from reference
+	// open the encrypted file from the path given in the json payload
 	file, err := os.Open(publication.Output)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
-	//and add file to storage
-	//var storageItem storage.Item
-	_, err = s.Store().Add(contentId, file)
+
+	// add the file to the storage, named from contentID
+	_, err = s.Store().Add(contentID, file)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	var c index.Content
 	// insert row in database if key does not exist
-	c, err = s.Index().Get(contentId)
+	c, err = s.Index().Get(contentID)
 	c.EncryptionKey = publication.ContentKey
 	if publication.ContentDisposition != nil {
 		c.Location = *publication.ContentDisposition
@@ -171,7 +176,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	//todo? check hash & length
 	code := http.StatusCreated
 	if err == index.NotFound { //insert into database
-		c.Id = contentId
+		c.Id = contentID
 		err = s.Index().Add(c)
 	} else { //update encryption key for c.Id = publication.ContentId
 		err = s.Index().Update(c)
@@ -190,6 +195,8 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 }
 
+// ListContents lists the content in the storage index
+//
 func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 	fn := s.Index().List()
 	contents := make([]index.Content, 0)
@@ -208,11 +215,15 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 
 }
 
+// GetContent fetches and returns an encrypted content file
+// selected by it content id (uuid)
+//
 func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
+	// get the content id from the calling url
 	vars := mux.Vars(r)
-	contentId := vars["key"]
-	content, err := s.Index().Get(contentId)
-	if err != nil { //item probably  not found
+	contentID := vars["content_id"]
+	content, err := s.Index().Get(contentID)
+	if err != nil { //item probably not found
 		if err == index.NotFound {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		} else {
@@ -220,27 +231,29 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 		}
 		return
 	}
-	item, err := s.Store().Get(contentId)
-	if err != nil { //item probably  not found
-		if err == storage.NotFound {
+	// check the existence of the file
+	item, err := s.Store().Get(contentID)
+	if err != nil { //item probably not found
+		if err == storage.ErrNotFound {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		} else {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
 		return
 	}
+	// opens the file
 	contentReadCloser, err := item.Contents()
 	defer contentReadCloser.Close()
 	if err != nil { //file probably not found
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-
-	//Send the headers
+	// set headers
 	w.Header().Set("Content-Disposition", "attachment; filename="+content.Location)
 	w.Header().Set("Content-Type", epub.ContentType_EPUB)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", content.Length))
 
+	// returns the content of the file to the caller
 	io.Copy(w, contentReadCloser)
 
 	return

@@ -4,15 +4,18 @@ import { RouterModule }             from '@angular/router';
 
 import { DashboardRoutingModule }   from './dashboard-routing.module';
 import { DashboardComponent }       from './dashboard.component';
+import { DashboardInfoComponent }       from './dashboard-info.component';
 
 @NgModule({
     imports: [
         CommonModule,
         RouterModule,
         DashboardRoutingModule
+        
     ],
     declarations: [
-        DashboardComponent
+        DashboardComponent,
+        DashboardInfoComponent
     ]
 })
 

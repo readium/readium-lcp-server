@@ -5,19 +5,72 @@
     <li class="breadcrumb-item"><a routerLink="/purchases">Purchases</a></li>
     <li class="breadcrumb-item active">Purchase {{ purchase.id }}</li>
   </ol>
-
+  <h2>{{purchase.publication.title}}</h2>
+      <button 
+        [disabled]="licenseStatus && (licenseStatus.status == 'revoked' || licenseStatus.status == 'cancelled')"
+        (click)="onDownload_LCPL(purchase)"
+        type="button" role="button"
+        class="btn btn-secondary btn-sm" >
+        <i class="fa fa-download" aria-hidden="true"></i> LCPL
+      </button>
+      <span *ngIf="purchase.status == 'ok' && licenseStatus && licenseStatus.status != 'revoked'">
+        <a 
+          *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null && licenseStatus.status != 'revoked'"
+          [routerLink]="['/purchases', purchase.id, 'renew']"
+          class="btn btn-secondary btn-sm" role="button">
+          <i class="fa fa-hourglass-end" aria-hidden="true"></i> Renew
+        </a>
+        <button 
+            [disabled]="licenseStatus.status == 'revoked' || licenseStatus.status == 'cancelled'"
+            *ngIf="purchase.type == 'LOAN' && purchase.licenseUuid != null"
+            type="button" role="button"
+            class="btn btn-secondary btn-sm"
+            (click)="onReturn(purchase)">
+          <i class="fa fa-eject" aria-hidden="true"></i> Return
+        </button>
+        <button 
+          [disabled]="licenseStatus.status == 'revoked' || licenseStatus.status == 'cancelled'"
+          type="button" role="button"
+          class="btn btn-secondary btn-sm"
+          (click)="onRevoke(purchase)">
+          <i class="fa fa-eject" aria-hidden="true"></i> Revoke
+        </button>
+      </span>
+      <p>Date : {{formatDate(purchase.transactionDate)}}</p>
+      <p>User : {{purchase.user.name}}</p>
+      <p>Type : {{purchase.type}}</p>
+      <p *ngIf="purchase.type == 'LOAN'">Start Date : {{formatDate(purchase.startDate)}}</p>
+      <p *ngIf="purchase.type == 'LOAN'">End Date : {{formatDate(purchase.endDate)}}</p>
+      <p>Delivered : {{purchase.licenseUuid != null}}<p>
   <div *ngIf="licenseStatus">
     <form>
       <fieldset disabled>
-        <div class="form-group">
+        <div *ngIf="licenseStatus" class="form-group">
           <label>Status:</label>
           <input type="text" class="form-control" placeholder="{{ licenseStatus.status }}" />
         </div>
-        <div class="form-group">
+        <div *ngIf="licenseStatus.potential_rights" class="form-group">
           <label>Potential Right End Date:</label>
-          <input type="text" class="form-control" placeholder="{{ licenseStatus.potential_rights.end }}" />
+          <input  type="text" class="form-control" placeholder="{{ licenseStatus.potential_rights.end }}" />
         </div>
       </fieldset>
     </form>
+
+    <!--><div *ngIf="true">
+      <h1 class="event-license-title"> Best Sellers </h1>
+      <table id="event-license-table" class="table">
+          <thead class="thead-inverse">
+          <tr>
+              <th>Id</th>
+              <th>Nbr</th>
+          </tr>
+          </thead>
+          <tr *ngFor="">
+              <td *ngIf="">{{}}</td>
+              <td *ngIf="">{{}}</td>
+          </tr>
+      </table>
+    </div></!-->
   </div>
 </div>
+<div id="snackbar">{{revokeMessage}}</div>

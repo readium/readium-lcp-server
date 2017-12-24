@@ -45,7 +45,9 @@ type Configuration struct {
 	LcpUpdateAuth  Auth               `yaml:"lcp_update_auth"`
 	LicenseStatus  LicenseStatus      `yaml:"license_status"`
 	Localization   Localization       `yaml:"localization"`
-	Logging        Logging            `yaml:"logging"`
+	ComplianceMode bool               `yaml:"compliance_mode"`
+	GoofyMode      bool               `yaml:"goofy_mode"`
+	Profile        string             `yaml:"profile,omitempty"`
 
 	// DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
 	//AES256_CBC_OR_GCM string             `yaml:"aes256_cbc_or_gcm,omitempty"`
@@ -64,11 +66,14 @@ type ServerInfo struct {
 type LsdServerInfo struct {
 	ServerInfo     `yaml:",inline"`
 	LicenseLinkUrl string `yaml:"license_link_url,omitempty"`
+	LogDirectory   string `yaml:"log_directory"`
 }
 
 type FrontendServerInfo struct {
 	ServerInfo          `yaml:",inline"`
-	ProviderID          string `yaml:"provider_id"`
+	ProviderUri         string `yaml:"provider_uri"`
+	RightPrint          int32  `yaml:"right_print"`
+	RightCopy           int32  `yaml:"right_copy"`
 	MasterRepository    string `yaml:"master_repository"`
 	EncryptedRepository string `yaml:"encrypted_repository"`
 }
@@ -116,11 +121,6 @@ type Localization struct {
 	Languages       []string `yaml:"languages"`
 	Folder          string   `yaml:"folder"`
 	DefaultLanguage string   `yaml:"default_language"`
-}
-
-type Logging struct {
-	LogDirectory          string `yaml:"log_directory"`
-	ComplianceTestsModeOn bool   `yaml:"compliance_tests_mode_on"`
 }
 
 var Config Configuration

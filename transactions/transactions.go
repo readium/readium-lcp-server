@@ -1,35 +1,18 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// Copyright 2017 European Digital Reading Lab. All rights reserved.
+// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package transactions
 
 import (
 	"database/sql"
 	"errors"
+	"log"
+	"strings"
 	"time"
 
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/status"
 )
 
@@ -37,7 +20,7 @@ var NotFound = errors.New("Event not found")
 
 type Transactions interface {
 	Get(id int) (Event, error)
-	Add(e Event, typeEvent int) error
+	Add(e Event, eventType int) error
 	GetByLicenseStatusId(licenseStatusFk int) func() (Event, error)
 	CheckDeviceStatus(licenseStatusFk int, deviceId string) (string, error)
 	ListRegisteredDevices(licenseStatusFk int) func() (Device, error)
@@ -72,7 +55,8 @@ type dbTransactions struct {
 	listregistereddevices *sql.Stmt
 }
 
-//Get returns event if it exists in table 'event'
+// Get returns an event by its id
+//
 func (i dbTransactions) Get(id int) (Event, error) {
 	records, err := i.get.Query(id)
 	var typeInt int
@@ -82,7 +66,7 @@ func (i dbTransactions) Get(id int) (Event, error) {
 		var e Event
 		err = records.Scan(&e.Id, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
 		if err == nil {
-			e.Type = status.Types[typeInt]
+			e.Type = status.EventTypes[typeInt]
 		}
 		return e, err
 	}
@@ -90,9 +74,10 @@ func (i dbTransactions) Get(id int) (Event, error) {
 	return Event{}, NotFound
 }
 
-//Add adds event in database, parameter typeEvent is for field 'type' in table 'event'
-//1 when register device, 2 when return and 3 when renew
-func (i dbTransactions) Add(e Event, typeEvent int) error {
+// Add adds an event in the database,
+// The parameter eventType corresponds to the field 'type' in table 'event'
+//
+func (i dbTransactions) Add(e Event, eventType int) error {
 	add, err := i.db.Prepare("INSERT INTO event (device_name, timestamp, type, device_id, license_status_fk) VALUES (?, ?, ?, ?, ?)")
 
 	if err != nil {
@@ -100,11 +85,12 @@ func (i dbTransactions) Add(e Event, typeEvent int) error {
 	}
 
 	defer add.Close()
-	_, err = add.Exec(e.DeviceName, e.Timestamp, typeEvent, e.DeviceId, e.LicenseStatusFk)
+	_, err = add.Exec(e.DeviceName, e.Timestamp, eventType, e.DeviceId, e.LicenseStatusFk)
 	return err
 }
 
-//GetByLicenseStatusId returns all events by licensestatus id
+// GetByLicenseStatusId returns all events by license status id
+//
 func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event, error) {
 	rows, err := i.getbylicensestatusid.Query(licenseStatusFk)
 	if err != nil {
@@ -113,8 +99,13 @@ func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event,
 	return func() (Event, error) {
 		var e Event
 		var err error
+		var typeInt int
+
 		if rows.Next() {
-			err = rows.Scan(&e.Id, &e.DeviceName, &e.Timestamp, &e.Type, &e.DeviceId, &e.LicenseStatusFk)
+			err = rows.Scan(&e.Id, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
+			if err == nil {
+				e.Type = status.EventTypes[typeInt]
+			}
 		} else {
 			rows.Close()
 			err = NotFound
@@ -123,7 +114,8 @@ func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event,
 	}
 }
 
-//ListRegisteredDevices returns all devices which has status 'regitered' by licensestatus id
+// ListRegisteredDevices returns all devices which have an 'active' status by licensestatus id
+//
 func (i dbTransactions) ListRegisteredDevices(licenseStatusFk int) func() (Device, error) {
 	rows, err := i.listregistereddevices.Query(licenseStatusFk)
 	if err != nil {
@@ -142,8 +134,9 @@ func (i dbTransactions) ListRegisteredDevices(licenseStatusFk int) func() (Devic
 	}
 }
 
-//CheckDeviceStatus gets current status of device
-//if there is no device in table 'event' by deviceId, typeString will be the empty string
+// CheckDeviceStatus gets the current status of a device
+// if the device has not been recorded in the 'event' table, typeString is empty.
+//
 func (i dbTransactions) CheckDeviceStatus(licenseStatusFk int, deviceId string) (string, error) {
 	var typeString string
 	var typeInt int
@@ -152,7 +145,7 @@ func (i dbTransactions) CheckDeviceStatus(licenseStatusFk int, deviceId string) 
 	err := row.Scan(&typeInt)
 
 	if err == nil {
-		typeString = status.Types[typeInt]
+		typeString = status.EventTypes[typeInt]
 	} else {
 		if err == sql.ErrNoRows {
 			return typeString, nil
@@ -162,12 +155,19 @@ func (i dbTransactions) CheckDeviceStatus(licenseStatusFk int, deviceId string) 
 	return typeString, err
 }
 
-//Open defines scripts for queries & create table 'event' if not exist
+// Open defines scripts for queries & create the 'event' table if it does not exist
+//
 func Open(db *sql.DB) (t Transactions, err error) {
-	_, err = db.Exec(tableDef)
-	if err != nil {
-		return
+	// if sqlite, create the event table in the lsd db if it does not exist
+	if strings.HasPrefix(config.Config.LsdServer.Database, "sqlite") {
+		_, err = db.Exec(tableDef)
+		if err != nil {
+			log.Println("Error creating sqlite event table")
+			return
+		}
 	}
+
+	// select an event by its id
 	get, err := db.Prepare("SELECT * FROM event WHERE id = ? LIMIT 1")
 	if err != nil {
 		return
@@ -175,6 +175,7 @@ func Open(db *sql.DB) (t Transactions, err error) {
 
 	getbylicensestatusid, err := db.Prepare("SELECT * FROM event WHERE license_status_fk = ?")
 
+	// the status of a device corresponds to the latest event stored in the db.
 	checkdevicestatus, err := db.Prepare(`SELECT type FROM event WHERE license_status_fk = ?
 	AND device_id = ? ORDER BY timestamp DESC LIMIT 1`)
 
@@ -189,14 +190,13 @@ func Open(db *sql.DB) (t Transactions, err error) {
 	return
 }
 
-const tableDef = `CREATE TABLE IF NOT EXISTS event (
-	id INTEGER PRIMARY KEY,
-	device_name varchar(255) DEFAULT NULL,
-	timestamp datetime NOT NULL,
-	type int NOT NULL,
-	device_id varchar(255) DEFAULT NULL,
-	license_status_fk int NOT NULL,
-  	FOREIGN KEY(license_status_fk) REFERENCES license_status(id)
-);
-CREATE INDEX IF NOT EXISTS license_status_fk_index on event (license_status_fk);
-`
+const tableDef = "CREATE TABLE IF NOT EXISTS `event` (" +
+	"id integer PRIMARY KEY," +
+	"device_name varchar(255) DEFAULT NULL," +
+	"`timestamp` datetime NOT NULL," +
+	"`type` int NOT NULL," +
+	"device_id varchar(255) DEFAULT NULL," +
+	"license_status_fk int NOT NULL," +
+	"FOREIGN KEY(license_status_fk) REFERENCES license_status(id)" +
+	");" +
+	"CREATE INDEX IF NOT EXISTS license_status_fk_index on event (license_status_fk);"
