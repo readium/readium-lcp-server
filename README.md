@@ -5,16 +5,17 @@ Documentation
 ============
 Detailed documentation can be found in the [Wiki pages](../../wiki) of the project.
 
-Requirements
-============
+Prerequisites
+=============
 
 No binaries are currently pre-built, so you need to get a working Golang installation. Please refer to the official documentation for
 installation procedures at https://golang.org/.
 
-In order to keep the content keys for each encrypted EPUB, the server requires an SQL Database. The server currently includes drivers
-for SQLite (the default option, which should be fine for small to medium installations) as well as MySQL and Postgres.
+The servers require the setup of an SQL Database. A SQLite db is used by default (it should be fine for small to medium installations), and if the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. 
 
-If you wish to use the external licenses, where a client gets a simple json file that contains instructions on how to fetch the encrypted EPUB file,
+A MySQL db creation script is provided as well, in the "dbmodel" folder; we expect other drivers (PostgresQL ...) to be provided by the community. Such script should be run be launching the servers.
+
+If you wish to use external licenses, where a client gets a simple json file that contains instructions on how to fetch the encrypted EPUB file,
 a publicly accessible folder must be made available for the server to store the file.
 
 You must obtain a X.509 certificate through EDRLab in order for your licenses to be accepted by Readium LCP compliant Reading Systems.
@@ -128,22 +129,20 @@ The License Server, License Status Server and Frontend test server will search t
 * READIUM_FRONTEND_CONFIG for the frontend test server
 
 The three servers may share the same configuration file (if they are both executed on the same server) or they may have their own configuration file. In the first case, the htpasswd file and database may also be shared.
-In the latter case, the License Server will have a "lcp" section and a "lsd_notify_auth" section;
-the License Status Server will have a "lsd" section and a "lcp_update_auth" section.
 
 Here are details about all configuration properties:
 
 *License Server*
 
-"profile": value of the LCP profile; values are 
+"profile": value of the LCP profile; values are:
 - "basic" (default value, as described in the Readium LCP specification, used for tests only);
 - "1.0" (i.e. the current production profile, managed by EDRLab).
 
-"lcp" section: parameters associated with the License sServer.
+"lcp" section: parameters associated with the License Server.
 - "host": the public server hostname, `hostname` by default
 - "port": the listening port, `8989` by default
 - "public_base_url": the public base URL, combination of the host and port values on http by default 
-- "database": the URI formatted connection string to the database, `sqlite3://file:lcpserve.sqlite?cache=shared&mode=rwc` by default
+- "database": the URI formatted connection string to the database, `sqlite3://file:lcp.sqlite?cache=shared&mode=rwc` by default
 - "auth_file": mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
 
 A source example for creating a password file is http://www.htaccesstools.com/htpasswd-generator/. 
@@ -210,7 +209,13 @@ lsd_notify_auth:
 
 *License Status Server*
 
-"lsd" section: parameters associated with the License Status Server. This section holds the same properties as a the lcp section, plus:
+"lsd" section: parameters associated with the License Status Server. 
+- "host": the public server hostname, `hostname` by default
+- "port": the listening port, `8990` by default
+- "public_base_url": the public base URL, combination of the host and port values on http by default 
+- "database": the URI formatted connection string to the database, `sqlite3://file:lsd.sqlite?cache=shared&mode=rwc` by default
+- "auth_file": mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
+
 - "license_link_url": the url template representing the url from which a license can be fetched from the provider's frontend. This url will be inserted in the 'license' link of every status document.
 
 "license_status" section: parameters related to the interactions implemented by the License Status server, if any:
@@ -255,7 +260,11 @@ lcp_update_auth:
 
 *Frontend Server*
 
-"frontend" section: parameters associated with the Frontend Test Server. This section holds the same host, port and databases properties as a the lcp section, plus:
+"frontend" section: parameters associated with the Frontend Test Server. 
+- "host": the public server hostname, `hostname` by default
+- "port": the listening port, `8991` by default
+- "public_base_url": the public base URL, combination of the host and port values on http by default 
+- "database": the URI formatted connection string to the database, `sqlite3://file:frontend.sqlite?cache=shared&mode=rwc` by default
 - "master_repository": repository where the uploaded EPUB files are stored before encryption. 
 - "encrypted_repository": repository where the encrypted EPUB files are stored after upload.
 - "directory": the directory containing the client app; by default $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage.
