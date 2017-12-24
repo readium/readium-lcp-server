@@ -28,6 +28,9 @@ package index
 import (
 	"database/sql"
 	"errors"
+	"strings"
+
+	"github.com/readium/readium-lcp-server/config"
 )
 
 var NotFound = errors.New("Content not found")
@@ -105,10 +108,14 @@ func (i dbIndex) List() func() (Content, error) {
 }
 
 func Open(db *sql.DB) (i Index, err error) {
-	_, err = db.Exec(tableDef)
-	if err != nil {
-		return
+	// if sqlite, create the content table in the lcp db if it does not exist
+	if strings.HasPrefix(config.Config.LcpServer.Database, "sqlite") {
+		_, err = db.Exec(tableDef)
+		if err != nil {
+			return
+		}
 	}
+
 	get, err := db.Prepare("SELECT id,encryption_key,location,length,sha256 FROM content WHERE id = ? LIMIT 1")
 	if err != nil {
 		return

@@ -29,8 +29,10 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/status"
 )
 
@@ -185,11 +187,15 @@ func (i dbLicenseStatuses) Update(ls LicenseStatus) error {
 
 //Open defines scripts for queries & create table license_status if it does not exist
 func Open(db *sql.DB) (l LicenseStatuses, err error) {
-	_, err = db.Exec(tableDef)
-	if err != nil {
-		log.Println("Error creating license_status table")
-		return
+	// if sqlite, create the license_status table in the lsd db if it does not exist
+	if strings.HasPrefix(config.Config.LsdServer.Database, "sqlite") {
+		_, err = db.Exec(tableDef)
+		if err != nil {
+			log.Println("Error creating license_status table")
+			return
+		}
 	}
+
 	get, err := db.Prepare("SELECT * FROM license_status WHERE id = ? LIMIT 1")
 	if err != nil {
 		return

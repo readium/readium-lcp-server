@@ -29,7 +29,9 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"strings"
 
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/satori/go.uuid"
 )
 
@@ -156,10 +158,13 @@ func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
 
 //Open  returns a WebUser interface (db interaction)
 func Open(db *sql.DB) (i WebUser, err error) {
-	_, err = db.Exec(tableDef)
-	if err != nil {
-		log.Println("Error creating user table")
-		return
+	// if sqlite, create the content table in the frontend db if it does not exist
+	if strings.HasPrefix(config.Config.FrontendServer.Database, "sqlite") {
+		_, err = db.Exec(tableDef)
+		if err != nil {
+			log.Println("Error creating user table")
+			return
+		}
 	}
 	get, err := db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE id = ? LIMIT 1")
 	if err != nil {

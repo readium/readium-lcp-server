@@ -31,6 +31,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/readium/readium-lcp-server/config"
 )
@@ -243,11 +244,14 @@ func (licManager LicenseManager) Delete(id int64) error {
 // Init inits the license manager
 //
 func Init(config config.Configuration, db *sql.DB) (i WebLicense, err error) {
-	_, err = db.Exec(tableDef)
-	if err != nil {
-		return
+	// if sqlite, create the content table in the frontend db if it does not exist
+	if strings.HasPrefix(config.FrontendServer.Database, "sqlite") {
+		_, err = db.Exec(tableDef)
+		if err != nil {
+			log.Println("Error creating license_view table")
+			return
+		}
 	}
-
 	i = LicenseManager{config, db}
 	return
 }

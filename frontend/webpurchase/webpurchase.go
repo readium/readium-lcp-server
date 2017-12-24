@@ -13,6 +13,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/readium/readium-lcp-server/api"
@@ -580,12 +581,14 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 // Init initializes the PurchaseManager
 //
 func Init(config config.Configuration, db *sql.DB) (i WebPurchase, err error) {
-	_, err = db.Exec(tableDef)
-	if err != nil {
-		log.Println("Error creating purchase table")
-		return
+	// if sqlite, create the content table in the frontend db if it does not exist
+	if strings.HasPrefix(config.FrontendServer.Database, "sqlite") {
+		_, err = db.Exec(tableDef)
+		if err != nil {
+			log.Println("Error creating purchase table")
+			return
+		}
 	}
-
 	i = PurchaseManager{config, db}
 	return
 }

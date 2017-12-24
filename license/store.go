@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/readium/readium-lcp-server/api"
@@ -222,12 +223,14 @@ func (s *sqlStore) Get(id string) (License, error) {
 // NewSqlStore
 //
 func NewSqlStore(db *sql.DB) (Store, error) {
-	_, err := db.Exec(tableDef)
-	if err != nil {
-		log.Println("Error creating license table")
-		return nil, err
+	// if sqlite, create the license table if it does not exist
+	if strings.HasPrefix(config.Config.LcpServer.Database, "sqlite") {
+		_, err := db.Exec(tableDef)
+		if err != nil {
+			log.Println("Error creating sqlite license table")
+			return nil, err
+		}
 	}
-
 	return &sqlStore{db}, nil
 }
 

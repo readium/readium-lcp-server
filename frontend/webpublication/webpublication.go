@@ -36,6 +36,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"fmt"
@@ -410,10 +411,13 @@ func (pubManager PublicationManager) List(page int, pageNum int) func() (Publica
 // Creates the publication db table.
 //
 func Init(config config.Configuration, db *sql.DB) (i WebPublication, err error) {
-	_, err = db.Exec(tableDef)
-	if err != nil {
-		log.Println("Error creating publication table")
-		return
+	// if sqlite, create the content table in the frontend db if it does not exist
+	if strings.HasPrefix(config.FrontendServer.Database, "sqlite") {
+		_, err = db.Exec(tableDef)
+		if err != nil {
+			log.Println("Error creating publication table")
+			return
+		}
 	}
 
 	i = PublicationManager{config, db}
