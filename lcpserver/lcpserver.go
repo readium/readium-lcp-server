@@ -61,7 +61,7 @@ func main() {
 	var readonly bool = false
 	var err error
 
-	if config_file = os.Getenv("READIUM_LICENSE_CONFIG"); config_file == "" {
+	if config_file = os.Getenv("READIUM_LCPSERVER_CONFIG"); config_file == "" {
 		config_file = "config.yaml"
 	}
 	config.ReadConfig(config_file)
