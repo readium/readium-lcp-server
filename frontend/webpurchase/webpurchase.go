@@ -599,11 +599,11 @@ const tableDef = "CREATE TABLE IF NOT EXISTS purchase (" +
 	"publication_id integer NOT NULL," +
 	"user_id integer NOT NULL," +
 	"license_uuid varchar(255) NULL," +
-	"`type` varchar(32) NOT NULL," +
+	"type varchar(32) NOT NULL," +
 	"transaction_date datetime," +
 	"start_date datetime," +
 	"end_date datetime," +
-	"`status` varchar(255) NOT NULL," +
+	"status varchar(255) NOT NULL," +
 	"FOREIGN KEY (publication_id) REFERENCES publication(id)," +
 	"FOREIGN KEY (user_id) REFERENCES user(id)" +
 	");" +
