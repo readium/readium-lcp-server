@@ -198,7 +198,8 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	err = DecodeJSONLicense(r, &licIn)
 	// error parsing the input body
 	if err != nil {
-		// if there was no partial license given as payload, return a partial license
+		// if there was no partial license given as payload, return a partial license.
+		// The use case is a frontend that needs to get license up to date rights.
 		if err.Error() == "EOF" {
 			log.Println("No payload, get a partial license")
 
@@ -463,39 +464,56 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the license id from the request URL
 	licenseID := vars["license_id"]
 
+	log.Println("Update License with id", licenseID)
+
 	var licIn license.License
 	err := DecodeJSONLicense(r, &licIn)
 	if err != nil { // no or incorrect (json) partial license found in the body
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-
-	// log
-	log.Println("License updated: ", licenseID)
+	// initialize the license from the info stored in the db.
+	var licOut license.License
+	licOut, e := s.Licenses().Get(licenseID)
+	// process license not found etc.
+	if e == license.NotFound {
+		problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusNotFound)
+		return
+	} else if e != nil {
+		problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusBadRequest)
+		return
+	}
+	// update licOut using information found in licIn
 	if licIn.User.Id != "" {
 		log.Println("new user id: ", licIn.User.Id)
+		licOut.User.Id = licIn.User.Id
 	}
 	if licIn.Provider != "" {
 		log.Println("new provider: ", licIn.Provider)
+		licOut.Provider = licIn.Provider
 	}
 	if licIn.ContentId != "" {
 		log.Println("new content id: ", licIn.ContentId)
+		licOut.ContentId = licIn.ContentId
 	}
-	if *licIn.Rights.Print > 0 {
-		log.Println("new right, print: ", licIn.Rights.Print)
+	if licIn.Rights.Print != nil {
+		log.Println("new right, print: ", *licIn.Rights.Print)
+		licOut.Rights.Print = licIn.Rights.Print
 	}
-	if *licIn.Rights.Copy > 0 {
-		log.Println("new right, copy: ", licIn.Rights.Copy)
+	if licIn.Rights.Copy != nil {
+		log.Println("new right, copy: ", *licIn.Rights.Copy)
+		licOut.Rights.Copy = licIn.Rights.Copy
 	}
 	if licIn.Rights.Start != nil {
-		log.Println("new right, start: ", licIn.Rights.Start)
+		log.Println("new right, start: ", *licIn.Rights.Start)
+		licOut.Rights.Start = licIn.Rights.Start
 	}
 	if licIn.Rights.End != nil {
-		log.Println("new right, end: ", licIn.Rights.End)
+		log.Println("new right, end: ", *licIn.Rights.End)
+		licOut.Rights.End = licIn.Rights.End
 	}
-
 	// update the license in the database
-	err = s.Licenses().Update(licIn)
+	err = s.Licenses().Update(licOut)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -647,7 +665,7 @@ func DecodeJSONLicense(r *http.Request, lic *license.License) error {
 
 	err := dec.Decode(&lic)
 
-	if err != nil {
+	if err != nil && err.Error() != "EOF" {
 		log.Print("Decode license: invalid json structure")
 	}
 	return err
