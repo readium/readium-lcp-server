@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package license
 
@@ -40,14 +40,16 @@ func TestStoreInit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	st, err := NewSqlStore(db)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	it := st.List()
-	if _, err := it(); err != NotFound {
-		t.Errorf("Didn't expect the iterator to have a value")
+	// FIXME: complete this test
+	fct := st.ListAll(0, 0)
+	if fct == nil {
+		t.Errorf("List error")
 	}
 
 }
@@ -62,8 +64,8 @@ func TestStoreAdd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	l := New()
-	Prepare(&l)
+	l := License{}
+	Initialize(&l)
 	err = st.Add(l)
 	if err != nil {
 		t.Fatal(err)

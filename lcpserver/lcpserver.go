@@ -143,7 +143,8 @@ func main() {
 		panic(err)
 	}
 
-	license.CreateLinks()
+	// move config
+	license.CreateDefaultLinks()
 	var store storage.Store
 
 	if mode := config.Config.Storage.Mode; mode == "s3" {
