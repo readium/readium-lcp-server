@@ -17,9 +17,6 @@ CREATE TABLE `license` (
     `rights_copy` int(11) DEFAULT NULL,
     `rights_start` datetime DEFAULT NULL,
     `rights_end` datetime DEFAULT NULL,
-    `user_key_hint` text NOT NULL,
-    `user_key_hash` varbinary(64) NOT NULL,
-    `user_key_algorithm` varchar(255) NOT NULL,
     `content_fk` varchar(255) NOT NULL,
     `lsd_status` int(11) default 0,
     FOREIGN KEY(content_fk) REFERENCES content(id)
