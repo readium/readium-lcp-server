@@ -85,11 +85,11 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 
 	currentDateTime := time.Now().UTC().Truncate(time.Second)
 
-	// if the potential rights end is set
-	if licenseStatus.PotentialRights != nil && licenseStatus.PotentialRights.End != nil && !(*licenseStatus.PotentialRights.End).IsZero() {
-		diff := currentDateTime.Sub(*(licenseStatus.PotentialRights.End))
+	// if a rights end date is set, check if the license has expired
+	if licenseStatus.CurrentEndLicense != nil {
+		diff := currentDateTime.Sub(*(licenseStatus.CurrentEndLicense))
 
-		// if the potential rights end has passed for a ready or active license
+		// if the rights end date has passed for a ready or active license
 		if (diff > 0) && ((licenseStatus.Status == status.STATUS_ACTIVE) || (licenseStatus.Status == status.STATUS_READY)) {
 			// the license has expired
 			licenseStatus.Status = status.STATUS_EXPIRED
@@ -417,6 +417,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	currentEnd = *licenseStatus.CurrentEndLicense
+	log.Print("Lending renewal. Current end date ", currentEnd.UTC().Format(time.RFC3339))
 
 	var suggestedEnd time.Time
 	// check if the 'end' request parameter is empty
@@ -434,11 +435,9 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		var suggestedDuration time.Duration
 		suggestedDuration = 24 * time.Hour * time.Duration(renewDays) // nanoseconds
 
-		log.Print("Renew possible for " + strconv.Itoa(renewDays) + " days")
-
-		// compute the suggested end date from the current end date		if licenseStatus.CurrentEndLicense != nil && !(*licenseStatus.CurrentEndLicense).IsZero() {
+		// compute the suggested end date from the current end date
 		suggestedEnd = currentEnd.Add(time.Duration(suggestedDuration))
-		log.Print("Suggested extension until " + suggestedEnd.UTC().Format(time.RFC3339))
+		log.Print("Default extension request until ", suggestedEnd.UTC().Format(time.RFC3339))
 
 		// if the 'end' request parameter is set
 	} else {
@@ -449,6 +448,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 			logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusBadRequest), err.Error())
 			return
 		}
+		log.Print("Explicit extension request until ", suggestedEnd.UTC().Format(time.RFC3339))
 	}
 
 	// check the suggested end date vs the upper end date (which is already set in our implementation)
