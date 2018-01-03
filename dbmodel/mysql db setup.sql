@@ -89,3 +89,4 @@ CREATE TABLE `license_view` (
     `status` varchar(255) NOT NULL,
     `message` varchar(255) NOT NULL
 );
+
