@@ -5,8 +5,6 @@
 
 package license
 
-import "crypto/sha256"
-
 // GenerateUserKey function prepares the user key
 func GenerateUserKey(key UserKey) []byte {
 	var userKey []byte
