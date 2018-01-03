@@ -80,7 +80,7 @@ CREATE TABLE `purchase` (
     FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 );
 
-CREATE INDEX `idx_purchase` ON `purchase` (`license_uuid`)
+CREATE INDEX `idx_purchase` ON `purchase` (`license_uuid`);
 
 CREATE TABLE `license_view` (
     `id` int(11) NOT NULL PRIMARY KEY,
