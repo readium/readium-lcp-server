@@ -32,7 +32,7 @@ const (
 	EVENT_RENEWED_INT    = 6
 )
 
-// StatusValues defines event types, used in events logged in license status documents
+// StatusValues defines status values logged in license status documents
 var StatusValues = map[int]string{
 	STATUS_READY_INT:     STATUS_READY,
 	STATUS_ACTIVE_INT:    STATUS_ACTIVE,
@@ -45,12 +45,12 @@ var StatusValues = map[int]string{
 // EventTypes defines additional event types.
 // It reuses all status values and adds one for renewed licenses.
 var EventTypes = map[int]string{
-	STATUS_ACTIVE_INT:    STATUS_ACTIVE,
-	STATUS_REVOKED_INT:   STATUS_REVOKED,
-	STATUS_RETURNED_INT:  STATUS_RETURNED,
-	STATUS_CANCELLED_INT: STATUS_CANCELLED,
-	STATUS_EXPIRED_INT:   STATUS_EXPIRED,
-	EVENT_RENEWED_INT:    EVENT_RENEWED,
+	STATUS_ACTIVE_INT:    "register",
+	STATUS_REVOKED_INT:   "revoke",
+	STATUS_RETURNED_INT:  "return",
+	STATUS_CANCELLED_INT: "cancel",
+	STATUS_EXPIRED_INT:   "expire",
+	EVENT_RENEWED_INT:    "renew",
 }
 
 // GetStatus translates status number to status string
