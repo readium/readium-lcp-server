@@ -260,5 +260,5 @@ const tableDef = "CREATE TABLE IF NOT EXISTS license_view (" +
 	"id integer NOT NULL PRIMARY KEY," +
 	"uuid varchar(255) NOT NULL," +
 	"device_count integer NOT NULL," +
-	"`status` varchar(255) NOT NULL," +
+	"status varchar(255) NOT NULL," +
 	"message varchar(255) NOT NULL)"

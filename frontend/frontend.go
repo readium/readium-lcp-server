@@ -60,7 +60,7 @@ func main() {
 	var dbURI, static, configFile string
 	var err error
 
-	if configFile = os.Getenv("READIUM_WEBTEST_CONFIG"); configFile == "" {
+	if configFile = os.Getenv("READIUM_FRONTEND_CONFIG"); configFile == "" {
 		configFile = "config.yaml"
 	}
 	config.ReadConfig(configFile)

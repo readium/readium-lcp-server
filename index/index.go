@@ -132,5 +132,5 @@ const tableDef = "CREATE TABLE IF NOT EXISTS content (" +
 	"id varchar(255) PRIMARY KEY," +
 	"encryption_key varchar(64) NOT NULL," +
 	"location text NOT NULL," +
-	"`length` bigint," +
+	"length bigint," +
 	"sha256 varchar(64))"

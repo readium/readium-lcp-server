@@ -215,7 +215,7 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 
 const tableDef = "CREATE TABLE IF NOT EXISTS license_status (" +
 	"id INTEGER PRIMARY KEY," +
-	"`status` int(11) NOT NULL," +
+	"status int(11) NOT NULL," +
 	"license_updated datetime NOT NULL," +
 	"status_updated datetime NOT NULL," +
 	"device_count int(11) DEFAULT NULL," +

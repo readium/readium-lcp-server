@@ -32,7 +32,9 @@ import (
 )
 
 func TestLicense(t *testing.T) {
-	l := New()
+	l := License{}
+	contentID := "1234-1234-1234-1234"
+	Initialize(contentID, &l)
 	if l.Id == "" {
 		t.Error("Should have an id")
 	}
