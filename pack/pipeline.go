@@ -1,27 +1,7 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// Copyright 2017 European Digital Reading Lab. All rights reserved.
+// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package pack
 
@@ -92,10 +72,10 @@ func (s *ManualSource) Post(t *Task) Result {
 }
 
 type Packager struct {
-	Incoming  chan *Task
-	done      chan struct{}
-	store     storage.Store
-	idx       index.Index
+	Incoming chan *Task
+	done     chan struct{}
+	store    storage.Store
+	idx      index.Index
 }
 
 func (p Packager) work() {
@@ -117,7 +97,11 @@ func (p Packager) genKey(r *Result) {
 		return
 	}
 
-	r.Id = uuid.NewV4().String()
+	uid, err := uuid.NewV4()
+	if err != nil {
+		return
+	}
+	r.Id = uid.String()
 }
 
 func (p Packager) readZip(r *Result, in io.ReaderAt, size int64) *zip.Reader {
@@ -192,10 +176,10 @@ func (p Packager) addToIndex(r *Result, key []byte, name string, contentSize int
 
 func NewPackager(store storage.Store, idx index.Index, concurrency int) *Packager {
 	packager := Packager{
-		Incoming:  make(chan *Task),
-		done:      make(chan struct{}),
-		store:     store,
-		idx:       idx,
+		Incoming: make(chan *Task),
+		done:     make(chan struct{}),
+		store:    store,
+		idx:      idx,
 	}
 
 	for i := 0; i < concurrency; i++ {

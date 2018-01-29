@@ -96,7 +96,11 @@ func (user dbUser) Add(newUser User) error {
 	defer add.Close()
 
 	// Create uuid
-	newUser.UUID = uuid.NewV4().String()
+	uid, err_u := uuid.NewV4()
+	if err_u != nil {
+		return err_u
+	}
+	newUser.UUID = uid.String()
 
 	_, err = add.Exec(newUser.UUID, newUser.Name, newUser.Email, newUser.Password, newUser.Hint)
 	return err
