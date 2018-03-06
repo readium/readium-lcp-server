@@ -143,7 +143,12 @@ func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
 //
 func EncryptEPUB(inputPath string, pub Publication, pubManager PublicationManager) error {
 	// generate a new uuid; this will be the content id in the lcp server
-	contentUUID := uuid.NewV4().String()
+	uid, err_u := uuid.NewV4()
+	if err_u != nil {
+		return err_u
+	}
+	contentUUID := uid.String()
+
 	// create a temp file in the frontend "encrypted repository"
 	outputFilename := contentUUID + ".tmp"
 	outputPath := path.Join(pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
