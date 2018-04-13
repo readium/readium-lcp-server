@@ -156,7 +156,7 @@ func (licManager LicenseManager) GetFiltered(filter string) ([]License, error) {
 // Add adds a new license
 //
 func (licManager LicenseManager) Add(licenses License) error {
-	add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?)")
+	add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
