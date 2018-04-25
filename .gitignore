@@ -4,7 +4,7 @@ lcpencrypt/lcpencrypt
 files/
 *.sqlite*
 config.yaml
-lcpserver/manage/config.js
+/web/frontend/config.js
 .vscode/launch.json
 debug
 *.a
@@ -12,10 +12,10 @@ debug
 *.exe
 *.yaml
 **/manage/config.js
-frontend/manage/node_modules/*
-frontend/manage/dist/*
-frontend/manage/js/*
-frontend/manage/js/components/*
+/web/frontend/node_modules/*
+/web/frontend/dist/*
+/web/frontend/js/*
+/web/frontend/js/components/*
 *.map
 *.htpasswd
 lcpserver/test.sqllite
