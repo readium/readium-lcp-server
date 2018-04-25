@@ -61,9 +61,9 @@ Private functionalities (authentication needed):
 * Revoke/cancel a license
 
 
-## [frontend]
+## [lutserver]
 
-A Frontend Test server, which offers a GUI and API for having a complete experience.
+A Frontend Util server for tests, which offers a GUI and API for having a complete experience.
 
 Public functionalities (accessible from the web):
 * Fetch a license from its id
@@ -108,7 +108,7 @@ go get github.com/readium/readium-lcp-server/lcpserver
 
 To install properly the Frontend Test Server, you must also install several npm packages.
 
-Move to $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
+Move to $GOPATH/src/github.com/readium/readium-lcp-server/lutserver/manage
 To install the packages and test your install, type
 ```sh
 npm install
@@ -126,7 +126,7 @@ The License Server, License Status Server and Frontend test server will search t
 
 * READIUM_LCPSERVER_CONFIG for the LCP server
 * READIUM_LSDSERVER_CONFIG for the LSD server
-* READIUM_FRONTEND_CONFIG for the frontend test server
+* READIUM_FRONTEND_CONFIG for the lutserver test server
 
 The three servers may share the same configuration file (if they are both executed on the same server) or they may have their own configuration file. In the first case, the htpasswd file and database may also be shared.
 
@@ -142,7 +142,7 @@ Here are details about all configuration properties:
 - "host": the public server hostname, `hostname` by default
 - "port": the listening port, `8989` by default
 - "public_base_url": the public base URL, combination of the host and port values on http by default 
-- "database": the URI formatted connection string to the database, `sqlite3://file:lcp.sqlite?cache=shared&mode=rwc` by default
+- "database": the URI formatted connection string to the database, `sqlite3://file:lcp.sqlite?cache=shared&mode=rwc` by default. The URI starts with the database dialect (which can be sqlite3, mysql, postgres, mssql)
 - "auth_file": mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
 
 A source example for creating a password file is http://www.htaccesstools.com/htpasswd-generator/. 
@@ -207,13 +207,15 @@ lsd_notify_auth:
 
 ```
 
+databaseDialect can be : sqlite3, mysql, postgres, mssql
+
 *License Status Server*
 
 "lsd" section: parameters associated with the License Status Server. 
 - "host": the public server hostname, `hostname` by default
 - "port": the listening port, `8990` by default
 - "public_base_url": the public base URL, combination of the host and port values on http by default 
-- "database": the URI formatted connection string to the database, `sqlite3://file:lsd.sqlite?cache=shared&mode=rwc` by default
+- "database": the URI formatted connection string to the database, `sqlite3://file:lsd.sqlite?cache=shared&mode=rwc` by default. The URI starts with the database dialect (which can be sqlite3, mysql, postgres, mssql)
 - "auth_file": mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
 
 - "license_link_url": the url template representing the url from which a license can be fetched from the provider's frontend. This url will be inserted in the 'license' link of every status document.
@@ -240,7 +242,7 @@ lsd:
     port: 8990
     public_base_url: "http://127.0.0.1:8990"
     database: "sqlite3://file:/readiumlcp/lcpdb/lsd.sqlite?cache=shared&mode=rwc"
-    auth_file: "/Users/laurentlemeur/Work/lcpconfig/htpasswd"
+	auth_file: "/Users/laurentlemeur/Work/lcpconfig/htpasswd"
     license_link_url: "http://127.0.0.1:8991/licenses/{license_id}"
 license_status:
     register: true
@@ -264,13 +266,13 @@ lcp_update_auth:
 - "host": the public server hostname, `hostname` by default
 - "port": the listening port, `8991` by default
 - "public_base_url": the public base URL, combination of the host and port values on http by default 
-- "database": the URI formatted connection string to the database, `sqlite3://file:frontend.sqlite?cache=shared&mode=rwc` by default
+- "database": the URI formatted connection string to the database, `sqlite3://file:frontend.sqlite?cache=shared&mode=rwc` by default. The URI starts with the database dialect (which can be sqlite3, mysql, postgres, mssql)
 - "master_repository": repository where the uploaded EPUB files are stored before encryption. 
 - "encrypted_repository": repository where the encrypted EPUB files are stored after upload.
-- "directory": the directory containing the client app; by default $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage.
-- "provider_uri": provider uri, which will be inserted in all licenses produced via this test frontend.
-- "right_print": allowed number of printed pages, which will be inserted in all licenses produced via this test frontend.
-- "right_copy": allowed number of copied characters, which will be inserted in all licenses produced via this test frontend.
+- "directory": the directory containing the client app; by default $GOPATH/src/github.com/readium/readium-lcp-server/lutserver/manage.
+- "provider_uri": provider uri, which will be inserted in all licenses produced via this test lutserver.
+- "right_print": allowed number of printed pages, which will be inserted in all licenses produced via this test lutserver.
+- "right_copy": allowed number of copied characters, which will be inserted in all licenses produced via this test lutserver.
 
 The config file of a Frontend Test Server must define a "lcp" "public_base_url", "lsd" "public_base_url", "lcp_update_auth" "username" and "password", and "lsd_notify_auth" "username" and "password".
 
@@ -319,7 +321,7 @@ each server must be launched in a different context (i.e. a different shell for 
 Each server is executed with no parameter:
 - lcpserver
 - lsdserver
-- frontend
+- lutserver
 
 
 Contributing

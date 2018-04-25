@@ -1,5 +1,5 @@
 
-CREATE TABLE `content` (
+CREATE TABLE `lcp_contents` (
     `id` varchar(255) PRIMARY KEY NOT NULL,
     `encryption_key` varbinary(64) NOT NULL,
     `location` text NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE `content` (
     `sha256` varchar(64)
 );
 
-CREATE TABLE `license` (
+CREATE TABLE `lcp_licenses` (
     `id` varchar(255) PRIMARY KEY NOT NULL,
     `user_id` varchar(255) NOT NULL,
     `provider` varchar(255) NOT NULL,
@@ -22,7 +22,9 @@ CREATE TABLE `license` (
     FOREIGN KEY(content_fk) REFERENCES content(id)
 );
 
-CREATE TABLE `license_status` (
+ALTER TABLE `lcp_licenses` ADD CONSTRAINT `lcp_licenses_content_fk_lcp_contents_id_foreign` FOREIGN KEY (`content_fk`) REFERENCES `lcp_contents` (`id`);
+
+CREATE TABLE `lsd_license_statuses` (
     `id` int(11) PRIMARY KEY,
     `status` int(11) NOT NULL,
     `license_updated` datetime NOT NULL,
@@ -33,9 +35,9 @@ CREATE TABLE `license_status` (
     `rights_end` datetime DEFAULT NULL 
 );
 
-CREATE INDEX `license_ref_index` ON `license_status` (`license_ref`);
+CREATE INDEX `license_ref_index` ON `lsd_license_statuses` (`license_ref`);
 
-CREATE TABLE `event` (
+CREATE TABLE `lsd_events` (
     `id` int(11) PRIMARY KEY,
     `device_name` varchar(255) DEFAULT NULL,
     `timestamp` datetime NOT NULL,
@@ -45,18 +47,22 @@ CREATE TABLE `event` (
     FOREIGN KEY(`license_status_fk`) REFERENCES `license_status` (`id`)
 );
 
-CREATE INDEX `license_status_fk_index` on `event` (`license_status_fk`);
+CREATE INDEX `license_status_fk_index` on `lsd_events` (`license_status_fk`);
 
-CREATE TABLE `publication` (
+ALTER TABLE `lsd_events`
+ADD CONSTRAINT `lsd_events_license_status_fk_lsd_license_statuses_id_foreign` FOREIGN KEY (`license_status_fk`) REFERENCES `lsd_license_statuses` (`id`);
+
+
+CREATE TABLE `lut_publications` (
     `id` int(11) NOT NULL PRIMARY KEY,
     `uuid` varchar(255) NOT NULL,	/* == content id */
     `title` varchar(255) NOT NULL,
     `status` varchar(255) NOT NULL
 );
 
-CREATE INDEX uuid_index ON publication (`uuid`);
+CREATE INDEX uuid_index ON lut_publications (`uuid`);
 
-CREATE TABLE `user` (
+CREATE TABLE `lut_users` (
     `id` int(11) NOT NULL PRIMARY KEY,
     `uuid` varchar(255) NOT NULL,
     `name` varchar(64) NOT NULL,
@@ -65,28 +71,33 @@ CREATE TABLE `user` (
     `hint` varchar(64) NOT NULL
 );
 
-CREATE TABLE `purchase` (
-    `id` int(11) PRIMARY KEY NOT NULL,
-    `uuid` varchar(255) NOT NULL,
-    `publication_id` int(11) NOT NULL,
-    `user_id` int(11) NOT NULL,
-    `license_uuid` varchar(255) NULL,
-    `type` varchar(32) NOT NULL,
-    `transaction_date` datetime,
-    `start_date` datetime,
-    `end_date` datetime,
-    `status` varchar(255) NOT NULL,
+CREATE TABLE `lut_purchase` (
+     `id` bigint(20) NOT NULL,
+     `publication_id` bigint(20) DEFAULT NULL,
+     `user_id` bigint(20) DEFAULT NULL,
+     `uuid` varchar(255) NOT NULL,
+     `type` varchar(255) DEFAULT NULL,
+     `status` varchar(255) DEFAULT NULL,
+     `transaction_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     `license_uuid` varchar(255) DEFAULT NULL,
+     `start_date` timestamp NULL DEFAULT NULL,
+     `end_date` timestamp NULL DEFAULT NULL,
+     `max_end_date` timestamp NULL DEFAULT NULL
     FOREIGN KEY (`publication_id`) REFERENCES `publication` (`id`),
     FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 );
 
-CREATE INDEX `idx_purchase` ON `purchase` (`license_uuid`);
+CREATE INDEX `idx_purchase` ON `lut_purchase` (`license_uuid`);
 
-CREATE TABLE `license_view` (
-    `id` int(11) NOT NULL PRIMARY KEY,
-    `uuid` varchar(255) NOT NULL,
-    `device_count` int(11) NOT NULL,
-    `status` varchar(255) NOT NULL,
-    `message` varchar(255) NOT NULL
+CREATE TABLE `lut_license_views` (
+     `id` varchar(255) NOT NULL DEFAULT '',
+     `publication_title` varchar(255) DEFAULT NULL,
+     `user_name` varchar(255) DEFAULT NULL,
+     `type` varchar(255) DEFAULT NULL,
+     `uuid` varchar(255) DEFAULT NULL,
+     `device_count` bigint(20) DEFAULT NULL,
+     `status` varchar(255) DEFAULT NULL,
+     `purchase_id` int(11) DEFAULT NULL,
+     `message` varchar(255) DEFAULT NULL
 );
 
