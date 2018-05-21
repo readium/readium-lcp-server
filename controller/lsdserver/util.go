@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package apilsd
+package lsdserver
 
 import (
 	"bytes"
@@ -45,7 +45,7 @@ import (
 
 // getEvents gets the events from database for the license status
 //
-func getEvents(ls *store.LicenseStatus, s IServer) error {
+func getEvents(ls *store.LicenseStatus, s api.IServer) error {
 	var err error
 	ls.Events, err = s.Store().Transaction().GetByLicenseStatusId(ls.Id)
 	if err != gorm.ErrRecordNotFound {
@@ -136,7 +136,7 @@ func makeEvent(status store.Status, deviceName string, deviceID string, licenseS
 // notifyLCPServer updates a license by calling the License Server
 // called from return, renew and cancel/revoke actions
 //
-func notifyLCPServer(timeEnd time.Time, licenseID string, s IServer) (int, error) {
+func notifyLCPServer(timeEnd time.Time, licenseID string, s api.IServer) (int, error) {
 	lcpConfig, updateAuth := s.Config().LcpServer, s.Config().LcpUpdateAuth
 	// get the lcp server url
 	lcpBaseURL := lcpConfig.PublicBaseUrl
@@ -201,7 +201,7 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, s IServer) (int, error
 
 // fillLicenseStatus fills the localized 'message' field, the 'links' and 'event' objects in the license status
 //
-func fillLicenseStatus(ls *store.LicenseStatus, r *http.Request, s IServer) error {
+func fillLicenseStatus(ls *store.LicenseStatus, r *http.Request, s api.IServer) error {
 	// add the localized message
 	acceptLanguages := r.Header.Get("Accept-Language")
 	license := ""

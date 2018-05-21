@@ -28,20 +28,18 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"os/signal"
-	"runtime"
-	"syscall"
-
 	"github.com/abbot/go-http-auth"
+	"os"
 
 	"github.com/readium/readium-lcp-server/api"
+	ctrl "github.com/readium/readium-lcp-server/controller/lsdserver"
 	"github.com/readium/readium-lcp-server/localization"
 	"github.com/readium/readium-lcp-server/logger"
 	"github.com/readium/readium-lcp-server/logging"
-	"github.com/readium/readium-lcp-server/lsdserver"
 	"github.com/readium/readium-lcp-server/store"
+	"net/http"
+	"strconv"
+	"time"
 )
 
 func main() {
@@ -100,10 +98,10 @@ func main() {
 		panic(err)
 	}
 
-	HandleSignals()
+	api.HandleSignals()
 
 	authenticator := auth.NewBasicAuthenticator("Basic Realm", htpasswd)
-	s := lsdserver.New(cfg, logz, stor, authenticator)
+	s := New(cfg, logz, stor, authenticator)
 
 	logz.Printf("Using database : %q", dbURI)
 	logz.Printf("Public base URL : %q", cfg.LsdServer.PublicBaseUrl)
@@ -113,23 +111,57 @@ func main() {
 	}
 }
 
-func HandleSignals() {
-	sigChan := make(chan os.Signal)
-	go func() {
-		stacktrace := make([]byte, 1<<20)
-		for sig := range sigChan {
-			switch sig {
-			case syscall.SIGQUIT:
-				length := runtime.Stack(stacktrace, true)
-				fmt.Println(string(stacktrace[:length]))
-			case syscall.SIGINT:
-				fallthrough
-			case syscall.SIGTERM:
-				fmt.Println("Shutting down...")
-				os.Exit(0)
-			}
-		}
-	}()
+func New(config api.Configuration,
+	log logger.StdLogger,
+	store store.Store,
+	basicAuth *auth.BasicAuth) *api.Server {
 
-	signal.Notify(sigChan, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
+	complianceMode := config.ComplianceMode
+	parsedPort := strconv.Itoa(config.LsdServer.Port)
+	readonly := config.LsdServer.ReadOnly
+	// the server will behave strangely, to test the resilience of LCP compliant apps
+	goofyMode := config.GoofyMode
+
+	sr := api.CreateServerRouter("")
+
+	s := &api.Server{
+		Server: http.Server{
+			Handler:        sr.N,
+			Addr:           ":" + parsedPort,
+			WriteTimeout:   15 * time.Second,
+			ReadTimeout:    15 * time.Second,
+			MaxHeaderBytes: 1 << 20,
+		},
+		Log:        log,
+		Cfg:        config,
+		Readonly:   readonly,
+		ORM:        store,
+		GoophyMode: goofyMode,
+	}
+
+	s.Log.Printf("License status server running on port %d [readonly = %t]", config.LsdServer.Port, readonly)
+
+	licenseRoutesPathPrefix := "/licenses"
+	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
+
+	s.HandlePrivateFunc(sr.R, licenseRoutesPathPrefix, ctrl.FilterLicenseStatuses, basicAuth).Methods("GET")
+
+	s.HandleFunc(licenseRoutes, "/{key}/status", ctrl.GetLicenseStatusDocument).Methods("GET")
+
+	if complianceMode {
+		s.HandleFunc(sr.R, "/compliancetest", ctrl.AddLogToFile).Methods("POST")
+	}
+
+	s.HandlePrivateFunc(licenseRoutes, "/{key}/registered", ctrl.ListRegisteredDevices, basicAuth).Methods("GET")
+	if !readonly {
+		s.HandleFunc(licenseRoutes, "/{key}/register", ctrl.RegisterDevice).Methods("POST")
+		s.HandleFunc(licenseRoutes, "/{key}/return", ctrl.LendingReturn).Methods("PUT")
+		s.HandleFunc(licenseRoutes, "/{key}/renew", ctrl.LendingRenewal).Methods("PUT")
+		s.HandlePrivateFunc(licenseRoutes, "/{key}/status", ctrl.LendingCancellation, basicAuth).Methods("PATCH")
+
+		s.HandlePrivateFunc(sr.R, "/licenses", ctrl.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
+		s.HandlePrivateFunc(licenseRoutes, "/", ctrl.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
+	}
+
+	return s
 }

@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package apilsd
+package lsdserver
 
 import (
 	"encoding/json"
@@ -44,7 +44,7 @@ import (
 // CreateLicenseStatusDocument creates a license status and adds it to database
 // It is triggered by a notification from the license server
 //
-func CreateLicenseStatusDocument(resp http.ResponseWriter, req *http.Request, server IServer) {
+func CreateLicenseStatusDocument(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	payload, err := api.ReadLicensePayload(req)
 
 	if err != nil {
@@ -68,7 +68,7 @@ func CreateLicenseStatusDocument(resp http.ResponseWriter, req *http.Request, se
 // GetLicenseStatusDocument gets a license status from the db by license id
 // checks potential_rights_end and fill it
 //
-func GetLicenseStatusDocument(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetLicenseStatusDocument(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 
 	licenseID := vars["key"]
@@ -135,7 +135,7 @@ func GetLicenseStatusDocument(resp http.ResponseWriter, req *http.Request, serve
 // using the device id &  name as  parameters;
 // returns the updated license status
 //
-func RegisterDevice(resp http.ResponseWriter, req *http.Request, server IServer) {
+func RegisterDevice(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 
 	resp.Header().Set(api.HdrContentType, api.ContentTypeLsdJson)
 	vars := mux.Vars(req)
@@ -259,7 +259,7 @@ func RegisterDevice(resp http.ResponseWriter, req *http.Request, server IServer)
 // LendingReturn checks that the calling device is activated, then modifies
 // the end date associated with the given license & returns updated and filled license status
 //
-func LendingReturn(resp http.ResponseWriter, req *http.Request, server IServer) {
+func LendingReturn(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	resp.Header().Set(api.HdrContentType, api.ContentTypeLsdJson)
 	vars := mux.Vars(req)
 	licenseID := vars["key"]
@@ -371,7 +371,7 @@ func LendingReturn(resp http.ResponseWriter, req *http.Request, server IServer) 
 // the current end date plus a configuration parameter.
 // Note: as per the spec, a non-registered device can renew a loan.
 //
-func LendingRenewal(resp http.ResponseWriter, req *http.Request, server IServer) {
+func LendingRenewal(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	resp.Header().Set(api.HdrContentType, api.ContentTypeLsdJson)
 	vars := mux.Vars(req)
 
@@ -531,7 +531,7 @@ func LendingRenewal(resp http.ResponseWriter, req *http.Request, server IServer)
 // FilterLicenseStatuses returns a sequence of license statuses, in their id order
 // function for detecting licenses which used a lot of devices
 //
-func FilterLicenseStatuses(resp http.ResponseWriter, req *http.Request, server IServer) {
+func FilterLicenseStatuses(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	resp.Header().Set(api.HdrContentType, api.ContentTypeJson)
 
 	// Get request parameters. If not defined, set default values
@@ -614,7 +614,7 @@ func FilterLicenseStatuses(resp http.ResponseWriter, req *http.Request, server I
 
 // ListRegisteredDevices returns data about the use of a given license
 //
-func ListRegisteredDevices(resp http.ResponseWriter, req *http.Request, server IServer) {
+func ListRegisteredDevices(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	resp.Header().Set(api.HdrContentType, api.ContentTypeJson)
 
 	vars := mux.Vars(req)
@@ -652,7 +652,7 @@ func ListRegisteredDevices(resp http.ResponseWriter, req *http.Request, server I
 //	partial license status: the new status and a message indicating why the status is being changed
 //	The new status can be either STATUS_CANCELLED or STATUS_REVOKED
 //
-func LendingCancellation(resp http.ResponseWriter, req *http.Request, server IServer) {
+func LendingCancellation(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	// get the license id
 	vars := mux.Vars(req)
 	licenseID := vars["key"]

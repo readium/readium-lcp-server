@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package ctrl
+package lcpserver
 
 import (
 	"encoding/json"
@@ -45,7 +45,7 @@ import (
 // The input partial license is optional: if absent, a partial license
 // is returned to the caller, with the info stored in the db.
 //
-func GetLicense(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 
 	vars := mux.Vars(req)
 	// get the license id from the request URL
@@ -120,7 +120,7 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server IServer) {
 // for a given content identified by its id
 // plus a partial license given as input
 //
-func GenerateLicense(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GenerateLicense(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	// get the content id from the request URL
 	contentID := vars["content_id"]
@@ -191,7 +191,7 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server IServer
 // for a given license identified by its id
 // plus a partial license given as input
 //
-func GetLicensedPublication(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetLicensedPublication(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	licenseID := vars["license_id"]
 
@@ -260,7 +260,7 @@ func GetLicensedPublication(resp http.ResponseWriter, req *http.Request, server 
 // for a given content identified by its id
 // plus a partial license given as input
 //
-func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	contentID := vars["content_id"]
 
@@ -341,7 +341,7 @@ func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, se
 // Usually called from the License Status Server after a renew, return or cancel/revoke action
 // -> updates the end date.
 //
-func UpdateLicense(resp http.ResponseWriter, req *http.Request, server IServer) {
+func UpdateLicense(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	// get the license id from the request URL
 	licenseID := vars["license_id"]
@@ -405,7 +405,7 @@ func UpdateLicense(resp http.ResponseWriter, req *http.Request, server IServer) 
 // 	page: page number
 //	per_page: number of items par page
 //
-func ListLicenses(resp http.ResponseWriter, req *http.Request, server IServer) {
+func ListLicenses(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	var page int64
 	var perPage int64
 	var err error
@@ -467,7 +467,7 @@ func ListLicenses(resp http.ResponseWriter, req *http.Request, server IServer) {
 // 	page: page number (default 1)
 //	per_page: number of items par page (default 30)
 //
-func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server IServer) {
+func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	var page int64
 	var perPage int64

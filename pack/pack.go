@@ -36,10 +36,9 @@ import (
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
-func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key crypto.ContentKey, err error) {
+func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *epub.XMLManifest, key crypto.ContentKey, err error) {
 	key, err = encrypter.GenerateKey()
 	if err != nil {
 		return
@@ -48,7 +47,7 @@ func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Mani
 	ew := epub.NewWriter(w)
 	ew.WriteHeader()
 	if ep.Encryption == nil {
-		ep.Encryption = &xmlenc.Manifest{}
+		ep.Encryption = &epub.XMLManifest{}
 	}
 
 	for _, res := range ep.Resource {
@@ -92,13 +91,13 @@ func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 	return ep.CanEncrypt(file.Path)
 }
 
-func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool, w *epub.Writer) error {
-	data := xmlenc.Data{}
-	data.Method.Algorithm = xmlenc.URI(encrypter.Signature())
-	data.KeyInfo = &xmlenc.KeyInfo{}
+func encryptFile(encrypter crypto.Encrypter, key []byte, m *epub.XMLManifest, file *epub.Resource, compress bool, w *epub.Writer) error {
+	data := epub.Data{}
+	data.Method.Algorithm = epub.URI(encrypter.Signature())
+	data.KeyInfo = &epub.KeyInfo{}
 	data.KeyInfo.RetrievalMethod.URI = "license.lcpl#/encryption/content_key"
 	data.KeyInfo.RetrievalMethod.Type = "http://readium.org/2014/01/lcp#EncryptedContentKey"
-	data.CipherData.CipherReference.URI = xmlenc.URI(file.Path)
+	data.CipherData.CipherReference.URI = epub.URI(file.Path)
 
 	method := NoCompression
 	if compress {
@@ -107,9 +106,9 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 
 	file.StorageMethod = NoCompression
 
-	data.Properties = &xmlenc.EncryptionProperties{
-		Properties: []xmlenc.EncryptionProperty{
-			{Compression: xmlenc.Compression{Method: method, OriginalLength: file.OriginalSize}},
+	data.Properties = &epub.EncryptionProperties{
+		Properties: []epub.EncryptionProperty{
+			{Compression: epub.Compression{Method: method, OriginalLength: file.OriginalSize}},
 		},
 	}
 

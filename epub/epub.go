@@ -33,27 +33,52 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/readium/readium-lcp-server/epub/opf"
-	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
-const (
-	ContainerFile  = "META-INF/container.xml"
-	EncryptionFile = "META-INF/encryption.xml"
-	LicenseFile    = "META-INF/license.lcpl"
+func (ep *Epub) addCleartextResources(names []string) {
+	if ep.cleartextResources == nil {
+		ep.cleartextResources = []string{}
+	}
 
-	ContentTypeXhtml = "application/xhtml+xml"
-	ContentTypeHtml  = "text/html"
-	ContentTypeNcx   = "application/x-dtbncx+xml"
-	ContentTypeEpub  = "application/epub+zip"
-)
+	for _, name := range names {
+		ep.cleartextResources = append(ep.cleartextResources, name)
+	}
+}
 
-type Epub struct {
-	Encryption         *xmlenc.Manifest
-	Package            []opf.Package
-	Resource           []*Resource
-	cleartextResources []string
+func (ep *Epub) addCleartextResource(name string) {
+	if ep.cleartextResources == nil {
+		ep.cleartextResources = []string{}
+	}
+
+	ep.cleartextResources = append(ep.cleartextResources, name)
+}
+
+func (ep Epub) Write(dst io.Writer) error {
+	w := NewWriter(dst)
+
+	err := w.WriteHeader()
+	if err != nil {
+		return err
+	}
+
+	for _, res := range ep.Resource {
+		if res.Path != "mimetype" {
+			fw, err := w.AddResource(res.Path, res.StorageMethod)
+			if err != nil {
+				return err
+			}
+			_, err = io.Copy(fw, res.Contents)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if ep.Encryption != nil {
+		writeEncryption(ep, w)
+	}
+
+	return w.Close()
 }
 
 func (ep Epub) Cover() (bool, *Resource) {
@@ -90,16 +115,6 @@ func (ep *Epub) Add(name string, body io.Reader, size uint64) error {
 	ep.Resource = append(ep.Resource, &Resource{Contents: body, StorageMethod: zip.Deflate, Path: name, OriginalSize: size})
 
 	return nil
-}
-
-type Resource struct {
-	Path          string
-	ContentType   string
-	OriginalSize  uint64
-	ContentsSize  uint64
-	Compressed    bool
-	StorageMethod uint16
-	Contents      io.Reader
 }
 
 func (ep Epub) CanEncrypt(file string) bool {

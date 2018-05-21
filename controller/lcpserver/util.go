@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package ctrl
+package lcpserver
 
 import (
 	"archive/zip"
@@ -74,7 +74,7 @@ func cleanupTemp(f *os.File) {
 // notifyLSDServer informs the License Status Server of the creation of a new license
 // and saves the result of the http request in the DB (using *LicenseRepository)
 //
-func notifyLSDServer(payload *store.License, server IServer) {
+func notifyLSDServer(payload *store.License, server api.IServer) {
 	if server.Config().LsdServer.PublicBaseUrl == "" {
 		// can't call : url is empty
 		return
@@ -200,7 +200,7 @@ func EncryptLicenseFields(license *store.License, content *store.Content) error 
 
 // build a license, common to get and generate license, get and generate licensed publication
 //
-func buildLicense(license *store.License, server IServer) error {
+func buildLicense(license *store.License, server api.IServer) error {
 
 	// set the LCP profile
 	// possible profiles are basic and 1.0
@@ -255,7 +255,7 @@ func SignLicense(license *store.License, cert *tls.Certificate) error {
 
 // build a licensed publication, common to get and generate licensed publication
 //
-func buildLicencedPublication(license *store.License, server IServer) (*epub.Epub, error) {
+func buildLicencedPublication(license *store.License, server api.IServer) (*epub.Epub, error) {
 	// get the epub content info from the bd
 	epubFile, err := server.Storage().Get(license.ContentId)
 	if err != nil {

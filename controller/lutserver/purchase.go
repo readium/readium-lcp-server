@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package ctrl
+package lutserver
 
 import (
 	"encoding/json"
@@ -43,7 +43,7 @@ import (
 
 // GetPurchases searches all purchases for a client
 //
-func GetPurchases(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetPurchases(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	var err error
 
 	pagination, err := ExtractPaginationFromRequest(req)
@@ -68,7 +68,7 @@ func GetPurchases(resp http.ResponseWriter, req *http.Request, server IServer) {
 
 // GetUserPurchases searches all purchases for a client
 //
-func GetUserPurchases(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetUserPurchases(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	var err error
 	var userId int64
 	vars := mux.Vars(req)
@@ -104,7 +104,7 @@ func GetUserPurchases(resp http.ResponseWriter, req *http.Request, server IServe
 
 // CreatePurchase creates a purchase in the database
 //
-func CreatePurchase(resp http.ResponseWriter, req *http.Request, server IServer) {
+func CreatePurchase(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	purchase, err := api.ReadPurchasePayload(req)
 	if err != nil {
 		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: "incorrect JSON Purchase " + err.Error()}, http.StatusBadRequest)
@@ -131,7 +131,7 @@ func CreatePurchase(resp http.ResponseWriter, req *http.Request, server IServer)
 // It fetches the license from the lcp server and returns it to the caller.
 // This API method is called from the client app (angular) when a license is requested after a purchase.
 //
-func GetPurchasedLicense(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetPurchasedLicense(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	var id int64
 	var err error
@@ -175,7 +175,7 @@ func GetPurchasedLicense(resp http.ResponseWriter, req *http.Request, server ISe
 
 // GetPurchase gets a purchase by its id in the database
 //
-func GetPurchase(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetPurchase(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	var id int
 	var err error
@@ -208,7 +208,7 @@ func GetPurchase(resp http.ResponseWriter, req *http.Request, server IServer) {
 
 // GetPurchaseByLicenseID gets a purchase by a license id in the database
 //
-func GetPurchaseByLicenseID(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetPurchaseByLicenseID(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	var err error
 	purchase, err := server.Store().Purchase().GetByLicenseID(vars["licenseID"])
@@ -233,7 +233,7 @@ func GetPurchaseByLicenseID(resp http.ResponseWriter, req *http.Request, server 
 // UpdatePurchase updates a purchase in the database
 // Only updates the license id (uuid), start and end date, status
 //
-func UpdatePurchase(resp http.ResponseWriter, req *http.Request, server IServer) {
+func UpdatePurchase(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 
 	vars := mux.Vars(req)
 	var id int

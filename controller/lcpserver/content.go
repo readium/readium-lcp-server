@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package ctrl
+package lcpserver
 
 import (
 	"encoding/json"
@@ -48,7 +48,7 @@ import (
 // the content name is given in the url (name)
 // a temporary file is created, then deleted after the content has been stored
 //
-func StoreContent(resp http.ResponseWriter, req *http.Request, server IServer) {
+func StoreContent(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 
 	size, payload, err := writeRequestFileToTemp(req.Body)
@@ -80,7 +80,7 @@ func StoreContent(resp http.ResponseWriter, req *http.Request, server IServer) {
 // if contentID is different , url key overrides the content id in the json payload
 // this method adds the <protected_content_location>  in the store (of encrypted files)
 // and the key in the database in order to create the licenses
-func AddContent(resp http.ResponseWriter, req *http.Request, server IServer) {
+func AddContent(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	// parse the json payload
 	vars := mux.Vars(req)
 	decoder := json.NewDecoder(req.Body)
@@ -155,7 +155,7 @@ func AddContent(resp http.ResponseWriter, req *http.Request, server IServer) {
 
 // ListContents lists the content in the storage index
 //
-func ListContents(resp http.ResponseWriter, req *http.Request, server IServer) {
+func ListContents(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	fmt.Fprintf(os.Stderr, "Listing contents.")
 	contents, err := server.Store().Content().List()
 	if err != nil {
@@ -176,7 +176,7 @@ func ListContents(resp http.ResponseWriter, req *http.Request, server IServer) {
 // GetContent fetches and returns an encrypted content file
 // selected by it content id (uuid)
 //
-func GetContent(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetContent(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	// get the content id from the calling url
 	vars := mux.Vars(req)
 	contentID := vars["content_id"]

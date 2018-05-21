@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package ctrl
+package lutserver
 
 import (
 	"archive/zip"
@@ -87,6 +87,8 @@ type (
 )
 
 var ErrNotFound = errors.New("License not found")
+var repoInited bool
+var repoManager RepositoryManager
 
 // Returns a specific repository file
 func (repManager RepositoryManager) GetMasterFile(name string) (RepositoryFile, error) {
@@ -132,12 +134,14 @@ func (repManager RepositoryManager) GetMasterFiles() func() (RepositoryFile, err
 }
 
 // GetRepositoryMasterFiles returns a list of repository masterfiles
-func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s IServer) {
+func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s api.IServer) {
 	var err error
 
 	files := make([]RepositoryFile, 0)
-
-	fn := s.RepositoryAPI().GetMasterFiles()
+	if !repoInited {
+		repoManager = RepositoryManager{MasterRepositoryPath: s.Config().FrontendServer.MasterRepository, EncryptedRepositoryPath: s.Config().FrontendServer.EncryptedRepository}
+	}
+	fn := repoManager.GetMasterFiles()
 
 	for it, err := fn(); err == nil; it, err = fn() {
 		files = append(files, it)
@@ -212,7 +216,7 @@ func CreateEncryptedEpub(inputPath string, outputPath string) (EncryptedEpub, er
 }
 
 // EncryptEPUB encrypts an EPUB File and sends the content to the LCP server
-func EncryptEPUB(inputPath string, contentDisposition string, server IServer) error {
+func EncryptEPUB(inputPath string, contentDisposition string, server api.IServer) error {
 
 	// generate a new uuid; this will be the content id in the lcp server
 	uid, errU := uuid.NewV4()
@@ -366,7 +370,7 @@ func PrepareListHeaderResponse(resourceCount int, resourceLink string, paginatio
 	resp.Header().Set(api.HdrContentType, api.ContentTypeJson)
 }
 
-func generateOrGetLicense(purchase *store.Purchase, server IServer) (*store.License, error) {
+func generateOrGetLicense(purchase *store.Purchase, server api.IServer) (*store.License, error) {
 	// create a partial license
 	partialLicense := store.License{}
 
@@ -504,7 +508,7 @@ func generateOrGetLicense(purchase *store.Purchase, server IServer) (*store.Lice
 // parameters: a Purchase structure withID,	LicenseUUID, StartDate,	EndDate, Status
 // EndDate may be undefined (nil), in which case the lsd server will choose the renew period
 //
-func updatePurchase(purchase *store.Purchase, server IServer) error {
+func updatePurchase(purchase *store.Purchase, server api.IServer) error {
 	// Get the original purchase from the db
 	origPurchase, err := server.Store().Purchase().Get(purchase.ID)
 
@@ -593,7 +597,7 @@ func updatePurchase(purchase *store.Purchase, server IServer) error {
 	return nil
 }
 
-func getPartialLicense(purchase *store.Purchase, server IServer) (*store.License, error) {
+func getPartialLicense(purchase *store.Purchase, server api.IServer) (*store.License, error) {
 
 	if purchase.LicenseUUID == nil {
 		return nil, errors.New("No license has been yet delivered")

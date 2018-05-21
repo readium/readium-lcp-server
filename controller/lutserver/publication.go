@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package ctrl
+package lutserver
 
 import (
 	"encoding/json"
@@ -46,7 +46,7 @@ import (
 )
 
 // GetPublications returns a list of publications
-func GetPublications(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetPublications(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	var page int64
 	var perPage int64
 	var err error
@@ -106,7 +106,7 @@ func GetPublications(resp http.ResponseWriter, req *http.Request, server IServer
 
 // GetPublication returns a publication from its numeric id, given as part of the calling url
 //
-func GetPublication(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetPublication(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	var id int
 	var err error
@@ -139,7 +139,7 @@ func GetPublication(resp http.ResponseWriter, req *http.Request, server IServer)
 }
 
 // CheckPublicationByTitle check if a publication with this title exist
-func CheckPublicationByTitle(resp http.ResponseWriter, req *http.Request, server IServer) {
+func CheckPublicationByTitle(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	var title string
 	title = req.URL.Query()["title"][0]
 
@@ -170,7 +170,7 @@ func CheckPublicationByTitle(resp http.ResponseWriter, req *http.Request, server
 }
 
 // CreatePublication creates a publication in the database
-func CreatePublication(resp http.ResponseWriter, req *http.Request, server IServer) {
+func CreatePublication(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	pub, err := api.ReadPublicationPayload(req)
 	if err != nil {
 		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: "incorrect JSON Publication " + err.Error()}, http.StatusBadRequest)
@@ -207,7 +207,7 @@ func CreatePublication(resp http.ResponseWriter, req *http.Request, server IServ
 // UploadEPUB creates a new EPUB file, namd after a file form parameter.
 // a temp file is created then deleted.
 //UploadEPUB creates a new EPUB file
-func UploadEPUB(resp http.ResponseWriter, req *http.Request, server IServer) {
+func UploadEPUB(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	//var pub store.Publication
 	contentDisposition := slugify.Slugify(req.URL.Query()["title"][0])
 
@@ -238,7 +238,7 @@ func UploadEPUB(resp http.ResponseWriter, req *http.Request, server IServer) {
 }
 
 // UpdatePublication updates an identified publication (id) in the database
-func UpdatePublication(resp http.ResponseWriter, req *http.Request, server IServer) {
+func UpdatePublication(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
@@ -276,7 +276,7 @@ func UpdatePublication(resp http.ResponseWriter, req *http.Request, server IServ
 }
 
 // DeletePublication removes a publication in the database
-func DeletePublication(resp http.ResponseWriter, req *http.Request, server IServer) {
+func DeletePublication(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	id, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {

@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package ctrl
+package lutserver
 
 import (
 	"encoding/json"
@@ -39,7 +39,7 @@ import (
 )
 
 //GetUsers returns a list of users
-func GetUsers(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetUsers(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	var page int64
 	var perPage int64
 	var err error
@@ -95,7 +95,7 @@ func GetUsers(resp http.ResponseWriter, req *http.Request, server IServer) {
 }
 
 //GetUser searches a client by his email
-func GetUser(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetUser(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
@@ -127,7 +127,7 @@ func GetUser(resp http.ResponseWriter, req *http.Request, server IServer) {
 }
 
 //CreateUser creates a user in the database
-func CreateUser(resp http.ResponseWriter, req *http.Request, server IServer) {
+func CreateUser(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	var user *store.User
 	var err error
 	if user, err = api.ReadUserPayload(req); err != nil {
@@ -144,7 +144,7 @@ func CreateUser(resp http.ResponseWriter, req *http.Request, server IServer) {
 }
 
 //UpdateUser updates an identified user (id) in the database
-func UpdateUser(resp http.ResponseWriter, req *http.Request, server IServer) {
+func UpdateUser(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	var id int
 	var err error
@@ -182,7 +182,7 @@ func UpdateUser(resp http.ResponseWriter, req *http.Request, server IServer) {
 }
 
 //Delete creates a user in the database
-func DeleteUser(resp http.ResponseWriter, req *http.Request, server IServer) {
+func DeleteUser(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	uid, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {

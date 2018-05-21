@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package apilsd
+package lsdserver
 
 import (
 	"net/http"
@@ -54,7 +54,7 @@ var (
 
 // AddLogToFile adds a log message to the log file
 //
-func AddLogToFile(resp http.ResponseWriter, req *http.Request, server IServer) {
+func AddLogToFile(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	testStage := req.FormValue("test_stage")
 	testNumber := req.FormValue("test_number")
 	testResult := req.FormValue("test_result")

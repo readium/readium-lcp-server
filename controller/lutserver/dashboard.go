@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package ctrl
+package lutserver
 
 import (
 	"encoding/json"
@@ -36,7 +36,7 @@ import (
 )
 
 // GetDashboardInfos searches a publication by its uuid
-func GetDashboardInfos(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetDashboardInfos(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	if pub, err := server.Store().Dashboard().GetDashboardInfos(); err == nil {
 		enc := json.NewEncoder(resp)
 		if err = enc.Encode(pub); err == nil {
@@ -63,7 +63,7 @@ func GetDashboardInfos(resp http.ResponseWriter, req *http.Request, server IServ
 
 // GetDashboardBestSellers gets the dashboard bestsellers
 //
-func GetDashboardBestSellers(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetDashboardBestSellers(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	if pub, err := server.Store().Dashboard().GetDashboardBestSellers(); err == nil {
 		enc := json.NewEncoder(resp)
 		if err = enc.Encode(pub); err == nil {

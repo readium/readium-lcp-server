@@ -25,20 +25,20 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package xmlenc
+package epub
 
 import (
 	"encoding/xml"
 	"io"
 )
 
-type Manifest struct {
+type XMLManifest struct {
 	//Keys []Key
 	Data    []Data   `xml:"http://www.w3.org/2001/04/xmlenc# EncryptedData"`
 	XMLName struct{} `xml:"urn:oasis:names:tc:opendocument:xmlns:container encryption"`
 }
 
-func (m Manifest) DataForFile(path string) (Data, bool) {
+func (m XMLManifest) DataForFile(path string) (Data, bool) {
 	uri := URI(path)
 	for _, datum := range m.Data {
 		if datum.CipherData.CipherReference.URI == uri {
@@ -49,15 +49,15 @@ func (m Manifest) DataForFile(path string) (Data, bool) {
 	return Data{}, false
 }
 
-func (m Manifest) Write(w io.Writer) error {
+func (m XMLManifest) Write(w io.Writer) error {
 	w.Write([]byte(xml.Header))
 	enc := xml.NewEncoder(w)
 	enc.Indent("", "  ")
 	return enc.Encode(m)
 }
 
-func Read(r io.Reader) (Manifest, error) {
-	var manifest Manifest
+func ReadXML(r io.Reader) (XMLManifest, error) {
+	var manifest XMLManifest
 	dec := xml.NewDecoder(r)
 	err := dec.Decode(&manifest)
 

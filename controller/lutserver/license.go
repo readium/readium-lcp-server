@@ -25,7 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package ctrl
+package lutserver
 
 import (
 	"encoding/json"
@@ -40,7 +40,7 @@ import (
 
 // GetFilteredLicenses searches licenses activated by more than n devices
 //
-func GetFilteredLicenses(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetFilteredLicenses(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 
 	rDevices := req.FormValue("devices")
 	log.Println("Licenses used by " + rDevices + " devices")
@@ -73,7 +73,7 @@ func GetFilteredLicenses(resp http.ResponseWriter, req *http.Request, server ISe
 // fetches the license from the lcp server and returns it to the caller.
 // This API method is called from a link in the license status document.
 //
-func GetLicense(resp http.ResponseWriter, req *http.Request, server IServer) {
+func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer) {
 	vars := mux.Vars(req)
 	var licenseID = vars["license_id"]
 	purchase, err := server.Store().Purchase().GetByLicenseID(licenseID)
