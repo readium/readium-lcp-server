@@ -36,16 +36,17 @@ import (
 	"time"
 
 	"context"
-	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/localization"
-	"github.com/readium/readium-lcp-server/store"
 	"io/ioutil"
+
+	"github.com/jinzhu/gorm"
+	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/localization"
+	"github.com/readium/readium-lcp-server/model"
 )
 
 // getEvents gets the events from database for the license status
 //
-func getEvents(ls *store.LicenseStatus, s api.IServer) error {
+func getEvents(ls *model.LicenseStatus, s common.IServer) error {
 	var err error
 	ls.Events, err = s.Store().Transaction().GetByLicenseStatusId(ls.Id)
 	if err != gorm.ErrRecordNotFound {
@@ -56,7 +57,7 @@ func getEvents(ls *store.LicenseStatus, s api.IServer) error {
 
 // makeLinks creates and adds links to the license status
 //
-func makeLinks(ls *store.LicenseStatus, lsdConfig api.LsdServerInfo, lcpConfig api.ServerInfo, licStatus api.LicenseStatus) {
+func makeLinks(ls *model.LicenseStatus, lsdConfig common.LsdServerInfo, lcpConfig common.ServerInfo, licStatus common.LicenseStatus) {
 	lsdBaseURL := lsdConfig.PublicBaseUrl
 	licenseLinkURL := lsdConfig.LicenseLinkUrl
 	lcpBaseURL := lcpConfig.PublicBaseUrl
@@ -67,52 +68,52 @@ func makeLinks(ls *store.LicenseStatus, lsdConfig api.LsdServerInfo, lcpConfig a
 	returnAvailable := licStatus.Return && licenseHasRightsEnd
 	renewAvailable := licStatus.Renew && licenseHasRightsEnd
 
-	links := make(store.LicenseLinksCollection, 0, 0)
+	links := make(model.LicenseLinksCollection, 0, 0)
 
 	if licenseLinkURL != "" {
 		licenseLinkURLReal := strings.Replace(licenseLinkURL, "{license_id}", ls.LicenseRef, -1)
-		link := &store.LicenseLink{
+		link := &model.LicenseLink{
 			Href:      licenseLinkURLReal,
 			Rel:       "license",
-			Type:      api.ContentTypeLcpJson,
+			Type:      common.ContentTypeLcpJson,
 			Templated: false,
 		}
 		links = append(links, link)
 	} else {
-		link := &store.LicenseLink{
+		link := &model.LicenseLink{
 			Href:      lcpBaseURL + "/licenses/" + ls.LicenseRef,
 			Rel:       "license",
-			Type:      api.ContentTypeLcpJson,
+			Type:      common.ContentTypeLcpJson,
 			Templated: false,
 		}
 		links = append(links, link)
 	}
 
 	if registerAvailable {
-		link := &store.LicenseLink{
+		link := &model.LicenseLink{
 			Href:      lsdBaseURL + "/licenses/" + ls.LicenseRef + "/register{?id,name}",
 			Rel:       "register",
-			Type:      api.ContentTypeLsdJson,
+			Type:      common.ContentTypeLsdJson,
 			Templated: true,
 		}
 		links = append(links, link)
 	}
 
 	if returnAvailable {
-		link := &store.LicenseLink{
+		link := &model.LicenseLink{
 			Href:      lsdBaseURL + "/licenses/" + ls.LicenseRef + "/return{?id,name}",
 			Rel:       "return",
-			Type:      api.ContentTypeLsdJson,
+			Type:      common.ContentTypeLsdJson,
 			Templated: true,
 		}
 		links = append(links, link)
 	}
 
 	if renewAvailable {
-		link := &store.LicenseLink{
+		link := &model.LicenseLink{
 			Href:      lsdBaseURL + "/licenses/" + ls.LicenseRef + "/renew{?end,id,name}",
 			Rel:       "renew",
-			Type:      api.ContentTypeLsdJson,
+			Type:      common.ContentTypeLsdJson,
 			Templated: true,
 		}
 		links = append(links, link)
@@ -123,8 +124,8 @@ func makeLinks(ls *store.LicenseStatus, lsdConfig api.LsdServerInfo, lcpConfig a
 
 // makeEvent creates an event and fill it
 //
-func makeEvent(status store.Status, deviceName string, deviceID string, licenseStatusFk int64) *store.TransactionEvent {
-	return &store.TransactionEvent{
+func makeEvent(status model.Status, deviceName string, deviceID string, licenseStatusFk int64) *model.TransactionEvent {
+	return &model.TransactionEvent{
 		DeviceId:        deviceID,
 		DeviceName:      deviceName,
 		Timestamp:       time.Now().UTC().Truncate(time.Second),
@@ -136,7 +137,7 @@ func makeEvent(status store.Status, deviceName string, deviceID string, licenseS
 // notifyLCPServer updates a license by calling the License Server
 // called from return, renew and cancel/revoke actions
 //
-func notifyLCPServer(timeEnd time.Time, licenseID string, s api.IServer) (int, error) {
+func notifyLCPServer(timeEnd time.Time, licenseID string, s common.IServer) (int, error) {
 	lcpConfig, updateAuth := s.Config().LcpServer, s.Config().LcpUpdateAuth
 	// get the lcp server url
 	lcpBaseURL := lcpConfig.PublicBaseUrl
@@ -145,9 +146,9 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, s api.IServer) (int, e
 	}
 	// create a minimum license object, limited to the license id plus rights
 	// FIXME: remove the id (here and in the lcpserver license.go)
-	minLicense := store.License{Id: licenseID, Rights: &store.LicenseUserRights{}}
+	minLicense := model.License{Id: licenseID, Rights: &model.LicenseUserRights{}}
 	// set the new end date
-	minLicense.Rights.End = &store.NullTime{Valid: true, Time: timeEnd}
+	minLicense.Rights.End = &model.NullTime{Valid: true, Time: timeEnd}
 
 	// prepare the request
 	lcpURL := lcpBaseURL + "/licenses/" + licenseID
@@ -164,7 +165,7 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, s api.IServer) (int, e
 		req.SetBasicAuth(updateAuth.Username, updateAuth.Password)
 	}
 	// set the content type
-	req.Header.Add(api.HdrContentType, api.ContentTypeLcpJson)
+	req.Header.Add(common.HdrContentType, common.ContentTypeLcpJson)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -201,7 +202,7 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, s api.IServer) (int, e
 
 // fillLicenseStatus fills the localized 'message' field, the 'links' and 'event' objects in the license status
 //
-func fillLicenseStatus(ls *store.LicenseStatus, r *http.Request, s api.IServer) error {
+func fillLicenseStatus(ls *model.LicenseStatus, r *http.Request, s common.IServer) error {
 	// add the localized message
 	acceptLanguages := r.Header.Get("Accept-Language")
 	license := ""

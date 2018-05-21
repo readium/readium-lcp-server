@@ -25,33 +25,54 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package main
+package model
 
-import (
-	"flag"
-	"fmt"
+import "github.com/satori/go.uuid"
 
-	"github.com/readium/readium-lcp-server/lib/logger"
+type (
+	ContentCollection []*Content
+	Content           struct {
+		Id            string `json:"id" gorm:"primary_key"`
+		EncryptionKey []byte `json:"-"`
+		Location      string `json:"location"`
+		Length        int64  `json:"length"` //not exported in license spec?
+		Sha256        string `json:"sha256"` //not exported in license spec?
+	}
 )
 
-func main() {
-	logFilePath := flag.String("log", "", "path to .log file")
-
-	flag.Parse()
-
-	if *logFilePath == "" {
-		fmt.Println("use -log file path")
-		return
+// Implementation of GORM callback
+func (c *Content) BeforeSave() error {
+	if c.Id == "" {
+		// Create uuid
+		uid, errU := uuid.NewV4()
+		if errU != nil {
+			return errU
+		}
+		c.Id = uid.String()
 	}
+	return nil
+}
 
-	fmt.Println("Parsing the log file...")
-	logs, err := logger.ReadLogs(*logFilePath)
-	summary, err := logger.CountTotal(logs)
+// Implementation of GORM Tabler
+func (c *Content) TableName() string {
+	return LCPContentTableName
+}
 
-	if err != nil {
-		panic(err)
-	}
+func (s contentStore) Get(id string) (*Content, error) {
+	var result Content
+	return &result, s.db.Where(Content{Id: id}).Find(&result).Error
+}
 
-	fmt.Println(logs)
-	fmt.Println(summary)
+func (s contentStore) Add(newContent *Content) error {
+	return s.db.Create(newContent).Error
+}
+
+func (s contentStore) Update(updatedContent *Content) error {
+	return s.db.Save(updatedContent).Error
+}
+
+// TODO : shouldn't we have pagination here as well ?
+func (s contentStore) List() (ContentCollection, error) {
+	var result ContentCollection
+	return result, s.db.Find(&result).Error
 }

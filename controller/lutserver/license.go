@@ -35,12 +35,12 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/api"
+	"github.com/readium/readium-lcp-server/controller/common"
 )
 
 // GetFilteredLicenses searches licenses activated by more than n devices
 //
-func GetFilteredLicenses(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func GetFilteredLicenses(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 
 	rDevices := req.FormValue("devices")
 	log.Println("Licenses used by " + rDevices + " devices")
@@ -49,20 +49,20 @@ func GetFilteredLicenses(resp http.ResponseWriter, req *http.Request, server api
 	}
 
 	if lic, err := server.Store().License().GetFiltered(rDevices); err == nil {
-		resp.Header().Set(api.HdrContentType, api.ContentTypeJson)
+		resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
 		enc := json.NewEncoder(resp)
 		if err = enc.Encode(lic); err != nil {
-			api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
 			{
-				api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusNotFound)
+				common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
 			}
 		default:
 			{
-				api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+				common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 			}
 		}
 	}
@@ -73,7 +73,7 @@ func GetFilteredLicenses(resp http.ResponseWriter, req *http.Request, server api
 // fetches the license from the lcp server and returns it to the caller.
 // This API method is called from a link in the license status document.
 //
-func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func GetLicense(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	vars := mux.Vars(req)
 	var licenseID = vars["license_id"]
 	purchase, err := server.Store().Purchase().GetByLicenseID(licenseID)
@@ -81,22 +81,22 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer)
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusNotFound)
+			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
 		default:
-			api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
 		return
 	}
 	// get an existing license from the lcp server
 	fullLicense, err := generateOrGetLicense(purchase, server)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 	// return a json payload
-	resp.Header().Set(api.HdrContentType, api.ContentTypeLcpJson)
+	resp.Header().Set(common.HdrContentType, common.ContentTypeLcpJson)
 	// the file name is license.lcpl
-	resp.Header().Set(api.HdrContentDisposition, "attachment; filename=\"license.lcpl\"")
+	resp.Header().Set(common.HdrContentDisposition, "attachment; filename=\"license.lcpl\"")
 
 	// returns the full license to the caller
 	enc := json.NewEncoder(resp)
@@ -104,7 +104,7 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer)
 	enc.SetEscapeHTML(false)
 	err = enc.Encode(fullLicense)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 	// message to the console

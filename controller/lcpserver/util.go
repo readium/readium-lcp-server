@@ -34,11 +34,6 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/crypto"
-	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/sign"
-	"github.com/readium/readium-lcp-server/store"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -46,6 +41,12 @@ import (
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/crypto"
+	"github.com/readium/readium-lcp-server/lib/epub"
+	"github.com/readium/readium-lcp-server/lib/sign"
+	"github.com/readium/readium-lcp-server/model"
 )
 
 func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
@@ -74,7 +75,7 @@ func cleanupTemp(f *os.File) {
 // notifyLSDServer informs the License Status Server of the creation of a new license
 // and saves the result of the http request in the DB (using *LicenseRepository)
 //
-func notifyLSDServer(payload *store.License, server api.IServer) {
+func notifyLSDServer(payload *model.License, server common.IServer) {
 	if server.Config().LsdServer.PublicBaseUrl == "" {
 		// can't call : url is empty
 		return
@@ -94,7 +95,7 @@ func notifyLSDServer(payload *store.License, server api.IServer) {
 	if notifyAuth.Username != "" {
 		req.SetBasicAuth(notifyAuth.Username, notifyAuth.Password)
 	}
-	req.Header.Add(api.HdrContentType, api.ContentTypeLcpJson)
+	req.Header.Add(common.HdrContentType, common.ContentTypeLcpJson)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -129,7 +130,7 @@ func notifyLSDServer(payload *store.License, server api.IServer) {
 
 }
 
-func getField(info *store.User, field string) reflect.Value {
+func getField(info *model.User, field string) reflect.Value {
 	value := reflect.ValueOf(info).Elem()
 	return value.FieldByName(strings.Title(field))
 }
@@ -153,7 +154,7 @@ func encryptKey(encrypter crypto.Encrypter, fromKey []byte, key []byte) []byte {
 	return out.Bytes()
 }
 
-func encryptFields(encrypter crypto.Encrypter, l *store.License, key []byte) error {
+func encryptFields(encrypter crypto.Encrypter, l *model.License, key []byte) error {
 	for _, toEncrypt := range l.User.Encrypted {
 		var out bytes.Buffer
 		field := getField(l.User, toEncrypt)
@@ -168,7 +169,7 @@ func encryptFields(encrypter crypto.Encrypter, l *store.License, key []byte) err
 
 // EncryptLicenseFields sets the content key, encrypted user info and key check
 //
-func EncryptLicenseFields(license *store.License, content *store.Content) error {
+func EncryptLicenseFields(license *model.License, content *model.Content) error {
 
 	// generate the user key
 	encryptionKey := []byte(license.Encryption.UserKey.Value)
@@ -200,14 +201,14 @@ func EncryptLicenseFields(license *store.License, content *store.Content) error 
 
 // build a license, common to get and generate license, get and generate licensed publication
 //
-func buildLicense(license *store.License, server api.IServer) error {
+func buildLicense(license *model.License, server common.IServer) error {
 
 	// set the LCP profile
 	// possible profiles are basic and 1.0
 	if server.Config().Profile == "1.0" {
-		license.Encryption.Profile = store.V1Profile
+		license.Encryption.Profile = model.V1Profile
 	} else {
-		license.Encryption.Profile = store.BasicProfile
+		license.Encryption.Profile = model.BasicProfile
 	}
 
 	// get content info from the db
@@ -239,7 +240,7 @@ func buildLicense(license *store.License, server api.IServer) error {
 
 // SignLicense signs a license using the server certificate
 //
-func SignLicense(license *store.License, cert *tls.Certificate) error {
+func SignLicense(license *model.License, cert *tls.Certificate) error {
 	sig, err := sign.NewSigner(cert)
 	if err != nil {
 		return err
@@ -255,7 +256,7 @@ func SignLicense(license *store.License, cert *tls.Certificate) error {
 
 // build a licensed publication, common to get and generate licensed publication
 //
-func buildLicencedPublication(license *store.License, server api.IServer) (*epub.Epub, error) {
+func buildLicencedPublication(license *model.License, server common.IServer) (*epub.Epub, error) {
 	// get the epub content info from the bd
 	epubFile, err := server.Storage().Get(license.ContentId)
 	if err != nil {

@@ -45,15 +45,16 @@ import (
 	"strings"
 
 	"context"
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/crypto"
-	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/pack"
 	"time"
+
+	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/crypto"
+	"github.com/readium/readium-lcp-server/lib/epub"
+	"github.com/readium/readium-lcp-server/lib/pack"
 )
 
 // notification of newly added content (Publication)
-func notifyLcpServer(lcpService, contentid string, lcpPublication api.LcpPublication, username string, password string) error {
+func notifyLcpServer(lcpService, contentid string, lcpPublication common.LcpPublication, username string, password string) error {
 	//exchange encryption key with lcp service/content/<id>,
 	//Payload: {content-encryption-key, protected-content-location}
 	//fmt.Printf("lcpsv = %s\n", *lcpsv)
@@ -143,7 +144,7 @@ func showHelpAndExit() {
 	return
 }
 
-func exitWithError(lcpPublication api.LcpPublication, err error, errorlevel int) {
+func exitWithError(lcpPublication common.LcpPublication, err error, errorlevel int) {
 	os.Stderr.WriteString(lcpPublication.ErrorMessage)
 	os.Stderr.WriteString("\n")
 	if err != nil {
@@ -170,7 +171,7 @@ func getChecksum(filename string) string {
 
 func main() {
 	var err error
-	var addedPublication api.LcpPublication
+	var addedPublication common.LcpPublication
 	var inputFilename = flag.String("input", "", "source epub file locator (file system or http GET)")
 	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new one is generated")
 	var outputFilename = flag.String("output", "", "optional target location for the encrypted content (file system or http PUT)")

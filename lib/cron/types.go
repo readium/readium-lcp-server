@@ -25,33 +25,58 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package main
+package cron
 
-import (
-	"flag"
-	"fmt"
+import "time"
 
-	"github.com/readium/readium-lcp-server/lib/logger"
+const (
+	// Max number of jobs, hack it if you need.
+	MAXJOBNUM = 10000
 )
 
-func main() {
-	logFilePath := flag.String("log", "", "path to .log file")
+var (
+	// Time location, default set by the time.Local (*time.Location)
+	loc = time.Local
+	// Map for the function task store
+	funcs = map[string]interface{}{}
+	// Map for function and  params of function
+	fparams = map[string]([]interface{}){}
 
-	flag.Parse()
+	// The following methods are shortcuts for not having to
+	// create a Schduler instance
 
-	if *logFilePath == "" {
-		fmt.Println("use -log file path")
-		return
+	defaultScheduler = NewScheduler()
+	jobs             = defaultScheduler.jobs
+)
+
+type (
+	Job struct {
+
+		// pause interval * unit bettween runs
+		interval uint64
+
+		// the job jobFunc to run, func[jobFunc]
+		jobFunc string
+		// time units, ,e.g. 'minutes', 'hours'...
+		unit string
+		// optional time at which this job runs
+		atTime string
+
+		// datetime of last run
+		lastRun time.Time
+		// datetime of next run
+		nextRun time.Time
+		// cache the period between last an next run
+		period time.Duration
+
+		// Specific day of the week to start on
+		startDay time.Weekday
 	}
-
-	fmt.Println("Parsing the log file...")
-	logs, err := logger.ReadLogs(*logFilePath)
-	summary, err := logger.CountTotal(logs)
-
-	if err != nil {
-		panic(err)
+	// Class Scheduler, the only data member is the list of jobs.
+	Scheduler struct {
+		// Array store jobs
+		jobs [MAXJOBNUM]*Job
+		// Size of jobs which jobs holding.
+		size int
 	}
-
-	fmt.Println(logs)
-	fmt.Println(summary)
-}
+)

@@ -37,12 +37,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/crypto"
-	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/pack"
-	"github.com/readium/readium-lcp-server/store"
-	"github.com/satori/go.uuid"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -50,6 +44,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/crypto"
+	"github.com/readium/readium-lcp-server/lib/epub"
+	"github.com/readium/readium-lcp-server/lib/pack"
+	"github.com/readium/readium-lcp-server/model"
+	"github.com/satori/go.uuid"
 )
 
 type (
@@ -134,7 +135,7 @@ func (repManager RepositoryManager) GetMasterFiles() func() (RepositoryFile, err
 }
 
 // GetRepositoryMasterFiles returns a list of repository masterfiles
-func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s api.IServer) {
+func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s common.IServer) {
 	var err error
 
 	files := make([]RepositoryFile, 0)
@@ -147,12 +148,12 @@ func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s api.ISer
 		files = append(files, it)
 	}
 
-	w.Header().Set(api.HdrContentType, api.ContentTypeJson)
+	w.Header().Set(common.HdrContentType, common.ContentTypeJson)
 
 	enc := json.NewEncoder(w)
 	err = enc.Encode(files)
 	if err != nil {
-		api.Error(w, r, s.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(w, r, s.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 }
@@ -216,7 +217,7 @@ func CreateEncryptedEpub(inputPath string, outputPath string) (EncryptedEpub, er
 }
 
 // EncryptEPUB encrypts an EPUB File and sends the content to the LCP server
-func EncryptEPUB(inputPath string, contentDisposition string, server api.IServer) error {
+func EncryptEPUB(inputPath string, contentDisposition string, server common.IServer) error {
 
 	// generate a new uuid; this will be the content id in the lcp server
 	uid, errU := uuid.NewV4()
@@ -247,7 +248,7 @@ func EncryptEPUB(inputPath string, contentDisposition string, server api.IServer
 	}
 
 	// prepare the request for import to the lcp server
-	lcpPublication := api.LcpPublication{
+	lcpPublication := common.LcpPublication{
 		ContentId:          contentUUID,
 		ContentKey:         encryptedEpub.EncryptionKey,
 		Output:             outputPath,
@@ -276,7 +277,7 @@ func EncryptEPUB(inputPath string, contentDisposition string, server api.IServer
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
 	}
 	// set the payload type
-	req.Header.Add(api.HdrContentType, api.ContentTypeLcpJson)
+	req.Header.Add(common.HdrContentType, common.ContentTypeLcpJson)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -367,12 +368,12 @@ func PrepareListHeaderResponse(resourceCount int, resourceLink string, paginatio
 		previousPage := strconv.Itoa(int(pagination.Page) - 1)
 		resp.Header().Set("Link", "<"+resourceLink+"/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
 	}
-	resp.Header().Set(api.HdrContentType, api.ContentTypeJson)
+	resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
 }
 
-func generateOrGetLicense(purchase *store.Purchase, server api.IServer) (*store.License, error) {
+func generateOrGetLicense(purchase *model.Purchase, server common.IServer) (*model.License, error) {
 	// create a partial license
-	partialLicense := store.License{}
+	partialLicense := model.License{}
 
 	// set the mandatory provider URI
 	if server.Config().FrontendServer.ProviderUri == "" {
@@ -394,7 +395,7 @@ func generateOrGetLicense(purchase *store.Purchase, server api.IServer) (*store.
 		return nil, err
 	}
 
-	userKey := store.LicenseUserKey{}
+	userKey := model.LicenseUserKey{}
 	userKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 	userKey.Hint = purchase.User.Hint
 	userKey.Value = string(userKeyValue)
@@ -406,13 +407,13 @@ func generateOrGetLicense(purchase *store.Purchase, server api.IServer) (*store.
 		// these rights will be set to zero
 		copyVal := server.Config().FrontendServer.RightCopy
 		printVal := server.Config().FrontendServer.RightPrint
-		userRights := store.LicenseUserRights{
-			Copy:  &store.NullInt{NullInt64: sql.NullInt64{Int64: copyVal, Valid: true}},
-			Print: &store.NullInt{NullInt64: sql.NullInt64{Int64: printVal, Valid: true}},
+		userRights := model.LicenseUserRights{
+			Copy:  &model.NullInt{NullInt64: sql.NullInt64{Int64: copyVal, Valid: true}},
+			Print: &model.NullInt{NullInt64: sql.NullInt64{Int64: printVal, Valid: true}},
 		}
 
 		// if this is a loan, include start and end dates from the purchase info
-		if purchase.Type == store.LOAN {
+		if purchase.Type == model.LOAN {
 			userRights.Start = purchase.StartDate
 			userRights.End = purchase.EndDate
 		}
@@ -451,7 +452,7 @@ func generateOrGetLicense(purchase *store.Purchase, server api.IServer) (*store.
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
 	}
 	// the body is a partial license in json format
-	req.Header.Add("Content-Type", api.ContentTypeLcpJson)
+	req.Header.Add("Content-Type", common.ContentTypeLcpJson)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -483,7 +484,7 @@ func generateOrGetLicense(purchase *store.Purchase, server api.IServer) (*store.
 	}
 
 	// decode the full license
-	fullLicense := &store.License{}
+	fullLicense := &model.License{}
 	var dec *json.Decoder
 	dec = json.NewDecoder(resp.Body)
 	err = dec.Decode(fullLicense)
@@ -494,7 +495,7 @@ func generateOrGetLicense(purchase *store.Purchase, server api.IServer) (*store.
 
 	// store the license id if it was not already set
 	if purchase.LicenseUUID == nil {
-		purchase.LicenseUUID = &store.NullString{NullString: sql.NullString{String: fullLicense.Id, Valid: true}}
+		purchase.LicenseUUID = &model.NullString{NullString: sql.NullString{String: fullLicense.Id, Valid: true}}
 		err = updatePurchase(purchase, server)
 		if err != nil {
 			return fullLicense, err
@@ -508,18 +509,18 @@ func generateOrGetLicense(purchase *store.Purchase, server api.IServer) (*store.
 // parameters: a Purchase structure withID,	LicenseUUID, StartDate,	EndDate, Status
 // EndDate may be undefined (nil), in which case the lsd server will choose the renew period
 //
-func updatePurchase(purchase *store.Purchase, server api.IServer) error {
+func updatePurchase(purchase *model.Purchase, server common.IServer) error {
 	// Get the original purchase from the db
 	origPurchase, err := server.Store().Purchase().Get(purchase.ID)
 
 	if err != nil {
 		return fmt.Errorf("Error : reading purchase with id %d", purchase.ID)
 	}
-	if origPurchase.Status != store.StatusOk {
+	if origPurchase.Status != model.StatusOk {
 		return errors.New("Cannot update an invalid purchase")
 	}
-	if purchase.Status == store.StatusToBeRenewed ||
-		purchase.Status == store.StatusToBeReturned {
+	if purchase.Status == model.StatusToBeRenewed ||
+		purchase.Status == model.StatusToBeReturned {
 
 		if purchase.LicenseUUID == nil {
 			return errors.New("Cannot return or renew a purchase when no license has been delivered")
@@ -528,7 +529,7 @@ func updatePurchase(purchase *store.Purchase, server api.IServer) error {
 		lsdServerConfig := server.Config().LsdServer
 		lsdURL := lsdServerConfig.PublicBaseUrl + "/licenses/" + purchase.LicenseUUID.String
 
-		if purchase.Status == store.StatusToBeRenewed {
+		if purchase.Status == model.StatusToBeRenewed {
 			lsdURL += "/renew"
 
 			if purchase.EndDate != nil {
@@ -536,12 +537,12 @@ func updatePurchase(purchase *store.Purchase, server api.IServer) error {
 			}
 
 			// Next status if LSD raises no error
-			purchase.Status = store.StatusOk
-		} else if purchase.Status == store.StatusToBeReturned {
+			purchase.Status = model.StatusOk
+		} else if purchase.Status == model.StatusToBeReturned {
 			lsdURL += "/return"
 
 			// Next status if LSD raises no error
-			purchase.Status = store.StatusOk
+			purchase.Status = model.StatusOk
 		}
 		// message to the console
 		//log.Println("PUT " + lsdURL)
@@ -588,7 +589,7 @@ func updatePurchase(purchase *store.Purchase, server api.IServer) error {
 		purchase.EndDate = license.Rights.End
 	} else {
 		// status is not "to be renewed"
-		purchase.Status = store.StatusOk
+		purchase.Status = model.StatusOk
 	}
 	err = server.Store().Purchase().Update(purchase)
 	if err != nil {
@@ -597,7 +598,7 @@ func updatePurchase(purchase *store.Purchase, server api.IServer) error {
 	return nil
 }
 
-func getPartialLicense(purchase *store.Purchase, server api.IServer) (*store.License, error) {
+func getPartialLicense(purchase *model.Purchase, server common.IServer) (*model.License, error) {
 
 	if purchase.LicenseUUID == nil {
 		return nil, errors.New("No license has been yet delivered")
@@ -645,7 +646,7 @@ func getPartialLicense(purchase *store.Purchase, server api.IServer) (*store.Lic
 		return nil, errors.New("The License Server returned an error")
 	}
 	// decode the license
-	partialLicense := store.License{}
+	partialLicense := model.License{}
 	var dec *json.Decoder
 	dec = json.NewDecoder(resp.Body)
 	err = dec.Decode(&partialLicense)

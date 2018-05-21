@@ -28,9 +28,6 @@
 package main
 
 import (
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/logger"
-	"github.com/readium/readium-lcp-server/store"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -38,8 +35,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/claudiu/gocron"
-	ctrl "github.com/readium/readium-lcp-server/controller/lutserver"
+	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/logger"
+	"github.com/readium/readium-lcp-server/model"
+
+	"github.com/readium/readium-lcp-server/controller/lutserver"
+	"github.com/readium/readium-lcp-server/lib/cron"
 )
 
 func main() {
@@ -53,7 +54,7 @@ func main() {
 	if configFile = os.Getenv("READIUM_FRONTEND_CONFIG"); configFile == "" {
 		configFile = "config.yaml"
 	}
-	cfg, err := api.ReadConfig(configFile)
+	cfg, err := common.ReadConfig(configFile)
 	if err != nil {
 		panic(err)
 	}
@@ -65,7 +66,7 @@ func main() {
 		dbURI = "sqlite3://file:frontend.sqlite?cache=shared&mode=rwc"
 	}
 
-	stor, err := store.SetupDB(dbURI, log, true)
+	stor, err := model.SetupDB(dbURI, log, true)
 	if err != nil {
 		panic("Error setting up the database : " + err.Error())
 	}
@@ -74,7 +75,7 @@ func main() {
 		panic("Error migrating database : " + err.Error())
 	}
 
-	api.HandleSignals()
+	common.HandleSignals()
 
 	server := New(cfg, log, stor)
 	log.Printf("Frontend webserver for LCP running on " + cfg.FrontendServer.Host + ":" + strconv.Itoa(cfg.FrontendServer.Port))
@@ -86,9 +87,9 @@ func main() {
 
 // New creates a new webserver (basic user interface)
 func New(
-	cfg api.Configuration,
+	cfg common.Configuration,
 	log logger.StdLogger,
-	store store.Store) *api.Server {
+	store model.Store) *common.Server {
 
 	tcpAddress := cfg.FrontendServer.Host + ":" + strconv.Itoa(cfg.FrontendServer.Port)
 
@@ -127,9 +128,9 @@ func New(
 	log.Printf("... written in %s", filepathConfigJs)
 
 	log.Printf("Static folder : %s", staticFolderPath)
-	serverRouter := api.CreateServerRouter(staticFolderPath)
+	serverRouter := common.CreateServerRouter(staticFolderPath)
 
-	server := &api.Server{
+	server := &common.Server{
 		Server: http.Server{
 			Handler:        serverRouter.N,
 			Addr:           tcpAddress,
@@ -142,9 +143,9 @@ func New(
 		ORM: store}
 
 	// Cron, get license status information
-	gocron.Start()
+	cron.Start(5 * time.Minute)
 	// using Method expression instead of function
-	gocron.Every(10).Minutes().Do((*api.Server).FetchLicenseStatusesFromLSD)
+	cron.Every(10).Minutes().Do((*common.Server).FetchLicenseStatusesFromLSD)
 
 	apiURLPrefix := "/api/v1"
 
@@ -154,44 +155,44 @@ func New(
 	repositoriesRoutesPathPrefix := apiURLPrefix + "/repositories"
 	repositoriesRoutes := serverRouter.R.PathPrefix(repositoriesRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
-	server.HandleFunc(repositoriesRoutes, "/master-files", ctrl.GetRepositoryMasterFiles).Methods("GET")
+	server.HandleFunc(repositoriesRoutes, "/master-files", lutserver.GetRepositoryMasterFiles).Methods("GET")
 	//
 	// dashboard
 	//
-	server.HandleFunc(serverRouter.R, "/dashboardInfos", ctrl.GetDashboardInfos).Methods("GET")
-	server.HandleFunc(serverRouter.R, "/dashboardBestSellers", ctrl.GetDashboardBestSellers).Methods("GET")
+	server.HandleFunc(serverRouter.R, "/dashboardInfos", lutserver.GetDashboardInfos).Methods("GET")
+	server.HandleFunc(serverRouter.R, "/dashboardBestSellers", lutserver.GetDashboardBestSellers).Methods("GET")
 	//
 	// publications
 	//
 	publicationsRoutesPathPrefix := apiURLPrefix + "/publications"
 	publicationsRoutes := serverRouter.R.PathPrefix(publicationsRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
-	server.HandleFunc(serverRouter.R, publicationsRoutesPathPrefix, ctrl.GetPublications).Methods("GET")
+	server.HandleFunc(serverRouter.R, publicationsRoutesPathPrefix, lutserver.GetPublications).Methods("GET")
 	//
-	server.HandleFunc(serverRouter.R, publicationsRoutesPathPrefix, ctrl.CreatePublication).Methods("POST")
+	server.HandleFunc(serverRouter.R, publicationsRoutesPathPrefix, lutserver.CreatePublication).Methods("POST")
 	//
-	server.HandleFunc(serverRouter.R, "/PublicationUpload", ctrl.UploadEPUB).Methods("POST")
+	server.HandleFunc(serverRouter.R, "/PublicationUpload", lutserver.UploadEPUB).Methods("POST")
 	//
-	server.HandleFunc(publicationsRoutes, "/check-by-title", ctrl.CheckPublicationByTitle).Methods("GET")
+	server.HandleFunc(publicationsRoutes, "/check-by-title", lutserver.CheckPublicationByTitle).Methods("GET")
 	//
-	server.HandleFunc(publicationsRoutes, "/{id}", ctrl.GetPublication).Methods("GET")
-	server.HandleFunc(publicationsRoutes, "/{id}", ctrl.UpdatePublication).Methods("PUT")
-	server.HandleFunc(publicationsRoutes, "/{id}", ctrl.DeletePublication).Methods("DELETE")
+	server.HandleFunc(publicationsRoutes, "/{id}", lutserver.GetPublication).Methods("GET")
+	server.HandleFunc(publicationsRoutes, "/{id}", lutserver.UpdatePublication).Methods("PUT")
+	server.HandleFunc(publicationsRoutes, "/{id}", lutserver.DeletePublication).Methods("DELETE")
 	//
 	// user functions
 	//
 	usersRoutesPathPrefix := apiURLPrefix + "/users"
 	usersRoutes := serverRouter.R.PathPrefix(usersRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
-	server.HandleFunc(serverRouter.R, usersRoutesPathPrefix, ctrl.GetUsers).Methods("GET")
+	server.HandleFunc(serverRouter.R, usersRoutesPathPrefix, lutserver.GetUsers).Methods("GET")
 	//
-	server.HandleFunc(serverRouter.R, usersRoutesPathPrefix, ctrl.CreateUser).Methods("POST")
+	server.HandleFunc(serverRouter.R, usersRoutesPathPrefix, lutserver.CreateUser).Methods("POST")
 	//
-	server.HandleFunc(usersRoutes, "/{id}", ctrl.GetUser).Methods("GET")
-	server.HandleFunc(usersRoutes, "/{id}", ctrl.UpdateUser).Methods("PUT")
-	server.HandleFunc(usersRoutes, "/{id}", ctrl.DeleteUser).Methods("DELETE")
+	server.HandleFunc(usersRoutes, "/{id}", lutserver.GetUser).Methods("GET")
+	server.HandleFunc(usersRoutes, "/{id}", lutserver.UpdateUser).Methods("PUT")
+	server.HandleFunc(usersRoutes, "/{id}", lutserver.DeleteUser).Methods("DELETE")
 	// get all purchases for a given user
-	server.HandleFunc(usersRoutes, "/{user_id}/purchases", ctrl.GetUserPurchases).Methods("GET")
+	server.HandleFunc(usersRoutes, "/{user_id}/purchases", lutserver.GetUserPurchases).Methods("GET")
 
 	//
 	// purchases
@@ -199,15 +200,15 @@ func New(
 	purchasesRoutesPathPrefix := apiURLPrefix + "/purchases"
 	purchasesRoutes := serverRouter.R.PathPrefix(purchasesRoutesPathPrefix).Subrouter().StrictSlash(false)
 	// get all purchases
-	server.HandleFunc(serverRouter.R, purchasesRoutesPathPrefix, ctrl.GetPurchases).Methods("GET")
+	server.HandleFunc(serverRouter.R, purchasesRoutesPathPrefix, lutserver.GetPurchases).Methods("GET")
 	// create a purchase
-	server.HandleFunc(serverRouter.R, purchasesRoutesPathPrefix, ctrl.CreatePurchase).Methods("POST")
+	server.HandleFunc(serverRouter.R, purchasesRoutesPathPrefix, lutserver.CreatePurchase).Methods("POST")
 	// update a purchase
-	server.HandleFunc(purchasesRoutes, "/{id}", ctrl.UpdatePurchase).Methods("PUT")
+	server.HandleFunc(purchasesRoutes, "/{id}", lutserver.UpdatePurchase).Methods("PUT")
 	// get a purchase by purchase id
-	server.HandleFunc(purchasesRoutes, "/{id}", ctrl.GetPurchase).Methods("GET")
+	server.HandleFunc(purchasesRoutes, "/{id}", lutserver.GetPurchase).Methods("GET")
 	// get a license from the associated purchase id
-	server.HandleFunc(purchasesRoutes, "/{id}/license", ctrl.GetPurchasedLicense).Methods("GET")
+	server.HandleFunc(purchasesRoutes, "/{id}/license", lutserver.GetPurchasedLicense).Methods("GET")
 	//
 	// licences
 	//
@@ -215,9 +216,9 @@ func New(
 	licenseRoutes := serverRouter.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
 	// get a list of licenses
-	server.HandleFunc(serverRouter.R, licenseRoutesPathPrefix, ctrl.GetFilteredLicenses).Methods("GET")
+	server.HandleFunc(serverRouter.R, licenseRoutesPathPrefix, lutserver.GetFilteredLicenses).Methods("GET")
 	// get a license by id
-	server.HandleFunc(licenseRoutes, "/{license_id}", ctrl.GetLicense).Methods("GET")
+	server.HandleFunc(licenseRoutes, "/{license_id}", lutserver.GetLicense).Methods("GET")
 
 	return server
 }

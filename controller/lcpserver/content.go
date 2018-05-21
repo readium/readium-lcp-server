@@ -37,23 +37,23 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/pack"
-	"github.com/readium/readium-lcp-server/storage"
-	"github.com/readium/readium-lcp-server/store"
+	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/epub"
+	"github.com/readium/readium-lcp-server/lib/file_storage"
+	"github.com/readium/readium-lcp-server/lib/pack"
+	"github.com/readium/readium-lcp-server/model"
 )
 
 // StoreContent stores content in the storage
 // the content name is given in the url (name)
 // a temporary file is created, then deleted after the content has been stored
 //
-func StoreContent(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func StoreContent(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	vars := mux.Vars(req)
 
 	size, payload, err := writeRequestFileToTemp(req.Body)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -63,7 +63,7 @@ func StoreContent(resp http.ResponseWriter, req *http.Request, server api.IServe
 	result := server.Source().Post(t)
 
 	if result.Error != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: result.Error.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: result.Error.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -80,26 +80,26 @@ func StoreContent(resp http.ResponseWriter, req *http.Request, server api.IServe
 // if contentID is different , url key overrides the content id in the json payload
 // this method adds the <protected_content_location>  in the store (of encrypted files)
 // and the key in the database in order to create the licenses
-func AddContent(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func AddContent(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	// parse the json payload
 	vars := mux.Vars(req)
 	decoder := json.NewDecoder(req.Body)
-	var publication api.LcpPublication
+	var publication common.LcpPublication
 	err := decoder.Decode(&publication)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	// get the content ID in the url
 	contentID := vars["content_id"]
 	if contentID == "" {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: "The content id must be set in the url"}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "The content id must be set in the url"}, http.StatusBadRequest)
 		return
 	}
 	// open the encrypted file from the path given in the json payload
 	file, err := os.Open(publication.Output)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
@@ -108,11 +108,11 @@ func AddContent(resp http.ResponseWriter, req *http.Request, server api.IServer)
 	// add the file to the storage, named from contentID
 	_, err = server.Storage().Add(contentID, file)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
-	var content *store.Content
+	var content *model.Content
 	// insert row in database if key does not exist
 	content, err = server.Store().Content().Get(contentID)
 	content.EncryptionKey = publication.ContentKey
@@ -142,7 +142,7 @@ func AddContent(resp http.ResponseWriter, req *http.Request, server api.IServer)
 		code = http.StatusOK
 	}
 	if err != nil { //db not updated
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -155,19 +155,19 @@ func AddContent(resp http.ResponseWriter, req *http.Request, server api.IServer)
 
 // ListContents lists the content in the storage index
 //
-func ListContents(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func ListContents(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	fmt.Fprintf(os.Stderr, "Listing contents.")
 	contents, err := server.Store().Content().List()
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
-	resp.Header().Set(api.HdrContentType, api.ContentTypeJson)
+	resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
 	enc := json.NewEncoder(resp)
 	err = enc.Encode(contents)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -176,26 +176,26 @@ func ListContents(resp http.ResponseWriter, req *http.Request, server api.IServe
 // GetContent fetches and returns an encrypted content file
 // selected by it content id (uuid)
 //
-func GetContent(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func GetContent(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	// get the content id from the calling url
 	vars := mux.Vars(req)
 	contentID := vars["content_id"]
 	content, err := server.Store().Content().Get(contentID)
 	if err != nil { //item probably not found
 		if err == gorm.ErrRecordNotFound {
-			api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusNotFound)
+			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
 		} else {
-			api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
 		return
 	}
 	// check the existence of the file
 	item, err := server.Storage().Get(contentID)
 	if err != nil { //item probably not found
-		if err == storage.ErrNotFound {
-			api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusNotFound)
+		if err == file_storage.ErrNotFound {
+			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
 		} else {
-			api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		}
 		return
 	}
@@ -203,12 +203,12 @@ func GetContent(resp http.ResponseWriter, req *http.Request, server api.IServer)
 	contentReadCloser, err := item.Contents()
 	defer contentReadCloser.Close()
 	if err != nil { //file probably not found
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	// set headers
-	resp.Header().Set(api.HdrContentDisposition, "attachment; filename="+content.Location)
-	resp.Header().Set(api.HdrContentType, epub.ContentTypeEpub)
+	resp.Header().Set(common.HdrContentDisposition, "attachment; filename="+content.Location)
+	resp.Header().Set(common.HdrContentType, epub.ContentTypeEpub)
 	resp.Header().Set("Content-Length", fmt.Sprintf("%d", content.Length))
 
 	// TODO : no error checking ? no verification if that file exists ?

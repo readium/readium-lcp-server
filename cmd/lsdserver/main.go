@@ -28,18 +28,19 @@
 package main
 
 import (
-	"github.com/abbot/go-http-auth"
 	"os"
 
-	"github.com/readium/readium-lcp-server/api"
-	ctrl "github.com/readium/readium-lcp-server/controller/lsdserver"
-	"github.com/readium/readium-lcp-server/localization"
-	"github.com/readium/readium-lcp-server/logger"
-	"github.com/readium/readium-lcp-server/logging"
-	"github.com/readium/readium-lcp-server/store"
+	"github.com/abbot/go-http-auth"
+
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/controller/lsdserver"
+	"github.com/readium/readium-lcp-server/lib/localization"
+	"github.com/readium/readium-lcp-server/lib/logger"
+	"github.com/readium/readium-lcp-server/model"
 )
 
 func main() {
@@ -52,7 +53,7 @@ func main() {
 	}
 
 	var err error
-	cfg, err := api.ReadConfig(configFile)
+	cfg, err := common.ReadConfig(configFile)
 	if err != nil {
 		panic(err)
 	}
@@ -76,7 +77,7 @@ func main() {
 		dbURI = cfg.LsdServer.Database
 	}
 
-	stor, err := store.SetupDB(dbURI, logz, true)
+	stor, err := model.SetupDB(dbURI, logz, true)
 	if err != nil {
 		panic("Error setting up the database : " + err.Error())
 	}
@@ -93,12 +94,12 @@ func main() {
 	// a log file will be created with a specifc format, for compliance testing
 	complianceMode := cfg.ComplianceMode
 	logDirectory := cfg.LsdServer.LogDirectory
-	err = logging.Init(logDirectory, complianceMode)
+	err = logger.Init(logDirectory, complianceMode)
 	if err != nil {
 		panic(err)
 	}
 
-	api.HandleSignals()
+	common.HandleSignals()
 
 	authenticator := auth.NewBasicAuthenticator("Basic Realm", htpasswd)
 	s := New(cfg, logz, stor, authenticator)
@@ -111,10 +112,10 @@ func main() {
 	}
 }
 
-func New(config api.Configuration,
+func New(config common.Configuration,
 	log logger.StdLogger,
-	store store.Store,
-	basicAuth *auth.BasicAuth) *api.Server {
+	store model.Store,
+	basicAuth *auth.BasicAuth) *common.Server {
 
 	complianceMode := config.ComplianceMode
 	parsedPort := strconv.Itoa(config.LsdServer.Port)
@@ -122,9 +123,9 @@ func New(config api.Configuration,
 	// the server will behave strangely, to test the resilience of LCP compliant apps
 	goofyMode := config.GoofyMode
 
-	sr := api.CreateServerRouter("")
+	sr := common.CreateServerRouter("")
 
-	s := &api.Server{
+	s := &common.Server{
 		Server: http.Server{
 			Handler:        sr.N,
 			Addr:           ":" + parsedPort,
@@ -144,23 +145,23 @@ func New(config api.Configuration,
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.HandlePrivateFunc(sr.R, licenseRoutesPathPrefix, ctrl.FilterLicenseStatuses, basicAuth).Methods("GET")
+	s.HandlePrivateFunc(sr.R, licenseRoutesPathPrefix, lsdserver.FilterLicenseStatuses, basicAuth).Methods("GET")
 
-	s.HandleFunc(licenseRoutes, "/{key}/status", ctrl.GetLicenseStatusDocument).Methods("GET")
+	s.HandleFunc(licenseRoutes, "/{key}/status", lsdserver.GetLicenseStatusDocument).Methods("GET")
 
 	if complianceMode {
-		s.HandleFunc(sr.R, "/compliancetest", ctrl.AddLogToFile).Methods("POST")
+		s.HandleFunc(sr.R, "/compliancetest", lsdserver.AddLogToFile).Methods("POST")
 	}
 
-	s.HandlePrivateFunc(licenseRoutes, "/{key}/registered", ctrl.ListRegisteredDevices, basicAuth).Methods("GET")
+	s.HandlePrivateFunc(licenseRoutes, "/{key}/registered", lsdserver.ListRegisteredDevices, basicAuth).Methods("GET")
 	if !readonly {
-		s.HandleFunc(licenseRoutes, "/{key}/register", ctrl.RegisterDevice).Methods("POST")
-		s.HandleFunc(licenseRoutes, "/{key}/return", ctrl.LendingReturn).Methods("PUT")
-		s.HandleFunc(licenseRoutes, "/{key}/renew", ctrl.LendingRenewal).Methods("PUT")
-		s.HandlePrivateFunc(licenseRoutes, "/{key}/status", ctrl.LendingCancellation, basicAuth).Methods("PATCH")
+		s.HandleFunc(licenseRoutes, "/{key}/register", lsdserver.RegisterDevice).Methods("POST")
+		s.HandleFunc(licenseRoutes, "/{key}/return", lsdserver.LendingReturn).Methods("PUT")
+		s.HandleFunc(licenseRoutes, "/{key}/renew", lsdserver.LendingRenewal).Methods("PUT")
+		s.HandlePrivateFunc(licenseRoutes, "/{key}/status", lsdserver.LendingCancellation, basicAuth).Methods("PATCH")
 
-		s.HandlePrivateFunc(sr.R, "/licenses", ctrl.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
-		s.HandlePrivateFunc(licenseRoutes, "/", ctrl.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
+		s.HandlePrivateFunc(sr.R, "/licenses", lsdserver.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
+		s.HandlePrivateFunc(licenseRoutes, "/", lsdserver.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 	}
 
 	return s

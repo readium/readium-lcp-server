@@ -25,33 +25,27 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package main
+package file_storage
 
 import (
-	"flag"
-	"fmt"
-
-	"github.com/readium/readium-lcp-server/lib/logger"
+	"errors"
+	"io"
 )
 
-func main() {
-	logFilePath := flag.String("log", "", "path to .log file")
+// ErrNotFound is not found
+var ErrNotFound = errors.New("Item could not be found")
 
-	flag.Parse()
+// Item interface
+type Item interface {
+	Key() string
+	PublicURL() string
+	Contents() (io.ReadCloser, error)
+}
 
-	if *logFilePath == "" {
-		fmt.Println("use -log file path")
-		return
-	}
-
-	fmt.Println("Parsing the log file...")
-	logs, err := logger.ReadLogs(*logFilePath)
-	summary, err := logger.CountTotal(logs)
-
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(logs)
-	fmt.Println(summary)
+// Store interface
+type Store interface {
+	Add(key string, r io.ReadSeeker) (Item, error)
+	Get(key string) (Item, error)
+	Remove(key string) error
+	List() ([]Item, error)
 }

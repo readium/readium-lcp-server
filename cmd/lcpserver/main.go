@@ -28,21 +28,24 @@
 package main
 
 import (
-	"github.com/abbot/go-http-auth"
 	"os"
 	"runtime"
 
+	"github.com/abbot/go-http-auth"
+
 	"crypto/tls"
-	"github.com/readium/readium-lcp-server/api"
-	ctrl "github.com/readium/readium-lcp-server/controller/lcpserver"
-	"github.com/readium/readium-lcp-server/logger"
-	"github.com/readium/readium-lcp-server/pack"
-	"github.com/readium/readium-lcp-server/storage"
-	"github.com/readium/readium-lcp-server/store"
+
 	"net/http"
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/controller/lcpserver"
+	"github.com/readium/readium-lcp-server/lib/file_storage"
+	"github.com/readium/readium-lcp-server/lib/logger"
+	"github.com/readium/readium-lcp-server/lib/pack"
+	"github.com/readium/readium-lcp-server/model"
 )
 
 func main() {
@@ -57,7 +60,7 @@ func main() {
 	}
 
 	logz.Printf("Reading config " + configFile)
-	cfg, err := api.ReadConfig(configFile)
+	cfg, err := common.ReadConfig(configFile)
 	if err != nil {
 		panic(err)
 	}
@@ -83,7 +86,7 @@ func main() {
 	}
 
 	// Init database
-	stor, err := store.SetupDB(dbURI, logz, true)
+	stor, err := model.SetupDB(dbURI, logz, true)
 	if err != nil {
 		panic("Error setting up the database : " + err.Error())
 	}
@@ -96,13 +99,13 @@ func main() {
 		storagePath = "files"
 	}
 
-	var s3Storage storage.Store
+	var s3Storage file_storage.Store
 	if mode := cfg.Storage.Mode; mode == "s3" {
 		s3Conf := s3ConfigFromYAML(cfg.Storage)
-		s3Storage, _ = storage.S3(s3Conf)
+		s3Storage, _ = file_storage.S3(s3Conf)
 	} else {
 		os.MkdirAll(storagePath, os.ModePerm) //ignore the error, the folder can already exist
-		s3Storage = storage.NewFileSystem(storagePath, cfg.LcpServer.PublicBaseUrl+"/files")
+		s3Storage = file_storage.NewFileSystem(storagePath, cfg.LcpServer.PublicBaseUrl+"/files")
 	}
 	// Prepare packager with S3 and storage
 	packager := pack.NewPackager(s3Storage, stor.Content(), 4)
@@ -115,7 +118,7 @@ func main() {
 	authenticator := auth.NewBasicAuthenticator("Readium License Content Protection Server", htpasswd)
 
 	// finally, starting server
-	api.HandleSignals()
+	common.HandleSignals()
 	s := New(cfg, logz, stor, &s3Storage, &cert, packager, authenticator)
 
 	logz.Printf("Using database " + dbURI)
@@ -132,13 +135,13 @@ func main() {
 }
 
 func New(
-	cfg api.Configuration,
+	cfg common.Configuration,
 	log logger.StdLogger,
-	stor store.Store,
-	storage *storage.Store,
+	stor model.Store,
+	storage *file_storage.Store,
 	cert *tls.Certificate,
 	packager *pack.Packager,
-	basicAuth *auth.BasicAuth) *api.Server {
+	basicAuth *auth.BasicAuth) *common.Server {
 
 	parsedPort := strconv.Itoa(cfg.LcpServer.Port)
 
@@ -174,9 +177,9 @@ func New(
 	log.Printf(configJs)
 	fileConfigJs.WriteString(configJs)
 
-	sr := api.CreateServerRouter(static)
+	sr := common.CreateServerRouter(static)
 
-	s := &api.Server{
+	s := &common.Server{
 		Server: http.Server{
 			Handler:        sr.N,
 			Addr:           ":" + parsedPort,
@@ -205,25 +208,25 @@ func New(
 	contentRoutesPathPrefix := "/contents"
 	contentRoutes := sr.R.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.HandleFunc(sr.R, contentRoutesPathPrefix, ctrl.ListContents).Methods("GET")
+	s.HandleFunc(sr.R, contentRoutesPathPrefix, lcpserver.ListContents).Methods("GET")
 
 	// get encrypted content by content id (a uuid)
-	s.HandleFunc(contentRoutes, "/{content_id}", ctrl.GetContent).Methods("GET")
+	s.HandleFunc(contentRoutes, "/{content_id}", lcpserver.GetContent).Methods("GET")
 	// get all licenses associated with a given content
-	s.HandlePrivateFunc(contentRoutes, "/{content_id}/licenses", ctrl.ListLicensesForContent, basicAuth).Methods("GET")
+	s.HandlePrivateFunc(contentRoutes, "/{content_id}/licenses", lcpserver.ListLicensesForContent, basicAuth).Methods("GET")
 
 	if !readonly {
-		s.HandleFunc(contentRoutes, "/{name}", ctrl.StoreContent).Methods("POST")
+		s.HandleFunc(contentRoutes, "/{name}", lcpserver.StoreContent).Methods("POST")
 		// put content to the storage
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}", ctrl.AddContent, basicAuth).Methods("PUT")
+		s.HandlePrivateFunc(contentRoutes, "/{content_id}", lcpserver.AddContent, basicAuth).Methods("PUT")
 		// generate a license for given content
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/license", ctrl.GenerateLicense, basicAuth).Methods("POST")
+		s.HandlePrivateFunc(contentRoutes, "/{content_id}/license", lcpserver.GenerateLicense, basicAuth).Methods("POST")
 		// deprecated, from a typo in the lcp server spec
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/licenses", ctrl.GenerateLicense, basicAuth).Methods("POST")
+		s.HandlePrivateFunc(contentRoutes, "/{content_id}/licenses", lcpserver.GenerateLicense, basicAuth).Methods("POST")
 		// generate a licensed publication
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/publication", ctrl.GenerateLicensedPublication, basicAuth).Methods("POST")
+		s.HandlePrivateFunc(contentRoutes, "/{content_id}/publication", lcpserver.GenerateLicensedPublication, basicAuth).Methods("POST")
 		// deprecated, from a typo in the lcp server spec
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/publications", ctrl.GenerateLicensedPublication, basicAuth).Methods("POST")
+		s.HandlePrivateFunc(contentRoutes, "/{content_id}/publications", lcpserver.GenerateLicensedPublication, basicAuth).Methods("POST")
 	}
 
 	// methods related to licenses
@@ -231,23 +234,23 @@ func New(
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.HandlePrivateFunc(sr.R, licenseRoutesPathPrefix, ctrl.ListLicenses, basicAuth).Methods("GET")
+	s.HandlePrivateFunc(sr.R, licenseRoutesPathPrefix, lcpserver.ListLicenses, basicAuth).Methods("GET")
 	// get a license
-	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", ctrl.GetLicense, basicAuth).Methods("GET")
-	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", ctrl.GetLicense, basicAuth).Methods("POST")
+	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense, basicAuth).Methods("GET")
+	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense, basicAuth).Methods("POST")
 	// get a licensed publication via a license id
-	s.HandlePrivateFunc(licenseRoutes, "/{license_id}/publication", ctrl.GetLicensedPublication, basicAuth).Methods("POST")
+	s.HandlePrivateFunc(licenseRoutes, "/{license_id}/publication", lcpserver.GetLicensedPublication, basicAuth).Methods("POST")
 	if !readonly {
 		// update a license
-		s.HandlePrivateFunc(licenseRoutes, "/{license_id}", ctrl.UpdateLicense, basicAuth).Methods("PATCH")
+		s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.UpdateLicense, basicAuth).Methods("PATCH")
 	}
 
 	s.Src.Feed(packager.Incoming)
 	return s
 }
 
-func s3ConfigFromYAML(cfg api.Storage) storage.S3Config {
-	s3config := storage.S3Config{
+func s3ConfigFromYAML(cfg common.Storage) file_storage.S3Config {
+	s3config := file_storage.S3Config{
 		ID:             cfg.AccessId,
 		Secret:         cfg.Secret,
 		Token:          cfg.Token,

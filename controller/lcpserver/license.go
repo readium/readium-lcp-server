@@ -30,14 +30,15 @@ package lcpserver
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
 
+	"github.com/gorilla/mux"
+
 	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/storage"
+	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/epub"
+	"github.com/readium/readium-lcp-server/lib/file_storage"
 )
 
 // GetLicense returns an existing license,
@@ -45,7 +46,7 @@ import (
 // The input partial license is optional: if absent, a partial license
 // is returned to the caller, with the info stored in the db.
 //
-func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func GetLicense(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 
 	vars := mux.Vars(req)
 	// get the license id from the request URL
@@ -57,16 +58,16 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer)
 	licOut, e := server.Store().License().Get(licenseID)
 	// process license not found etc.
 	if e == gorm.ErrRecordNotFound {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: e.Error()}, http.StatusNotFound)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusNotFound)
 		return
 	} else if e != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: e.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusBadRequest)
 		return
 	}
 	// get the input body.
 	// It contains the hashed passphrase, user hint
 	// and other optional user data the provider wants to see embedded in thel license
-	licIn, err := api.ReadLicensePayload(req)
+	licIn, err := common.ReadLicensePayload(req)
 	// error parsing the input body
 	if err != nil {
 		// if there was no partial license given as payload, return a partial license.
@@ -75,7 +76,7 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer)
 			server.LogError("No payload, get a partial license")
 
 			// add useful http headers
-			resp.Header().Add(api.HdrContentType, api.ContentTypeLcpJson)
+			resp.Header().Add(common.HdrContentType, common.ContentTypeLcpJson)
 			resp.WriteHeader(http.StatusPartialContent)
 			// send back the partial license
 			// do not escape characters
@@ -85,7 +86,7 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer)
 			return
 		}
 		// unknown error
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -93,7 +94,7 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer)
 	// check mandatory information in the partial license
 	err = licIn.CheckGetLicenseInput()
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	// copy useful data from licIn to LicOut
@@ -101,13 +102,13 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer)
 	// build the license
 	err = buildLicense(licOut, server)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
 	// set the http headers
-	resp.Header().Add(api.HdrContentType, api.ContentTypeLcpJson)
-	resp.Header().Add(api.HdrContentDisposition, `attachment; filename="license.lcpl"`)
+	resp.Header().Add(common.HdrContentType, common.ContentTypeLcpJson)
+	resp.Header().Add(common.HdrContentDisposition, `attachment; filename="license.lcpl"`)
 	resp.WriteHeader(http.StatusOK)
 	// send back the license
 	// do not escape characters in the json payload
@@ -120,7 +121,7 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server api.IServer)
 // for a given content identified by its id
 // plus a partial license given as input
 //
-func GenerateLicense(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func GenerateLicense(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	vars := mux.Vars(req)
 	// get the content id from the request URL
 	contentID := vars["content_id"]
@@ -131,9 +132,9 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server api.ISe
 	// note: no need to create licIn / licOut here, as the input body contains
 	// info that we want to keep in the full license.
 
-	lic, err := api.ReadLicensePayload(req)
+	lic, err := common.ReadLicensePayload(req)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -141,7 +142,7 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server api.ISe
 	// check mandatory information in the input body
 	err = lic.CheckGenerateLicenseInput()
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
@@ -149,7 +150,7 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server api.ISe
 	// init the license with an id and issue date
 	err = lic.Initialize(contentID)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -161,7 +162,7 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server api.ISe
 	// build the license
 	err = buildLicense(lic, server)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 	//jsonPayload, err := json.MarshalIndent(lic, " ", " ")
@@ -169,12 +170,12 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server api.ISe
 	// store the license in the db
 	err = server.Store().License().Add(lic)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 	// set http headers
-	resp.Header().Add(api.HdrContentType, api.ContentTypeLcpJson)
-	resp.Header().Add(api.HdrContentDisposition, `attachment; filename="license.lcpl"`)
+	resp.Header().Add(common.HdrContentType, common.ContentTypeLcpJson)
+	resp.Header().Add(common.HdrContentDisposition, `attachment; filename="license.lcpl"`)
 	resp.WriteHeader(http.StatusCreated)
 	// send back the license
 	// do not escape characters
@@ -191,32 +192,32 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server api.ISe
 // for a given license identified by its id
 // plus a partial license given as input
 //
-func GetLicensedPublication(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func GetLicensedPublication(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	vars := mux.Vars(req)
 	licenseID := vars["license_id"]
 
 	//server.LogInfo("Get a Licensed publication for license id : %s", licenseID)
 
 	// get the input body
-	licIn, err := api.ReadLicensePayload(req)
+	licIn, err := common.ReadLicensePayload(req)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	// check mandatory information in the input body
 	err = licIn.CheckGetLicenseInput()
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	// initialize the license from the info stored in the db.
 	licOut, e := server.Store().License().Get(licenseID)
 	// process license not found etc.
 	if e == gorm.ErrRecordNotFound {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: e.Error()}, http.StatusNotFound)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusNotFound)
 		return
 	} else if e != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: e.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusBadRequest)
 		return
 	}
 	// copy useful data from licIn to LicOut
@@ -224,32 +225,32 @@ func GetLicensedPublication(resp http.ResponseWriter, req *http.Request, server 
 	// build the license
 	err = buildLicense(licOut, server)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 	// build a licenced publication
 	publication, err := buildLicencedPublication(licOut, server)
-	if err == storage.ErrNotFound {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error(), Instance: licOut.ContentId}, http.StatusNotFound)
+	if err == file_storage.ErrNotFound {
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error(), Instance: licOut.ContentId}, http.StatusNotFound)
 		return
 	} else if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error(), Instance: licOut.ContentId}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error(), Instance: licOut.ContentId}, http.StatusInternalServerError)
 		return
 	}
 	// get the content location to fill an http header
 	// FIXME: redundant as the content location has been set in a link (publication)
 	content, err1 := server.Store().Content().Get(licOut.ContentId)
 	if err1 != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err1.Error(), Instance: licOut.ContentId}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err1.Error(), Instance: licOut.ContentId}, http.StatusInternalServerError)
 		return
 	}
 	location := content.Location
 
 	// set HTTP headers
-	resp.Header().Add(api.HdrContentType, epub.ContentTypeEpub)
-	resp.Header().Add(api.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, location))
+	resp.Header().Add(common.HdrContentType, epub.ContentTypeEpub)
+	resp.Header().Add(common.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, location))
 	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
-	resp.Header().Add(api.HdrXLcpLicense, licOut.Id)
+	resp.Header().Add(common.HdrXLcpLicense, licOut.Id)
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	resp.WriteHeader(http.StatusCreated)
 	// return the full licensed publication to the caller
@@ -260,28 +261,28 @@ func GetLicensedPublication(resp http.ResponseWriter, req *http.Request, server 
 // for a given content identified by its id
 // plus a partial license given as input
 //
-func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	vars := mux.Vars(req)
 	contentID := vars["content_id"]
 
 	//server.LogInfo("Generate a Licensed publication for content id : %s", contentID)
 
 	// get the input body
-	lic, err := api.ReadLicensePayload(req)
+	lic, err := common.ReadLicensePayload(req)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	// check mandatory information in the input body
 	err = lic.CheckGenerateLicenseInput()
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	// init the license with an id and issue date
 	err = lic.Initialize(contentID)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 	// normalize the start and end date, UTC, no milliseconds
@@ -289,14 +290,14 @@ func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, se
 	// build the license
 	err = buildLicense(lic, server)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
 	// store the license in the db
 	err = server.Store().License().Add(lic)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error(), Instance: contentID}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error(), Instance: contentID}, http.StatusInternalServerError)
 		return
 	}
 
@@ -305,11 +306,11 @@ func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, se
 
 	// build a licenced publication
 	publication, err := buildLicencedPublication(lic, server)
-	if err == storage.ErrNotFound {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error(), Instance: lic.ContentId}, http.StatusNotFound)
+	if err == file_storage.ErrNotFound {
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error(), Instance: lic.ContentId}, http.StatusNotFound)
 		return
 	} else if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error(), Instance: lic.ContentId}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error(), Instance: lic.ContentId}, http.StatusInternalServerError)
 		return
 	}
 
@@ -317,16 +318,16 @@ func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, se
 	// FIXME: redundant as the content location has been set in a link (publication)
 	content, err1 := server.Store().Content().Get(lic.ContentId)
 	if err1 != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err1.Error(), Instance: lic.ContentId}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err1.Error(), Instance: lic.ContentId}, http.StatusInternalServerError)
 		return
 	}
 	location := content.Location
 
 	// set HTTP headers
-	resp.Header().Add(api.HdrContentType, epub.ContentTypeEpub)
-	resp.Header().Add(api.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, location))
+	resp.Header().Add(common.HdrContentType, epub.ContentTypeEpub)
+	resp.Header().Add(common.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, location))
 	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
-	resp.Header().Add(api.HdrXLcpLicense, lic.Id)
+	resp.Header().Add(common.HdrXLcpLicense, lic.Id)
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	resp.WriteHeader(http.StatusCreated)
 	// return the full licensed publication to the caller
@@ -341,26 +342,26 @@ func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, se
 // Usually called from the License Status Server after a renew, return or cancel/revoke action
 // -> updates the end date.
 //
-func UpdateLicense(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func UpdateLicense(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	vars := mux.Vars(req)
 	// get the license id from the request URL
 	licenseID := vars["license_id"]
 
 	//server.LogInfo("Update License with id", licenseID)
 
-	licIn, err := api.ReadLicensePayload(req)
+	licIn, err := common.ReadLicensePayload(req)
 	if err != nil { // no or incorrect (json) partial license found in the body
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 	// initialize the license from the info stored in the db.
 	licOut, e := server.Store().License().Get(licenseID)
 	// process license not found etc.
 	if e == gorm.ErrRecordNotFound {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: e.Error()}, http.StatusNotFound)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusNotFound)
 		return
 	} else if e != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: e.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusBadRequest)
 		return
 	}
 	// update licOut using information found in licIn
@@ -395,7 +396,7 @@ func UpdateLicense(resp http.ResponseWriter, req *http.Request, server api.IServ
 	// update the license in the database
 	err = server.Store().License().Update(licOut)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 }
@@ -405,14 +406,14 @@ func UpdateLicense(resp http.ResponseWriter, req *http.Request, server api.IServ
 // 	page: page number
 //	per_page: number of items par page
 //
-func ListLicenses(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func ListLicenses(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	var page int64
 	var perPage int64
 	var err error
 	if req.FormValue("page") != "" {
 		page, err = strconv.ParseInt((req).FormValue("page"), 10, 32)
 		if err != nil {
-			api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 	} else {
@@ -421,7 +422,7 @@ func ListLicenses(resp http.ResponseWriter, req *http.Request, server api.IServe
 	if req.FormValue("per_page") != "" {
 		perPage, err = strconv.ParseInt((req).FormValue("per_page"), 10, 32)
 		if err != nil {
-			api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 	} else {
@@ -431,13 +432,13 @@ func ListLicenses(resp http.ResponseWriter, req *http.Request, server api.IServe
 		page--
 	}
 	if page < 0 {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: "page must be positive integer"}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "page must be positive integer"}, http.StatusBadRequest)
 		return
 	}
 
 	licenses, err := server.Store().License().ListAll(int(perPage), int(page))
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
@@ -449,14 +450,14 @@ func ListLicenses(resp http.ResponseWriter, req *http.Request, server api.IServe
 		previousPage := strconv.Itoa(int(page) - 1)
 		resp.Header().Set("LicenseLink", "</licenses/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
 	}
-	resp.Header().Set(api.HdrContentType, api.ContentTypeJson)
+	resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
 
 	enc := json.NewEncoder(resp)
 	// do not escape characters
 	enc.SetEscapeHTML(false)
 	err = enc.Encode(licenses)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 }
@@ -467,7 +468,7 @@ func ListLicenses(resp http.ResponseWriter, req *http.Request, server api.IServe
 // 	page: page number (default 1)
 //	per_page: number of items par page (default 30)
 //
-func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server api.IServer) {
+func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	vars := mux.Vars(req)
 	var page int64
 	var perPage int64
@@ -477,13 +478,13 @@ func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server 
 	//check if the license exists
 	_, err = server.Store().Content().Get(contentID)
 	if err == gorm.ErrRecordNotFound {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusNotFound)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
 		return
 	} //other errors pass, but will probably reoccur
 	if req.FormValue("page") != "" {
 		page, err = strconv.ParseInt(req.FormValue("page"), 10, 32)
 		if err != nil {
-			api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 	} else {
@@ -493,7 +494,7 @@ func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server 
 	if req.FormValue("per_page") != "" {
 		perPage, err = strconv.ParseInt((req).FormValue("per_page"), 10, 32)
 		if err != nil {
-			api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 	} else {
@@ -503,13 +504,13 @@ func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server 
 		page-- //pagenum starting at 0 in code, but user interface starting at 1
 	}
 	if page < 0 {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: "page must be positive integer"}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "page must be positive integer"}, http.StatusBadRequest)
 		return
 	}
 
 	licenses, err := server.Store().License().List(contentID, int(perPage), int(page))
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 	}
 
 	if len(licenses) > 0 {
@@ -520,13 +521,13 @@ func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server 
 		previousPage := strconv.Itoa(int(page) - 1)
 		resp.Header().Set("LicenseLink", "</licenses/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
 	}
-	resp.Header().Set(api.HdrContentType, api.ContentTypeJson)
+	resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
 	enc := json.NewEncoder(resp)
 	// do not escape characters
 	enc.SetEscapeHTML(false)
 	err = enc.Encode(licenses)
 	if err != nil {
-		api.Error(resp, req, server.DefaultSrvLang(), api.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 

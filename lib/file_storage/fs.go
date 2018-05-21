@@ -25,33 +25,90 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package main
+package file_storage
 
 import (
-	"flag"
-	"fmt"
-
-	"github.com/readium/readium-lcp-server/lib/logger"
+	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 )
 
-func main() {
-	logFilePath := flag.String("log", "", "path to .log file")
-
-	flag.Parse()
-
-	if *logFilePath == "" {
-		fmt.Println("use -log file path")
-		return
+type (
+	fsStorage struct {
+		fspath string
+		url    string
 	}
 
-	fmt.Println("Parsing the log file...")
-	logs, err := logger.ReadLogs(*logFilePath)
-	summary, err := logger.CountTotal(logs)
+	fsItem struct {
+		name       string
+		storageDir string
+		baseURL    string
+	}
+)
+
+func (i fsItem) Key() string {
+	return i.name
+}
+
+func (i fsItem) PublicURL() string {
+	return i.baseURL + "/" + i.name
+}
+
+func (i fsItem) Contents() (io.ReadCloser, error) {
+	return os.Open(filepath.Join(i.storageDir, i.name))
+	// FIXME: process errors
+}
+
+func (s fsStorage) Add(key string, r io.ReadSeeker) (Item, error) {
+	file, err := os.Create(filepath.Join(s.fspath, key))
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	io.Copy(file, r)
 
 	if err != nil {
-		panic(err)
+		return nil, err
+	}
+	return &fsItem{name: key, storageDir: s.fspath, baseURL: s.url}, nil
+}
+
+// Get returns an Item in the storage, by its key
+// the key is the file name
+//
+func (s fsStorage) Get(key string) (Item, error) {
+	_, err := os.Stat(filepath.Join(s.fspath, key))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &fsItem{name: key, storageDir: s.fspath, baseURL: s.url}, nil
+}
+
+func (s fsStorage) Remove(key string) error {
+	return os.Remove(filepath.Join(s.fspath, key))
+}
+
+func (s fsStorage) List() ([]Item, error) {
+	var items []Item
+
+	files, err := ioutil.ReadDir(s.fspath)
+	if err != nil {
+		return nil, err
 	}
 
-	fmt.Println(logs)
-	fmt.Println(summary)
+	for _, fi := range files {
+		items = append(items, &fsItem{name: fi.Name(), storageDir: s.fspath, baseURL: s.url})
+	}
+
+	return items, nil
+}
+
+// NewFileSystem creates a new storage
+//
+func NewFileSystem(dir, basePath string) Store {
+	return fsStorage{dir, basePath}
 }
