@@ -30,8 +30,6 @@ package main
 import (
 	"os"
 
-	"github.com/abbot/go-http-auth"
-
 	"net/http"
 	"strconv"
 	"time"
@@ -63,7 +61,7 @@ func main() {
 	if authFile == "" {
 		panic("Must have passwords file")
 	}
-	htpasswd := auth.HtpasswdFileProvider(authFile)
+
 	if cfg.Localization.Folder != "" {
 		err = localization.InitTranslations(cfg.Localization.Folder, cfg.Localization.Languages)
 		if err != nil {
@@ -77,7 +75,7 @@ func main() {
 		dbURI = cfg.LsdServer.Database
 	}
 
-	stor, err := model.SetupDB(dbURI, logz, true)
+	stor, err := model.SetupDB(dbURI, logz, false)
 	if err != nil {
 		panic("Error setting up the database : " + err.Error())
 	}
@@ -101,8 +99,7 @@ func main() {
 
 	common.HandleSignals()
 
-	authenticator := auth.NewBasicAuthenticator("Basic Realm", htpasswd)
-	s := New(cfg, logz, stor, authenticator)
+	s := New(cfg, logz, stor)
 
 	logz.Printf("Using database : %q", dbURI)
 	logz.Printf("Public base URL : %q", cfg.LsdServer.PublicBaseUrl)
@@ -114,8 +111,7 @@ func main() {
 
 func New(config common.Configuration,
 	log logger.StdLogger,
-	store model.Store,
-	basicAuth *auth.BasicAuth) *common.Server {
+	store model.Store) *common.Server {
 
 	complianceMode := config.ComplianceMode
 	parsedPort := strconv.Itoa(config.LsdServer.Port)
@@ -136,16 +132,18 @@ func New(config common.Configuration,
 		Log:        log,
 		Cfg:        config,
 		Readonly:   readonly,
-		ORM:        store,
+		Model:      store,
 		GoophyMode: goofyMode,
 	}
 
+	s.MakeAutorizator("Basic Realm")           // creates authority checker
+	sr.R.NotFoundHandler = s.NotFoundHandler() //handle all other requests 404
 	s.Log.Printf("License status server running on port %d [readonly = %t]", config.LsdServer.Port, readonly)
 
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.HandlePrivateFunc(sr.R, licenseRoutesPathPrefix, lsdserver.FilterLicenseStatuses, basicAuth).Methods("GET")
+	s.HandlePrivateFunc(sr.R, licenseRoutesPathPrefix, lsdserver.FilterLicenseStatuses).Methods("GET")
 
 	s.HandleFunc(licenseRoutes, "/{key}/status", lsdserver.GetLicenseStatusDocument).Methods("GET")
 
@@ -153,15 +151,15 @@ func New(config common.Configuration,
 		s.HandleFunc(sr.R, "/compliancetest", lsdserver.AddLogToFile).Methods("POST")
 	}
 
-	s.HandlePrivateFunc(licenseRoutes, "/{key}/registered", lsdserver.ListRegisteredDevices, basicAuth).Methods("GET")
+	s.HandlePrivateFunc(licenseRoutes, "/{key}/registered", lsdserver.ListRegisteredDevices).Methods("GET")
 	if !readonly {
 		s.HandleFunc(licenseRoutes, "/{key}/register", lsdserver.RegisterDevice).Methods("POST")
 		s.HandleFunc(licenseRoutes, "/{key}/return", lsdserver.LendingReturn).Methods("PUT")
 		s.HandleFunc(licenseRoutes, "/{key}/renew", lsdserver.LendingRenewal).Methods("PUT")
-		s.HandlePrivateFunc(licenseRoutes, "/{key}/status", lsdserver.LendingCancellation, basicAuth).Methods("PATCH")
+		s.HandlePrivateFunc(licenseRoutes, "/{key}/status", lsdserver.LendingCancellation).Methods("PATCH")
 
-		s.HandlePrivateFunc(sr.R, "/licenses", lsdserver.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
-		s.HandlePrivateFunc(licenseRoutes, "/", lsdserver.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
+		s.HandlePrivateFunc(sr.R, "/licenses", lsdserver.CreateLicenseStatusDocument).Methods("PUT")
+		s.HandlePrivateFunc(licenseRoutes, "/", lsdserver.CreateLicenseStatusDocument).Methods("PUT")
 	}
 
 	return s

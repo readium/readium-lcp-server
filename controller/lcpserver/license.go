@@ -58,10 +58,10 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server common.IServ
 	licOut, e := server.Store().License().Get(licenseID)
 	// process license not found etc.
 	if e == gorm.ErrRecordNotFound {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusNotFound)
+		server.Error(resp, req, common.Problem{Detail: e.Error(), Status: http.StatusNotFound})
 		return
 	} else if e != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: e.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// get the input body.
@@ -86,7 +86,7 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server common.IServ
 			return
 		}
 		// unknown error
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -94,7 +94,7 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server common.IServ
 	// check mandatory information in the partial license
 	err = licIn.CheckGetLicenseInput()
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// copy useful data from licIn to LicOut
@@ -102,7 +102,7 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server common.IServ
 	// build the license
 	err = buildLicense(licOut, server)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -134,7 +134,7 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server common.
 
 	lic, err := common.ReadLicensePayload(req)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
@@ -142,7 +142,7 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server common.
 	// check mandatory information in the input body
 	err = lic.CheckGenerateLicenseInput()
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
@@ -150,7 +150,7 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server common.
 	// init the license with an id and issue date
 	err = lic.Initialize(contentID)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -162,7 +162,7 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server common.
 	// build the license
 	err = buildLicense(lic, server)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 	//jsonPayload, err := json.MarshalIndent(lic, " ", " ")
@@ -170,7 +170,7 @@ func GenerateLicense(resp http.ResponseWriter, req *http.Request, server common.
 	// store the license in the db
 	err = server.Store().License().Add(lic)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 	// set http headers
@@ -201,23 +201,23 @@ func GetLicensedPublication(resp http.ResponseWriter, req *http.Request, server 
 	// get the input body
 	licIn, err := common.ReadLicensePayload(req)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// check mandatory information in the input body
 	err = licIn.CheckGetLicenseInput()
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// initialize the license from the info stored in the db.
 	licOut, e := server.Store().License().Get(licenseID)
 	// process license not found etc.
 	if e == gorm.ErrRecordNotFound {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusNotFound)
+		server.Error(resp, req, common.Problem{Detail: e.Error(), Status: http.StatusNotFound})
 		return
 	} else if e != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: e.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// copy useful data from licIn to LicOut
@@ -225,23 +225,23 @@ func GetLicensedPublication(resp http.ResponseWriter, req *http.Request, server 
 	// build the license
 	err = buildLicense(licOut, server)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 	// build a licenced publication
 	publication, err := buildLicencedPublication(licOut, server)
 	if err == file_storage.ErrNotFound {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error(), Instance: licOut.ContentId}, http.StatusNotFound)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Instance: licOut.ContentId, Status: http.StatusNotFound})
 		return
 	} else if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error(), Instance: licOut.ContentId}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Instance: licOut.ContentId, Status: http.StatusInternalServerError})
 		return
 	}
 	// get the content location to fill an http header
 	// FIXME: redundant as the content location has been set in a link (publication)
 	content, err1 := server.Store().Content().Get(licOut.ContentId)
 	if err1 != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err1.Error(), Instance: licOut.ContentId}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err1.Error(), Instance: licOut.ContentId, Status: http.StatusInternalServerError})
 		return
 	}
 	location := content.Location
@@ -270,19 +270,19 @@ func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, se
 	// get the input body
 	lic, err := common.ReadLicensePayload(req)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// check mandatory information in the input body
 	err = lic.CheckGenerateLicenseInput()
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// init the license with an id and issue date
 	err = lic.Initialize(contentID)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 	// normalize the start and end date, UTC, no milliseconds
@@ -290,14 +290,14 @@ func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, se
 	// build the license
 	err = buildLicense(lic, server)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
 	// store the license in the db
 	err = server.Store().License().Add(lic)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error(), Instance: contentID}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Instance: contentID, Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -307,10 +307,10 @@ func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, se
 	// build a licenced publication
 	publication, err := buildLicencedPublication(lic, server)
 	if err == file_storage.ErrNotFound {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error(), Instance: lic.ContentId}, http.StatusNotFound)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Instance: lic.ContentId, Status: http.StatusNotFound})
 		return
 	} else if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error(), Instance: lic.ContentId}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Instance: lic.ContentId, Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -318,7 +318,7 @@ func GenerateLicensedPublication(resp http.ResponseWriter, req *http.Request, se
 	// FIXME: redundant as the content location has been set in a link (publication)
 	content, err1 := server.Store().Content().Get(lic.ContentId)
 	if err1 != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err1.Error(), Instance: lic.ContentId}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err1.Error(), Instance: lic.ContentId, Status: http.StatusInternalServerError})
 		return
 	}
 	location := content.Location
@@ -351,17 +351,17 @@ func UpdateLicense(resp http.ResponseWriter, req *http.Request, server common.IS
 
 	licIn, err := common.ReadLicensePayload(req)
 	if err != nil { // no or incorrect (json) partial license found in the body
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// initialize the license from the info stored in the db.
 	licOut, e := server.Store().License().Get(licenseID)
 	// process license not found etc.
 	if e == gorm.ErrRecordNotFound {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusNotFound)
+		server.Error(resp, req, common.Problem{Detail: e.Error(), Status: http.StatusNotFound})
 		return
 	} else if e != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: e.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: e.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// update licOut using information found in licIn
@@ -396,7 +396,7 @@ func UpdateLicense(resp http.ResponseWriter, req *http.Request, server common.IS
 	// update the license in the database
 	err = server.Store().License().Update(licOut)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 }
@@ -413,7 +413,7 @@ func ListLicenses(resp http.ResponseWriter, req *http.Request, server common.ISe
 	if req.FormValue("page") != "" {
 		page, err = strconv.ParseInt((req).FormValue("page"), 10, 32)
 		if err != nil {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 			return
 		}
 	} else {
@@ -422,7 +422,7 @@ func ListLicenses(resp http.ResponseWriter, req *http.Request, server common.ISe
 	if req.FormValue("per_page") != "" {
 		perPage, err = strconv.ParseInt((req).FormValue("per_page"), 10, 32)
 		if err != nil {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 			return
 		}
 	} else {
@@ -432,13 +432,13 @@ func ListLicenses(resp http.ResponseWriter, req *http.Request, server common.ISe
 		page--
 	}
 	if page < 0 {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "page must be positive integer"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "page must be positive integer", Status: http.StatusBadRequest})
 		return
 	}
 
 	licenses, err := server.Store().License().ListAll(int(perPage), int(page))
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -457,7 +457,7 @@ func ListLicenses(resp http.ResponseWriter, req *http.Request, server common.ISe
 	enc.SetEscapeHTML(false)
 	err = enc.Encode(licenses)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 }
@@ -478,13 +478,13 @@ func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server 
 	//check if the license exists
 	_, err = server.Store().Content().Get(contentID)
 	if err == gorm.ErrRecordNotFound {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		return
 	} //other errors pass, but will probably reoccur
 	if req.FormValue("page") != "" {
 		page, err = strconv.ParseInt(req.FormValue("page"), 10, 32)
 		if err != nil {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 			return
 		}
 	} else {
@@ -494,7 +494,7 @@ func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server 
 	if req.FormValue("per_page") != "" {
 		perPage, err = strconv.ParseInt((req).FormValue("per_page"), 10, 32)
 		if err != nil {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 			return
 		}
 	} else {
@@ -504,13 +504,13 @@ func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server 
 		page-- //pagenum starting at 0 in code, but user interface starting at 1
 	}
 	if page < 0 {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "page must be positive integer"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "page must be positive integer", Status: http.StatusBadRequest})
 		return
 	}
 
 	licenses, err := server.Store().License().List(contentID, int(perPage), int(page))
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 	}
 
 	if len(licenses) > 0 {
@@ -527,7 +527,7 @@ func ListLicensesForContent(resp http.ResponseWriter, req *http.Request, server 
 	enc.SetEscapeHTML(false)
 	err = enc.Encode(licenses)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 

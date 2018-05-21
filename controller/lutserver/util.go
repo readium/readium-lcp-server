@@ -153,7 +153,7 @@ func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s common.I
 	enc := json.NewEncoder(w)
 	err = enc.Encode(files)
 	if err != nil {
-		common.Error(w, r, s.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		s.Error(w, r, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 }

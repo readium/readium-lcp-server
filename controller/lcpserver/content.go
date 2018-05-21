@@ -53,7 +53,7 @@ func StoreContent(resp http.ResponseWriter, req *http.Request, server common.ISe
 
 	size, payload, err := writeRequestFileToTemp(req.Body)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
@@ -63,7 +63,7 @@ func StoreContent(resp http.ResponseWriter, req *http.Request, server common.ISe
 	result := server.Source().Post(t)
 
 	if result.Error != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: result.Error.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: result.Error.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
@@ -87,19 +87,19 @@ func AddContent(resp http.ResponseWriter, req *http.Request, server common.IServ
 	var publication common.LcpPublication
 	err := decoder.Decode(&publication)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// get the content ID in the url
 	contentID := vars["content_id"]
 	if contentID == "" {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "The content id must be set in the url"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest})
 		return
 	}
 	// open the encrypted file from the path given in the json payload
 	file, err := os.Open(publication.Output)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	defer file.Close()
@@ -108,7 +108,7 @@ func AddContent(resp http.ResponseWriter, req *http.Request, server common.IServ
 	// add the file to the storage, named from contentID
 	_, err = server.Storage().Add(contentID, file)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
@@ -142,7 +142,7 @@ func AddContent(resp http.ResponseWriter, req *http.Request, server common.IServ
 		code = http.StatusOK
 	}
 	if err != nil { //db not updated
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -159,7 +159,7 @@ func ListContents(resp http.ResponseWriter, req *http.Request, server common.ISe
 	fmt.Fprintf(os.Stderr, "Listing contents.")
 	contents, err := server.Store().Content().List()
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -167,7 +167,7 @@ func ListContents(resp http.ResponseWriter, req *http.Request, server common.ISe
 	enc := json.NewEncoder(resp)
 	err = enc.Encode(contents)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
@@ -183,9 +183,9 @@ func GetContent(resp http.ResponseWriter, req *http.Request, server common.IServ
 	content, err := server.Store().Content().Get(contentID)
 	if err != nil { //item probably not found
 		if err == gorm.ErrRecordNotFound {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		} else {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 		return
 	}
@@ -193,9 +193,9 @@ func GetContent(resp http.ResponseWriter, req *http.Request, server common.IServ
 	item, err := server.Storage().Get(contentID)
 	if err != nil { //item probably not found
 		if err == file_storage.ErrNotFound {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		} else {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 		return
 	}
@@ -203,7 +203,7 @@ func GetContent(resp http.ResponseWriter, req *http.Request, server common.IServ
 	contentReadCloser, err := item.Contents()
 	defer contentReadCloser.Close()
 	if err != nil { //file probably not found
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// set headers

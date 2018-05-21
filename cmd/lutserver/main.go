@@ -66,7 +66,7 @@ func main() {
 		dbURI = "sqlite3://file:frontend.sqlite?cache=shared&mode=rwc"
 	}
 
-	stor, err := model.SetupDB(dbURI, log, true)
+	stor, err := model.SetupDB(dbURI, log, false)
 	if err != nil {
 		panic("Error setting up the database : " + err.Error())
 	}
@@ -138,10 +138,12 @@ func New(
 			ReadTimeout:    15 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
-		Log: log,
-		Cfg: cfg,
-		ORM: store}
+		Log:   log,
+		Cfg:   cfg,
+		Model: store,
+	}
 
+	serverRouter.R.NotFoundHandler = server.NotFoundHandler() //handle all other requests 404
 	// Cron, get license status information
 	cron.Start(5 * time.Minute)
 	// using Method expression instead of function

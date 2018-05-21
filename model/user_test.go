@@ -1,14 +1,15 @@
 package model_test
 
 import (
-	"github.com/abbot/go-http-auth"
-	"github.com/dmgk/faker"
-	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/model"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/dmgk/faker"
+	"github.com/jinzhu/gorm"
+	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/model"
 )
 
 func TestUserStore_Add(t *testing.T) {
@@ -21,7 +22,7 @@ func TestUserStore_Add(t *testing.T) {
 		user.Email = faker.Internet().Email()
 		user.Name = faker.Name().Name()
 		user.Hint = faker.Name().FirstName()
-		user.Password = string(auth.MD5Crypt([]byte(user.Email), salt, magic))
+		user.Password = string(common.MD5Crypt([]byte(user.Email), salt, magic))
 		err := stor.User().Add(user)
 		if err != nil {
 			t.Fatalf("Error creating user : %v", err)
@@ -32,7 +33,7 @@ func TestUserStore_Add(t *testing.T) {
 	user.Email = "antone@bashirian.name"
 	user.Name = faker.Name().Name()
 	user.Hint = faker.Name().FirstName()
-	user.Password = string(auth.MD5Crypt([]byte(user.Email), salt, magic))
+	user.Password = string(common.MD5Crypt([]byte(user.Email), salt, magic))
 	err := stor.User().Add(user)
 	if err != nil {
 		t.Fatalf("Error creating user : %v", err)

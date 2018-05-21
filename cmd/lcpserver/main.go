@@ -31,8 +31,6 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/abbot/go-http-auth"
-
 	"crypto/tls"
 
 	"net/http"
@@ -86,7 +84,7 @@ func main() {
 	}
 
 	// Init database
-	stor, err := model.SetupDB(dbURI, logz, true)
+	stor, err := model.SetupDB(dbURI, logz, false)
 	if err != nil {
 		panic("Error setting up the database : " + err.Error())
 	}
@@ -114,12 +112,9 @@ func main() {
 		panic(err)
 	}
 	//
-	htpasswd := auth.HtpasswdFileProvider(authFile)
-	authenticator := auth.NewBasicAuthenticator("Readium License Content Protection Server", htpasswd)
-
 	// finally, starting server
 	common.HandleSignals()
-	s := New(cfg, logz, stor, &s3Storage, &cert, packager, authenticator)
+	s := New(cfg, logz, stor, &s3Storage, &cert, packager)
 
 	logz.Printf("Using database " + dbURI)
 	logz.Printf("Public base URL=" + cfg.LcpServer.PublicBaseUrl)
@@ -140,8 +135,7 @@ func New(
 	stor model.Store,
 	storage *file_storage.Store,
 	cert *tls.Certificate,
-	packager *pack.Packager,
-	basicAuth *auth.BasicAuth) *common.Server {
+	packager *pack.Packager) *common.Server {
 
 	parsedPort := strconv.Itoa(cfg.LcpServer.Port)
 
@@ -191,11 +185,13 @@ func New(
 		Cfg:      cfg,
 		Readonly: readonly,
 		St:       storage,
-		ORM:      stor,
+		Model:    stor,
 		Cert:     cert,
 		Src:      pack.ManualSource{},
 	}
 
+	s.MakeAutorizator("Readium License Content Protection Server") // creates authority checker
+	sr.R.NotFoundHandler = s.NotFoundHandler()                     //handle all other requests 404
 	s.CreateDefaultLinks(cfg.License)
 
 	log.Printf("License server running on port %d [Readonly %t]", cfg.LcpServer.Port, readonly)
@@ -213,20 +209,20 @@ func New(
 	// get encrypted content by content id (a uuid)
 	s.HandleFunc(contentRoutes, "/{content_id}", lcpserver.GetContent).Methods("GET")
 	// get all licenses associated with a given content
-	s.HandlePrivateFunc(contentRoutes, "/{content_id}/licenses", lcpserver.ListLicensesForContent, basicAuth).Methods("GET")
+	s.HandlePrivateFunc(contentRoutes, "/{content_id}/licenses", lcpserver.ListLicensesForContent).Methods("GET")
 
 	if !readonly {
 		s.HandleFunc(contentRoutes, "/{name}", lcpserver.StoreContent).Methods("POST")
 		// put content to the storage
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}", lcpserver.AddContent, basicAuth).Methods("PUT")
+		s.HandlePrivateFunc(contentRoutes, "/{content_id}", lcpserver.AddContent).Methods("PUT")
 		// generate a license for given content
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/license", lcpserver.GenerateLicense, basicAuth).Methods("POST")
+		s.HandlePrivateFunc(contentRoutes, "/{content_id}/license", lcpserver.GenerateLicense).Methods("POST")
 		// deprecated, from a typo in the lcp server spec
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/licenses", lcpserver.GenerateLicense, basicAuth).Methods("POST")
+		s.HandlePrivateFunc(contentRoutes, "/{content_id}/licenses", lcpserver.GenerateLicense).Methods("POST")
 		// generate a licensed publication
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/publication", lcpserver.GenerateLicensedPublication, basicAuth).Methods("POST")
+		s.HandlePrivateFunc(contentRoutes, "/{content_id}/publication", lcpserver.GenerateLicensedPublication).Methods("POST")
 		// deprecated, from a typo in the lcp server spec
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/publications", lcpserver.GenerateLicensedPublication, basicAuth).Methods("POST")
+		s.HandlePrivateFunc(contentRoutes, "/{content_id}/publications", lcpserver.GenerateLicensedPublication).Methods("POST")
 	}
 
 	// methods related to licenses
@@ -234,15 +230,15 @@ func New(
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.HandlePrivateFunc(sr.R, licenseRoutesPathPrefix, lcpserver.ListLicenses, basicAuth).Methods("GET")
+	s.HandlePrivateFunc(sr.R, licenseRoutesPathPrefix, lcpserver.ListLicenses).Methods("GET")
 	// get a license
-	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense, basicAuth).Methods("GET")
-	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense, basicAuth).Methods("POST")
+	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense).Methods("GET")
+	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense).Methods("POST")
 	// get a licensed publication via a license id
-	s.HandlePrivateFunc(licenseRoutes, "/{license_id}/publication", lcpserver.GetLicensedPublication, basicAuth).Methods("POST")
+	s.HandlePrivateFunc(licenseRoutes, "/{license_id}/publication", lcpserver.GetLicensedPublication).Methods("POST")
 	if !readonly {
 		// update a license
-		s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.UpdateLicense, basicAuth).Methods("PATCH")
+		s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.UpdateLicense).Methods("PATCH")
 	}
 
 	s.Src.Feed(packager.Incoming)

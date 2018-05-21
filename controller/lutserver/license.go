@@ -52,17 +52,17 @@ func GetFilteredLicenses(resp http.ResponseWriter, req *http.Request, server com
 		resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
 		enc := json.NewEncoder(resp)
 		if err = enc.Encode(lic); err != nil {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
 			{
-				common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 			}
 		default:
 			{
-				common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 			}
 		}
 	}
@@ -81,16 +81,16 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server common.IServ
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		default:
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 		return
 	}
 	// get an existing license from the lcp server
 	fullLicense, err := generateOrGetLicense(purchase, server)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 	// return a json payload
@@ -104,7 +104,7 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server common.IServ
 	enc.SetEscapeHTML(false)
 	err = enc.Encode(fullLicense)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 	// message to the console

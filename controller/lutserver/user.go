@@ -46,7 +46,7 @@ func GetUsers(resp http.ResponseWriter, req *http.Request, server common.IServer
 	if req.FormValue("page") != "" {
 		page, err = strconv.ParseInt((req).FormValue("page"), 10, 32)
 		if err != nil {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 			return
 		}
 	} else {
@@ -55,7 +55,7 @@ func GetUsers(resp http.ResponseWriter, req *http.Request, server common.IServer
 	if req.FormValue("per_page") != "" {
 		perPage, err = strconv.ParseInt((req).FormValue("per_page"), 10, 32)
 		if err != nil {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 			return
 		}
 	} else {
@@ -65,13 +65,13 @@ func GetUsers(resp http.ResponseWriter, req *http.Request, server common.IServer
 		page-- //pagenum starting at 0 in code, but user interface starting at 1
 	}
 	if page < 0 {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "page must be positive integer"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "page must be positive integer", Status: http.StatusBadRequest})
 		return
 	}
 
 	users, err := server.Store().User().List(int(perPage), int(page))
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -89,7 +89,7 @@ func GetUsers(resp http.ResponseWriter, req *http.Request, server common.IServer
 	enc := json.NewEncoder(resp)
 	err = enc.Encode(users)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 }
@@ -100,7 +100,7 @@ func GetUser(resp http.ResponseWriter, req *http.Request, server common.IServer)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		// id is not a number
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest})
 	}
 	if user, err := server.Store().User().Get(int64(id)); err == nil {
 		enc := json.NewEncoder(resp)
@@ -110,16 +110,16 @@ func GetUser(resp http.ResponseWriter, req *http.Request, server common.IServer)
 			resp.WriteHeader(http.StatusOK)
 			return
 		}
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
 			{
-				common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 			}
 		default:
 			{
-				common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 			}
 		}
 	}
@@ -131,12 +131,12 @@ func CreateUser(resp http.ResponseWriter, req *http.Request, server common.IServ
 	var user *model.User
 	var err error
 	if user, err = common.ReadUserPayload(req); err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "incorrect JSON User " + err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "incorrect JSON User " + err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	//user ok
 	if err = server.Store().User().Add(user); err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// user added to db
@@ -151,27 +151,27 @@ func UpdateUser(resp http.ResponseWriter, req *http.Request, server common.IServ
 	var user *model.User
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest})
 		return
 	}
 	//ID is a number, check user (json)
 	if user, err = common.ReadUserPayload(req); err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// user ok, id is a number, search user to update
 	if _, err = server.Store().User().Get(int64(id)); err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		default:
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 	} else {
 		// client is found!
 		if err = server.Store().User().Update(&model.User{ID: int64(id), Name: user.Name, Email: user.Email, Password: user.Password, Hint: user.Hint}); err != nil {
 			//update failed!
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 			return
 		}
 		//database update ok
@@ -186,11 +186,11 @@ func DeleteUser(resp http.ResponseWriter, req *http.Request, server common.IServ
 	vars := mux.Vars(req)
 	uid, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	if err = server.Store().User().Delete(uid); err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// user added to db

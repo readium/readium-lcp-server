@@ -34,7 +34,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/abbot/go-http-auth"
+	"github.com/readium/readium-lcp-server/controller/common"
 )
 
 func main() {
@@ -56,6 +56,6 @@ func main() {
 		magic = []byte("$" + "$")
 	}
 
-	log.Println(string(auth.MD5Crypt([]byte(os.Args[1]), salt, magic)))
+	log.Println(string(common.MD5Crypt([]byte(os.Args[1]), salt, magic)))
 
 }

@@ -34,7 +34,6 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/technoweenie/grohl"
@@ -45,10 +44,8 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/jeffbmartinez/delay"
-	"github.com/readium/readium-lcp-server/lib/localization"
 	"github.com/readium/readium-lcp-server/model"
 	"github.com/rs/cors"
 	"github.com/urfave/negroni"
@@ -57,8 +54,6 @@ import (
 func CreateServerRouter(tplPath string) ServerRouter {
 
 	r := mux.NewRouter()
-
-	r.NotFoundHandler = http.HandlerFunc(NotFoundHandler) //handle all other requests 404
 
 	// this demonstrates a panic report
 	r.HandleFunc("/panic", func(w http.ResponseWriter, req *http.Request) {
@@ -116,91 +111,6 @@ func CreateServerRouter(tplPath string) ServerRouter {
 	}
 
 	return sr
-}
-
-func ExtraLogger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-
-	log.Print(" << -------------------")
-
-	fmt.Printf("%s => %s (%s)\n", r.RemoteAddr, r.URL.String(), r.RequestURI)
-
-	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path, "query": r.URL.RawQuery})
-
-	log.Printf("REQUEST headers: %#v", r.Header)
-
-	// before
-	next(rw, r)
-	// after
-
-	contentType := rw.Header().Get(HdrContentType)
-	if contentType == ContentTypeProblemJson {
-		log.Print("^^^^ " + ContentTypeProblemJson + " ^^^^")
-	}
-
-	log.Printf("RESPONSE headers: %#v", rw.Header())
-
-	log.Print(" >> -------------------")
-}
-
-func CORSHeaders(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-
-	grohl.Log(grohl.Data{"CORS": "yes"})
-	rw.Header().Add("Access-Control-Allow-Methods", "PATCH, HEAD, POST, GET, OPTIONS, PUT, DELETE")
-	rw.Header().Add("Access-Control-Allow-Credentials", "true")
-	rw.Header().Add("Access-Control-Allow-Origin", "*")
-	rw.Header().Add("Access-Control-Allow-Headers", "Range, Content-Type, Origin, X-Requested-With, Accept, Accept-Language, Content-Language, Authorization")
-
-	// before
-	next(rw, r)
-	// after
-
-	// noop
-}
-
-func checkAuthentication(authenticator *auth.BasicAuth, w http.ResponseWriter, r *http.Request) bool {
-	var username string
-	if username = authenticator.CheckAuth(r); username == "" {
-		grohl.Log(grohl.Data{"error": "Unauthorized", "method": r.Method, "path": r.URL.Path})
-		w.Header().Set("WWW-Authenticate", `Basic realm="`+authenticator.Realm+`"`)
-		Error(w, r, "en_US", Problem{Detail: "User or password do not match!"}, http.StatusUnauthorized)
-		return false
-	}
-	grohl.Log(grohl.Data{"user": username})
-	return true
-}
-
-func Error(w http.ResponseWriter, r *http.Request, defautServerLang string, problem Problem, status int) {
-	acceptLanguages := r.Header.Get("Accept-Language")
-
-	w.Header().Set(HdrContentType, ContentTypeProblemJson)
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	// must come *after* w.Header().Add()/Set(), but before w.Write()
-	w.WriteHeader(status)
-
-	problem.Status = status
-
-	if problem.Type == "about:blank" || problem.Type == "" { // lookup Title  statusText should match http status
-		localization.LocalizeMessage(defautServerLang, acceptLanguages, &problem.Title, http.StatusText(status))
-	} else {
-		localization.LocalizeMessage(defautServerLang, acceptLanguages, &problem.Title, problem.Title)
-		localization.LocalizeMessage(defautServerLang, acceptLanguages, &problem.Detail, problem.Detail)
-	}
-	jsonError, e := json.Marshal(problem)
-	if e != nil {
-		http.Error(w, "{}", problem.Status)
-	}
-	fmt.Fprintln(w, string(jsonError))
-
-	// debug only
-	//PrintStack()
-
-	log.Print(string(jsonError))
-}
-
-func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
-	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path, "status": "404"})
-	Error(w, r, "en_US", Problem{}, http.StatusNotFound)
 }
 
 func PanicReport(err interface{}) {

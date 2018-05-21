@@ -46,16 +46,16 @@ func GetDashboardInfos(resp http.ResponseWriter, req *http.Request, server commo
 			return
 		}
 
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
 			{
-				common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 			}
 		default:
 			{
-				common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 			}
 		}
 	}
@@ -73,16 +73,16 @@ func GetDashboardBestSellers(resp http.ResponseWriter, req *http.Request, server
 			return
 		}
 
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
 			{
-				common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 			}
 		default:
 			{
-				common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 			}
 		}
 	}

@@ -31,7 +31,6 @@ import (
 	"crypto/tls"
 	"net/http"
 
-	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/file_storage"
 	"github.com/readium/readium-lcp-server/lib/logger"
@@ -177,20 +176,21 @@ type (
 
 	Server struct {
 		http.Server
-		Readonly     bool
-		Log          logger.StdLogger
-		GoophyMode   bool
-		ORM          model.Store
-		St           *file_storage.Store
-		Cert         *tls.Certificate
-		Src          pack.ManualSource
-		Cfg          Configuration
-		DefaultLinks map[string]string
+		Readonly      bool
+		Log           logger.StdLogger
+		GoophyMode    bool
+		Model         model.Store
+		St            *file_storage.Store
+		Cert          *tls.Certificate
+		Src           pack.ManualSource
+		Cfg           Configuration
+		DefaultLinks  map[string]string
+		authenticator *BasicAuth
 	}
 
 	HandlerFunc func(w http.ResponseWriter, r *http.Request, s IServer)
 
-	HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s IServer)
+	HandlerPrivateFunc func(w http.ResponseWriter, r *AuthenticatedRequest, s IServer)
 
 	IServer interface {
 		Config() Configuration
@@ -203,5 +203,7 @@ type (
 		LogError(format string, args ...interface{})
 		LogInfo(format string, args ...interface{})
 		GoofyMode() bool
+		Error(w http.ResponseWriter, r *http.Request, problem Problem)
+		NotFoundHandler() http.HandlerFunc
 	}
 )

@@ -62,13 +62,13 @@ func AddLogToFile(resp http.ResponseWriter, req *http.Request, server common.ISe
 	server.LogInfo("compliance test number %v, %v, result %v", testNumber, testStage, testResult)
 
 	if testStage != "start" && testStage != "end" {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Type: "about:blank", Detail: "The stage of the compliance test must be either 'start' or 'end'"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Type: "about:blank", Detail: "The stage of the compliance test must be either 'start' or 'end'", Status: http.StatusBadRequest})
 		return
 	}
 
 	if testStage == "start" {
 		if len(testNumber) == 0 {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Type: "about:blank", Detail: "The number of compliance test cannot be null"}, http.StatusBadRequest)
+			server.Error(resp, req, common.Problem{Type: "about:blank", Detail: "The number of compliance test cannot be null", Status: http.StatusBadRequest})
 		} else {
 			complianceTestNumber = testNumber
 			testResult = "-"
@@ -76,7 +76,7 @@ func AddLogToFile(resp http.ResponseWriter, req *http.Request, server common.ISe
 		}
 	} else {
 		if testResult != "e" && testResult != "s" {
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Type: "about:blank", Detail: "The result of compliance test must be either 'e' or 's'"}, http.StatusBadRequest)
+			server.Error(resp, req, common.Problem{Type: "about:blank", Detail: "The result of compliance test must be either 'e' or 's'", Status: http.StatusBadRequest})
 		} else {
 			testResult = results[testResult]
 			logger.WriteToFile(complianceTestNumber, testStage, testResult, "")

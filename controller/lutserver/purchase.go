@@ -49,7 +49,7 @@ func GetPurchases(resp http.ResponseWriter, req *http.Request, server common.ISe
 	pagination, err := ExtractPaginationFromRequest(req)
 	if err != nil {
 		// user id is not a number
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "Pagination error"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "Pagination error", Status: http.StatusBadRequest})
 		return
 	}
 
@@ -61,7 +61,7 @@ func GetPurchases(resp http.ResponseWriter, req *http.Request, server common.ISe
 	enc := json.NewEncoder(resp)
 	err = enc.Encode(purchases)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 }
@@ -75,20 +75,20 @@ func GetUserPurchases(resp http.ResponseWriter, req *http.Request, server common
 
 	if userId, err = strconv.ParseInt(vars["user_id"], 10, 64); err != nil {
 		// user id is not a number
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest})
 		return
 	}
 
 	pagination, err := ExtractPaginationFromRequest(req)
 	if err != nil {
 		// user id is not a number
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "Pagination error"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "Pagination error", Status: http.StatusBadRequest})
 		return
 	}
 	purchases, err := server.Store().Purchase().ListByUser(userId, pagination.PerPage, pagination.Page)
 	if err != nil {
 		// user id is not a number
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 	PrepareListHeaderResponse(len(purchases), "/api/v1/users/"+vars["user_id"]+"/purchases", pagination, resp)
@@ -97,7 +97,7 @@ func GetUserPurchases(resp http.ResponseWriter, req *http.Request, server common
 	enc := json.NewEncoder(resp)
 	err = enc.Encode(purchases)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 }
@@ -107,13 +107,13 @@ func GetUserPurchases(resp http.ResponseWriter, req *http.Request, server common
 func CreatePurchase(resp http.ResponseWriter, req *http.Request, server common.IServer) {
 	purchase, err := common.ReadPurchasePayload(req)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "incorrect JSON Purchase " + err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "incorrect JSON Purchase " + err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
 	// purchase ok
 	if err = server.Store().Purchase().Add(purchase); err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -138,20 +138,20 @@ func GetPurchasedLicense(resp http.ResponseWriter, req *http.Request, server com
 
 	if id, err = strconv.ParseInt(vars["id"], 10, 64); err != nil {
 		// id is not an integer (int64)
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "Purchase ID must be an integer", Status: http.StatusBadRequest})
 		return
 	}
 
 	purchase, err := server.Store().Purchase().Get(id)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		return
 	}
 	// FIXME: calling the lsd server at this point is too heavy: the max end date should be in the db.
 	// FIXME: call lsdServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID + "/status"
 	fullLicense, err := generateOrGetLicense(purchase, server)
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -165,7 +165,7 @@ func GetPurchasedLicense(resp http.ResponseWriter, req *http.Request, server com
 	err = enc.Encode(fullLicense)
 
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 	// message to the console
@@ -181,7 +181,7 @@ func GetPurchase(resp http.ResponseWriter, req *http.Request, server common.ISer
 	var err error
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "Purchase ID must be an integer"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "Purchase ID must be an integer", Status: http.StatusBadRequest})
 		return
 	}
 
@@ -189,9 +189,9 @@ func GetPurchase(resp http.ResponseWriter, req *http.Request, server common.ISer
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		default:
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 		return
 	}
@@ -201,7 +201,7 @@ func GetPurchase(resp http.ResponseWriter, req *http.Request, server common.ISer
 	// json encode the purchase info into the output stream
 	enc := json.NewEncoder(resp)
 	if err = enc.Encode(purchase); err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 }
@@ -215,9 +215,9 @@ func GetPurchaseByLicenseID(resp http.ResponseWriter, req *http.Request, server 
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		default:
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 		return
 	}
@@ -225,7 +225,7 @@ func GetPurchaseByLicenseID(resp http.ResponseWriter, req *http.Request, server 
 	resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
 	enc := json.NewEncoder(resp)
 	if err = enc.Encode(purchase); err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 }
@@ -241,13 +241,13 @@ func UpdatePurchase(resp http.ResponseWriter, req *http.Request, server common.I
 
 	// check that the purchase id is an integer
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: "The purchase id must be an integer"}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: "The purchase id must be an integer", Status: http.StatusBadRequest})
 		return
 	}
 	newPurchase, err := common.ReadPurchasePayload(req)
 	// parse the update info
 	if err != nil {
-		common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
@@ -264,9 +264,9 @@ func UpdatePurchase(resp http.ResponseWriter, req *http.Request, server common.I
 
 		switch err {
 		case gorm.ErrRecordNotFound:
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusNotFound)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		default:
-			common.Error(resp, req, server.DefaultSrvLang(), common.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 		return
 	}

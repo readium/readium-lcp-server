@@ -36,10 +36,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/abbot/go-http-auth"
+	"encoding/json"
+
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/epub"
 	"github.com/readium/readium-lcp-server/lib/file_storage"
+	"github.com/readium/readium-lcp-server/lib/localization"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/model"
 )
@@ -100,7 +102,7 @@ func (s *Server) Storage() file_storage.Store {
 }
 
 func (s *Server) Store() model.Store {
-	return s.ORM
+	return s.Model
 }
 
 func (s *Server) Certificate() *tls.Certificate {
@@ -116,6 +118,9 @@ func (s *Server) Config() Configuration {
 }
 
 func (s *Server) DefaultSrvLang() string {
+	if s.Cfg.Localization.DefaultLanguage == "" {
+		return "en_US"
+	}
 	return s.Cfg.Localization.DefaultLanguage
 }
 
@@ -133,12 +138,60 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn HandlerFunc) *m
 	})
 }
 
-func (s *Server) HandlePrivateFunc(router *mux.Router, route string, fn HandlerFunc, authenticator *auth.BasicAuth) *mux.Route {
+func (s *Server) Error(w http.ResponseWriter, r *http.Request, problem Problem) {
+	acceptLanguages := r.Header.Get("Accept-Language")
+
+	w.Header().Set(HdrContentType, ContentTypeProblemJson)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	// must come *after* w.Header().Add()/Set(), but before w.Write()
+	w.WriteHeader(problem.Status)
+
+	if problem.Type == "about:blank" || problem.Type == "" { // lookup Title  statusText should match http status
+		localization.LocalizeMessage(s.Cfg.Localization.DefaultLanguage, acceptLanguages, &problem.Title, http.StatusText(problem.Status))
+	} else {
+		localization.LocalizeMessage(s.Cfg.Localization.DefaultLanguage, acceptLanguages, &problem.Title, problem.Title)
+		localization.LocalizeMessage(s.Cfg.Localization.DefaultLanguage, acceptLanguages, &problem.Detail, problem.Detail)
+	}
+	jsonError, e := json.Marshal(problem)
+	if e != nil {
+		http.Error(w, "{}", problem.Status)
+	}
+	//fmt.Fprintln(w, string(jsonError))
+
+	// debug only
+	//PrintStack()
+
+	s.Log.Infof(string(jsonError))
+}
+
+func (s *Server) HandlePrivateFunc(router *mux.Router, route string, fn HandlerFunc) *mux.Route {
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-		if checkAuthentication(authenticator, w, r) {
+		if username := s.authenticator.CheckAuth(r); username == "" {
+			s.Log.Errorf("method=%s path=%s error=Unauthorized", r.Method, r.URL.Path)
+			w.Header().Set("WWW-Authenticate", `Basic realm="`+s.authenticator.Realm+`"`)
+			s.Error(w, r, Problem{Detail: "User or password do not match!", Status: http.StatusUnauthorized})
+		} else {
+			s.Log.Infof("user=%s", username)
 			fn(w, r, s)
 		}
 	})
+}
+
+func (s *Server) MakeAutorizator(realm string) {
+	authFile := s.Cfg.LcpServer.AuthFile
+	if authFile == "" {
+		panic("Must have passwords file")
+	}
+	htpasswd := HtpasswdFileProvider(authFile)
+	s.authenticator = NewBasicAuthenticator(realm, htpasswd)
+}
+
+func (s *Server) NotFoundHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s.Log.Infof("method=%s path=%s status=404", r.Method, r.URL.Path)
+		s.Error(w, r, Problem{Status: http.StatusNotFound})
+	}
 }
 
 func (s *Server) FetchLicenseStatusesFromLSD() {
@@ -183,7 +236,7 @@ func (s *Server) FetchLicenseStatusesFromLSD() {
 	s.Log.Printf("AUTOMATION : lsd server response : %v [http-status:%d]", body, resp.StatusCode)
 
 	// clear the db
-	err = s.ORM.License().PurgeDataBase()
+	err = s.Model.License().PurgeDataBase()
 	if err != nil {
 		panic(err)
 	}
@@ -193,7 +246,7 @@ func (s *Server) FetchLicenseStatusesFromLSD() {
 		panic(err)
 	}
 	// fill the db
-	err = s.ORM.License().BulkAdd(licenses)
+	err = s.Model.License().BulkAdd(licenses)
 	if err != nil {
 		panic(err)
 	}
