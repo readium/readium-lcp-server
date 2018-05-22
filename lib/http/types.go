@@ -25,18 +25,16 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package common
+package http
 
 import (
 	"crypto/tls"
 	"net/http"
 
-	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/lib/file_storage"
+	"github.com/readium/readium-lcp-server/lib/filestor"
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/model"
-	"github.com/urfave/negroni"
 )
 
 const (
@@ -53,14 +51,28 @@ const (
 	HdrContentType            = "Content-Type"
 	HdrContentDisposition     = "Content-Disposition"
 	HdrXLcpLicense            = "X-Lcp-License"
+	HdrDelay                  = "X-Add-Delay"
 	ContentTypeProblemJson    = "application/problem+json"
 	ContentTypeLcpJson        = "application/vnd.readium.lcp.license.v1.0+json"
 	ContentTypeLsdJson        = "application/vnd.readium.license.status.v1.0+json"
 	ContentTypeJson           = "application/json"
 	ContentTypeFormUrlEncoded = "application/x-www-form-urlencoded"
+
+	StatusBadRequest          = http.StatusBadRequest
+	StatusCreated             = http.StatusCreated
+	StatusInternalServerError = http.StatusInternalServerError
+	StatusNotFound            = http.StatusNotFound
+	StatusOK                  = http.StatusOK
+	StatusPartialContent      = http.StatusPartialContent
+	StatusForbidden           = http.StatusForbidden
 )
 
 type (
+	// aliases - easy imports
+	Request        = http.Request
+	ResponseWriter = http.ResponseWriter
+
+	// config
 	Configuration struct {
 		Certificate    Certificate        `yaml:"certificate"`
 		Storage        Storage            `yaml:"storage"`
@@ -150,11 +162,6 @@ type (
 		DefaultLanguage string   `yaml:"default_language"`
 	}
 
-	ServerRouter struct {
-		R *mux.Router
-		N *negroni.Negroni
-	}
-
 	// LcpPublication is a struct for communication with lcp-server
 	LcpPublication struct {
 		ContentId          string  `json:"content-id"`
@@ -176,16 +183,17 @@ type (
 
 	Server struct {
 		http.Server
-		Readonly      bool
-		Log           logger.StdLogger
-		GoophyMode    bool
-		Model         model.Store
-		St            *file_storage.Store
-		Cert          *tls.Certificate
-		Src           pack.ManualSource
-		Cfg           Configuration
-		DefaultLinks  map[string]string
-		authenticator *BasicAuth
+		Readonly       bool
+		Log            logger.StdLogger
+		GoophyMode     bool
+		Model          model.Store
+		St             *filestor.Store
+		Cert           *tls.Certificate
+		Src            pack.ManualSource
+		Cfg            Configuration
+		DefaultLinks   map[string]string
+		secretProvider SecretProvider
+		realm          string
 	}
 
 	HandlerFunc func(w http.ResponseWriter, r *http.Request, s IServer)
@@ -196,7 +204,7 @@ type (
 		Config() Configuration
 		Certificate() *tls.Certificate
 		Source() *pack.ManualSource
-		Storage() file_storage.Store
+		Storage() filestor.Store
 		Store() model.Store
 		DefaultSrvLang() string
 		SetLicenseLinks(l *model.License, c *model.Content) error
@@ -206,4 +214,9 @@ type (
 		Error(w http.ResponseWriter, r *http.Request, problem Problem)
 		NotFoundHandler() http.HandlerFunc
 	}
+)
+
+var (
+	DefaultClient = http.DefaultClient
+	NewRequest    = http.NewRequest
 )

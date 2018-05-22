@@ -30,7 +30,6 @@ package lutserver
 import (
 	"encoding/json"
 	"log"
-	"net/http"
 	"strconv"
 
 	"fmt"
@@ -42,12 +41,12 @@ import (
 	"github.com/Machiel/slugify"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/model"
 )
 
 // GetPublications returns a list of publications
-func GetPublications(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func GetPublications(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	var page int64
 	var perPage int64
 	var err error
@@ -55,7 +54,7 @@ func GetPublications(resp http.ResponseWriter, req *http.Request, server common.
 	if req.FormValue("page") != "" {
 		page, err = strconv.ParseInt((req).FormValue("page"), 10, 32)
 		if err != nil {
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 			return
 		}
 	} else {
@@ -65,7 +64,7 @@ func GetPublications(resp http.ResponseWriter, req *http.Request, server common.
 	if req.FormValue("per_page") != "" {
 		perPage, err = strconv.ParseInt((req).FormValue("per_page"), 10, 32)
 		if err != nil {
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 			return
 		}
 	} else {
@@ -77,13 +76,13 @@ func GetPublications(resp http.ResponseWriter, req *http.Request, server common.
 	}
 
 	if page < 0 {
-		server.Error(resp, req, common.Problem{Detail: "page must be positive integer", Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: "page must be positive integer", Status: http.StatusBadRequest})
 		return
 	}
 
 	pubs, err := server.Store().Publication().List(int(perPage), int(page))
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -95,52 +94,52 @@ func GetPublications(resp http.ResponseWriter, req *http.Request, server common.
 		previousPage := strconv.Itoa(int(page) - 1)
 		resp.Header().Set("Link", "</publications/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
 	}
-	resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
+	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 
 	enc := json.NewEncoder(resp)
 	err = enc.Encode(pubs)
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 }
 
 // GetPublication returns a publication from its numeric id, given as part of the calling url
 //
-func GetPublication(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func GetPublication(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	vars := mux.Vars(req)
 	var id int
 	var err error
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
-		server.Error(resp, req, common.Problem{Detail: "The publication id must be an integer", Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: "The publication id must be an integer", Status: http.StatusBadRequest})
 	}
 
 	if pub, err := server.Store().Publication().Get(int64(id)); err == nil {
 		enc := json.NewEncoder(resp)
 		if err = enc.Encode(pub); err == nil {
 			// send json of correctly encoded user info
-			resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
+			resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 			resp.WriteHeader(http.StatusOK)
 			return
 		}
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
 			{
-				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 			}
 		default:
 			{
-				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 			}
 		}
 	}
 }
 
 // CheckPublicationByTitle check if a publication with this title exist
-func CheckPublicationByTitle(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func CheckPublicationByTitle(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	var title string
 	title = req.URL.Query()["title"][0]
 
@@ -150,11 +149,11 @@ func CheckPublicationByTitle(resp http.ResponseWriter, req *http.Request, server
 		enc := json.NewEncoder(resp)
 		if err = enc.Encode(pub); err == nil {
 			// send json of correctly encoded user info
-			resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
+			resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 			resp.WriteHeader(http.StatusOK)
 			return
 		}
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
@@ -164,17 +163,17 @@ func CheckPublicationByTitle(resp http.ResponseWriter, req *http.Request, server
 			}
 		default:
 			{
-				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 			}
 		}
 	}
 }
 
 // CreatePublication creates a publication in the database
-func CreatePublication(resp http.ResponseWriter, req *http.Request, server common.IServer) {
-	pub, err := common.ReadPublicationPayload(req)
+func CreatePublication(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+	pub, err := ReadPublicationPayload(req)
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: "incorrect JSON Publication " + err.Error(), Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: "incorrect JSON Publication " + err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
@@ -183,7 +182,7 @@ func CreatePublication(resp http.ResponseWriter, req *http.Request, server commo
 
 	if _, err := os.Stat(inputPath); err != nil {
 		// the master file does not exist
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		return
 	}
 
@@ -191,13 +190,13 @@ func CreatePublication(resp http.ResponseWriter, req *http.Request, server commo
 	// encrypt the EPUB File and send the content to the LCP server
 	err = EncryptEPUB(inputPath, contentDisposition, server)
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
 	// add publication
 	if err = server.Store().Publication().Add(pub); err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
@@ -208,7 +207,7 @@ func CreatePublication(resp http.ResponseWriter, req *http.Request, server commo
 // UploadEPUB creates a new EPUB file, namd after a file form parameter.
 // a temp file is created then deleted.
 //UploadEPUB creates a new EPUB file
-func UploadEPUB(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func UploadEPUB(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	//var pub store.Publication
 	contentDisposition := slugify.Slugify(req.URL.Query()["title"][0])
 
@@ -239,27 +238,27 @@ func UploadEPUB(resp http.ResponseWriter, req *http.Request, server common.IServ
 }
 
 // UpdatePublication updates an identified publication (id) in the database
-func UpdatePublication(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func UpdatePublication(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	vars := mux.Vars(req)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		// id is not a number
-		server.Error(resp, req, common.Problem{Detail: "Plublication ID must be an integer", Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: "Plublication ID must be an integer", Status: http.StatusBadRequest})
 		return
 	}
-	pub, err := common.ReadPublicationPayload(req)
+	pub, err := ReadPublicationPayload(req)
 	// ID is a number, check publication (json)
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 	// publication ok, id is a number, search publication to update
 	if foundPub, err := server.Store().Publication().Get(int64(id)); err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		default:
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 	} else {
 		// publication is found!
@@ -268,7 +267,7 @@ func UpdatePublication(resp http.ResponseWriter, req *http.Request, server commo
 			Title:  pub.Title,
 			Status: foundPub.Status}); err != nil {
 			//update failed!
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 		//database update ok
 		resp.WriteHeader(http.StatusOK)
@@ -277,17 +276,17 @@ func UpdatePublication(resp http.ResponseWriter, req *http.Request, server commo
 }
 
 // DeletePublication removes a publication in the database
-func DeletePublication(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func DeletePublication(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	vars := mux.Vars(req)
 	id, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
 	publication, err := server.Store().Publication().Get(id)
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		return
 	}
 
@@ -297,16 +296,27 @@ func DeletePublication(resp http.ResponseWriter, req *http.Request, server commo
 	if _, err := os.Stat(inputPath); err == nil {
 		err = os.Remove(inputPath)
 		if err != nil {
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 			return
 		}
 	}
 
 	if err = server.Store().Publication().Delete(id); err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
 	// publication deleted from db
 	resp.WriteHeader(http.StatusOK)
+}
+
+//ReadPublicationPayload transforms a json
+func ReadPublicationPayload(req *http.Request) (*model.Publication, error) {
+	var dec *json.Decoder
+	if ctype := req.Header[http.HdrContentType]; len(ctype) > 0 && ctype[0] == http.ContentTypeJson {
+		dec = json.NewDecoder(req.Body)
+	}
+
+	var result model.Publication
+	return &result, dec.Decode(&result)
 }

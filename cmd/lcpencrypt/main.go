@@ -38,23 +38,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"context"
+	goHttp "net/http"
 	"time"
 
-	"github.com/readium/readium-lcp-server/controller/common"
 	"github.com/readium/readium-lcp-server/lib/crypto"
 	"github.com/readium/readium-lcp-server/lib/epub"
+	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/pack"
 )
 
 // notification of newly added content (Publication)
-func notifyLcpServer(lcpService, contentid string, lcpPublication common.LcpPublication, username string, password string) error {
+func notifyLcpServer(lcpService, contentid string, lcpPublication http.LcpPublication, username string, password string) error {
 	//exchange encryption key with lcp service/content/<id>,
 	//Payload: {content-encryption-key, protected-content-location}
 	//fmt.Printf("lcpsv = %s\n", *lcpsv)
@@ -117,7 +117,7 @@ func getInputFile(inputFilename string) ([]byte, error) {
 		return nil, errors.New("Error parsing input file")
 	}
 	if fileURL.Scheme == "http" || fileURL.Scheme == "https" {
-		res, err := http.Get(inputFilename)
+		res, err := goHttp.Get(inputFilename)
 		if err != nil {
 			return nil, err
 		}
@@ -144,7 +144,7 @@ func showHelpAndExit() {
 	return
 }
 
-func exitWithError(lcpPublication common.LcpPublication, err error, errorlevel int) {
+func exitWithError(lcpPublication http.LcpPublication, err error, errorlevel int) {
 	os.Stderr.WriteString(lcpPublication.ErrorMessage)
 	os.Stderr.WriteString("\n")
 	if err != nil {
@@ -171,7 +171,7 @@ func getChecksum(filename string) string {
 
 func main() {
 	var err error
-	var addedPublication common.LcpPublication
+	var addedPublication http.LcpPublication
 	var inputFilename = flag.String("input", "", "source epub file locator (file system or http GET)")
 	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new one is generated")
 	var outputFilename = flag.String("output", "", "optional target location for the encrypted content (file system or http PUT)")

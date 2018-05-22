@@ -36,15 +36,14 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/readium/readium-lcp-server/controller/common"
 	"github.com/readium/readium-lcp-server/lib/crypto"
 	"github.com/readium/readium-lcp-server/lib/epub"
+	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/sign"
 	"github.com/readium/readium-lcp-server/model"
 )
@@ -75,7 +74,7 @@ func cleanupTemp(f *os.File) {
 // notifyLSDServer informs the License Status Server of the creation of a new license
 // and saves the result of the http request in the DB (using *LicenseRepository)
 //
-func notifyLSDServer(payload *model.License, server common.IServer) {
+func notifyLSDServer(payload *model.License, server http.IServer) {
 	if server.Config().LsdServer.PublicBaseUrl == "" {
 		// can't call : url is empty
 		return
@@ -95,7 +94,7 @@ func notifyLSDServer(payload *model.License, server common.IServer) {
 	if notifyAuth.Username != "" {
 		req.SetBasicAuth(notifyAuth.Username, notifyAuth.Password)
 	}
-	req.Header.Add(common.HdrContentType, common.ContentTypeLcpJson)
+	req.Header.Add(http.HdrContentType, http.ContentTypeLcpJson)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -201,7 +200,7 @@ func EncryptLicenseFields(license *model.License, content *model.Content) error 
 
 // build a license, common to get and generate license, get and generate licensed publication
 //
-func buildLicense(license *model.License, server common.IServer) error {
+func buildLicense(license *model.License, server http.IServer) error {
 
 	// set the LCP profile
 	// possible profiles are basic and 1.0
@@ -256,7 +255,7 @@ func SignLicense(license *model.License, cert *tls.Certificate) error {
 
 // build a licensed publication, common to get and generate licensed publication
 //
-func buildLicencedPublication(license *model.License, server common.IServer) (*epub.Epub, error) {
+func buildLicencedPublication(license *model.License, server http.IServer) (*epub.Epub, error) {
 	// get the epub content info from the bd
 	epubFile, err := server.Storage().Get(license.ContentId)
 	if err != nil {

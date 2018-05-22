@@ -28,9 +28,7 @@
 package lsdserver
 
 import (
-	"net/http"
-
-	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/logger"
 )
 
@@ -54,7 +52,7 @@ var (
 
 // AddLogToFile adds a log message to the log file
 //
-func AddLogToFile(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func AddLogToFile(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	testStage := req.FormValue("test_stage")
 	testNumber := req.FormValue("test_number")
 	testResult := req.FormValue("test_result")
@@ -62,13 +60,13 @@ func AddLogToFile(resp http.ResponseWriter, req *http.Request, server common.ISe
 	server.LogInfo("compliance test number %v, %v, result %v", testNumber, testStage, testResult)
 
 	if testStage != "start" && testStage != "end" {
-		server.Error(resp, req, common.Problem{Type: "about:blank", Detail: "The stage of the compliance test must be either 'start' or 'end'", Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Type: "about:blank", Detail: "The stage of the compliance test must be either 'start' or 'end'", Status: http.StatusBadRequest})
 		return
 	}
 
 	if testStage == "start" {
 		if len(testNumber) == 0 {
-			server.Error(resp, req, common.Problem{Type: "about:blank", Detail: "The number of compliance test cannot be null", Status: http.StatusBadRequest})
+			server.Error(resp, req, http.Problem{Type: "about:blank", Detail: "The number of compliance test cannot be null", Status: http.StatusBadRequest})
 		} else {
 			complianceTestNumber = testNumber
 			testResult = "-"
@@ -76,7 +74,7 @@ func AddLogToFile(resp http.ResponseWriter, req *http.Request, server common.ISe
 		}
 	} else {
 		if testResult != "e" && testResult != "s" {
-			server.Error(resp, req, common.Problem{Type: "about:blank", Detail: "The result of compliance test must be either 'e' or 's'", Status: http.StatusBadRequest})
+			server.Error(resp, req, http.Problem{Type: "about:blank", Detail: "The result of compliance test must be either 'e' or 's'", Status: http.StatusBadRequest})
 		} else {
 			testResult = results[testResult]
 			logger.WriteToFile(complianceTestNumber, testStage, testResult, "")

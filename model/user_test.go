@@ -8,7 +8,7 @@ import (
 
 	"github.com/dmgk/faker"
 	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/model"
 )
 
@@ -22,7 +22,7 @@ func TestUserStore_Add(t *testing.T) {
 		user.Email = faker.Internet().Email()
 		user.Name = faker.Name().Name()
 		user.Hint = faker.Name().FirstName()
-		user.Password = string(common.MD5Crypt([]byte(user.Email), salt, magic))
+		user.Password = string(http.MD5Crypt([]byte(user.Email), salt, magic))
 		err := stor.User().Add(user)
 		if err != nil {
 			t.Fatalf("Error creating user : %v", err)
@@ -33,7 +33,7 @@ func TestUserStore_Add(t *testing.T) {
 	user.Email = "antone@bashirian.name"
 	user.Name = faker.Name().Name()
 	user.Hint = faker.Name().FirstName()
-	user.Password = string(common.MD5Crypt([]byte(user.Email), salt, magic))
+	user.Password = string(http.MD5Crypt([]byte(user.Email), salt, magic))
 	err := stor.User().Add(user)
 	if err != nil {
 		t.Fatalf("Error creating user : %v", err)

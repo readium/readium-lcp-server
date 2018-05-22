@@ -40,7 +40,7 @@ import (
 
 	"github.com/readium/readium-lcp-server/lib/crypto"
 	"github.com/readium/readium-lcp-server/lib/epub"
-	"github.com/readium/readium-lcp-server/lib/file_storage"
+	"github.com/readium/readium-lcp-server/lib/filestor"
 	"github.com/readium/readium-lcp-server/model"
 )
 
@@ -96,7 +96,7 @@ func (s *ManualSource) Post(t *Task) Result {
 type Packager struct {
 	Incoming chan *Task
 	done     chan struct{}
-	store    file_storage.Store
+	store    filestor.Store
 	content  model.ContentRepository
 }
 
@@ -196,7 +196,7 @@ func (p Packager) addToIndex(r *Result, key []byte, name string, contentSize int
 	r.Error = p.content.Add(&model.Content{Id: r.Id, EncryptionKey: key, Location: name, Length: contentSize, Sha256: contentHash})
 }
 
-func NewPackager(store file_storage.Store, content model.ContentRepository, concurrency int) *Packager {
+func NewPackager(store filestor.Store, content model.ContentRepository, concurrency int) *Packager {
 	packager := Packager{
 		Incoming: make(chan *Task),
 		done:     make(chan struct{}),

@@ -38,16 +38,15 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"time"
 
-	"github.com/readium/readium-lcp-server/controller/common"
 	"github.com/readium/readium-lcp-server/lib/crypto"
 	"github.com/readium/readium-lcp-server/lib/epub"
+	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/model"
 	"github.com/satori/go.uuid"
@@ -135,7 +134,7 @@ func (repManager RepositoryManager) GetMasterFiles() func() (RepositoryFile, err
 }
 
 // GetRepositoryMasterFiles returns a list of repository masterfiles
-func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s common.IServer) {
+func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s http.IServer) {
 	var err error
 
 	files := make([]RepositoryFile, 0)
@@ -148,12 +147,12 @@ func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s common.I
 		files = append(files, it)
 	}
 
-	w.Header().Set(common.HdrContentType, common.ContentTypeJson)
+	w.Header().Set(http.HdrContentType, http.ContentTypeJson)
 
 	enc := json.NewEncoder(w)
 	err = enc.Encode(files)
 	if err != nil {
-		s.Error(w, r, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
+		s.Error(w, r, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 }
@@ -217,7 +216,7 @@ func CreateEncryptedEpub(inputPath string, outputPath string) (EncryptedEpub, er
 }
 
 // EncryptEPUB encrypts an EPUB File and sends the content to the LCP server
-func EncryptEPUB(inputPath string, contentDisposition string, server common.IServer) error {
+func EncryptEPUB(inputPath string, contentDisposition string, server http.IServer) error {
 
 	// generate a new uuid; this will be the content id in the lcp server
 	uid, errU := uuid.NewV4()
@@ -248,7 +247,7 @@ func EncryptEPUB(inputPath string, contentDisposition string, server common.ISer
 	}
 
 	// prepare the request for import to the lcp server
-	lcpPublication := common.LcpPublication{
+	lcpPublication := http.LcpPublication{
 		ContentId:          contentUUID,
 		ContentKey:         encryptedEpub.EncryptionKey,
 		Output:             outputPath,
@@ -277,7 +276,7 @@ func EncryptEPUB(inputPath string, contentDisposition string, server common.ISer
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
 	}
 	// set the payload type
-	req.Header.Add(common.HdrContentType, common.ContentTypeLcpJson)
+	req.Header.Add(http.HdrContentType, http.ContentTypeLcpJson)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -368,10 +367,10 @@ func PrepareListHeaderResponse(resourceCount int, resourceLink string, paginatio
 		previousPage := strconv.Itoa(int(pagination.Page) - 1)
 		resp.Header().Set("Link", "<"+resourceLink+"/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
 	}
-	resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
+	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 }
 
-func generateOrGetLicense(purchase *model.Purchase, server common.IServer) (*model.License, error) {
+func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model.License, error) {
 	// create a partial license
 	partialLicense := model.License{}
 
@@ -452,7 +451,7 @@ func generateOrGetLicense(purchase *model.Purchase, server common.IServer) (*mod
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
 	}
 	// the body is a partial license in json format
-	req.Header.Add("Content-Type", common.ContentTypeLcpJson)
+	req.Header.Add("Content-Type", http.ContentTypeLcpJson)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -509,7 +508,7 @@ func generateOrGetLicense(purchase *model.Purchase, server common.IServer) (*mod
 // parameters: a Purchase structure withID,	LicenseUUID, StartDate,	EndDate, Status
 // EndDate may be undefined (nil), in which case the lsd server will choose the renew period
 //
-func updatePurchase(purchase *model.Purchase, server common.IServer) error {
+func updatePurchase(purchase *model.Purchase, server http.IServer) error {
 	// Get the original purchase from the db
 	origPurchase, err := server.Store().Purchase().Get(purchase.ID)
 
@@ -598,7 +597,7 @@ func updatePurchase(purchase *model.Purchase, server common.IServer) error {
 	return nil
 }
 
-func getPartialLicense(purchase *model.Purchase, server common.IServer) (*model.License, error) {
+func getPartialLicense(purchase *model.Purchase, server http.IServer) (*model.License, error) {
 
 	if purchase.LicenseUUID == nil {
 		return nil, errors.New("No license has been yet delivered")

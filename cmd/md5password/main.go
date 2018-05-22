@@ -34,7 +34,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/http"
 )
 
 func main() {
@@ -56,6 +56,6 @@ func main() {
 		magic = []byte("$" + "$")
 	}
 
-	log.Println(string(common.MD5Crypt([]byte(os.Args[1]), salt, magic)))
+	log.Println(string(http.MD5Crypt([]byte(os.Args[1]), salt, magic)))
 
 }

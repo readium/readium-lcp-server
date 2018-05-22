@@ -28,17 +28,24 @@
 package main
 
 import (
-	"net/http"
+	goHttp "net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"time"
 
-	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/model"
 
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"io/ioutil"
+	"os/signal"
+
+	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/controller/lutserver"
 	"github.com/readium/readium-lcp-server/lib/cron"
 )
@@ -54,7 +61,7 @@ func main() {
 	if configFile = os.Getenv("READIUM_FRONTEND_CONFIG"); configFile == "" {
 		configFile = "config.yaml"
 	}
-	cfg, err := common.ReadConfig(configFile)
+	cfg, err := http.ReadConfig(configFile)
 	if err != nil {
 		panic(err)
 	}
@@ -75,32 +82,54 @@ func main() {
 		panic("Error migrating database : " + err.Error())
 	}
 
-	common.HandleSignals()
-
 	server := New(cfg, log, stor)
 	log.Printf("Frontend webserver for LCP running on " + cfg.FrontendServer.Host + ":" + strconv.Itoa(cfg.FrontendServer.Port))
 
-	if err := server.ListenAndServe(); err != nil {
-		log.Printf("Error " + err.Error())
-	}
+	// Run our server in a goroutine so that it doesn't block.
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			log.Printf("Error " + err.Error())
+		}
+	}()
+
+	c := make(chan os.Signal, 1)
+	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
+	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
+	signal.Notify(c, os.Interrupt)
+
+	// Block until we receive our signal.
+	<-c
+
+	wait := time.Second * 15 // the duration for which the server gracefully wait for existing connections to finish
+	// Create a deadline to wait for.
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+	// Doesn't block if no connections, but will otherwise wait
+	// until the timeout deadline.
+	server.Shutdown(ctx)
+	// Optionally, you could run srv.Shutdown in a goroutine and block on
+	// <-ctx.Done() if your application should wait for other services
+	// to finalize based on context cancellation.
+	log.Printf("server is shutting down.")
+	os.Exit(0)
 }
 
 // New creates a new webserver (basic user interface)
 func New(
-	cfg common.Configuration,
+	cfg http.Configuration,
 	log logger.StdLogger,
-	store model.Store) *common.Server {
+	store model.Store) *http.Server {
 
 	tcpAddress := cfg.FrontendServer.Host + ":" + strconv.Itoa(cfg.FrontendServer.Port)
 
-	staticFolderPath := cfg.FrontendServer.Directory
-	if staticFolderPath == "" {
+	static := cfg.FrontendServer.Directory
+	if static == "" {
 		_, file, _, _ := runtime.Caller(0)
 		here := filepath.Dir(file)
-		staticFolderPath = filepath.Join(here, "../frontend/manage")
+		static = filepath.Join(here, "../frontend/manage")
 	}
 
-	filepathConfigJs := filepath.Join(staticFolderPath, "config.js")
+	filepathConfigJs := filepath.Join(static, "config.js")
 	fileConfigJs, err := os.Create(filepathConfigJs)
 	if err != nil {
 		panic(err)
@@ -127,12 +156,27 @@ func New(
 	fileConfigJs.WriteString(configJs)
 	log.Printf("... written in %s", filepathConfigJs)
 
-	log.Printf("Static folder : %s", staticFolderPath)
-	serverRouter := common.CreateServerRouter(staticFolderPath)
+	log.Printf("Static folder : %s", static)
+	muxer := mux.NewRouter()
 
-	server := &common.Server{
-		Server: http.Server{
-			Handler:        serverRouter.N,
+	muxer.Use(
+		http.RecoveryHandler(http.RecoveryLogger(log), http.PrintRecoveryStack(true)),
+		http.CorsMiddleWare(
+			http.AllowedOrigins([]string{"*"}),
+			http.AllowedMethods([]string{"PATCH", "HEAD", "POST", "GET", "OPTIONS", "PUT", "DELETE"}),
+			http.AllowedHeaders([]string{"Range", "Content-Type", "Origin", "X-Requested-With", "Accept", "Accept-Language", "Content-Language", "Authorization"}),
+		),
+		http.DelayMiddleware,
+	)
+
+	if static != "" {
+		// TODO : fix this.
+		muxer.PathPrefix("/static/").Handler(goHttp.StripPrefix("/static/", goHttp.FileServer(goHttp.Dir(static))))
+	}
+
+	server := &http.Server{
+		Server: goHttp.Server{
+			Handler:        muxer,
 			Addr:           tcpAddress,
 			WriteTimeout:   15 * time.Second,
 			ReadTimeout:    15 * time.Second,
@@ -143,37 +187,39 @@ func New(
 		Model: store,
 	}
 
-	serverRouter.R.NotFoundHandler = server.NotFoundHandler() //handle all other requests 404
+	muxer.NotFoundHandler = server.NotFoundHandler() //handle all other requests 404
 	// Cron, get license status information
 	cron.Start(5 * time.Minute)
 	// using Method expression instead of function
-	cron.Every(10).Minutes().Do((*common.Server).FetchLicenseStatusesFromLSD)
+	cron.Every(1).Minutes().Do(func() {
+		println("FetchLicenseStatusesFromLSD")
+		FetchLicenseStatusesFromLSD(server)
+	})
 
 	apiURLPrefix := "/api/v1"
-
 	//
 	//  repositories of master files
 	//
 	repositoriesRoutesPathPrefix := apiURLPrefix + "/repositories"
-	repositoriesRoutes := serverRouter.R.PathPrefix(repositoriesRoutesPathPrefix).Subrouter().StrictSlash(false)
+	repositoriesRoutes := muxer.PathPrefix(repositoriesRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
 	server.HandleFunc(repositoriesRoutes, "/master-files", lutserver.GetRepositoryMasterFiles).Methods("GET")
 	//
 	// dashboard
 	//
-	server.HandleFunc(serverRouter.R, "/dashboardInfos", lutserver.GetDashboardInfos).Methods("GET")
-	server.HandleFunc(serverRouter.R, "/dashboardBestSellers", lutserver.GetDashboardBestSellers).Methods("GET")
+	server.HandleFunc(muxer, "/dashboardInfos", lutserver.GetDashboardInfos).Methods("GET")
+	server.HandleFunc(muxer, "/dashboardBestSellers", lutserver.GetDashboardBestSellers).Methods("GET")
 	//
 	// publications
 	//
 	publicationsRoutesPathPrefix := apiURLPrefix + "/publications"
-	publicationsRoutes := serverRouter.R.PathPrefix(publicationsRoutesPathPrefix).Subrouter().StrictSlash(false)
+	publicationsRoutes := muxer.PathPrefix(publicationsRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
-	server.HandleFunc(serverRouter.R, publicationsRoutesPathPrefix, lutserver.GetPublications).Methods("GET")
+	server.HandleFunc(muxer, publicationsRoutesPathPrefix, lutserver.GetPublications).Methods("GET")
 	//
-	server.HandleFunc(serverRouter.R, publicationsRoutesPathPrefix, lutserver.CreatePublication).Methods("POST")
+	server.HandleFunc(muxer, publicationsRoutesPathPrefix, lutserver.CreatePublication).Methods("POST")
 	//
-	server.HandleFunc(serverRouter.R, "/PublicationUpload", lutserver.UploadEPUB).Methods("POST")
+	server.HandleFunc(muxer, "/PublicationUpload", lutserver.UploadEPUB).Methods("POST")
 	//
 	server.HandleFunc(publicationsRoutes, "/check-by-title", lutserver.CheckPublicationByTitle).Methods("GET")
 	//
@@ -184,11 +230,11 @@ func New(
 	// user functions
 	//
 	usersRoutesPathPrefix := apiURLPrefix + "/users"
-	usersRoutes := serverRouter.R.PathPrefix(usersRoutesPathPrefix).Subrouter().StrictSlash(false)
+	usersRoutes := muxer.PathPrefix(usersRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
-	server.HandleFunc(serverRouter.R, usersRoutesPathPrefix, lutserver.GetUsers).Methods("GET")
+	server.HandleFunc(muxer, usersRoutesPathPrefix, lutserver.GetUsers).Methods("GET")
 	//
-	server.HandleFunc(serverRouter.R, usersRoutesPathPrefix, lutserver.CreateUser).Methods("POST")
+	server.HandleFunc(muxer, usersRoutesPathPrefix, lutserver.CreateUser).Methods("POST")
 	//
 	server.HandleFunc(usersRoutes, "/{id}", lutserver.GetUser).Methods("GET")
 	server.HandleFunc(usersRoutes, "/{id}", lutserver.UpdateUser).Methods("PUT")
@@ -200,11 +246,11 @@ func New(
 	// purchases
 	//
 	purchasesRoutesPathPrefix := apiURLPrefix + "/purchases"
-	purchasesRoutes := serverRouter.R.PathPrefix(purchasesRoutesPathPrefix).Subrouter().StrictSlash(false)
+	purchasesRoutes := muxer.PathPrefix(purchasesRoutesPathPrefix).Subrouter().StrictSlash(false)
 	// get all purchases
-	server.HandleFunc(serverRouter.R, purchasesRoutesPathPrefix, lutserver.GetPurchases).Methods("GET")
+	server.HandleFunc(muxer, purchasesRoutesPathPrefix, lutserver.GetPurchases).Methods("GET")
 	// create a purchase
-	server.HandleFunc(serverRouter.R, purchasesRoutesPathPrefix, lutserver.CreatePurchase).Methods("POST")
+	server.HandleFunc(muxer, purchasesRoutesPathPrefix, lutserver.CreatePurchase).Methods("POST")
 	// update a purchase
 	server.HandleFunc(purchasesRoutes, "/{id}", lutserver.UpdatePurchase).Methods("PUT")
 	// get a purchase by purchase id
@@ -215,12 +261,80 @@ func New(
 	// licences
 	//
 	licenseRoutesPathPrefix := apiURLPrefix + "/licenses"
-	licenseRoutes := serverRouter.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
+	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
 	// get a list of licenses
-	server.HandleFunc(serverRouter.R, licenseRoutesPathPrefix, lutserver.GetFilteredLicenses).Methods("GET")
+	server.HandleFunc(muxer, licenseRoutesPathPrefix, lutserver.GetFilteredLicenses).Methods("GET")
 	// get a license by id
 	server.HandleFunc(licenseRoutes, "/{license_id}", lutserver.GetLicense).Methods("GET")
 
 	return server
+}
+
+func ReadLicensesPayloads(data []byte) (model.LicensesStatusCollection, error) {
+	var licenses model.LicensesStatusCollection
+	err := json.Unmarshal(data, &licenses)
+	if err != nil {
+		return nil, err
+	}
+	return licenses, nil
+}
+
+// TODO : move this outof here
+func FetchLicenseStatusesFromLSD(s http.IServer) {
+	s.LogInfo("AUTOMATION : Fetch and save all license status documents")
+
+	url := s.Config().LsdServer.PublicBaseUrl + "/licenses"
+	auth := s.Config().LsdNotifyAuth
+
+	// prepare the request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(auth.Username+":"+auth.Password)))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		s.LogError("AUTOMATION : Error getting license statuses : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		s.LogError("AUTOMATION : Error reading response body error : %v", err)
+	}
+
+	s.LogInfo("AUTOMATION : lsd server response : %v [http-status:%d]", body, resp.StatusCode)
+
+	// clear the db
+	err = s.Store().License().PurgeDataBase()
+	if err != nil {
+		panic(err)
+	}
+
+	licenses, err := ReadLicensesPayloads(body)
+	if err != nil {
+		panic(err)
+	}
+	// fill the db
+	err = s.Store().License().BulkAdd(licenses)
+	if err != nil {
+		panic(err)
+	}
 }

@@ -1,4 +1,4 @@
-package file_storage
+package filestor
 
 import (
 	"bytes"

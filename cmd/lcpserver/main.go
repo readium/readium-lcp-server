@@ -28,19 +28,22 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
 	"os"
 	"runtime"
 
-	"crypto/tls"
-
-	"net/http"
+	goHttp "net/http"
 	"path/filepath"
 	"strconv"
 	"time"
 
-	"github.com/readium/readium-lcp-server/controller/common"
+	"os/signal"
+
+	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/controller/lcpserver"
-	"github.com/readium/readium-lcp-server/lib/file_storage"
+	"github.com/readium/readium-lcp-server/lib/filestor"
+	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/model"
@@ -58,7 +61,7 @@ func main() {
 	}
 
 	logz.Printf("Reading config " + configFile)
-	cfg, err := common.ReadConfig(configFile)
+	cfg, err := http.ReadConfig(configFile)
 	if err != nil {
 		panic(err)
 	}
@@ -97,13 +100,13 @@ func main() {
 		storagePath = "files"
 	}
 
-	var s3Storage file_storage.Store
+	var s3Storage filestor.Store
 	if mode := cfg.Storage.Mode; mode == "s3" {
 		s3Conf := s3ConfigFromYAML(cfg.Storage)
-		s3Storage, _ = file_storage.S3(s3Conf)
+		s3Storage, _ = filestor.S3(s3Conf)
 	} else {
 		os.MkdirAll(storagePath, os.ModePerm) //ignore the error, the folder can already exist
-		s3Storage = file_storage.NewFileSystem(storagePath, cfg.LcpServer.PublicBaseUrl+"/files")
+		s3Storage = filestor.NewFileSystem(storagePath, cfg.LcpServer.PublicBaseUrl+"/files")
 	}
 	// Prepare packager with S3 and storage
 	packager := pack.NewPackager(s3Storage, stor.Content(), 4)
@@ -113,8 +116,7 @@ func main() {
 	}
 	//
 	// finally, starting server
-	common.HandleSignals()
-	s := New(cfg, logz, stor, &s3Storage, &cert, packager)
+	server := New(cfg, logz, stor, &s3Storage, &cert, packager)
 
 	logz.Printf("Using database " + dbURI)
 	logz.Printf("Public base URL=" + cfg.LcpServer.PublicBaseUrl)
@@ -123,19 +125,43 @@ func main() {
 		logz.Printf("  " + nameOfLink + " => " + link)
 	}
 
-	if err = s.ListenAndServe(); err != nil {
-		logz.Printf("Internal Server Error " + err.Error())
-	}
+	// Run our server in a goroutine so that it doesn't block.
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			logz.Printf("Error " + err.Error())
+		}
+	}()
+
+	c := make(chan os.Signal, 1)
+	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
+	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
+	signal.Notify(c, os.Interrupt)
+
+	// Block until we receive our signal.
+	<-c
+
+	wait := time.Second * 15 // the duration for which the server gracefully wait for existing connections to finish
+	// Create a deadline to wait for.
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+	// Doesn't block if no connections, but will otherwise wait
+	// until the timeout deadline.
+	server.Shutdown(ctx)
+	// Optionally, you could run srv.Shutdown in a goroutine and block on
+	// <-ctx.Done() if your application should wait for other services
+	// to finalize based on context cancellation.
+	logz.Printf("server is shutting down.")
+	os.Exit(0)
 
 }
 
 func New(
-	cfg common.Configuration,
+	cfg http.Configuration,
 	log logger.StdLogger,
 	stor model.Store,
-	storage *file_storage.Store,
+	storage *filestor.Store,
 	cert *tls.Certificate,
-	packager *pack.Packager) *common.Server {
+	packager *pack.Packager) *http.Server {
 
 	parsedPort := strconv.Itoa(cfg.LcpServer.Port)
 
@@ -171,11 +197,26 @@ func New(
 	log.Printf(configJs)
 	fileConfigJs.WriteString(configJs)
 
-	sr := common.CreateServerRouter(static)
+	muxer := mux.NewRouter()
 
-	s := &common.Server{
-		Server: http.Server{
-			Handler:        sr.N,
+	muxer.Use(
+		http.RecoveryHandler(http.RecoveryLogger(log), http.PrintRecoveryStack(true)),
+		http.CorsMiddleWare(
+			http.AllowedOrigins([]string{"*"}),
+			http.AllowedMethods([]string{"PATCH", "HEAD", "POST", "GET", "OPTIONS", "PUT", "DELETE"}),
+			http.AllowedHeaders([]string{"Range", "Content-Type", "Origin", "X-Requested-With", "Accept", "Accept-Language", "Content-Language", "Authorization"}),
+		),
+		http.DelayMiddleware,
+	)
+
+	if static != "" {
+		// TODO : fix this.
+		muxer.PathPrefix("/static/").Handler(goHttp.StripPrefix("/static/", goHttp.FileServer(goHttp.Dir(static))))
+	}
+
+	s := &http.Server{
+		Server: goHttp.Server{
+			Handler:        muxer,
 			Addr:           ":" + parsedPort,
 			WriteTimeout:   15 * time.Second,
 			ReadTimeout:    15 * time.Second,
@@ -191,7 +232,8 @@ func New(
 	}
 
 	s.MakeAutorizator("Readium License Content Protection Server") // creates authority checker
-	sr.R.NotFoundHandler = s.NotFoundHandler()                     //handle all other requests 404
+	muxer.NotFoundHandler = s.NotFoundHandler()                    // handle all other requests 404
+
 	s.CreateDefaultLinks(cfg.License)
 
 	log.Printf("License server running on port %d [Readonly %t]", cfg.LcpServer.Port, readonly)
@@ -202,9 +244,9 @@ func New(
 	// methods related to EPUB encrypted content
 
 	contentRoutesPathPrefix := "/contents"
-	contentRoutes := sr.R.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
+	contentRoutes := muxer.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.HandleFunc(sr.R, contentRoutesPathPrefix, lcpserver.ListContents).Methods("GET")
+	s.HandleFunc(muxer, contentRoutesPathPrefix, lcpserver.ListContents).Methods("GET")
 
 	// get encrypted content by content id (a uuid)
 	s.HandleFunc(contentRoutes, "/{content_id}", lcpserver.GetContent).Methods("GET")
@@ -228,9 +270,9 @@ func New(
 	// methods related to licenses
 
 	licenseRoutesPathPrefix := "/licenses"
-	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
+	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.HandlePrivateFunc(sr.R, licenseRoutesPathPrefix, lcpserver.ListLicenses).Methods("GET")
+	s.HandlePrivateFunc(muxer, licenseRoutesPathPrefix, lcpserver.ListLicenses).Methods("GET")
 	// get a license
 	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense).Methods("GET")
 	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense).Methods("POST")
@@ -245,8 +287,8 @@ func New(
 	return s
 }
 
-func s3ConfigFromYAML(cfg common.Storage) file_storage.S3Config {
-	s3config := file_storage.S3Config{
+func s3ConfigFromYAML(cfg http.Storage) filestor.S3Config {
+	s3config := filestor.S3Config{
 		ID:             cfg.AccessId,
 		Secret:         cfg.Secret,
 		Token:          cfg.Token,

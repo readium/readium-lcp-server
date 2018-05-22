@@ -30,13 +30,17 @@ package main
 import (
 	"os"
 
-	"net/http"
+	goHttp "net/http"
 	"strconv"
 	"time"
 
-	"github.com/readium/readium-lcp-server/controller/common"
+	"context"
+	"os/signal"
+
+	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/controller/lsdserver"
-	"github.com/readium/readium-lcp-server/lib/localization"
+	"github.com/readium/readium-lcp-server/lib/http"
+	"github.com/readium/readium-lcp-server/lib/i18n"
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/model"
 )
@@ -51,7 +55,7 @@ func main() {
 	}
 
 	var err error
-	cfg, err := common.ReadConfig(configFile)
+	cfg, err := http.ReadConfig(configFile)
 	if err != nil {
 		panic(err)
 	}
@@ -63,7 +67,7 @@ func main() {
 	}
 
 	if cfg.Localization.Folder != "" {
-		err = localization.InitTranslations(cfg.Localization.Folder, cfg.Localization.Languages)
+		err = i18n.InitTranslations(cfg.Localization.Folder, cfg.Localization.Languages)
 		if err != nil {
 			panic(err)
 		}
@@ -97,21 +101,43 @@ func main() {
 		panic(err)
 	}
 
-	common.HandleSignals()
-
-	s := New(cfg, logz, stor)
+	server := New(cfg, logz, stor)
 
 	logz.Printf("Using database : %q", dbURI)
 	logz.Printf("Public base URL : %q", cfg.LsdServer.PublicBaseUrl)
 
-	if err = s.ListenAndServe(); err != nil {
-		logz.Printf("Internal Server Error " + err.Error())
-	}
+	// Run our server in a goroutine so that it doesn't block.
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			logz.Printf("Error " + err.Error())
+		}
+	}()
+
+	c := make(chan os.Signal, 1)
+	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
+	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
+	signal.Notify(c, os.Interrupt)
+
+	// Block until we receive our signal.
+	<-c
+
+	wait := time.Second * 15 // the duration for which the server gracefully wait for existing connections to finish
+	// Create a deadline to wait for.
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+	// Doesn't block if no connections, but will otherwise wait
+	// until the timeout deadline.
+	server.Shutdown(ctx)
+	// Optionally, you could run srv.Shutdown in a goroutine and block on
+	// <-ctx.Done() if your application should wait for other services
+	// to finalize based on context cancellation.
+	logz.Printf("server is shutting down.")
+	os.Exit(0)
 }
 
-func New(config common.Configuration,
+func New(config http.Configuration,
 	log logger.StdLogger,
-	store model.Store) *common.Server {
+	store model.Store) *http.Server {
 
 	complianceMode := config.ComplianceMode
 	parsedPort := strconv.Itoa(config.LsdServer.Port)
@@ -119,11 +145,21 @@ func New(config common.Configuration,
 	// the server will behave strangely, to test the resilience of LCP compliant apps
 	goofyMode := config.GoofyMode
 
-	sr := common.CreateServerRouter("")
+	muxer := mux.NewRouter()
 
-	s := &common.Server{
-		Server: http.Server{
-			Handler:        sr.N,
+	muxer.Use(
+		http.RecoveryHandler(http.RecoveryLogger(log), http.PrintRecoveryStack(true)),
+		http.CorsMiddleWare(
+			http.AllowedOrigins([]string{"*"}),
+			http.AllowedMethods([]string{"PATCH", "HEAD", "POST", "GET", "OPTIONS", "PUT", "DELETE"}),
+			http.AllowedHeaders([]string{"Range", "Content-Type", "Origin", "X-Requested-With", "Accept", "Accept-Language", "Content-Language", "Authorization"}),
+		),
+		http.DelayMiddleware,
+	)
+
+	s := &http.Server{
+		Server: goHttp.Server{
+			Handler:        muxer,
 			Addr:           ":" + parsedPort,
 			WriteTimeout:   15 * time.Second,
 			ReadTimeout:    15 * time.Second,
@@ -136,19 +172,19 @@ func New(config common.Configuration,
 		GoophyMode: goofyMode,
 	}
 
-	s.MakeAutorizator("Basic Realm")           // creates authority checker
-	sr.R.NotFoundHandler = s.NotFoundHandler() //handle all other requests 404
+	s.MakeAutorizator("Basic Realm")            // creates authority checker
+	muxer.NotFoundHandler = s.NotFoundHandler() //handle all other requests 404
 	s.Log.Printf("License status server running on port %d [readonly = %t]", config.LsdServer.Port, readonly)
 
 	licenseRoutesPathPrefix := "/licenses"
-	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
+	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.HandlePrivateFunc(sr.R, licenseRoutesPathPrefix, lsdserver.FilterLicenseStatuses).Methods("GET")
+	s.HandlePrivateFunc(muxer, licenseRoutesPathPrefix, lsdserver.FilterLicenseStatuses).Methods("GET")
 
 	s.HandleFunc(licenseRoutes, "/{key}/status", lsdserver.GetLicenseStatusDocument).Methods("GET")
 
 	if complianceMode {
-		s.HandleFunc(sr.R, "/compliancetest", lsdserver.AddLogToFile).Methods("POST")
+		s.HandleFunc(muxer, "/compliancetest", lsdserver.AddLogToFile).Methods("POST")
 	}
 
 	s.HandlePrivateFunc(licenseRoutes, "/{key}/registered", lsdserver.ListRegisteredDevices).Methods("GET")
@@ -158,7 +194,7 @@ func New(config common.Configuration,
 		s.HandleFunc(licenseRoutes, "/{key}/renew", lsdserver.LendingRenewal).Methods("PUT")
 		s.HandlePrivateFunc(licenseRoutes, "/{key}/status", lsdserver.LendingCancellation).Methods("PATCH")
 
-		s.HandlePrivateFunc(sr.R, "/licenses", lsdserver.CreateLicenseStatusDocument).Methods("PUT")
+		s.HandlePrivateFunc(muxer, "/licenses", lsdserver.CreateLicenseStatusDocument).Methods("PUT")
 		s.HandlePrivateFunc(licenseRoutes, "/", lsdserver.CreateLicenseStatusDocument).Methods("PUT")
 	}
 

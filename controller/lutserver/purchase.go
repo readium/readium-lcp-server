@@ -30,11 +30,10 @@ package lutserver
 import (
 	"encoding/json"
 	"log"
-	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/model"
 
 	"github.com/Machiel/slugify"
@@ -43,77 +42,77 @@ import (
 
 // GetPurchases searches all purchases for a client
 //
-func GetPurchases(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func GetPurchases(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	var err error
 
 	pagination, err := ExtractPaginationFromRequest(req)
 	if err != nil {
 		// user id is not a number
-		server.Error(resp, req, common.Problem{Detail: "Pagination error", Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: "Pagination error", Status: http.StatusBadRequest})
 		return
 	}
 
 	purchases, err := server.Store().Purchase().List(pagination.PerPage, pagination.Page)
 
 	PrepareListHeaderResponse(len(purchases), "/api/v1/purchases", pagination, resp)
-	resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
+	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 
 	enc := json.NewEncoder(resp)
 	err = enc.Encode(purchases)
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 }
 
 // GetUserPurchases searches all purchases for a client
 //
-func GetUserPurchases(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func GetUserPurchases(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	var err error
 	var userId int64
 	vars := mux.Vars(req)
 
 	if userId, err = strconv.ParseInt(vars["user_id"], 10, 64); err != nil {
 		// user id is not a number
-		server.Error(resp, req, common.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest})
 		return
 	}
 
 	pagination, err := ExtractPaginationFromRequest(req)
 	if err != nil {
 		// user id is not a number
-		server.Error(resp, req, common.Problem{Detail: "Pagination error", Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: "Pagination error", Status: http.StatusBadRequest})
 		return
 	}
 	purchases, err := server.Store().Purchase().ListByUser(userId, pagination.PerPage, pagination.Page)
 	if err != nil {
 		// user id is not a number
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 	PrepareListHeaderResponse(len(purchases), "/api/v1/users/"+vars["user_id"]+"/purchases", pagination, resp)
-	resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
+	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 
 	enc := json.NewEncoder(resp)
 	err = enc.Encode(purchases)
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 }
 
 // CreatePurchase creates a purchase in the database
 //
-func CreatePurchase(resp http.ResponseWriter, req *http.Request, server common.IServer) {
-	purchase, err := common.ReadPurchasePayload(req)
+func CreatePurchase(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+	purchase, err := ReadPurchasePayload(req)
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: "incorrect JSON Purchase " + err.Error(), Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: "incorrect JSON Purchase " + err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
 	// purchase ok
 	if err = server.Store().Purchase().Add(purchase); err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
@@ -131,33 +130,33 @@ func CreatePurchase(resp http.ResponseWriter, req *http.Request, server common.I
 // It fetches the license from the lcp server and returns it to the caller.
 // This API method is called from the client app (angular) when a license is requested after a purchase.
 //
-func GetPurchasedLicense(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func GetPurchasedLicense(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	vars := mux.Vars(req)
 	var id int64
 	var err error
 
 	if id, err = strconv.ParseInt(vars["id"], 10, 64); err != nil {
 		// id is not an integer (int64)
-		server.Error(resp, req, common.Problem{Detail: "Purchase ID must be an integer", Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: "Purchase ID must be an integer", Status: http.StatusBadRequest})
 		return
 	}
 
 	purchase, err := server.Store().Purchase().Get(id)
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		return
 	}
 	// FIXME: calling the lsd server at this point is too heavy: the max end date should be in the db.
 	// FIXME: call lsdServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID + "/status"
 	fullLicense, err := generateOrGetLicense(purchase, server)
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 
 	attachmentName := slugify.Slugify(purchase.Publication.Title)
-	resp.Header().Set(common.HdrContentType, common.ContentTypeLcpJson)
-	resp.Header().Set(common.HdrContentDisposition, "attachment; filename=\""+attachmentName+".lcpl\"")
+	resp.Header().Set(http.HdrContentType, http.ContentTypeLcpJson)
+	resp.Header().Set(http.HdrContentDisposition, "attachment; filename=\""+attachmentName+".lcpl\"")
 
 	enc := json.NewEncoder(resp)
 	// does not escape characters
@@ -165,7 +164,7 @@ func GetPurchasedLicense(resp http.ResponseWriter, req *http.Request, server com
 	err = enc.Encode(fullLicense)
 
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 	// message to the console
@@ -175,13 +174,13 @@ func GetPurchasedLicense(resp http.ResponseWriter, req *http.Request, server com
 
 // GetPurchase gets a purchase by its id in the database
 //
-func GetPurchase(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func GetPurchase(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	vars := mux.Vars(req)
 	var id int
 	var err error
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
-		server.Error(resp, req, common.Problem{Detail: "Purchase ID must be an integer", Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: "Purchase ID must be an integer", Status: http.StatusBadRequest})
 		return
 	}
 
@@ -189,43 +188,43 @@ func GetPurchase(resp http.ResponseWriter, req *http.Request, server common.ISer
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		default:
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 		return
 	}
 	// FIXME: calling the lsd server at this point is too heavy: the max end date should be in the db.
 	// FIXME: call lsdServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID + "/status"
-	resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
+	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 	// json encode the purchase info into the output stream
 	enc := json.NewEncoder(resp)
 	if err = enc.Encode(purchase); err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 }
 
 // GetPurchaseByLicenseID gets a purchase by a license id in the database
 //
-func GetPurchaseByLicenseID(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func GetPurchaseByLicenseID(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	vars := mux.Vars(req)
 	var err error
 	purchase, err := server.Store().Purchase().GetByLicenseID(vars["licenseID"])
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		default:
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 		return
 	}
 	// purchase found
-	resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
+	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 	enc := json.NewEncoder(resp)
 	if err = enc.Encode(purchase); err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		return
 	}
 }
@@ -233,7 +232,7 @@ func GetPurchaseByLicenseID(resp http.ResponseWriter, req *http.Request, server 
 // UpdatePurchase updates a purchase in the database
 // Only updates the license id (uuid), start and end date, status
 //
-func UpdatePurchase(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func UpdatePurchase(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 
 	vars := mux.Vars(req)
 	var id int
@@ -241,13 +240,13 @@ func UpdatePurchase(resp http.ResponseWriter, req *http.Request, server common.I
 
 	// check that the purchase id is an integer
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
-		server.Error(resp, req, common.Problem{Detail: "The purchase id must be an integer", Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: "The purchase id must be an integer", Status: http.StatusBadRequest})
 		return
 	}
-	newPurchase, err := common.ReadPurchasePayload(req)
+	newPurchase, err := ReadPurchasePayload(req)
 	// parse the update info
 	if err != nil {
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
 
@@ -264,12 +263,24 @@ func UpdatePurchase(resp http.ResponseWriter, req *http.Request, server common.I
 
 		switch err {
 		case gorm.ErrRecordNotFound:
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 		default:
-			server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 		}
 		return
 	}
 
 	resp.WriteHeader(http.StatusOK)
+}
+
+// ReadPurchasePayload transforms a json
+//
+func ReadPurchasePayload(req *http.Request) (*model.Purchase, error) {
+	var dec *json.Decoder
+	if ctype := req.Header[http.HdrContentType]; len(ctype) > 0 && ctype[0] == http.ContentTypeJson {
+		dec = json.NewDecoder(req.Body)
+	}
+
+	var result model.Purchase
+	return &result, dec.Decode(&result)
 }

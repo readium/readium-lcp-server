@@ -29,33 +29,32 @@ package lutserver
 
 import (
 	"encoding/json"
-	"net/http"
 
 	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/controller/common"
+	"github.com/readium/readium-lcp-server/lib/http"
 )
 
 // GetDashboardInfos searches a publication by its uuid
-func GetDashboardInfos(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func GetDashboardInfos(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	if pub, err := server.Store().Dashboard().GetDashboardInfos(); err == nil {
 		enc := json.NewEncoder(resp)
 		if err = enc.Encode(pub); err == nil {
 			// send json of correctly encoded user info
-			resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
+			resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 			resp.WriteHeader(http.StatusOK)
 			return
 		}
 
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
 			{
-				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 			}
 		default:
 			{
-				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 			}
 		}
 	}
@@ -63,26 +62,26 @@ func GetDashboardInfos(resp http.ResponseWriter, req *http.Request, server commo
 
 // GetDashboardBestSellers gets the dashboard bestsellers
 //
-func GetDashboardBestSellers(resp http.ResponseWriter, req *http.Request, server common.IServer) {
+func GetDashboardBestSellers(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	if pub, err := server.Store().Dashboard().GetDashboardBestSellers(); err == nil {
 		enc := json.NewEncoder(resp)
 		if err = enc.Encode(pub); err == nil {
 			// send json of correctly encoded user info
-			resp.Header().Set(common.HdrContentType, common.ContentTypeJson)
+			resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 			resp.WriteHeader(http.StatusOK)
 			return
 		}
 
-		server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
 			{
-				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
 			}
 		default:
 			{
-				server.Error(resp, req, common.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
 			}
 		}
 	}
