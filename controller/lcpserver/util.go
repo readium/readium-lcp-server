@@ -41,6 +41,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/crypto"
 	"github.com/readium/readium-lcp-server/lib/epub"
 	"github.com/readium/readium-lcp-server/lib/http"
@@ -305,4 +306,49 @@ func buildLicencedPublication(license *model.License, server http.IServer) (*epu
 	buf2.Write(bytes.TrimRight(buf.Bytes(), "\n"))
 	ep.Add(epub.LicenseFile, &buf2, uint64(buf2.Len()))
 	return &ep, err
+}
+
+func RegisterRoutes(muxer *mux.Router, server http.IServer) {
+	muxer.NotFoundHandler = server.NotFoundHandler() // handle all other requests 404
+	// methods related to EPUB encrypted content
+
+	contentRoutesPathPrefix := "/contents"
+	contentRoutes := muxer.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
+
+	server.HandleFunc(muxer, contentRoutesPathPrefix, ListContents, false).Methods("GET")
+
+	// get encrypted content by content id (a uuid)
+	server.HandleFunc(contentRoutes, "/{content_id}", GetContent, false).Methods("GET")
+	// get all licenses associated with a given content
+	server.HandleFunc(contentRoutes, "/{content_id}/licenses", ListLicensesForContent, true).Methods("GET")
+
+	if !server.Config().LcpServer.ReadOnly {
+		server.HandleFunc(contentRoutes, "/{name}", StoreContent, true).Methods("POST")
+		// put content to the storage
+		server.HandleFunc(contentRoutes, "/{content_id}", AddContent, true).Methods("PUT")
+		// generate a license for given content
+		server.HandleFunc(contentRoutes, "/{content_id}/license", GenerateLicense, true).Methods("POST")
+		// deprecated, from a typo in the lcp server spec
+		server.HandleFunc(contentRoutes, "/{content_id}/licenses", GenerateLicense, true).Methods("POST")
+		// generate a licensed publication
+		server.HandleFunc(contentRoutes, "/{content_id}/publication", GenerateLicensedPublication, true).Methods("POST")
+		// deprecated, from a typo in the lcp server spec
+		server.HandleFunc(contentRoutes, "/{content_id}/publications", GenerateLicensedPublication, true).Methods("POST")
+	}
+
+	// methods related to licenses
+
+	licenseRoutesPathPrefix := "/licenses"
+	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
+
+	server.HandleFunc(muxer, licenseRoutesPathPrefix, ListLicenses, true).Methods("GET")
+	// get a license
+	server.HandleFunc(licenseRoutes, "/{license_id}", GetLicense, true).Methods("GET")
+	server.HandleFunc(licenseRoutes, "/{license_id}", GetLicense, true).Methods("POST")
+	// get a licensed publication via a license id
+	server.HandleFunc(licenseRoutes, "/{license_id}/publication", GetLicensedPublication, true).Methods("POST")
+	if !server.Config().LcpServer.ReadOnly {
+		// update a license
+		server.HandleFunc(licenseRoutes, "/{license_id}", UpdateLicense, true).Methods("PATCH")
+	}
 }

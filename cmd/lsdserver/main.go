@@ -101,7 +101,63 @@ func main() {
 		panic(err)
 	}
 
-	server := New(cfg, logz, stor)
+	parsedPort := strconv.Itoa(cfg.LsdServer.Port)
+	readonly := cfg.LsdServer.ReadOnly
+	// the server will behave strangely, to test the resilience of LCP compliant apps
+	goofyMode := cfg.GoofyMode
+
+	muxer := mux.NewRouter()
+
+	muxer.Use(
+		http.RecoveryHandler(http.RecoveryLogger(logz), http.PrintRecoveryStack(true)),
+		http.CorsMiddleWare(
+			http.AllowedOrigins([]string{"*"}),
+			http.AllowedMethods([]string{"PATCH", "HEAD", "POST", "GET", "OPTIONS", "PUT", "DELETE"}),
+			http.AllowedHeaders([]string{"Range", "Content-Type", "Origin", "X-Requested-With", "Accept", "Accept-Language", "Content-Language", "Authorization"}),
+		),
+		http.DelayMiddleware,
+	)
+
+	server := &http.Server{
+		Server: goHttp.Server{
+			Handler:        muxer,
+			Addr:           ":" + parsedPort,
+			WriteTimeout:   15 * time.Second,
+			ReadTimeout:    15 * time.Second,
+			MaxHeaderBytes: 1 << 20,
+		},
+		Log:        logz,
+		Cfg:        cfg,
+		Readonly:   readonly,
+		Model:      stor,
+		GoophyMode: goofyMode,
+	}
+
+	server.InitAuth("Basic Realm")                   // creates authority checker
+	muxer.NotFoundHandler = server.NotFoundHandler() //handle all other requests 404
+	server.Log.Printf("License status server running on port %d [readonly = %t]", cfg.LsdServer.Port, readonly)
+
+	licenseRoutesPathPrefix := "/licenses"
+	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
+
+	server.HandleFunc(muxer, licenseRoutesPathPrefix, lsdserver.FilterLicenseStatuses, true).Methods("GET")
+
+	server.HandleFunc(licenseRoutes, "/{key}/status", lsdserver.GetLicenseStatusDocument, false).Methods("GET")
+
+	if complianceMode {
+		server.HandleFunc(muxer, "/compliancetest", lsdserver.AddLogToFile, false).Methods("POST")
+	}
+
+	server.HandleFunc(licenseRoutes, "/{key}/registered", lsdserver.ListRegisteredDevices, true).Methods("GET")
+	if !readonly {
+		server.HandleFunc(licenseRoutes, "/{key}/register", lsdserver.RegisterDevice, false).Methods("POST")
+		server.HandleFunc(licenseRoutes, "/{key}/return", lsdserver.LendingReturn, false).Methods("PUT")
+		server.HandleFunc(licenseRoutes, "/{key}/renew", lsdserver.LendingRenewal, false).Methods("PUT")
+		server.HandleFunc(licenseRoutes, "/{key}/status", lsdserver.LendingCancellation, true).Methods("PATCH")
+
+		server.HandleFunc(muxer, "/licenses", lsdserver.CreateLicenseStatusDocument, true).Methods("PUT")
+		server.HandleFunc(licenseRoutes, "/", lsdserver.CreateLicenseStatusDocument, true).Methods("PUT")
+	}
 
 	logz.Printf("Using database : %q", dbURI)
 	logz.Printf("Public base URL : %q", cfg.LsdServer.PublicBaseUrl)
@@ -133,70 +189,4 @@ func main() {
 	// to finalize based on context cancellation.
 	logz.Printf("server is shutting down.")
 	os.Exit(0)
-}
-
-func New(config http.Configuration,
-	log logger.StdLogger,
-	store model.Store) *http.Server {
-
-	complianceMode := config.ComplianceMode
-	parsedPort := strconv.Itoa(config.LsdServer.Port)
-	readonly := config.LsdServer.ReadOnly
-	// the server will behave strangely, to test the resilience of LCP compliant apps
-	goofyMode := config.GoofyMode
-
-	muxer := mux.NewRouter()
-
-	muxer.Use(
-		http.RecoveryHandler(http.RecoveryLogger(log), http.PrintRecoveryStack(true)),
-		http.CorsMiddleWare(
-			http.AllowedOrigins([]string{"*"}),
-			http.AllowedMethods([]string{"PATCH", "HEAD", "POST", "GET", "OPTIONS", "PUT", "DELETE"}),
-			http.AllowedHeaders([]string{"Range", "Content-Type", "Origin", "X-Requested-With", "Accept", "Accept-Language", "Content-Language", "Authorization"}),
-		),
-		http.DelayMiddleware,
-	)
-
-	s := &http.Server{
-		Server: goHttp.Server{
-			Handler:        muxer,
-			Addr:           ":" + parsedPort,
-			WriteTimeout:   15 * time.Second,
-			ReadTimeout:    15 * time.Second,
-			MaxHeaderBytes: 1 << 20,
-		},
-		Log:        log,
-		Cfg:        config,
-		Readonly:   readonly,
-		Model:      store,
-		GoophyMode: goofyMode,
-	}
-
-	s.InitAuth("Basic Realm")                   // creates authority checker
-	muxer.NotFoundHandler = s.NotFoundHandler() //handle all other requests 404
-	s.Log.Printf("License status server running on port %d [readonly = %t]", config.LsdServer.Port, readonly)
-
-	licenseRoutesPathPrefix := "/licenses"
-	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
-
-	s.HandleFunc(muxer, licenseRoutesPathPrefix, lsdserver.FilterLicenseStatuses, true).Methods("GET")
-
-	s.HandleFunc(licenseRoutes, "/{key}/status", lsdserver.GetLicenseStatusDocument, false).Methods("GET")
-
-	if complianceMode {
-		s.HandleFunc(muxer, "/compliancetest", lsdserver.AddLogToFile, false).Methods("POST")
-	}
-
-	s.HandleFunc(licenseRoutes, "/{key}/registered", lsdserver.ListRegisteredDevices, true).Methods("GET")
-	if !readonly {
-		s.HandleFunc(licenseRoutes, "/{key}/register", lsdserver.RegisterDevice, false).Methods("POST")
-		s.HandleFunc(licenseRoutes, "/{key}/return", lsdserver.LendingReturn, false).Methods("PUT")
-		s.HandleFunc(licenseRoutes, "/{key}/renew", lsdserver.LendingRenewal, false).Methods("PUT")
-		s.HandleFunc(licenseRoutes, "/{key}/status", lsdserver.LendingCancellation, true).Methods("PATCH")
-
-		s.HandleFunc(muxer, "/licenses", lsdserver.CreateLicenseStatusDocument, true).Methods("PUT")
-		s.HandleFunc(licenseRoutes, "/", lsdserver.CreateLicenseStatusDocument, true).Methods("PUT")
-	}
-
-	return s
 }

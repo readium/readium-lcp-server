@@ -82,44 +82,6 @@ func main() {
 		panic("Error migrating database : " + err.Error())
 	}
 
-	server := New(cfg, log, stor)
-	log.Printf("Frontend webserver for LCP running on " + cfg.FrontendServer.Host + ":" + strconv.Itoa(cfg.FrontendServer.Port))
-
-	// Run our server in a goroutine so that it doesn't block.
-	go func() {
-		if err := server.ListenAndServe(); err != nil {
-			log.Printf("Error " + err.Error())
-		}
-	}()
-
-	c := make(chan os.Signal, 1)
-	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
-	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
-	signal.Notify(c, os.Interrupt)
-
-	// Block until we receive our signal.
-	<-c
-
-	wait := time.Second * 15 // the duration for which the server gracefully wait for existing connections to finish
-	// Create a deadline to wait for.
-	ctx, cancel := context.WithTimeout(context.Background(), wait)
-	defer cancel()
-	// Doesn't block if no connections, but will otherwise wait
-	// until the timeout deadline.
-	server.Shutdown(ctx)
-	// Optionally, you could run srv.Shutdown in a goroutine and block on
-	// <-ctx.Done() if your application should wait for other services
-	// to finalize based on context cancellation.
-	log.Printf("server is shutting down.")
-	os.Exit(0)
-}
-
-// New creates a new webserver (basic user interface)
-func New(
-	cfg http.Configuration,
-	log logger.StdLogger,
-	store model.Store) *http.Server {
-
 	tcpAddress := cfg.FrontendServer.Host + ":" + strconv.Itoa(cfg.FrontendServer.Port)
 
 	static := cfg.FrontendServer.Directory
@@ -184,7 +146,7 @@ func New(
 		},
 		Log:   log,
 		Cfg:   cfg,
-		Model: store,
+		Model: stor,
 	}
 
 	muxer.NotFoundHandler = server.NotFoundHandler() //handle all other requests 404
@@ -268,7 +230,35 @@ func New(
 	// get a license by id
 	server.HandleFunc(licenseRoutes, "/{license_id}", lutserver.GetLicense, false).Methods("GET")
 
-	return server
+	log.Printf("Frontend webserver for LCP running on " + cfg.FrontendServer.Host + ":" + strconv.Itoa(cfg.FrontendServer.Port))
+
+	// Run our server in a goroutine so that it doesn't block.
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			log.Printf("Error " + err.Error())
+		}
+	}()
+
+	c := make(chan os.Signal, 1)
+	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
+	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
+	signal.Notify(c, os.Interrupt)
+
+	// Block until we receive our signal.
+	<-c
+
+	wait := time.Second * 15 // the duration for which the server gracefully wait for existing connections to finish
+	// Create a deadline to wait for.
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+	// Doesn't block if no connections, but will otherwise wait
+	// until the timeout deadline.
+	server.Shutdown(ctx)
+	// Optionally, you could run srv.Shutdown in a goroutine and block on
+	// <-ctx.Done() if your application should wait for other services
+	// to finalize based on context cancellation.
+	log.Printf("server is shutting down.")
+	os.Exit(0)
 }
 
 func ReadLicensesPayloads(data []byte) (model.LicensesStatusCollection, error) {

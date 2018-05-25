@@ -72,10 +72,14 @@ func StoreContent(server http.IServer, reqBody io.ReadCloser, name string) (*str
 // this method adds the <protected_content_location>  in the store (of encrypted files)
 // and the key in the database in order to create the licenses
 
-func AddContent(server http.IServer, publication http.LcpPublication, param ParamContentId) (*string, error) {
+//Payload: (json) {content-id, content-encryption-key, protected-content-location, protected-content-length, protected-content-sha256, protected-content-disposition}
+
+func AddContent(server http.IServer, publication *http.LcpPublication, param ParamContentId) (*string, error) {
+	server.LogInfo("Payload %#v\nParam %#v", publication, param)
 	if param.ContentID == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
+
 	contentID := param.ContentID
 	// open the encrypted file from the path given in the json payload
 	file, err := os.Open(publication.Output)
@@ -99,6 +103,7 @@ func AddContent(server http.IServer, publication http.LcpPublication, param Para
 	content.Location = ""
 	content.Length = -1
 	content.Sha256 = ""
+
 	if publication.ContentDisposition != nil {
 		content.Location = *publication.ContentDisposition
 	}
@@ -120,14 +125,12 @@ func AddContent(server http.IServer, publication http.LcpPublication, param Para
 		err = server.Store().Content().Update(content)
 		code = http.StatusOK
 	}
-	if err != nil { //db not updated
+
+	if err != nil { //db not updated or created
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
-	server.LogInfo("Status : %d", code)
-	//TODO :  write status code
-	//resp.WriteHeader(code)
 
-	return &publication.ContentId, nil
+	return &publication.ContentId, http.Problem{Status: code}
 }
 
 // ListContents lists the content in the storage index

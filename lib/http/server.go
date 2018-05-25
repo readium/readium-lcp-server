@@ -166,16 +166,39 @@ func (s *Server) fastJsonError(w http.ResponseWriter, r *http.Request, message s
 	s.Log.Infof("fastJsonError error : %s", message)
 }
 
-func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, secured bool) *mux.Route {
-	// reflect on the provided handler
-	fnValue := reflect.ValueOf(fn)
+/**
+How it works.
+
+When you register a handler, you should know the following:
+1. first parameter of the handling function should be always server http.IServer
+2. second parameter is optional and represents the expected json payload
+3. the rest of the parameters are as following :
+a. url path parameters (e.g. /content/{content_id}) or url parameters (e.g. ?page=3)
+b. header injections (e.g. "Accept-Language")
+For both a) and b) cases you have to define structs.
+
+For case a) : the struct name has to begin with "Param" and have tags which defines from where those values are read.
+Keep in mind that the fields of the struct must always be of type "string" and you need to deal with conversion yourself.
+E.g. tag `var:"content_id"` works with /content/{content_id} to retrieve the content_id (they are named the same) and `form:"page"` works with /content/{content_id}?page=3 to get the "page" parameter
+
+For case b) : the struct name has to begin with "Headers" and have tag which defines which headers you are expecting. E.g. `hdr:"Accept-Language"`
+Exception for case b) is (for now) "User-Agent" which gets injected
+
+Convention : if the payload response is nil, then it has to be error.
+So, never responde with both payload and error.
+*/
+func collect(s *Server, fnValue reflect.Value) (reflect.Type, reflect.Type, reflect.Type, []ParamAndIndex, []string) {
+
 	// checking if we're registering a function, not something else
 	functionType := fnValue.Type()
 	if functionType.Kind() != reflect.Func {
 		panic("Can only register functions.")
 	}
 	// getting the function name (for debugging purposes)
-	callerName := runtime.FuncForPC(fnValue.Pointer()).Name()
+	fnCallerName := runtime.FuncForPC(fnValue.Pointer()).Name()
+	parts := strings.Split(fnCallerName, "/")
+	callerName := parts[len(parts)-1]
+
 	// collecting injected parameters
 	var payloadType reflect.Type
 	var paramType reflect.Type
@@ -183,41 +206,28 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 	var paramFields []ParamAndIndex
 	var headerFields []string
 
-	switch functionType.NumIn() {
-	case 2:
-		// convention : second param is always the json payload (which gets automatically decoded)
-		payloadType = functionType.In(1)
-		if payloadType.Kind() != reflect.Ptr && payloadType.Kind() != reflect.Map && payloadType.Kind() != reflect.Slice {
-			s.LogError("Second argument must be an *object, map, or slice and it's %q on %s.\n\tWill be ignored.", payloadType.Kind().String(), callerName)
-		}
-		payloadType = nil
-		fallthrough
-	case 1:
-		// convention : first param is always IServer - to give access to configuration, storage, etc
-		serverIfaceParam := functionType.In(0)
-		if "http.IServer" != serverIfaceParam.String() {
-			s.LogError("First argument must be an http.IServer and you provided %q", serverIfaceParam.String())
-			panic("bad handler func. Check logs.")
-		}
-	case 0:
+	if functionType.NumIn() == 0 {
 		panic("Handler must have at least one argument: http.IServer")
 	}
+	// convention : first param is always IServer - to give access to configuration, storage, etc
+	serverIfaceParam := functionType.In(0)
+	if "http.IServer" != serverIfaceParam.String() {
+		s.LogError("First argument must be an http.IServer and you provided %q", serverIfaceParam.String())
+		panic("bad handler func. Check logs.")
+	}
 
-	// convention : the rest of the params are (in order) : url params (?page=3) then url path params (content_id).
-	// There is no way to get the function parameter name with reflect. Because of that, we're using a trick:
-	// - each injected param will have a type (in the end is "string") which respects the convention of starting with var_ or form_
-	// - if it's a URL param (e.g. ?page=3) it will start with form_
-	// - if it's a URL path param (e.g. /content/{content_id}) it will start with var_
-	for p := 0; p < functionType.NumIn(); p++ {
+	for p := 1; p < functionType.NumIn(); p++ {
 		param := functionType.In(p)
 		paramName := param.Name()
+		// param types should have the name starting with "Param" (e.g. "ParamPageAndDeviceID")
 		if strings.HasPrefix(paramName, "Param") {
 			paramType = param
 			for j := 0; j < param.NumField(); j++ {
 				field := param.Field(j)
+				// if a field is read from muxer vars, it should have a tag set to the name of the required parameter
 				varTag := field.Tag.Get("var")
+				// if a field is read from muxer form, it should have a tag set to the name of the required parameter
 				formTag := field.Tag.Get("form")
-
 				if len(varTag) > 0 {
 					paramFields = append(paramFields, ParamAndIndex{tag: varTag, index: j, isVar: true})
 				}
@@ -226,14 +236,30 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 					paramFields = append(paramFields, ParamAndIndex{tag: formTag, index: j})
 				}
 			}
-		} else if paramName == "Headers" {
+			// Headers struct
+		} else if strings.HasPrefix(paramName, "Headers") {
 			headersType = param
+			// forced add of the user agent
+			headerFields = append(headerFields, "User-Agent")
 			for j := 0; j < param.NumField(); j++ {
 				field := param.Field(j)
+				// all headers should have hdr tag - only exception is "User-Agent" - more exceptions can be added
 				hdrTag := field.Tag.Get("hdr")
 				if len(hdrTag) > 0 {
 					headerFields = append(headerFields, hdrTag)
 				}
+			}
+		} else {
+			if payloadType != nil {
+				panic("Seems you are expecting two payloads. You should take only one.")
+			}
+			// convention : second param is always the json payload (which gets automatically decoded)
+			switch functionType.In(p).Kind() {
+			case reflect.Ptr, reflect.Map, reflect.Slice:
+				payloadType = functionType.In(p)
+				s.LogInfo("%s parameter is expected as payload", payloadType.Name())
+			default:
+				s.LogError("Second argument must be an *object, map, or slice and it's %q on %s.\n\tWill be ignored.", functionType.In(p).String(), callerName)
 			}
 		}
 	}
@@ -251,7 +277,16 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 		panic("bad handler func. Check logs.")
 	}
 
-	s.LogInfo("%q registered.", callerName)
+	s.LogInfo("%s registered with %d input parameters and %d output parameters.", callerName, functionType.NumIn(), functionType.NumOut())
+	return payloadType, paramType, headersType, paramFields, headerFields
+}
+
+func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, secured bool) *mux.Route {
+	// reflect on the provided handler
+	fnValue := reflect.ValueOf(fn)
+
+	// get payload, parameters and headers that will be injected
+	payloadType, paramType, headersType, paramFields, headerFields := collect(s, fnValue)
 
 	// keeping a value of IServer to be passed on handler called
 	serverValue := reflect.ValueOf(s)
@@ -283,6 +318,7 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 
 		// Set up arguments for handler call : first argument is the IServer
 		in := []reflect.Value{serverValue}
+
 		// seems we're expecting a valid json payload
 		if payloadType != nil {
 
@@ -297,14 +333,16 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 				in = append(in, deserializeTo)
 			}
 
+			// defering close
+			defer r.Body.Close()
+
 			// now we read the request body
 			reqBody, err := ioutil.ReadAll(r.Body)
 			if err != nil {
 				s.fastJsonError(w, r, err.Error())
 				return
 			}
-			// we've managed to read it without io errors, defering close
-			defer r.Body.Close()
+
 			// json decode the payload
 			if err = json.Unmarshal(reqBody, deserializeTo.Interface()); err != nil {
 				s.fastJsonError(w, r, fmt.Sprintf("Unmarshal error: %v\nReceived from client : %v", err, string(reqBody)))
@@ -321,32 +359,46 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 					return
 				}
 			}
+		} else {
+			s.LogInfo("No payload will be injected.")
 		}
 
+		// we have parameters that need to be injected
 		if paramType != nil {
 			vars := mux.Vars(r)
 			p := reflect.New(paramType).Elem()
 			for _, pf := range paramFields {
+				// if the parameter is in muxer vars
 				if pf.isVar {
 					p.Field(pf.index).Set(reflect.ValueOf(vars[pf.tag]))
 				} else {
+					// otherwise it must come from muxer form
 					fv := r.FormValue(pf.tag)
 					p.Field(pf.index).Set(reflect.ValueOf(fv))
 				}
 			}
+			// adding the injected
 			in = append(in, p)
+		} else {
+			s.LogInfo("No parameters will be injected.")
 		}
 
+		// we have headers that need to be injected
 		if headersType != nil {
 			h := reflect.New(headersType).Elem()
 			for idx, hf := range headerFields {
-				if hf == "User-Agent" {
+				switch hf {
+				case "User-Agent":
 					h.Field(idx).Set(reflect.ValueOf(r.UserAgent()))
-				} else {
+				default:
 					h.Field(idx).Set(reflect.ValueOf(r.Header.Get(hf)))
 				}
 			}
+			in = append(in, h)
+		} else {
+			s.LogInfo("No headers will be injected.")
 		}
+
 		// finally, we're calling the handler with all the params
 		out := fnValue.Call(in)
 
@@ -354,26 +406,31 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 		w.Header().Set(HdrContentType, ContentTypeJson)
 
 		// processing return of the handler (should be payload, error)
-		isError := !out[1].IsNil()
-		//s.LogInfo("%d parameters returned with error = %t", len(out), isError)
+		isError := out[0].IsNil()
 		// preparing the json encoder
 		enc := json.NewEncoder(w)
 		// we have error
 		if isError {
+			s.LogError("Returning error : ")
 			err := enc.Encode(out[1].Interface())
 			if err != nil {
 				s.fastJsonError(w, r, fmt.Sprintf("Error encoding json : %v", err))
 				return
 			}
-			//s.LogError("Error : %#v", out[1].Interface())
 		} else {
+			// error is carrying http status - we're taking it
+			if !out[1].IsNil() {
+				problem := out[1].Interface().(Problem)
+				w.WriteHeader(problem.Status)
+				s.LogInfo("Collected status : %d", problem.Status)
+			}
 			// no error has occured - serializing payload
-			//s.LogInfo("Returning payload %v", out[0].Interface())
 			err := enc.Encode(out[0].Interface())
 			if err != nil {
 				s.fastJsonError(w, r, fmt.Sprintf("Error encoding json : %v", err))
 				return
 			}
+
 		}
 	})
 }

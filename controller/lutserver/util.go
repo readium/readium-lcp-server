@@ -28,10 +28,8 @@
 package lutserver
 
 import (
-	"archive/zip"
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -44,8 +42,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/readium/readium-lcp-server/lib/crypto"
-	"github.com/readium/readium-lcp-server/lib/epub"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/model"
@@ -57,14 +53,6 @@ type (
 	Pagination struct {
 		Page    int
 		PerPage int
-	}
-	// EncryptedEpub Encrypted epub
-
-	EncryptedEpub struct {
-		Path          string
-		EncryptionKey []byte
-		Size          int64
-		Checksum      string
 	}
 
 	// Contains all repository definitions
@@ -157,64 +145,6 @@ func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s http.ISe
 	}
 }
 
-// CreateEncryptedEpub Encrypt input file to output file
-func CreateEncryptedEpub(inputPath string, outputPath string) (EncryptedEpub, error) {
-	if _, err := os.Stat(inputPath); err != nil {
-		return EncryptedEpub{}, errors.New("Input file does not exists")
-	}
-
-	// Read file
-	buf, err := ioutil.ReadFile(inputPath)
-	if err != nil {
-		return EncryptedEpub{}, errors.New("Unable to read input file")
-	}
-
-	// Read the epub content from the zipped buffer
-	zipReader, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
-	if err != nil {
-		return EncryptedEpub{}, errors.New("Invalid zip (epub) file")
-	}
-
-	epubContent, err := epub.Read(zipReader)
-	if err != nil {
-		return EncryptedEpub{}, errors.New("Invalid epub content")
-	}
-
-	// Create output file
-	output, err := os.Create(outputPath)
-	if err != nil {
-		wd, err := os.Getwd()
-		if err != nil {
-			panic("Cannot read working dir.")
-		}
-		return EncryptedEpub{}, fmt.Errorf("Unable to create output file : %s (%s)", outputPath, wd)
-	}
-
-	// Pack / encrypt the epub content, fill the output file
-	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
-	_, encryptionKey, err := pack.Do(encrypter, epubContent, output)
-	if err != nil {
-		return EncryptedEpub{}, errors.New("Unable to encrypt file")
-	}
-
-	stats, err := output.Stat()
-	if err != nil || (stats.Size() <= 0) {
-		return EncryptedEpub{}, errors.New("Unable to output file")
-	}
-
-	hasher := sha256.New()
-	s, err := ioutil.ReadFile(outputPath)
-	_, err = hasher.Write(s)
-	if err != nil {
-		return EncryptedEpub{}, errors.New("Unable to build checksum")
-	}
-
-	checksum := hex.EncodeToString(hasher.Sum(nil))
-
-	output.Close()
-	return EncryptedEpub{outputPath, encryptionKey, stats.Size(), checksum}, nil
-}
-
 // EncryptEPUB encrypts an EPUB File and sends the content to the LCP server
 func EncryptEPUB(inputPath string, contentDisposition string, server http.IServer) error {
 
@@ -236,7 +166,7 @@ func EncryptEPUB(inputPath string, contentDisposition string, server http.IServe
 		}
 	}()
 	// encrypt the master file found at inputPath, write in the temp file, in the "encrypted repository"
-	encryptedEpub, err := CreateEncryptedEpub(inputPath, outputPath)
+	encryptedEpub, err := pack.CreateEncryptedEpub(inputPath, outputPath)
 
 	if err != nil {
 		// unable to encrypt the master file

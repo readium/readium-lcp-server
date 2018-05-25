@@ -57,7 +57,6 @@ import (
 func notifyLcpServer(lcpService, contentid string, lcpPublication http.LcpPublication, username string, password string) error {
 	//exchange encryption key with lcp service/content/<id>,
 	//Payload: {content-encryption-key, protected-content-location}
-	//fmt.Printf("lcpsv = %s\n", *lcpsv)
 
 	var urlBuffer bytes.Buffer
 	urlBuffer.WriteString(lcpService)

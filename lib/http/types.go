@@ -31,6 +31,7 @@ import (
 	"crypto/tls"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/filestor"
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/lib/pack"
@@ -222,6 +223,7 @@ type (
 		GoofyMode() bool
 		Error(w http.ResponseWriter, r *http.Request, problem Problem)
 		NotFoundHandler() http.HandlerFunc
+		HandleFunc(router *mux.Router, route string, fn interface{}, secured bool) *mux.Route
 	}
 )
 
