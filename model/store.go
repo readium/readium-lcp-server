@@ -29,6 +29,9 @@ package model
 
 import (
 	"fmt"
+	"runtime"
+	"strings"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
@@ -37,8 +40,6 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/readium/readium-lcp-server/lib/logger"
-	"runtime"
-	"strings"
 )
 
 const (
@@ -51,7 +52,7 @@ const (
 	LUTUserTableName        = "lut_users"
 	LUTLicenseViewTableName = "lut_license_views"
 	LUTPublicationTableName = "lut_publications"
-	LUTPurchaseTableName    = "lut_purchase"
+	LUTPurchaseTableName    = "lut_purchases"
 )
 
 type (

@@ -58,31 +58,31 @@ var (
 )
 
 const (
-	corsOptionMethod           string = "OPTIONS"
-	corsAllowOriginHeader      string = "Access-Control-Allow-Origin"
-	corsExposeHeadersHeader    string = "Access-Control-Expose-Headers"
-	corsMaxAgeHeader           string = "Access-Control-Max-Age"
-	corsAllowMethodsHeader     string = "Access-Control-Allow-Methods"
-	corsAllowHeadersHeader     string = "Access-Control-Allow-Headers"
-	corsAllowCredentialsHeader string = "Access-Control-Allow-Credentials"
-	corsRequestMethodHeader    string = "Access-Control-Request-Method"
-	corsRequestHeadersHeader   string = "Access-Control-Request-Headers"
-	corsOriginHeader           string = "Origin"
-	corsVaryHeader             string = "Vary"
-	corsOriginMatchAll         string = "*"
+	CorsOptionMethod           = "OPTIONS"
+	corsAllowOriginHeader      = "Access-Control-Allow-Origin"
+	corsExposeHeadersHeader    = "Access-Control-Expose-Headers"
+	corsMaxAgeHeader           = "Access-Control-Max-Age"
+	corsAllowMethodsHeader     = "Access-Control-Allow-Methods"
+	corsAllowHeadersHeader     = "Access-Control-Allow-Headers"
+	corsAllowCredentialsHeader = "Access-Control-Allow-Credentials"
+	corsRequestMethodHeader    = "Access-Control-Request-Method"
+	corsRequestHeadersHeader   = "Access-Control-Request-Headers"
+	corsOriginHeader           = "Origin"
+	corsVaryHeader             = "Vary"
+	corsOriginMatchAll         = "*"
 )
 
 func (ch *cors) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get(corsOriginHeader)
 	if !ch.isOriginAllowed(origin) {
-		if r.Method != corsOptionMethod || ch.ignoreOptions {
+		if r.Method != CorsOptionMethod || ch.ignoreOptions {
 			ch.h.ServeHTTP(w, r)
 		}
 
 		return
 	}
 
-	if r.Method == corsOptionMethod {
+	if r.Method == CorsOptionMethod {
 		if ch.ignoreOptions {
 			ch.h.ServeHTTP(w, r)
 			return
@@ -156,7 +156,7 @@ func (ch *cors) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set(corsAllowOriginHeader, returnOrigin)
 
-	if r.Method == corsOptionMethod {
+	if r.Method == CorsOptionMethod {
 		return
 	}
 	ch.h.ServeHTTP(w, r)

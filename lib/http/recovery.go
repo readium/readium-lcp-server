@@ -80,7 +80,7 @@ func (h recoveryHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (h recoveryHandler) log(v ...interface{}) {
 	if h.logger != nil {
-		h.logger.Printf("recovered", v...)
+		h.logger.Printf("recovered : %v", v...)
 	} else {
 		log.Println(v...)
 	}

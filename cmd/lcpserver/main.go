@@ -231,8 +231,8 @@ func New(
 		Src:      pack.ManualSource{},
 	}
 
-	s.MakeAutorizator("Readium License Content Protection Server") // creates authority checker
-	muxer.NotFoundHandler = s.NotFoundHandler()                    // handle all other requests 404
+	s.InitAuth("Readium License Content Protection Server") // creates authority checker
+	muxer.NotFoundHandler = s.NotFoundHandler()             // handle all other requests 404
 
 	s.CreateDefaultLinks(cfg.License)
 
@@ -246,25 +246,25 @@ func New(
 	contentRoutesPathPrefix := "/contents"
 	contentRoutes := muxer.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.HandleFunc(muxer, contentRoutesPathPrefix, lcpserver.ListContents).Methods("GET")
+	s.HandleFunc(muxer, contentRoutesPathPrefix, lcpserver.ListContents, false).Methods("GET")
 
 	// get encrypted content by content id (a uuid)
-	s.HandleFunc(contentRoutes, "/{content_id}", lcpserver.GetContent).Methods("GET")
+	s.HandleFunc(contentRoutes, "/{content_id}", lcpserver.GetContent, false).Methods("GET")
 	// get all licenses associated with a given content
-	s.HandlePrivateFunc(contentRoutes, "/{content_id}/licenses", lcpserver.ListLicensesForContent).Methods("GET")
+	s.HandleFunc(contentRoutes, "/{content_id}/licenses", lcpserver.ListLicensesForContent, true).Methods("GET")
 
 	if !readonly {
-		s.HandleFunc(contentRoutes, "/{name}", lcpserver.StoreContent).Methods("POST")
+		s.HandleFunc(contentRoutes, "/{name}", lcpserver.StoreContent, true).Methods("POST")
 		// put content to the storage
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}", lcpserver.AddContent).Methods("PUT")
+		s.HandleFunc(contentRoutes, "/{content_id}", lcpserver.AddContent, true).Methods("PUT")
 		// generate a license for given content
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/license", lcpserver.GenerateLicense).Methods("POST")
+		s.HandleFunc(contentRoutes, "/{content_id}/license", lcpserver.GenerateLicense, true).Methods("POST")
 		// deprecated, from a typo in the lcp server spec
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/licenses", lcpserver.GenerateLicense).Methods("POST")
+		s.HandleFunc(contentRoutes, "/{content_id}/licenses", lcpserver.GenerateLicense, true).Methods("POST")
 		// generate a licensed publication
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/publication", lcpserver.GenerateLicensedPublication).Methods("POST")
+		s.HandleFunc(contentRoutes, "/{content_id}/publication", lcpserver.GenerateLicensedPublication, true).Methods("POST")
 		// deprecated, from a typo in the lcp server spec
-		s.HandlePrivateFunc(contentRoutes, "/{content_id}/publications", lcpserver.GenerateLicensedPublication).Methods("POST")
+		s.HandleFunc(contentRoutes, "/{content_id}/publications", lcpserver.GenerateLicensedPublication, true).Methods("POST")
 	}
 
 	// methods related to licenses
@@ -272,15 +272,15 @@ func New(
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.HandlePrivateFunc(muxer, licenseRoutesPathPrefix, lcpserver.ListLicenses).Methods("GET")
+	s.HandleFunc(muxer, licenseRoutesPathPrefix, lcpserver.ListLicenses, true).Methods("GET")
 	// get a license
-	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense).Methods("GET")
-	s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense).Methods("POST")
+	s.HandleFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense, true).Methods("GET")
+	s.HandleFunc(licenseRoutes, "/{license_id}", lcpserver.GetLicense, true).Methods("POST")
 	// get a licensed publication via a license id
-	s.HandlePrivateFunc(licenseRoutes, "/{license_id}/publication", lcpserver.GetLicensedPublication).Methods("POST")
+	s.HandleFunc(licenseRoutes, "/{license_id}/publication", lcpserver.GetLicensedPublication, true).Methods("POST")
 	if !readonly {
 		// update a license
-		s.HandlePrivateFunc(licenseRoutes, "/{license_id}", lcpserver.UpdateLicense).Methods("PATCH")
+		s.HandleFunc(licenseRoutes, "/{license_id}", lcpserver.UpdateLicense, true).Methods("PATCH")
 	}
 
 	s.Src.Feed(packager.Incoming)

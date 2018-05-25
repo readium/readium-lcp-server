@@ -203,44 +203,44 @@ func New(
 	repositoriesRoutesPathPrefix := apiURLPrefix + "/repositories"
 	repositoriesRoutes := muxer.PathPrefix(repositoriesRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
-	server.HandleFunc(repositoriesRoutes, "/master-files", lutserver.GetRepositoryMasterFiles).Methods("GET")
+	server.HandleFunc(repositoriesRoutes, "/master-files", lutserver.GetRepositoryMasterFiles, false).Methods("GET")
 	//
 	// dashboard
 	//
-	server.HandleFunc(muxer, "/dashboardInfos", lutserver.GetDashboardInfos).Methods("GET")
-	server.HandleFunc(muxer, "/dashboardBestSellers", lutserver.GetDashboardBestSellers).Methods("GET")
+	server.HandleFunc(muxer, "/dashboardInfos", lutserver.GetDashboardInfos, false).Methods("GET")
+	server.HandleFunc(muxer, "/dashboardBestSellers", lutserver.GetDashboardBestSellers, false).Methods("GET")
 	//
 	// publications
 	//
 	publicationsRoutesPathPrefix := apiURLPrefix + "/publications"
 	publicationsRoutes := muxer.PathPrefix(publicationsRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
-	server.HandleFunc(muxer, publicationsRoutesPathPrefix, lutserver.GetPublications).Methods("GET")
+	server.HandleFunc(muxer, publicationsRoutesPathPrefix, lutserver.GetPublications, false).Methods("GET")
 	//
-	server.HandleFunc(muxer, publicationsRoutesPathPrefix, lutserver.CreatePublication).Methods("POST")
+	server.HandleFunc(muxer, publicationsRoutesPathPrefix, lutserver.CreatePublication, false).Methods("POST")
 	//
-	server.HandleFunc(muxer, "/PublicationUpload", lutserver.UploadEPUB).Methods("POST")
+	server.HandleFunc(muxer, "/PublicationUpload", lutserver.UploadEPUB, false).Methods("POST")
 	//
-	server.HandleFunc(publicationsRoutes, "/check-by-title", lutserver.CheckPublicationByTitle).Methods("GET")
+	server.HandleFunc(publicationsRoutes, "/check-by-title", lutserver.CheckPublicationByTitle, false).Methods("GET")
 	//
-	server.HandleFunc(publicationsRoutes, "/{id}", lutserver.GetPublication).Methods("GET")
-	server.HandleFunc(publicationsRoutes, "/{id}", lutserver.UpdatePublication).Methods("PUT")
-	server.HandleFunc(publicationsRoutes, "/{id}", lutserver.DeletePublication).Methods("DELETE")
+	server.HandleFunc(publicationsRoutes, "/{id}", lutserver.GetPublication, false).Methods("GET")
+	server.HandleFunc(publicationsRoutes, "/{id}", lutserver.UpdatePublication, false).Methods("PUT")
+	server.HandleFunc(publicationsRoutes, "/{id}", lutserver.DeletePublication, false).Methods("DELETE")
 	//
 	// user functions
 	//
 	usersRoutesPathPrefix := apiURLPrefix + "/users"
 	usersRoutes := muxer.PathPrefix(usersRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
-	server.HandleFunc(muxer, usersRoutesPathPrefix, lutserver.GetUsers).Methods("GET")
+	server.HandleFunc(muxer, usersRoutesPathPrefix, lutserver.GetUsers, false).Methods("GET")
 	//
-	server.HandleFunc(muxer, usersRoutesPathPrefix, lutserver.CreateUser).Methods("POST")
+	server.HandleFunc(muxer, usersRoutesPathPrefix, lutserver.CreateUser, false).Methods("POST")
 	//
-	server.HandleFunc(usersRoutes, "/{id}", lutserver.GetUser).Methods("GET")
-	server.HandleFunc(usersRoutes, "/{id}", lutserver.UpdateUser).Methods("PUT")
-	server.HandleFunc(usersRoutes, "/{id}", lutserver.DeleteUser).Methods("DELETE")
+	server.HandleFunc(usersRoutes, "/{id}", lutserver.GetUser, false).Methods("GET")
+	server.HandleFunc(usersRoutes, "/{id}", lutserver.UpdateUser, false).Methods("PUT")
+	server.HandleFunc(usersRoutes, "/{id}", lutserver.DeleteUser, false).Methods("DELETE")
 	// get all purchases for a given user
-	server.HandleFunc(usersRoutes, "/{user_id}/purchases", lutserver.GetUserPurchases).Methods("GET")
+	server.HandleFunc(usersRoutes, "/{user_id}/purchases", lutserver.GetUserPurchases, false).Methods("GET")
 
 	//
 	// purchases
@@ -248,15 +248,15 @@ func New(
 	purchasesRoutesPathPrefix := apiURLPrefix + "/purchases"
 	purchasesRoutes := muxer.PathPrefix(purchasesRoutesPathPrefix).Subrouter().StrictSlash(false)
 	// get all purchases
-	server.HandleFunc(muxer, purchasesRoutesPathPrefix, lutserver.GetPurchases).Methods("GET")
+	server.HandleFunc(muxer, purchasesRoutesPathPrefix, lutserver.GetPurchases, false).Methods("GET")
 	// create a purchase
-	server.HandleFunc(muxer, purchasesRoutesPathPrefix, lutserver.CreatePurchase).Methods("POST")
+	server.HandleFunc(muxer, purchasesRoutesPathPrefix, lutserver.CreatePurchase, false).Methods("POST")
 	// update a purchase
-	server.HandleFunc(purchasesRoutes, "/{id}", lutserver.UpdatePurchase).Methods("PUT")
+	server.HandleFunc(purchasesRoutes, "/{id}", lutserver.UpdatePurchase, false).Methods("PUT")
 	// get a purchase by purchase id
-	server.HandleFunc(purchasesRoutes, "/{id}", lutserver.GetPurchase).Methods("GET")
+	server.HandleFunc(purchasesRoutes, "/{id}", lutserver.GetPurchase, false).Methods("GET")
 	// get a license from the associated purchase id
-	server.HandleFunc(purchasesRoutes, "/{id}/license", lutserver.GetPurchasedLicense).Methods("GET")
+	server.HandleFunc(purchasesRoutes, "/{id}/license", lutserver.GetPurchasedLicense, false).Methods("GET")
 	//
 	// licences
 	//
@@ -264,9 +264,9 @@ func New(
 	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
 	// get a list of licenses
-	server.HandleFunc(muxer, licenseRoutesPathPrefix, lutserver.GetFilteredLicenses).Methods("GET")
+	server.HandleFunc(muxer, licenseRoutesPathPrefix, lutserver.GetFilteredLicenses, false).Methods("GET")
 	// get a license by id
-	server.HandleFunc(licenseRoutes, "/{license_id}", lutserver.GetLicense).Methods("GET")
+	server.HandleFunc(licenseRoutes, "/{license_id}", lutserver.GetLicense, false).Methods("GET")
 
 	return server
 }

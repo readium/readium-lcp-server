@@ -28,15 +28,10 @@
 package lcpserver
 
 import (
-	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 
-	"github.com/gorilla/mux"
-
 	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/lib/epub"
 	"github.com/readium/readium-lcp-server/lib/filestor"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/pack"
@@ -47,29 +42,26 @@ import (
 // the content name is given in the url (name)
 // a temporary file is created, then deleted after the content has been stored
 //
-func StoreContent(resp http.ResponseWriter, req *http.Request, server http.IServer) {
-	vars := mux.Vars(req)
+func StoreContent(server http.IServer, reqBody io.ReadCloser, name string) (*string, error) {
 
-	size, payload, err := writeRequestFileToTemp(req.Body)
+	size, payload, err := writeRequestFileToTemp(reqBody)
 	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 
 	defer cleanupTemp(payload)
 
-	t := pack.NewTask(vars["name"], payload, size)
+	t := pack.NewTask(name, payload, size)
 	result := server.Source().Post(t)
 
 	if result.Error != nil {
-		server.Error(resp, req, http.Problem{Detail: result.Error.Error(), Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: result.Error.Error(), Status: http.StatusBadRequest}
 	}
 
-	// must come *after* w.Header().Add()/Set(), but before w.Write()
-	resp.WriteHeader(http.StatusCreated)
-
-	json.NewEncoder(resp).Encode(result.Id)
+	//TODO :  write status code
+	//resp.WriteHeader(http.StatusCreated)
+	server.LogInfo("Status : %d", http.StatusCreated)
+	return &result.Id, nil
 }
 
 // AddContent adds content to the storage
@@ -79,27 +71,16 @@ func StoreContent(resp http.ResponseWriter, req *http.Request, server http.IServ
 // if contentID is different , url key overrides the content id in the json payload
 // this method adds the <protected_content_location>  in the store (of encrypted files)
 // and the key in the database in order to create the licenses
-func AddContent(resp http.ResponseWriter, req *http.Request, server http.IServer) {
-	// parse the json payload
-	vars := mux.Vars(req)
-	decoder := json.NewDecoder(req.Body)
-	var publication http.LcpPublication
-	err := decoder.Decode(&publication)
-	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
+
+func AddContent(server http.IServer, publication http.LcpPublication, param ParamContentId) (*string, error) {
+	if param.ContentID == "" {
+		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
-	// get the content ID in the url
-	contentID := vars["content_id"]
-	if contentID == "" {
-		server.Error(resp, req, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest})
-		return
-	}
+	contentID := param.ContentID
 	// open the encrypted file from the path given in the json payload
 	file, err := os.Open(publication.Output)
 	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 	defer file.Close()
 
@@ -107,8 +88,7 @@ func AddContent(resp http.ResponseWriter, req *http.Request, server http.IServer
 	// add the file to the storage, named from contentID
 	_, err = server.Storage().Add(contentID, file)
 	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 
 	var content *model.Content
@@ -141,76 +121,66 @@ func AddContent(resp http.ResponseWriter, req *http.Request, server http.IServer
 		code = http.StatusOK
 	}
 	if err != nil { //db not updated
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
+	server.LogInfo("Status : %d", code)
+	//TODO :  write status code
+	//resp.WriteHeader(code)
 
-	// must come *after* w.Header().Add()/Set(), but before w.Write()
-	resp.WriteHeader(code)
-
-	//json.NewEncoder(w).Encode(publication.ContentId)
-
+	return &publication.ContentId, nil
 }
 
 // ListContents lists the content in the storage index
 //
-func ListContents(resp http.ResponseWriter, req *http.Request, server http.IServer) {
-	fmt.Fprintf(os.Stderr, "Listing contents.")
+func ListContents(server http.IServer) (model.ContentCollection, error) {
 	contents, err := server.Store().Content().List()
 	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
-
-	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-	enc := json.NewEncoder(resp)
-	err = enc.Encode(contents)
-	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
-	}
-
+	return contents, nil
 }
 
 // GetContent fetches and returns an encrypted content file
 // selected by it content id (uuid)
 //
-func GetContent(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func GetContent(server http.IServer, param ParamContentId) (io.ReadCloser, error) {
+	if param.ContentID == "" {
+		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
+	}
 	// get the content id from the calling url
-	vars := mux.Vars(req)
-	contentID := vars["content_id"]
+	contentID := param.ContentID
 	content, err := server.Store().Content().Get(contentID)
 	if err != nil { //item probably not found
 		if err == gorm.ErrRecordNotFound {
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		} else {
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
-		return
 	}
+	server.LogInfo("Content : %#v", content)
 	// check the existence of the file
 	item, err := server.Storage().Get(contentID)
 	if err != nil { //item probably not found
 		if err == filestor.ErrNotFound {
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		} else {
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
-		return
 	}
 	// opens the file
 	contentReadCloser, err := item.Contents()
 	defer contentReadCloser.Close()
 	if err != nil { //file probably not found
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
+	// TODO : set below headers
 	// set headers
-	resp.Header().Set(http.HdrContentDisposition, "attachment; filename="+content.Location)
-	resp.Header().Set(http.HdrContentType, epub.ContentTypeEpub)
-	resp.Header().Set("Content-Length", fmt.Sprintf("%d", content.Length))
+	//resp.Header().Set(http.HdrContentDisposition, "attachment; filename="+content.Location)
+	//resp.Header().Set(http.HdrContentType, epub.ContentTypeEpub)
+	//resp.Header().Set("Content-Length", fmt.Sprintf("%d", content.Length))
 
 	// TODO : no error checking ? no verification if that file exists ?
 	// returns the content of the file to the caller
-	io.Copy(resp, contentReadCloser)
+	//io.Copy(resp, contentReadCloser)
+	return contentReadCloser, nil
 }

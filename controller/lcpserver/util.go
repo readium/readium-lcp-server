@@ -48,6 +48,20 @@ import (
 	"github.com/readium/readium-lcp-server/model"
 )
 
+type ParamContentId struct {
+	ContentID string `var:"content_id"`
+}
+
+type ParamContentIdAndPage struct {
+	ContentID string `var:"content_id"`
+	Page      string `form:"page"`
+	PerPage   string `form:"per_page"`
+}
+
+type ParamLicenseId struct {
+	LicenseID string `var:"license_id"`
+}
+
 func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
 	dir := os.TempDir()
 	file, err := ioutil.TempFile(dir, "readium-lcp")

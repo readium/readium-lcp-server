@@ -68,6 +68,14 @@ const (
 )
 
 type (
+	ParamAndIndex struct {
+		tag   string
+		index int
+		isVar bool
+	}
+	IValidator interface {
+		Validate() error
+	}
 	// aliases - easy imports
 	Request        = http.Request
 	ResponseWriter = http.ResponseWriter
@@ -174,6 +182,7 @@ type (
 	}
 
 	Problem struct {
+		error
 		Status   int    `json:"status,omitempty"` // if present = http response code
 		Type     string `json:"type,omitempty"`
 		Title    string `json:"title,omitempty"`

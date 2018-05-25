@@ -43,11 +43,39 @@ import (
 	"github.com/readium/readium-lcp-server/model"
 )
 
+type ParamKey struct {
+	Key string `form:"key"`
+}
+
+type ParamKeyAndDevice struct {
+	Key        string `form:"key"`
+	DeviceID   string `form:"id"`
+	DeviceName string `form:"name"`
+	End        string `form:"end"`
+}
+
+type ParamDevicesAndPage struct {
+	Devices string `form:"devices"`
+	Page    string `form:"page"`
+	PerPage string `form:"per_page"`
+}
+
+type ParamLog struct {
+	Stage  string `form:"test_stage"`
+	Number string `form:"test_number"`
+	Result string `form:"test_result"`
+}
+
+type Headers struct {
+	UserAgent      string `hdr:"User-Agent"`
+	AcceptLanguage string `hdr:"Accept-Language"`
+}
+
 // getEvents gets the events from database for the license status
 //
-func getEvents(ls *model.LicenseStatus, s http.IServer) error {
+func getEvents(ls *model.LicenseStatus, repo model.TransactionRepository) error {
 	var err error
-	ls.Events, err = s.Store().Transaction().GetByLicenseStatusId(ls.Id)
+	ls.Events, err = repo.GetByLicenseStatusId(ls.Id)
 	if err != gorm.ErrRecordNotFound {
 		return err
 	}
@@ -201,15 +229,15 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, s http.IServer) (int, 
 
 // fillLicenseStatus fills the localized 'message' field, the 'links' and 'event' objects in the license status
 //
-func fillLicenseStatus(ls *model.LicenseStatus, r *http.Request, s http.IServer) error {
+func fillLicenseStatus(ls *model.LicenseStatus, hdr Headers, s http.IServer) error {
 	// add the localized message
-	acceptLanguages := r.Header.Get("Accept-Language")
+	acceptLanguages := hdr.AcceptLanguage
 	license := ""
 	i18n.LocalizeMessage(s.Config().Localization.DefaultLanguage, acceptLanguages, &license, ls.Status.String())
 	// add the links
 	makeLinks(ls, s.Config().LsdServer, s.Config().LcpServer, s.Config().LicenseStatus)
 	// add the events
-	err := getEvents(ls, s)
+	err := getEvents(ls, s.Store().Transaction())
 
 	return err
 }

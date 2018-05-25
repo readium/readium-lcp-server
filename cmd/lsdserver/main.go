@@ -172,30 +172,30 @@ func New(config http.Configuration,
 		GoophyMode: goofyMode,
 	}
 
-	s.MakeAutorizator("Basic Realm")            // creates authority checker
+	s.InitAuth("Basic Realm")                   // creates authority checker
 	muxer.NotFoundHandler = s.NotFoundHandler() //handle all other requests 404
 	s.Log.Printf("License status server running on port %d [readonly = %t]", config.LsdServer.Port, readonly)
 
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
-	s.HandlePrivateFunc(muxer, licenseRoutesPathPrefix, lsdserver.FilterLicenseStatuses).Methods("GET")
+	s.HandleFunc(muxer, licenseRoutesPathPrefix, lsdserver.FilterLicenseStatuses, true).Methods("GET")
 
-	s.HandleFunc(licenseRoutes, "/{key}/status", lsdserver.GetLicenseStatusDocument).Methods("GET")
+	s.HandleFunc(licenseRoutes, "/{key}/status", lsdserver.GetLicenseStatusDocument, false).Methods("GET")
 
 	if complianceMode {
-		s.HandleFunc(muxer, "/compliancetest", lsdserver.AddLogToFile).Methods("POST")
+		s.HandleFunc(muxer, "/compliancetest", lsdserver.AddLogToFile, false).Methods("POST")
 	}
 
-	s.HandlePrivateFunc(licenseRoutes, "/{key}/registered", lsdserver.ListRegisteredDevices).Methods("GET")
+	s.HandleFunc(licenseRoutes, "/{key}/registered", lsdserver.ListRegisteredDevices, true).Methods("GET")
 	if !readonly {
-		s.HandleFunc(licenseRoutes, "/{key}/register", lsdserver.RegisterDevice).Methods("POST")
-		s.HandleFunc(licenseRoutes, "/{key}/return", lsdserver.LendingReturn).Methods("PUT")
-		s.HandleFunc(licenseRoutes, "/{key}/renew", lsdserver.LendingRenewal).Methods("PUT")
-		s.HandlePrivateFunc(licenseRoutes, "/{key}/status", lsdserver.LendingCancellation).Methods("PATCH")
+		s.HandleFunc(licenseRoutes, "/{key}/register", lsdserver.RegisterDevice, false).Methods("POST")
+		s.HandleFunc(licenseRoutes, "/{key}/return", lsdserver.LendingReturn, false).Methods("PUT")
+		s.HandleFunc(licenseRoutes, "/{key}/renew", lsdserver.LendingRenewal, false).Methods("PUT")
+		s.HandleFunc(licenseRoutes, "/{key}/status", lsdserver.LendingCancellation, true).Methods("PATCH")
 
-		s.HandlePrivateFunc(muxer, "/licenses", lsdserver.CreateLicenseStatusDocument).Methods("PUT")
-		s.HandlePrivateFunc(licenseRoutes, "/", lsdserver.CreateLicenseStatusDocument).Methods("PUT")
+		s.HandleFunc(muxer, "/licenses", lsdserver.CreateLicenseStatusDocument, true).Methods("PUT")
+		s.HandleFunc(licenseRoutes, "/", lsdserver.CreateLicenseStatusDocument, true).Methods("PUT")
 	}
 
 	return s

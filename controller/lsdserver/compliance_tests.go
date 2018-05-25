@@ -52,21 +52,20 @@ var (
 
 // AddLogToFile adds a log message to the log file
 //
-func AddLogToFile(resp http.ResponseWriter, req *http.Request, server http.IServer) {
-	testStage := req.FormValue("test_stage")
-	testNumber := req.FormValue("test_number")
-	testResult := req.FormValue("test_result")
+func AddLogToFile(server http.IServer, param ParamLog) (*string, error) {
+	testStage := param.Stage
+	testNumber := param.Number
+	testResult := param.Result
 
 	server.LogInfo("compliance test number %v, %v, result %v", testNumber, testStage, testResult)
 
 	if testStage != "start" && testStage != "end" {
-		server.Error(resp, req, http.Problem{Type: "about:blank", Detail: "The stage of the compliance test must be either 'start' or 'end'", Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Type: "about:blank", Detail: "The stage of the compliance test must be either 'start' or 'end'", Status: http.StatusBadRequest}
 	}
 
 	if testStage == "start" {
 		if len(testNumber) == 0 {
-			server.Error(resp, req, http.Problem{Type: "about:blank", Detail: "The number of compliance test cannot be null", Status: http.StatusBadRequest})
+			return nil, http.Problem{Type: "about:blank", Detail: "The number of compliance test cannot be null", Status: http.StatusBadRequest}
 		} else {
 			complianceTestNumber = testNumber
 			testResult = "-"
@@ -74,11 +73,12 @@ func AddLogToFile(resp http.ResponseWriter, req *http.Request, server http.IServ
 		}
 	} else {
 		if testResult != "e" && testResult != "s" {
-			server.Error(resp, req, http.Problem{Type: "about:blank", Detail: "The result of compliance test must be either 'e' or 's'", Status: http.StatusBadRequest})
+			return nil, http.Problem{Type: "about:blank", Detail: "The result of compliance test must be either 'e' or 's'", Status: http.StatusBadRequest}
 		} else {
 			testResult = results[testResult]
 			logger.WriteToFile(complianceTestNumber, testStage, testResult, "")
 			complianceTestNumber = ""
 		}
 	}
+	return nil, nil
 }
