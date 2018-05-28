@@ -35,10 +35,10 @@ import (
 
 	"fmt"
 	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/lib/epub"
 	"github.com/readium/readium-lcp-server/lib/filestor"
 	"github.com/readium/readium-lcp-server/lib/i18n"
 	"github.com/readium/readium-lcp-server/lib/pack"
+	"github.com/readium/readium-lcp-server/lib/validator"
 	"github.com/readium/readium-lcp-server/model"
 	"io/ioutil"
 	"reflect"
@@ -48,53 +48,6 @@ import (
 
 func (s *Server) GoofyMode() bool {
 	return s.GoophyMode
-}
-
-// CreateDefaultLinks inits the global var DefaultLinks from config data
-// ... DefaultLinks used in several places.
-//
-func (s *Server) CreateDefaultLinks(cfg License) {
-	s.DefaultLinks = make(map[string]string)
-	for key := range cfg.Links {
-		s.DefaultLinks[key] = cfg.Links[key]
-	}
-}
-
-// SetDefaultLinks sets a LicenseLink array from config links
-//
-func (s *Server) SetDefaultLinks() model.LicenseLinksCollection {
-	links := make(model.LicenseLinksCollection, 0, 0)
-	for key := range s.DefaultLinks {
-		links = append(links, &model.LicenseLink{Href: s.DefaultLinks[key], Rel: key})
-	}
-	return links
-}
-
-// SetLicenseLinks sets publication and status links
-// l.ContentId must have been set before the call
-//
-func (s *Server) SetLicenseLinks(l *model.License, c *model.Content) error {
-	// set the links
-	l.Links = s.SetDefaultLinks()
-
-	for i := 0; i < len(l.Links); i++ {
-		switch l.Links[i].Rel {
-		// publication link
-		case "publication":
-			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{publication_id}", l.ContentId, 1)
-			l.Links[i].Type = epub.ContentTypeEpub
-			l.Links[i].Size = c.Length
-			l.Links[i].Title = c.Location
-			l.Links[i].Checksum = c.Sha256
-			// status link
-		case "status":
-			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{license_id}", l.Id, 1)
-			l.Links[i].Type = ContentTypeLsdJson
-
-		}
-
-	}
-	return nil
 }
 
 func (s *Server) Storage() filestor.Store {
@@ -132,42 +85,28 @@ func (s *Server) LogInfo(format string, args ...interface{}) {
 	s.Log.Infof(format, args...)
 }
 
-func (s *Server) Error(w http.ResponseWriter, r *http.Request, problem Problem) {
-	acceptLanguages := r.Header.Get("Accept-Language")
+func (s *Server) fastJsonError(w http.ResponseWriter, r *http.Request, status int, message string) {
+	acceptLanguages := r.Header.Get(HdrAcceptLanguage)
 
 	w.Header().Set(HdrContentType, ContentTypeProblemJson)
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set(HdrXContentTypeOptions, "nosniff")
+	w.WriteHeader(status)
 
-	// must come *after* w.Header().Add()/Set(), but before w.Write()
-	w.WriteHeader(problem.Status)
+	if len(acceptLanguages) > 0 {
+		// TODO : test localization
+		localizedMessage := ""
+		i18n.LocalizeMessage(s.Cfg.Localization.DefaultLanguage, acceptLanguages, &localizedMessage, message)
+		w.Write([]byte("{\"error\":\"" + localizedMessage + "\"}"))
 
-	if problem.Type == "about:blank" || problem.Type == "" { // lookup Title  statusText should match http status
-		i18n.LocalizeMessage(s.Cfg.Localization.DefaultLanguage, acceptLanguages, &problem.Title, http.StatusText(problem.Status))
 	} else {
-		i18n.LocalizeMessage(s.Cfg.Localization.DefaultLanguage, acceptLanguages, &problem.Title, problem.Title)
-		i18n.LocalizeMessage(s.Cfg.Localization.DefaultLanguage, acceptLanguages, &problem.Detail, problem.Detail)
+		w.Write([]byte("{\"error\":\"" + message + "\"}"))
 	}
-	jsonError, e := json.Marshal(problem)
-	if e != nil {
-		s.Log.Errorf("Error serializing problem : %v", e)
-		http.Error(w, e.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write(jsonError)
 
-	s.Log.Infof("Handled error : %s", string(jsonError))
-}
-
-func (s *Server) fastJsonError(w http.ResponseWriter, r *http.Request, message string) {
-	w.Header().Set(HdrContentType, ContentTypeProblemJson)
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(http.StatusInternalServerError)
-	w.Write([]byte("{\"error\":\"" + message + "\"}"))
-	s.Log.Infof("fastJsonError error : %s", message)
+	s.Log.Errorf("fast Json error : %s", message)
 }
 
 /**
-How it works.
+Small Dependency Injection for Json API - How it works:
 
 When you register a handler, you should know the following:
 1. first parameter of the handling function should be always server http.IServer
@@ -257,9 +196,13 @@ func collect(s *Server, fnValue reflect.Value) (reflect.Type, reflect.Type, refl
 			switch functionType.In(p).Kind() {
 			case reflect.Ptr, reflect.Map, reflect.Slice:
 				payloadType = functionType.In(p)
-				s.LogInfo("%s parameter is expected as payload", payloadType.Name())
+				if functionType.In(p).Kind() == reflect.Ptr {
+					//s.LogInfo("%q parameter is expected as payload", payloadType.Elem().Name())
+				} else {
+					//s.LogInfo("%q parameter is expected as payload", payloadType.Name())
+				}
 			default:
-				s.LogError("Second argument must be an *object, map, or slice and it's %q on %s.\n\tWill be ignored.", functionType.In(p).String(), callerName)
+				s.LogInfo("Second argument must be an *object, map, or slice and it's %q on %s [will be ignored].", functionType.In(p).String(), callerName)
 			}
 		}
 	}
@@ -277,7 +220,7 @@ func collect(s *Server, fnValue reflect.Value) (reflect.Type, reflect.Type, refl
 		panic("bad handler func. Check logs.")
 	}
 
-	s.LogInfo("%s registered with %d input parameters and %d output parameters.", callerName, functionType.NumIn(), functionType.NumOut())
+	//s.LogInfo("%s registered with %d input parameters and %d output parameters.", callerName, functionType.NumIn(), functionType.NumOut())
 	return payloadType, paramType, headersType, paramFields, headerFields
 }
 
@@ -299,7 +242,7 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 			if username = s.checkAuth(r); username == "" {
 				s.Log.Errorf("method=%s path=%s error=Unauthorized", r.Method, r.URL.Path)
 				w.Header().Set("WWW-Authenticate", `Basic realm="`+s.realm+`"`)
-				s.Error(w, r, Problem{Detail: "User or password do not match!", Status: http.StatusUnauthorized})
+				s.fastJsonError(w, r, http.StatusUnauthorized, "User or password do not match!")
 				return
 			}
 			s.Log.Infof("user=%s", username)
@@ -339,28 +282,28 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 			// now we read the request body
 			reqBody, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				s.fastJsonError(w, r, err.Error())
+				s.fastJsonError(w, r, http.StatusInternalServerError, err.Error())
 				return
 			}
 
 			// json decode the payload
 			if err = json.Unmarshal(reqBody, deserializeTo.Interface()); err != nil {
-				s.fastJsonError(w, r, fmt.Sprintf("Unmarshal error: %v\nReceived from client : %v", err, string(reqBody)))
+				s.fastJsonError(w, r, http.StatusBadRequest, fmt.Sprintf("Unmarshal error: %v\nReceived from client : %v", err, string(reqBody)))
 				return
 			}
 
 			// checking if value is implementing Validate() error
-			iVal, isValidator := deserializeTo.Interface().(IValidator)
+			iVal, isValidator := deserializeTo.Interface().(validator.IValidator)
 			if isValidator {
 				// it does - we call validate
 				err = iVal.Validate()
 				if err != nil {
-					s.fastJsonError(w, r, fmt.Sprintf("Validation error : %v", err))
+					s.fastJsonError(w, r, http.StatusBadRequest, fmt.Sprintf("Validation error : %v", err))
 					return
 				}
 			}
 		} else {
-			s.LogInfo("No payload will be injected.")
+			//s.LogInfo("No payload will be injected.")
 		}
 
 		// we have parameters that need to be injected
@@ -380,7 +323,7 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 			// adding the injected
 			in = append(in, p)
 		} else {
-			s.LogInfo("No parameters will be injected.")
+			//s.LogInfo("No parameters will be injected.")
 		}
 
 		// we have headers that need to be injected
@@ -396,7 +339,7 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 			}
 			in = append(in, h)
 		} else {
-			s.LogInfo("No headers will be injected.")
+			//s.LogInfo("No headers will be injected.")
 		}
 
 		// finally, we're calling the handler with all the params
@@ -411,23 +354,34 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 		enc := json.NewEncoder(w)
 		// we have error
 		if isError {
-			s.LogError("Returning error : ")
-			err := enc.Encode(out[1].Interface())
+			problem, ok := out[1].Interface().(Problem)
+			if !ok {
+				s.fastJsonError(w, r, http.StatusInternalServerError, "Error : expecting Problem, got something else.")
+				return
+			}
+			w.WriteHeader(problem.Status)
+			err := enc.Encode(problem)
 			if err != nil {
-				s.fastJsonError(w, r, fmt.Sprintf("Error encoding json : %v", err))
+				s.fastJsonError(w, r, http.StatusInternalServerError, fmt.Sprintf("Error encoding json : %v", err))
 				return
 			}
 		} else {
-			// error is carrying http status - we're taking it
+			// error is carrying http status and http headers - we're taking it
 			if !out[1].IsNil() {
-				problem := out[1].Interface().(Problem)
+				problem, ok := out[1].Interface().(Problem)
+				if !ok {
+					s.fastJsonError(w, r, http.StatusInternalServerError, "Error : expecting Problem, got something else.")
+					return
+				}
 				w.WriteHeader(problem.Status)
-				s.LogInfo("Collected status : %d", problem.Status)
+				for hdrKey := range problem.HttpHeaders {
+					w.Header().Set(hdrKey, problem.HttpHeaders.Get(hdrKey))
+				}
 			}
 			// no error has occured - serializing payload
 			err := enc.Encode(out[0].Interface())
 			if err != nil {
-				s.fastJsonError(w, r, fmt.Sprintf("Error encoding json : %v", err))
+				s.fastJsonError(w, r, http.StatusInternalServerError, fmt.Sprintf("Error encoding json : %v", err))
 				return
 			}
 
@@ -446,6 +400,6 @@ func (s *Server) InitAuth(realm string) {
 func (s *Server) NotFoundHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s.Log.Infof("method=%s path=%s status=404", r.Method, r.URL.Path)
-		s.Error(w, r, Problem{Status: http.StatusNotFound})
+		s.fastJsonError(w, r, http.StatusNotFound, "Requested URL is not handled by this server.")
 	}
 }

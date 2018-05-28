@@ -34,34 +34,38 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
-	"io"
-	"io/ioutil"
-	"os"
-	"reflect"
-	"strings"
-	"time"
-
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/crypto"
 	"github.com/readium/readium-lcp-server/lib/epub"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/sign"
 	"github.com/readium/readium-lcp-server/model"
+	"io"
+	"io/ioutil"
+	"os"
+	"reflect"
+	"strings"
+	"time"
 )
 
-type ParamContentId struct {
-	ContentID string `var:"content_id"`
-}
+type (
+	ParamName struct {
+		Name string `var:"name"`
+	}
 
-type ParamContentIdAndPage struct {
-	ContentID string `var:"content_id"`
-	Page      string `form:"page"`
-	PerPage   string `form:"per_page"`
-}
+	ParamContentId struct {
+		ContentID string `var:"content_id"`
+	}
 
-type ParamLicenseId struct {
-	LicenseID string `var:"license_id"`
-}
+	ParamContentIdAndPage struct {
+		ContentID string `var:"content_id"`
+		http.ParamPagination
+	}
+
+	ParamLicenseId struct {
+		LicenseID string `var:"license_id"`
+	}
+)
 
 func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
 	dir := os.TempDir()
@@ -233,10 +237,24 @@ func buildLicense(license *model.License, server http.IServer) error {
 	}
 	server.LogInfo("setting license links.")
 	// set links
-	err = server.SetLicenseLinks(license, content)
+	err = model.SetLicenseLinks(license, content)
 	if err != nil {
 		return err
 	}
+
+	// setting type - so model won't depend on these constants
+	for i := 0; i < len(license.Links); i++ {
+		switch license.Links[i].Rel {
+		// publication link
+		case "publication":
+			license.Links[i].Type = epub.ContentTypeEpub
+			// status link
+		case "status":
+			license.Links[i].Type = http.ContentTypeLsdJson
+		}
+
+	}
+
 	server.LogInfo("Encrypting fields.")
 	// encrypt the content key, user fieds, set the key check
 	err = EncryptLicenseFields(license, content)

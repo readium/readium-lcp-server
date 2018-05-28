@@ -43,33 +43,34 @@ import (
 	"github.com/readium/readium-lcp-server/model"
 )
 
-type ParamKey struct {
-	Key string `form:"key"`
-}
+type (
+	ParamKey struct {
+		Key string `form:"key"`
+	}
 
-type ParamKeyAndDevice struct {
-	Key        string `form:"key"`
-	DeviceID   string `form:"id"`
-	DeviceName string `form:"name"`
-	End        string `form:"end"`
-}
+	ParamKeyAndDevice struct {
+		Key        string `form:"key"`
+		DeviceID   string `form:"id"`
+		DeviceName string `form:"name"`
+		End        string `form:"end"`
+	}
 
-type ParamDevicesAndPage struct {
-	Devices string `form:"devices"`
-	Page    string `form:"page"`
-	PerPage string `form:"per_page"`
-}
+	ParamDevicesAndPage struct {
+		Devices string `form:"devices"`
+		http.ParamPagination
+	}
 
-type ParamLog struct {
-	Stage  string `form:"test_stage"`
-	Number string `form:"test_number"`
-	Result string `form:"test_result"`
-}
+	ParamLog struct {
+		Stage  string `form:"test_stage"`
+		Number string `form:"test_number"`
+		Result string `form:"test_result"`
+	}
 
-type Headers struct {
-	UserAgent      string `hdr:"User-Agent"`
-	AcceptLanguage string `hdr:"Accept-Language"`
-}
+	Headers struct {
+		UserAgent      string `hdr:"User-Agent"`
+		AcceptLanguage string `hdr:"Accept-Language"`
+	}
+)
 
 // getEvents gets the events from database for the license status
 //

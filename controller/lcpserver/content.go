@@ -42,26 +42,19 @@ import (
 // the content name is given in the url (name)
 // a temporary file is created, then deleted after the content has been stored
 //
-func StoreContent(server http.IServer, reqBody io.ReadCloser, name string) (*string, error) {
-
+func StoreContent(server http.IServer, reqBody io.ReadCloser, param ParamName) (*string, error) {
 	size, payload, err := writeRequestFileToTemp(reqBody)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
-
 	defer cleanupTemp(payload)
 
-	t := pack.NewTask(name, payload, size)
-	result := server.Source().Post(t)
-
+	result := server.Source().Post(pack.NewTask(param.Name, payload, size))
 	if result.Error != nil {
 		return nil, http.Problem{Detail: result.Error.Error(), Status: http.StatusBadRequest}
 	}
 
-	//TODO :  write status code
-	//resp.WriteHeader(http.StatusCreated)
-	server.LogInfo("Status : %d", http.StatusCreated)
-	return &result.Id, nil
+	return &result.Id, http.Problem{Status: http.StatusCreated}
 }
 
 // AddContent adds content to the storage

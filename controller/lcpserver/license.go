@@ -32,6 +32,7 @@ import (
 	"strconv"
 
 	"bytes"
+	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/epub"
 	"github.com/readium/readium-lcp-server/lib/filestor"
@@ -97,14 +98,15 @@ func GetLicense(server http.IServer, licIn *model.License, id ParamLicenseId) (*
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
+	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
 	// TODO : set below headers
 	// set the http headers
-	//resp.Header().Add(http.HdrContentType, http.ContentTypeLcpJson)
-	//resp.Header().Add(http.HdrContentDisposition, `attachment; filename="license.lcpl"`)
+	nonErr.HttpHeaders.Add(http.HdrContentType, http.ContentTypeLcpJson)
+	nonErr.HttpHeaders.Add(http.HdrContentDisposition, `attachment; filename="license.lcpl"`)
 	//resp.WriteHeader(http.StatusOK)
 	// send back the license
 	// TODO : do not escape characters in the json payload
-	return licOut, nil
+	return licOut, nonErr
 }
 
 // GenerateLicense generates and returns a new license,
@@ -147,11 +149,11 @@ func GenerateLicense(server http.IServer, lic *model.License, param ParamContent
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
+	nonErr := http.Problem{Status: http.StatusCreated, HttpHeaders: make(map[string][]string)}
 	// TODO : set below headers
 	// set http headers
-	//resp.Header().Add(http.HdrContentType, http.ContentTypeLcpJson)
-	//resp.Header().Add(http.HdrContentDisposition, `attachment; filename="license.lcpl"`)
-	//resp.WriteHeader(http.StatusCreated)
+	nonErr.HttpHeaders.Add(http.HdrContentType, http.ContentTypeLcpJson)
+	nonErr.HttpHeaders.Add(http.HdrContentDisposition, `attachment; filename="license.lcpl"`)
 	// TODO : do not escape characters
 	//	send back the license
 	//enc := json.NewEncoder(resp)
@@ -161,7 +163,7 @@ func GenerateLicense(server http.IServer, lic *model.License, param ParamContent
 	// notify the lsd server of the creation of the license.
 	// this is an asynchronous call.
 	go notifyLSDServer(lic, server)
-	return lic, nil
+	return lic, nonErr
 }
 
 // GetLicensedPublication returns a licensed publication
@@ -212,17 +214,18 @@ func GetLicensedPublication(server http.IServer, licIn *model.License, id ParamL
 		return nil, http.Problem{Detail: err1.Error(), Instance: licOut.ContentId, Status: http.StatusInternalServerError}
 	}
 	server.LogInfo("Content : %#v", content)
+	nonErr := http.Problem{Status: http.StatusCreated, HttpHeaders: make(map[string][]string)}
 	// TODO : set below headers
 	// -- set HTTP headers
-	//resp.Header().Add(http.HdrContentType, epub.ContentTypeEpub)
-	//resp.Header().Add(http.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, content.Location))
+	nonErr.HttpHeaders.Add(http.HdrContentType, epub.ContentTypeEpub)
+	nonErr.HttpHeaders.Add(http.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, content.Location))
 	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
-	//resp.Header().Add(http.HdrXLcpLicense, licOut.Id)
+	nonErr.HttpHeaders.Add(http.HdrXLcpLicense, licOut.Id)
 	// -- must come *after* w.Header().Add()/Set(), but before w.Write()
-	//resp.WriteHeader(http.StatusCreated)
+
 	// -- return the full licensed publication to the caller
 	// publication.Write(resp)
-	return publication, nil
+	return publication, nonErr
 }
 
 // GenerateLicensedPublication generates and returns a licensed publication
@@ -287,18 +290,19 @@ func GenerateLicensedPublication(server http.IServer, lic *model.License, param 
 	if err1 != nil {
 		return nil, http.Problem{Detail: err1.Error(), Instance: lic.ContentId, Status: http.StatusInternalServerError}
 	}
+	nonErr := http.Problem{Status: http.StatusCreated, HttpHeaders: make(map[string][]string)}
 	server.LogInfo("Content : %#v", content)
 	// TODO : return headers
 	// -- set HTTP headers
-	//resp.Header().Add(http.HdrContentType, epub.ContentTypeEpub)
-	//resp.Header().Add(http.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, content.Location))
+	nonErr.HttpHeaders.Add(http.HdrContentType, epub.ContentTypeEpub)
+	nonErr.HttpHeaders.Add(http.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, content.Location))
 	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
-	//resp.Header().Add(http.HdrXLcpLicense, lic.Id)
+	nonErr.HttpHeaders.Add(http.HdrXLcpLicense, lic.Id)
 	// -- must come *after* w.Header().Add()/Set(), but before w.Write()
-	//resp.WriteHeader(http.StatusCreated)
+
 	// -- return the full licensed publication to the caller
 	//publication.Write(resp)
-	return publication, nil
+	return publication, nonErr
 }
 
 // UpdateLicense updates an existing license.
@@ -370,44 +374,29 @@ func UpdateLicense(server http.IServer, licIn *model.License, id ParamLicenseId)
 // 	page: page number
 //	per_page: number of items par page
 //
-func ListLicenses(server http.IServer, id ParamContentIdAndPage) (model.LicensesCollection, error) {
-	var err error
-	page, _ := strconv.ParseInt(id.Page, 10, 64)
-	perPage, _ := strconv.ParseInt(id.PerPage, 10, 64)
-	if page == 0 {
-		page = 1
+func ListLicenses(server http.IServer, param http.ParamPagination) (model.LicensesCollection, error) {
+	noOfLicenses, err := server.Store().License().Count()
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
-	if perPage == 0 {
-		perPage = 30
-	}
-	if page > 0 { //pagenum starting at 0 in code, but user interface starting at 1
-		page--
-	}
-	if page < 0 {
-		return nil, http.Problem{Detail: "page must be positive integer", Status: http.StatusBadRequest}
+	if noOfLicenses == 0 {
+		return nil, http.Problem{Detail: "no licenses found", Status: http.StatusNotFound}
 	}
 
-	licenses, err := server.Store().License().ListAll(int(perPage), int(page))
+	page, perPage, err := http.ReadPagination(param.Page, param.PerPage, noOfLicenses)
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
+	}
+
+	licenses, err := server.Store().License().ListAll(perPage, page)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 
 	}
 
-	if len(licenses) > 0 {
-		nextPage := strconv.Itoa(int(page) + 1)
-		server.LogInfo("Next page : %s", nextPage)
-		//resp.Header().Set("LicenseLink", "</licenses/?page="+nextPage+">; rel=\"next\"; title=\"next\"")
-		//TODO : restore header
-	}
-	if page > 1 {
-		previousPage := strconv.Itoa(int(page) - 1)
-		server.LogInfo("Next page : %s", previousPage)
-		//TODO : restore header
-		//resp.Header().Set("LicenseLink", "</licenses/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
-	}
-	//resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-
-	return licenses, nil
+	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
+	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LcpServer.Port)+"/licenses", page+1, perPage, noOfLicenses))
+	return licenses, nonErr
 }
 
 // ListLicensesForContent lists all licenses associated with a given content
@@ -428,48 +417,28 @@ func ListLicensesForContent(server http.IServer, param ParamContentIdAndPage) (m
 		server.LogInfo("License %s not found.", contentID)
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 	}
-
-	page, _ := strconv.ParseInt(param.Page, 10, 64)
-	perPage, _ := strconv.ParseInt(param.PerPage, 10, 64)
-	//other errors pass, but will probably reoccur
-	if page == 0 {
-		page = 1
-	}
-
-	if perPage == 0 {
-		perPage = 30
-	}
-
-	if page > 0 {
-		page-- //pagenum starting at 0 in code, but user interface starting at 1
-	}
-	if page < 0 {
-		return nil, http.Problem{Detail: "page must be positive integer", Status: http.StatusBadRequest}
-
-	}
-	server.LogInfo("Listing licenses page %d with %d per page", page, perPage)
-	licenses, err := server.Store().License().List(contentID, int(perPage), int(page))
+	noOfLicenses, err := server.Store().License().CountForContentId(contentID)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 
-	if len(licenses) == 0 {
+	if noOfLicenses == 0 {
 		return nil, http.Problem{Detail: "No licenses found for content with id " + param.ContentID, Status: http.StatusNotFound}
 	}
 
-	if len(licenses) > 0 {
-		nextPage := strconv.Itoa(int(page) + 1)
-		server.LogInfo("Next page : %s", nextPage)
-		//TODO : restore header
-		//resp.Header().Set("LicenseLink", "</licenses/?page="+nextPage+">; rel=\"next\"; title=\"next\"")
+	page, perPage, err := http.ReadPagination(param.Page, param.PerPage, noOfLicenses)
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
 	}
-	if page > 1 {
-		previousPage := strconv.Itoa(int(page) - 1)
-		server.LogInfo("Next page : %s", previousPage)
-		//TODO : restore header
-		//resp.Header().Set("LicenseLink", "</licenses/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
+
+	licenses, err := server.Store().License().List(contentID, perPage, page)
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
-	return licenses, nil
+
+	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
+	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LcpServer.Port)+"/licenses", page+1, perPage, noOfLicenses))
+	return licenses, nonErr
 
 }
 

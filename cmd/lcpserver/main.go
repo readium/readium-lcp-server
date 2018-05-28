@@ -190,7 +190,12 @@ func main() {
 
 	server.InitAuth("Readium License Content Protection Server") // creates authority checker
 
-	server.CreateDefaultLinks(cfg.License)
+	// CreateDefaultLinks inits the global var DefaultLinks from config data
+	// ... DefaultLinks used in several places.
+	model.DefaultLinks = make(map[string]string)
+	for key := range cfg.License.Links {
+		model.DefaultLinks[key] = cfg.License.Links[key]
+	}
 
 	logz.Printf("License server running on port %d [Readonly %t]", cfg.LcpServer.Port, cfg.LcpServer.ReadOnly)
 	// Route.PathPrefix: http://www.gorillatoolkit.org/pkg/mux#Route.PathPrefix

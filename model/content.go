@@ -27,7 +27,10 @@
 
 package model
 
-import "github.com/satori/go.uuid"
+import (
+	"github.com/satori/go.uuid"
+	"strconv"
+)
 
 type (
 	ContentCollection []*Content
@@ -39,6 +42,25 @@ type (
 		Sha256        string `json:"sha256"` //not exported in license spec?
 	}
 )
+
+// Implementation of Stringer
+func (c ContentCollection) GoString() string {
+	result := ""
+	for _, e := range c {
+		result += e.GoString() + "\n"
+	}
+	return result
+}
+
+// Implementation of Stringer
+func (c Content) GoString() string {
+	return "ID : " + c.Id + " Location : " + c.Location + " Length : " + strconv.Itoa(int(c.Length))
+}
+
+func (c Content) Validate() error {
+	println("Validate called.")
+	return nil
+}
 
 // Implementation of GORM callback
 func (c *Content) BeforeSave() error {

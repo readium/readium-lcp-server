@@ -49,10 +49,12 @@ const (
 	CancelBadRequest       = ErrorBaseUrl + "cancel"
 	FilterBadRequest       = ErrorBaseUrl + "filter"
 
+	HdrAcceptLanguage         = "Accept-Language"
 	HdrContentType            = "Content-Type"
 	HdrContentDisposition     = "Content-Disposition"
 	HdrXLcpLicense            = "X-Lcp-License"
 	HdrDelay                  = "X-Add-Delay"
+	HdrXContentTypeOptions    = "X-Content-Type-Options"
 	ContentTypeProblemJson    = "application/problem+json"
 	ContentTypeLcpJson        = "application/vnd.readium.lcp.license.v1.0+json"
 	ContentTypeLsdJson        = "application/vnd.readium.license.status.v1.0+json"
@@ -73,9 +75,6 @@ type (
 		tag   string
 		index int
 		isVar bool
-	}
-	IValidator interface {
-		Validate() error
 	}
 	// aliases - easy imports
 	Request        = http.Request
@@ -184,11 +183,12 @@ type (
 
 	Problem struct {
 		error
-		Status   int    `json:"status,omitempty"` // if present = http response code
-		Type     string `json:"type,omitempty"`
-		Title    string `json:"title,omitempty"`
-		Detail   string `json:"detail,omitempty"`
-		Instance string `json:"instance,omitempty"`
+		Status      int    `json:"status,omitempty"` // if present = http response code
+		Type        string `json:"type,omitempty"`
+		Title       string `json:"title,omitempty"`
+		Detail      string `json:"detail,omitempty"`
+		Instance    string `json:"instance,omitempty"`
+		HttpHeaders http.Header
 	}
 
 	Server struct {
@@ -201,7 +201,6 @@ type (
 		Cert           *tls.Certificate
 		Src            pack.ManualSource
 		Cfg            Configuration
-		DefaultLinks   map[string]string
 		secretProvider SecretProvider
 		realm          string
 	}
@@ -217,13 +216,16 @@ type (
 		Storage() filestor.Store
 		Store() model.Store
 		DefaultSrvLang() string
-		SetLicenseLinks(l *model.License, c *model.Content) error
 		LogError(format string, args ...interface{})
 		LogInfo(format string, args ...interface{})
 		GoofyMode() bool
-		Error(w http.ResponseWriter, r *http.Request, problem Problem)
 		NotFoundHandler() http.HandlerFunc
 		HandleFunc(router *mux.Router, route string, fn interface{}, secured bool) *mux.Route
+	}
+
+	ParamPagination struct {
+		Page    string `form:"page"`
+		PerPage string `form:"per_page"`
 	}
 )
 

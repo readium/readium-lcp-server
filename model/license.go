@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"github.com/readium/readium-lcp-server/lib/sign"
 	"github.com/satori/go.uuid"
+	"strings"
 	"time"
 )
 
@@ -98,6 +99,52 @@ type (
 		Signature  *sign.Signature        `json:"signature,omitempty"`
 	}
 )
+
+var DefaultLinks map[string]string
+
+// SetLicenseLinks sets publication and status links
+// l.ContentId must have been set before the call
+//
+func SetLicenseLinks(l *License, c *Content) error {
+	// set the links
+	l.Links = make(LicenseLinksCollection, 0, 0)
+	for key := range DefaultLinks {
+		l.Links = append(l.Links, &LicenseLink{Href: DefaultLinks[key], Rel: key})
+	}
+
+	for i := 0; i < len(l.Links); i++ {
+		switch l.Links[i].Rel {
+		// publication link
+		case "publication":
+			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{publication_id}", l.ContentId, 1)
+			//l.Links[i].Type = "application/epub+zip"
+			l.Links[i].Size = c.Length
+			l.Links[i].Title = c.Location
+			l.Links[i].Checksum = c.Sha256
+			// status link
+		case "status":
+			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{license_id}", l.Id, 1)
+			//l.Links[i].Type = "application/vnd.readium.license.status.v1.0+json"
+
+		}
+
+	}
+	return nil
+}
+
+// Implementation of Stringer
+func (c LicensesCollection) GoString() string {
+	result := ""
+	for _, e := range c {
+		result += e.GoString() + "\n"
+	}
+	return result
+}
+
+// Implementation of Stringer
+func (l License) GoString() string {
+	return "ID : " + l.Id + " user ID : " + l.UserId
+}
 
 // Implementation of GORM Tabler
 func (l *License) TableName() string {
@@ -289,18 +336,30 @@ func (s *licenseStore) Get(id string) (*License, error) {
 	return &result, s.db.Where(License{Id: id}).Find(&result).Error
 }
 
+// Counts licenses for pagination
+func (s *licenseStore) Count() (int64, error) {
+	var count int64
+	return count, s.db.Model(&License{}).Count(&count).Error
+}
+
 // ListAll lists all licenses in ante-chronological order
 // pageNum starts at 0
 //
-func (s *licenseStore) ListAll(page int, pageNum int) (LicensesCollection, error) {
+func (s *licenseStore) ListAll(page int64, pageNum int64) (LicensesCollection, error) {
 	var result LicensesCollection
 	return result, s.db.Offset(pageNum * page).Limit(page).Order("issued DESC").Find(&result).Error
+}
+
+// Counts licenses for a given ContentId
+func (s *licenseStore) CountForContentId(contentID string) (int64, error) {
+	var count int64
+	return count, s.db.Model(&License{}).Where("content_fk = ?", contentID).Count(&count).Error
 }
 
 // List lists licenses for a given ContentId
 // pageNum starting at 0
 //
-func (s *licenseStore) List(contentID string, page int, pageNum int) (LicensesCollection, error) {
+func (s *licenseStore) List(contentID string, page, pageNum int64) (LicensesCollection, error) {
 	var result LicensesCollection
 	return result, s.db.Where("content_fk = ?", contentID).Offset(pageNum * page).Limit(page).Order("issued DESC").Find(&result).Error
 }

@@ -164,9 +164,10 @@ type (
 	}
 
 	LicenseRepository interface {
-		//List() (License, error)
-		List(contentId string, page int, pageNum int) (LicensesCollection, error)
-		ListAll(page int, pageNum int) (LicensesCollection, error)
+		Count() (int64, error)
+		CountForContentId(contentId string) (int64, error)
+		List(contentId string, page, pageNum int64) (LicensesCollection, error)
+		ListAll(page, pageNum int64) (LicensesCollection, error)
 		UpdateRights(l *License) error
 		Update(l *License) error
 		UpdateLsdStatus(id string, status int32) error
