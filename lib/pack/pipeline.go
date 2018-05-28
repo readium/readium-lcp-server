@@ -36,8 +36,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/satori/go.uuid"
-
 	"github.com/readium/readium-lcp-server/lib/crypto"
 	"github.com/readium/readium-lcp-server/lib/epub"
 	"github.com/readium/readium-lcp-server/lib/filestor"
@@ -119,7 +117,7 @@ func (p Packager) genKey(r *Result) {
 		return
 	}
 
-	uid, err := uuid.NewV4()
+	uid, err := model.NewUUID()
 	if err != nil {
 		return
 	}

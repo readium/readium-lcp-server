@@ -28,10 +28,12 @@
 package model
 
 import (
+	"bytes"
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"github.com/readium/readium-lcp-server/lib/crypto"
 	"reflect"
 	"strconv"
 	"strings"
@@ -394,4 +396,23 @@ func dbFromURI(uri string) (string, string) {
 		return "error", ""
 	}
 	return parts[0], parts[1]
+}
+
+// buildKeyCheck
+// encrypt the license id with the key used for encrypting content
+//
+func buildKeyCheck(licenseID string, encrypter crypto.Encrypter, key []byte) ([]byte, error) {
+	var out bytes.Buffer
+	err := encrypter.Encrypt(key, bytes.NewBufferString(licenseID), &out)
+	if err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+func encryptKey(encrypter crypto.Encrypter, fromKey []byte, key []byte) []byte {
+	var out bytes.Buffer
+	in := bytes.NewReader(fromKey)
+	encrypter.Encrypt(key[:], in, &out)
+	return out.Bytes()
 }

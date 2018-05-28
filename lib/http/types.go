@@ -55,12 +55,12 @@ const (
 	HdrXLcpLicense            = "X-Lcp-License"
 	HdrDelay                  = "X-Add-Delay"
 	HdrXContentTypeOptions    = "X-Content-Type-Options"
+	HdrWWWAuthenticate        = "WWW-Authenticate"
 	ContentTypeProblemJson    = "application/problem+json"
 	ContentTypeLcpJson        = "application/vnd.readium.lcp.license.v1.0+json"
 	ContentTypeLsdJson        = "application/vnd.readium.license.status.v1.0+json"
 	ContentTypeJson           = "application/json"
 	ContentTypeFormUrlEncoded = "application/x-www-form-urlencoded"
-
 	StatusBadRequest          = http.StatusBadRequest
 	StatusCreated             = http.StatusCreated
 	StatusInternalServerError = http.StatusInternalServerError

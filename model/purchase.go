@@ -28,7 +28,6 @@
 package model
 
 import (
-	"github.com/satori/go.uuid"
 	"time"
 )
 
@@ -98,7 +97,7 @@ func (p *Purchase) BeforeSave() error {
 	}
 	if p.UUID == "" || p.ID == 0 {
 		// Create uuid
-		uid, errU := uuid.NewV4()
+		uid, errU := NewUUID()
 		if errU != nil {
 			return errU
 		}

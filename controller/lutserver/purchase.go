@@ -36,7 +36,6 @@ import (
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/model"
 
-	"github.com/Machiel/slugify"
 	"github.com/jinzhu/gorm"
 )
 
@@ -154,7 +153,7 @@ func GetPurchasedLicense(resp http.ResponseWriter, req *http.Request, server htt
 		return
 	}
 
-	attachmentName := slugify.Slugify(purchase.Publication.Title)
+	attachmentName := http.Slugify(purchase.Publication.Title)
 	resp.Header().Set(http.HdrContentType, http.ContentTypeLcpJson)
 	resp.Header().Set(http.HdrContentDisposition, "attachment; filename=\""+attachmentName+".lcpl\"")
 

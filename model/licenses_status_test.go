@@ -4,14 +4,13 @@ import (
 	"database/sql"
 	"github.com/dmgk/faker"
 	"github.com/readium/readium-lcp-server/model"
-	"github.com/satori/go.uuid"
 	"testing"
 )
 
 func TestLicenseStatusStore_Add(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		// Create uuid
-		uid, errU := uuid.NewV4()
+		uid, errU := model.NewUUID()
 		if errU != nil {
 			t.Fatalf("Error creating UUID: %v", errU)
 		}

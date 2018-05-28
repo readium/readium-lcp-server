@@ -27,10 +27,6 @@
 
 package model
 
-import (
-	"github.com/satori/go.uuid"
-)
-
 type (
 	PublicationsCollection []*Publication
 	// Publication struct defines a publication
@@ -52,7 +48,7 @@ func (p *Publication) TableName() string {
 func (p *Publication) BeforeSave() error {
 	if p.ID == 0 {
 		// Create uuid
-		uid, errU := uuid.NewV4()
+		uid, errU := NewUUID()
 		if errU != nil {
 			return errU
 		}

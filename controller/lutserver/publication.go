@@ -186,7 +186,7 @@ func CreatePublication(resp http.ResponseWriter, req *http.Request, server http.
 		return
 	}
 
-	contentDisposition := slugify.Slugify(pub.Title)
+	contentDisposition := http.Slugify(pub.Title)
 	// encrypt the EPUB File and send the content to the LCP server
 	err = EncryptEPUB(inputPath, contentDisposition, server)
 	if err != nil {
@@ -209,7 +209,7 @@ func CreatePublication(resp http.ResponseWriter, req *http.Request, server http.
 //UploadEPUB creates a new EPUB file
 func UploadEPUB(resp http.ResponseWriter, req *http.Request, server http.IServer) {
 	//var pub store.Publication
-	contentDisposition := slugify.Slugify(req.URL.Query()["title"][0])
+	contentDisposition := http.Slugify(req.URL.Query()["title"][0])
 
 	file, header, err := req.FormFile("file")
 

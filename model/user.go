@@ -28,7 +28,8 @@
 package model
 
 import (
-	"github.com/satori/go.uuid"
+	"reflect"
+	"strings"
 )
 
 type (
@@ -44,6 +45,11 @@ type (
 	}
 )
 
+func (u *User) getField(field string) reflect.Value {
+	value := reflect.ValueOf(u).Elem()
+	return value.FieldByName(strings.Title(field))
+}
+
 // Implementation of gorm Tabler
 func (u *User) TableName() string {
 	return LUTUserTableName
@@ -53,7 +59,7 @@ func (u *User) TableName() string {
 func (u *User) BeforeSave() error {
 	if u.ID == 0 {
 		// Create uuid for new user
-		uid, errU := uuid.NewV4()
+		uid, errU := NewUUID()
 		if errU != nil {
 			return errU
 		}

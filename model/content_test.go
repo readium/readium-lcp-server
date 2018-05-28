@@ -9,7 +9,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/crypto"
 	"github.com/readium/readium-lcp-server/model"
-	"github.com/satori/go.uuid"
 )
 
 func TestContentStore_Add(t *testing.T) {
@@ -88,7 +87,7 @@ func TestContentStore_Update(t *testing.T) {
 		t.Fatalf("Error generating encryption key : %v", err)
 	}
 	// generate a new uuid
-	newUUID, errU := uuid.NewV4()
+	newUUID, errU := model.NewUUID()
 	if errU != nil {
 		t.Fatalf("Error generating new uuid : %v", errU)
 	}
@@ -112,4 +111,14 @@ func TestContentStore_Update(t *testing.T) {
 		t.Fatalf("Error : encryption key was not updated.")
 	}
 	t.Logf("Updated content's encryption key")
+}
+
+func TestGenerateUUID(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		newUUID, errU := model.NewUUID()
+		if errU != nil {
+			t.Fatalf("Error generating new uuid : %v", errU)
+		}
+		t.Logf("%s", newUUID)
+	}
 }

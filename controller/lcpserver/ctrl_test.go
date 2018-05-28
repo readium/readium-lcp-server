@@ -39,7 +39,6 @@ import (
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/model"
-	"github.com/satori/go.uuid"
 	"gopkg.in/yaml.v1"
 	"io/ioutil"
 	goHttp "net/http"
@@ -130,6 +129,16 @@ func TestMain(m *testing.M) {
 	}
 
 	muxer := mux.NewRouter()
+	muxer.Use(
+		http.RecoveryHandler(http.RecoveryLogger(logz), http.PrintRecoveryStack(true)),
+		http.CorsMiddleWare(
+			http.AllowedOrigins([]string{"*"}),
+			http.AllowedMethods([]string{"PATCH", "HEAD", "POST", "GET", "OPTIONS", "PUT", "DELETE"}),
+			http.AllowedHeaders([]string{"Range", "Content-Type", "Origin", "X-Requested-With", "Accept", "Accept-Language", "Content-Language", "Authorization"}),
+		),
+		http.DelayMiddleware,
+	)
+
 	server := &http.Server{
 		Server: goHttp.Server{
 			Handler:        muxer,
@@ -166,7 +175,7 @@ func TestMain(m *testing.M) {
 	// Run our server in a goroutine so that it doesn't block.
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			logz.Printf("Error " + err.Error())
+			logz.Printf("ListenAndServe Error " + err.Error())
 		}
 	}()
 
@@ -190,7 +199,7 @@ func TestAddContent(t *testing.T) {
 	var buf bytes.Buffer
 
 	// generate a new uuid; this will be the content id in the lcp server
-	uid, errU := uuid.NewV4()
+	uid, errU := model.NewUUID()
 	if errU != nil {
 		t.Fatalf("Error generating UUID : %v", errU)
 	}
@@ -281,13 +290,22 @@ func listContent() (model.ContentCollection, error) {
 		return nil, err
 	}
 
-	var list model.ContentCollection
+	if resp.StatusCode < 300 {
+		var content model.ContentCollection
+		err = json.Unmarshal(body, &content)
+		if err != nil {
+			return nil, err
+		}
+		return content, nil
+	}
 
-	err = json.Unmarshal(body, &list)
+	var problem http.Problem
+	err = json.Unmarshal(body, &problem)
 	if err != nil {
 		return nil, err
 	}
-	return list, nil
+
+	return nil, problem
 }
 
 func TestListContents(t *testing.T) {
@@ -337,14 +355,21 @@ func TestGetContent(t *testing.T) {
 		t.Errorf("Error reading response body error : %v", err)
 	}
 
-	var content model.Content
-
-	err = json.Unmarshal(body, &content)
-	if err != nil {
-		t.Fatalf("Error Unmarshaling : %v", err)
+	if resp.StatusCode < 300 {
+		var content model.Content
+		err = json.Unmarshal(body, &content)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("response : %#v", content)
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
 	}
-
-	t.Logf("response [http-status:%d]:\n %#v", resp.StatusCode, content)
 }
 
 func TestStoreContent(t *testing.T) {
@@ -443,12 +468,97 @@ func TestListLicensesForContent(t *testing.T) {
 		t.Errorf("Error reading response body error : %v", err)
 	}
 
-	var content model.LicensesCollection
+	if resp.StatusCode < 300 {
+		var content model.LicensesCollection
+		err = json.Unmarshal(body, &content)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("response : %#v", content)
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	}
+}
 
-	err = json.Unmarshal(body, &content)
+func TestGenerateLicense(t *testing.T) {
+	var buf bytes.Buffer
+
+	list, err := listContent()
 	if err != nil {
-		t.Fatalf("Error Unmarshaling : %v", err)
+		t.Errorf("Error : %v", err)
+	}
+	if len(list) == 0 {
+		t.Skipf("You don't have any contents to perform this test.")
 	}
 
-	t.Logf("response [http-status:%d]:\n %#v", resp.StatusCode, content)
+	payload := model.License{
+		ContentId: list[0].Id,
+	}
+
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.Encode(payload)
+
+	req, err := http.NewRequest("POST", "http://localhost:8081/contents/"+list[0].Id+"/license?page=2&per_page=1", bytes.NewReader(buf.Bytes()))
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode < 300 {
+		var content model.License
+		err = json.Unmarshal(body, &content)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("response : %#v", content)
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	}
+}
+
+func TestGetLicense(t *testing.T) {
+	//TODO : implement
+}
+
+func TestGetLicensedPublication(t *testing.T) {
+	//TODO : implement
+}
+
+func TestUpdateLicense(t *testing.T) {
+	//TODO : implement
 }

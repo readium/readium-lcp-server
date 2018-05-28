@@ -28,7 +28,6 @@
 package model
 
 import (
-	"github.com/satori/go.uuid"
 	"strconv"
 )
 
@@ -66,7 +65,7 @@ func (c Content) Validate() error {
 func (c *Content) BeforeSave() error {
 	if c.Id == "" {
 		// Create uuid
-		uid, errU := uuid.NewV4()
+		uid, errU := NewUUID()
 		if errU != nil {
 			return errU
 		}

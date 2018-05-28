@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"strings"
 
+	"bytes"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/filestor"
@@ -241,30 +242,38 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 			username := ""
 			if username = s.checkAuth(r); username == "" {
 				s.Log.Errorf("method=%s path=%s error=Unauthorized", r.Method, r.URL.Path)
-				w.Header().Set("WWW-Authenticate", `Basic realm="`+s.realm+`"`)
+				w.Header().Set(HdrWWWAuthenticate, `Basic realm="`+s.realm+`"`)
 				s.fastJsonError(w, r, http.StatusUnauthorized, "User or password do not match!")
 				return
 			}
 			s.Log.Infof("user=%s", username)
 		}
 
+		var err error
+		var reqBody []byte
 		// if the content type is form
 		ctype := r.Header[HdrContentType]
 		if len(ctype) > 0 && ctype[0] == ContentTypeFormUrlEncoded {
-			s.LogInfo("Form URL call. Work in progress.")
-			fnBody := fn.(HandlerFunc)
-			fnBody(w, r, s)
-			return
-		}
+			// TODO : test
+			reqBody = bytes.NewBufferString(r.PostFormValue("data")).Bytes()
+		} else {
+			// default fallback - always json
 
-		// default fallback - always json
+			// now we read the request body
+			reqBody, err = ioutil.ReadAll(r.Body)
+			if err != nil {
+				s.fastJsonError(w, r, http.StatusInternalServerError, err.Error())
+				return
+			}
+			// defering close
+			defer r.Body.Close()
+		}
 
 		// Set up arguments for handler call : first argument is the IServer
 		in := []reflect.Value{serverValue}
 
 		// seems we're expecting a valid json payload
 		if payloadType != nil {
-
 			// Building the deserialize value
 			var deserializeTo reflect.Value
 			switch payloadType.Kind() {
@@ -274,16 +283,6 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 			case reflect.Ptr:
 				deserializeTo = reflect.New(payloadType.Elem())
 				in = append(in, deserializeTo)
-			}
-
-			// defering close
-			defer r.Body.Close()
-
-			// now we read the request body
-			reqBody, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				s.fastJsonError(w, r, http.StatusInternalServerError, err.Error())
-				return
 			}
 
 			// json decode the payload
@@ -302,8 +301,6 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 					return
 				}
 			}
-		} else {
-			//s.LogInfo("No payload will be injected.")
 		}
 
 		// we have parameters that need to be injected
@@ -322,8 +319,6 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 			}
 			// adding the injected
 			in = append(in, p)
-		} else {
-			//s.LogInfo("No parameters will be injected.")
 		}
 
 		// we have headers that need to be injected
@@ -338,8 +333,6 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 				}
 			}
 			in = append(in, h)
-		} else {
-			//s.LogInfo("No headers will be injected.")
 		}
 
 		// finally, we're calling the handler with all the params

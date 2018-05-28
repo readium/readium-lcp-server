@@ -28,7 +28,6 @@
 package model
 
 import (
-	"github.com/satori/go.uuid"
 	"time"
 )
 
@@ -64,7 +63,7 @@ func (e *TransactionEvent) AfterFind() error {
 func (e *TransactionEvent) BeforeSave() error {
 	if e.DeviceId == "" {
 		// Create uuid - used in tests
-		uid, errU := uuid.NewV4()
+		uid, errU := NewUUID()
 		if errU != nil {
 			return errU
 		}

@@ -31,20 +31,14 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/lib/crypto"
 	"github.com/readium/readium-lcp-server/lib/epub"
 	"github.com/readium/readium-lcp-server/lib/http"
-	"github.com/readium/readium-lcp-server/lib/sign"
 	"github.com/readium/readium-lcp-server/model"
 	"io"
 	"io/ioutil"
 	"os"
-	"reflect"
-	"strings"
 	"time"
 )
 
@@ -148,78 +142,9 @@ func notifyLSDServer(payload *model.License, server http.IServer) {
 
 }
 
-func getField(info *model.User, field string) reflect.Value {
-	value := reflect.ValueOf(info).Elem()
-	return value.FieldByName(strings.Title(field))
-}
-
-// buildKeyCheck
-// encrypt the license id with the key used for encrypting content
-//
-func buildKeyCheck(licenseID string, encrypter crypto.Encrypter, key []byte) ([]byte, error) {
-	var out bytes.Buffer
-	err := encrypter.Encrypt(key, bytes.NewBufferString(licenseID), &out)
-	if err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
-}
-
-func encryptKey(encrypter crypto.Encrypter, fromKey []byte, key []byte) []byte {
-	var out bytes.Buffer
-	in := bytes.NewReader(fromKey)
-	encrypter.Encrypt(key[:], in, &out)
-	return out.Bytes()
-}
-
-func encryptFields(encrypter crypto.Encrypter, l *model.License, key []byte) error {
-	for _, toEncrypt := range l.User.Encrypted {
-		var out bytes.Buffer
-		field := getField(l.User, toEncrypt)
-		err := encrypter.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
-		if err != nil {
-			return err
-		}
-		field.Set(reflect.ValueOf(base64.StdEncoding.EncodeToString(out.Bytes())))
-	}
-	return nil
-}
-
-// EncryptLicenseFields sets the content key, encrypted user info and key check
-//
-func EncryptLicenseFields(license *model.License, content *model.Content) error {
-
-	// generate the user key
-	encryptionKey := []byte(license.Encryption.UserKey.Value)
-
-	// empty the passphrase hash to avoid sending it back to the user
-	license.Encryption.UserKey.Value = ""
-
-	// encrypt the content key with the user key
-	encrypterContentKey := crypto.NewAESEncrypterContentKey()
-	license.Encryption.ContentKey.Algorithm = encrypterContentKey.Signature()
-	license.Encryption.ContentKey.Value = encryptKey(encrypterContentKey, content.EncryptionKey, encryptionKey[:])
-
-	// encrypt the user info fields
-	encrypterFields := crypto.NewAESEncrypterFields()
-	err := encryptFields(encrypterFields, license, encryptionKey[:])
-	if err != nil {
-		return err
-	}
-
-	// build the key check
-	encrypterUserKeyCheck := crypto.NewAESEncrypterUserKeyCheck()
-	chk, err := buildKeyCheck(license.Id, encrypterUserKeyCheck, encryptionKey[:])
-	if err != nil {
-		return err
-	}
-	license.Encryption.UserKey.Check = string(chk)
-	return nil
-}
-
 // build a license, common to get and generate license, get and generate licensed publication
 //
-func buildLicense(license *model.License, server http.IServer) error {
+func BuildLicense(license *model.License, server http.IServer) error {
 
 	// set the LCP profile
 	// possible profiles are basic and 1.0
@@ -237,7 +162,7 @@ func buildLicense(license *model.License, server http.IServer) error {
 	}
 	server.LogInfo("setting license links.")
 	// set links
-	err = model.SetLicenseLinks(license, content)
+	err = license.SetLinks(content)
 	if err != nil {
 		return err
 	}
@@ -257,32 +182,16 @@ func buildLicense(license *model.License, server http.IServer) error {
 
 	server.LogInfo("Encrypting fields.")
 	// encrypt the content key, user fieds, set the key check
-	err = EncryptLicenseFields(license, content)
+	err = license.EncryptLicenseFields(content)
 	if err != nil {
 		return err
 	}
 	server.LogInfo("Signing license.")
 	// sign the license
-	err = SignLicense(license, server.Certificate())
+	err = license.SignLicense(server.Certificate())
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-// SignLicense signs a license using the server certificate
-//
-func SignLicense(license *model.License, cert *tls.Certificate) error {
-	sig, err := sign.NewSigner(cert)
-	if err != nil {
-		return err
-	}
-	res, err := sig.Sign(license)
-	if err != nil {
-		return err
-	}
-	license.Signature = &res
-
 	return nil
 }
 

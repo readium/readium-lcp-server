@@ -45,7 +45,6 @@ import (
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/model"
-	"github.com/satori/go.uuid"
 )
 
 type (
@@ -149,7 +148,7 @@ func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s http.ISe
 func EncryptEPUB(inputPath string, contentDisposition string, server http.IServer) error {
 
 	// generate a new uuid; this will be the content id in the lcp server
-	uid, errU := uuid.NewV4()
+	uid, errU := model.NewUUID()
 	if errU != nil {
 		return errU
 	}

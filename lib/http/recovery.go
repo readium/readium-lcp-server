@@ -73,6 +73,9 @@ func (h recoveryHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if err := recover(); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			h.log(err)
+			//w.Write([]byte("{\"error\":" + fmt.Sprintf("%v", err) + ",\"detail\":\""))
+			//w.Write(debug.Stack())
+			//w.Write([]byte("\"}"))
 		}
 	}()
 	h.handler.ServeHTTP(w, req)
@@ -80,7 +83,7 @@ func (h recoveryHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (h recoveryHandler) log(v ...interface{}) {
 	if h.logger != nil {
-		h.logger.Printf("recovered : %v", v...)
+		h.logger.Printf("recovered : `%v`", v...)
 	} else {
 		log.Println(v...)
 	}

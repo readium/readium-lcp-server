@@ -28,9 +28,14 @@
 package model
 
 import (
+	"bytes"
+	"crypto/tls"
+	"encoding/base64"
+	"errors"
 	"fmt"
+	"github.com/readium/readium-lcp-server/lib/crypto"
 	"github.com/readium/readium-lcp-server/lib/sign"
-	"github.com/satori/go.uuid"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -102,10 +107,10 @@ type (
 
 var DefaultLinks map[string]string
 
-// SetLicenseLinks sets publication and status links
+// SetLinks sets publication and status links
 // l.ContentId must have been set before the call
 //
-func SetLicenseLinks(l *License, c *Content) error {
+func (l *License) SetLinks(c *Content) error {
 	// set the links
 	l.Links = make(LicenseLinksCollection, 0, 0)
 	for key := range DefaultLinks {
@@ -132,6 +137,67 @@ func SetLicenseLinks(l *License, c *Content) error {
 	return nil
 }
 
+// SignLicense signs a license using the server certificate
+//
+func (l *License) SignLicense(cert *tls.Certificate) error {
+	sig, err := sign.NewSigner(cert)
+	if err != nil {
+		return err
+	}
+	res, err := sig.Sign(l)
+	if err != nil {
+		return err
+	}
+	l.Signature = &res
+
+	return nil
+}
+
+// EncryptLicenseFields sets the content key, encrypted user info and key check
+//
+func (l *License) EncryptLicenseFields(content *Content) error {
+
+	// generate the user key
+	encryptionKey := []byte(l.Encryption.UserKey.Value)
+
+	// empty the passphrase hash to avoid sending it back to the user
+	l.Encryption.UserKey.Value = ""
+
+	// encrypt the content key with the user key
+	encrypterContentKey := crypto.NewAESEncrypterContentKey()
+	l.Encryption.ContentKey.Algorithm = encrypterContentKey.Signature()
+	l.Encryption.ContentKey.Value = encryptKey(encrypterContentKey, content.EncryptionKey, encryptionKey[:])
+
+	// encrypt the user info fields
+	encrypterFields := crypto.NewAESEncrypterFields()
+	err := l.encryptFields(encrypterFields, encryptionKey[:])
+	if err != nil {
+		return err
+	}
+
+	// build the key check
+	encrypterUserKeyCheck := crypto.NewAESEncrypterUserKeyCheck()
+	chk, err := buildKeyCheck(l.Id, encrypterUserKeyCheck, encryptionKey[:])
+	if err != nil {
+		return err
+	}
+	l.Encryption.UserKey.Check = string(chk)
+	return nil
+}
+
+func (l *License) encryptFields(encrypter crypto.Encrypter, key []byte) error {
+	for _, toEncrypt := range l.User.Encrypted {
+		var out bytes.Buffer
+		field := l.User.getField(toEncrypt)
+		err := encrypter.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
+		if err != nil {
+			return err
+		}
+		field.Set(reflect.ValueOf(base64.StdEncoding.EncodeToString(out.Bytes())))
+	}
+	return nil
+}
+
 // Implementation of Stringer
 func (c LicensesCollection) GoString() string {
 	result := ""
@@ -139,6 +205,13 @@ func (c LicensesCollection) GoString() string {
 		result += e.GoString() + "\n"
 	}
 	return result
+}
+
+func (l License) Validate() error {
+	if l.ContentId == "" {
+		return errors.New("content id is invalid")
+	}
+	return nil
 }
 
 // Implementation of Stringer
@@ -192,7 +265,7 @@ func (l *License) AfterFind() error {
 func (l *License) BeforeSave() error {
 	// Create uuid
 	if l.Id == "" {
-		uid, errU := uuid.NewV4()
+		uid, errU := NewUUID()
 		if errU != nil {
 			return errU
 		}
@@ -215,7 +288,7 @@ func (l *License) BeforeSave() error {
 
 // get license, check mandatory information in the input body
 //
-func (l *License) CheckGetLicenseInput() error {
+func (l *License) ValidateEncryption() error {
 	if l.Encryption.UserKey.Hint == "" {
 		return fmt.Errorf("Mandatory info missing in the input body : User hint is missing.")
 	}
@@ -232,7 +305,7 @@ func (l *License) CheckGetLicenseInput() error {
 
 // generate license, check mandatory information in the input body
 //
-func (l *License) CheckGenerateLicenseInput() error {
+func (l *License) ValidateProviderAndUser() error {
 	if l.Provider == "" {
 		return fmt.Errorf("Mandatory info missing in the input body  : license provider is missing.")
 	}
@@ -240,19 +313,18 @@ func (l *License) CheckGenerateLicenseInput() error {
 		return fmt.Errorf("Mandatory info missing in the input body : user identificator is missing.")
 	}
 	// check userkey hint, value and algorithm
-	err := l.CheckGetLicenseInput()
-	return err
+	return l.ValidateEncryption()
 }
 
 // get license, copy useful data from licIn to LicOut
 //
-func (l *License) CopyInputToLicense(licOut *License) {
+func (l *License) CopyInputToLicense(lic *License) {
 	// copy the hashed passphrase, user hint and algorithm
-	licOut.Encryption.UserKey = l.Encryption.UserKey
+	lic.Encryption.UserKey = l.Encryption.UserKey
 	// copy optional user information
-	licOut.User.Email = l.User.Email
-	licOut.User.Name = l.User.Name
-	licOut.User.Encrypted = l.User.Encrypted
+	lic.User.Email = l.User.Email
+	lic.User.Name = l.User.Name
+	lic.User.Encrypted = l.User.Encrypted
 }
 
 // normalize the start and end date, UTC, no milliseconds
@@ -276,7 +348,7 @@ func (l *License) SetRights() {
 //
 func (l *License) Initialize(contentID string) error {
 	// random license id
-	uid, errU := uuid.NewV4()
+	uid, errU := NewUUID()
 	if errU != nil {
 		return errU
 	}
@@ -286,6 +358,31 @@ func (l *License) Initialize(contentID string) error {
 	// set the content id
 	l.ContentId = contentID
 	return nil
+}
+
+func (l *License) Update(lic *License) {
+	// update existingLicense using information found in lic
+	if lic.User.UUID != "" {
+		l.User.UUID = lic.User.UUID
+	}
+	if lic.Provider != "" {
+		l.Provider = lic.Provider
+	}
+	if lic.ContentId != "" {
+		l.ContentId = lic.ContentId
+	}
+	if lic.Rights.Print.Valid {
+		l.Rights.Print = lic.Rights.Print
+	}
+	if lic.Rights.Copy.Valid {
+		l.Rights.Copy = lic.Rights.Copy
+	}
+	if lic.Rights.Start.Valid {
+		l.Rights.Start = lic.Rights.Start
+	}
+	if lic.Rights.End.Valid {
+		l.Rights.End = lic.Rights.End
+	}
 }
 
 // UpdateRights
