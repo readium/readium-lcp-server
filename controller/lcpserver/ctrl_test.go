@@ -33,6 +33,8 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"github.com/adrg/errors"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/filestor"
 	"github.com/readium/readium-lcp-server/lib/http"
@@ -246,7 +248,6 @@ func TestAddContent(t *testing.T) {
 		Size:               &encryptedEpub.Size,
 	}
 	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
 	enc.Encode(payload)
 
 	req, err := http.NewRequest("PUT", localhostAndPort+"/contents/"+uid.String(), bytes.NewReader(buf.Bytes())) //Create request with JSON body
@@ -424,6 +425,52 @@ func TestGetContent(t *testing.T) {
 	}
 }
 
+func listLicenses(page, perPage int64) (model.LicensesCollection, error) {
+	req, err := http.NewRequest("GET", localhostAndPort+fmt.Sprintf("/licenses?page=%d&per_page=%d", page, perPage), nil)
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		return nil, errors.New("Error : %v", err)
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.New("Error reading response body error : %v", err)
+	}
+	if resp.StatusCode < 300 {
+		var content model.LicensesCollection
+		err = json.Unmarshal(body, &content)
+		if err != nil {
+			return nil, errors.New("Error Unmarshaling : %v.\nServer response : %s", err, string(body))
+		}
+		return content, nil
+	}
+
+	var problem http.Problem
+	err = json.Unmarshal(body, &problem)
+	if err != nil {
+		return nil, errors.New("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+	}
+	return nil, errors.New("error response : %#v", problem)
+}
+
 func TestListLicenses(t *testing.T) {
 	req, err := http.NewRequest("GET", localhostAndPort+"/licenses?page=22&per_page=3", nil)
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
@@ -569,7 +616,6 @@ func TestGenerateLicense(t *testing.T) {
 	}
 
 	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
 	enc.Encode(payload)
 
 	req, err := http.NewRequest("POST", localhostAndPort+"/contents/"+list[0].Id+"/license?page=2&per_page=1", bytes.NewReader(buf.Bytes()))
@@ -617,14 +663,257 @@ func TestGenerateLicense(t *testing.T) {
 	}
 }
 
-func TestGetLicense(t *testing.T) {
-	//TODO : implement
+func TestGetLicensedPublication(t *testing.T) {
+	var buf bytes.Buffer
+
+	list, err := listContent()
+	if err != nil {
+		t.Errorf("Error : %v", err)
+	}
+	if len(list) == 0 {
+		t.Skipf("You don't have any contents to perform this test.")
+	}
+	uuid, _ := model.NewUUID()
+	payload := model.License{
+		ContentId: list[0].Id,
+		Provider:  "Google",
+		User: &model.User{
+			UUID: uuid.String(),
+		},
+		Encryption: model.LicenseEncryption{
+			UserKey: model.LicenseUserKey{
+				Hint:  "Hint",
+				Value: "PasswordPassword",
+			},
+		},
+		Rights: &model.LicenseUserRights{
+			Start: &model.NullTime{
+				Valid: true,
+				Time:  time.Now(),
+			},
+			End: &model.NullTime{
+				Valid: true,
+				Time:  time.Now().Add(30 * 24 * time.Hour),
+			},
+		},
+	}
+
+	enc := json.NewEncoder(&buf)
+	enc.Encode(payload)
+
+	req, err := http.NewRequest("POST", localhostAndPort+"/contents/8c1b45ed-c346-4fc6-8aab-e92cff8e68a9/publication?page=2&per_page=1", bytes.NewReader(buf.Bytes()))
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode < 300 {
+		for hdrKey := range resp.Header {
+			t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
+		}
+		t.Logf("response : %#v", string(body))
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	}
 }
 
-func TestGetLicensedPublication(t *testing.T) {
-	//TODO : implement
+func TestGetLicense(t *testing.T) {
+	var buf bytes.Buffer
+
+	list, err := listLicenses(0, 300)
+	if err != nil {
+		t.Errorf("Error : %v", err)
+	}
+	if len(list) == 0 {
+		t.Skipf("You don't have any contents to perform this test.")
+	}
+	uuid, _ := model.NewUUID()
+	payload := model.License{
+		ContentId: list[0].Id,
+		Provider:  "Google",
+		User: &model.User{
+			UUID: uuid.String(),
+			Encrypted: []string{
+				"Email", "UUID",
+			},
+		},
+		Encryption: model.LicenseEncryption{
+			UserKey: model.LicenseUserKey{
+				Hint:  "Hint",
+				Value: "PasswordPassword",
+			},
+		},
+		Rights: &model.LicenseUserRights{
+			Start: &model.NullTime{
+				Valid: true,
+				Time:  time.Now(),
+			},
+			End: &model.NullTime{
+				Valid: true,
+				Time:  time.Now().Add(30 * 24 * time.Hour),
+			},
+		},
+	}
+
+	enc := json.NewEncoder(&buf)
+	enc.Encode(payload)
+
+	req, err := http.NewRequest("POST", localhostAndPort+"/licenses/"+list[0].Id, bytes.NewReader(buf.Bytes()))
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode < 300 {
+		for hdrKey := range resp.Header {
+			t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
+		}
+		t.Logf("response : %#v", string(body))
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	}
 }
 
 func TestUpdateLicense(t *testing.T) {
-	//TODO : implement
+	var buf bytes.Buffer
+
+	list, err := listLicenses(0, 300)
+	if err != nil {
+		t.Errorf("Error : %v", err)
+	}
+	if len(list) == 0 {
+		t.Skipf("You don't have any contents to perform this test.")
+	}
+	uuid, _ := model.NewUUID()
+	payload := model.License{
+		ContentId: list[0].Id,
+		Provider:  "Google",
+		User: &model.User{
+			UUID: uuid.String(),
+			Encrypted: []string{
+				"Email", "UUID",
+			},
+		},
+		Encryption: model.LicenseEncryption{
+			UserKey: model.LicenseUserKey{
+				Hint:  "Hint",
+				Value: "PasswordPassword",
+			},
+		},
+		Rights: &model.LicenseUserRights{
+			Start: &model.NullTime{
+				Valid: true,
+				Time:  time.Now(),
+			},
+			End: &model.NullTime{
+				Valid: true,
+				Time:  time.Now().Add(30 * 24 * time.Hour),
+			},
+		},
+	}
+
+	enc := json.NewEncoder(&buf)
+	enc.Encode(payload)
+
+	req, err := http.NewRequest("POST", localhostAndPort+"/licenses/"+list[0].Id, bytes.NewReader(buf.Bytes()))
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode < 300 {
+		for hdrKey := range resp.Header {
+			t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
+		}
+		t.Logf("response : %#v", string(body))
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	}
 }

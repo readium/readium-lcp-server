@@ -186,9 +186,18 @@ func (l *License) EncryptLicenseFields(content *Content) error {
 }
 
 func (l *License) encryptFields(encrypter crypto.Encrypter, key []byte) error {
+	if l.User == nil {
+		return errors.New("empty user")
+	}
+	if l.User.Encrypted == nil {
+		return errors.New("empty encrypted")
+	}
 	for _, toEncrypt := range l.User.Encrypted {
 		var out bytes.Buffer
 		field := l.User.getField(toEncrypt)
+		if !field.IsValid() {
+			return fmt.Errorf("unknown field : %s", toEncrypt)
+		}
 		err := encrypter.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
 		if err != nil {
 			return err
@@ -199,6 +208,7 @@ func (l *License) encryptFields(encrypter crypto.Encrypter, key []byte) error {
 }
 
 // Implementation of Stringer
+/**
 func (c LicensesCollection) GoString() string {
 	result := ""
 	for _, e := range c {
@@ -206,7 +216,7 @@ func (c LicensesCollection) GoString() string {
 	}
 	return result
 }
-
+**/
 func (l License) Validate() error {
 	if l.ContentId == "" {
 		return errors.New("content id is invalid")
@@ -215,10 +225,15 @@ func (l License) Validate() error {
 }
 
 // Implementation of Stringer
+/**
 func (l License) GoString() string {
-	return "ID : " + l.Id + " user ID : " + l.UserId
+	result := "ID : " + l.Id + " user ID : " + l.UserId
+	if l.User == nil {
+		result += " User is NIL."
+	}
+	return result
 }
-
+**/
 // Implementation of GORM Tabler
 func (l *License) TableName() string {
 	return LCPLicenseTableName
@@ -321,6 +336,8 @@ func (l *License) ValidateProviderAndUser() error {
 func (l *License) CopyInputToLicense(lic *License) {
 	// copy the hashed passphrase, user hint and algorithm
 	lic.Encryption.UserKey = l.Encryption.UserKey
+	// fix : user is always nil
+	lic.User = &User{}
 	// copy optional user information
 	lic.User.Email = l.User.Email
 	lic.User.Name = l.User.Name

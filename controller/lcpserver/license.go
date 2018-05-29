@@ -49,7 +49,6 @@ func GetLicense(server http.IServer, payload *model.License, param ParamLicenseI
 	if param.LicenseID == "" {
 		return nil, http.Problem{Detail: "The license id must be set in the url", Status: http.StatusBadRequest}
 	}
-
 	// initialize the license from the info stored in the db.
 	licOut, e := server.Store().License().Get(param.LicenseID)
 	// process license not found etc.
@@ -58,35 +57,7 @@ func GetLicense(server http.IServer, payload *model.License, param ParamLicenseI
 	} else if e != nil {
 		return nil, http.Problem{Detail: e.Error(), Status: http.StatusBadRequest}
 	}
-	// TODO : below is not working anymore
-	/**
-		// get the input body.
-		// It contains the hashed passphrase, user hint
-		// and other optional user data the provider wants to see embedded in thel license
-		payload, err := ReadLicensePayload(req)
-		// error parsing the input body
-		if err != nil {
-			// if there was no partial license given as payload, return a partial license.
-			// The use case is a frontend that needs to get license up to date rights.
-			if err.Error() == "EOF" {
-				server.LogError("No payload, get a partial license")
 
-				// add useful http headers
-				resp.Header().Add(http.HdrContentType, http.ContentTypeLcpJson)
-				resp.WriteHeader(http.StatusPartialContent)
-				// send back the partial license
-				// do not escape characters
-				enc := json.NewEncoder(resp)
-				enc.SetEscapeHTML(false)
-				enc.Encode(licOut)
-				return licOut, nil
-			}
-			// unknown error
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
-	**/
-	// an input body was sent with the request:
-	// check mandatory information in the partial license
 	err := payload.ValidateEncryption()
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
@@ -99,7 +70,6 @@ func GetLicense(server http.IServer, payload *model.License, param ParamLicenseI
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
-	// TODO : set below headers
 	// set the http headers
 	nonErr.HttpHeaders.Add(http.HdrContentType, http.ContentTypeLcpJson)
 	nonErr.HttpHeaders.Add(http.HdrContentDisposition, `attachment; filename="license.lcpl"`)
@@ -224,7 +194,6 @@ func GenerateLicensedPublication(server http.IServer, lic *model.License, param 
 	if param.ContentID == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
-	contentID := param.ContentID
 	// check mandatory information in the input body
 	err := lic.ValidateProviderAndUser()
 	if err != nil {
@@ -232,7 +201,7 @@ func GenerateLicensedPublication(server http.IServer, lic *model.License, param 
 
 	}
 	// init the license with an id and issue date, will also normalize the start and end date, UTC, no milliseconds
-	err = lic.Initialize(contentID)
+	err = lic.Initialize(param.ContentID)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 
@@ -247,7 +216,7 @@ func GenerateLicensedPublication(server http.IServer, lic *model.License, param 
 	// store the license in the db
 	err = server.Store().License().Add(lic)
 	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Instance: contentID, Status: http.StatusInternalServerError}
+		return nil, http.Problem{Detail: err.Error(), Instance: param.ContentID, Status: http.StatusInternalServerError}
 
 	}
 
@@ -257,6 +226,7 @@ func GenerateLicensedPublication(server http.IServer, lic *model.License, param 
 	// build a licenced publication
 	publication, err := buildLicencedPublication(lic, server)
 	if err == filestor.ErrNotFound {
+		server.LogError("File storage error : %s", err.Error())
 		return nil, http.Problem{Detail: err.Error(), Instance: lic.ContentId, Status: http.StatusNotFound}
 
 	} else if err != nil {
@@ -280,35 +250,6 @@ func GenerateLicensedPublication(server http.IServer, lic *model.License, param 
 	result := new(bytes.Buffer)
 	publication.Write(result)
 	return result.Bytes(), nonErr
-}
-
-// UpdateLicense updates an existing license.
-// parameters:
-// 		{license_id} in the calling URL
-// 		partial license containing properties which should be updated (and only these)
-// return: an http status code (200, 400 or 404)
-// Usually called from the License Status Server after a renew, return or cancel/revoke action
-// -> updates the end date.
-//
-func UpdateLicense(server http.IServer, payload *model.License, param ParamLicenseId) (*string, error) {
-	if param.LicenseID == "" {
-		return nil, http.Problem{Detail: "The license id must be set in the url", Status: http.StatusBadRequest}
-	}
-	// initialize the license from the info stored in the db.
-	existingLicense, e := server.Store().License().Get(param.LicenseID)
-	// process license not found etc.
-	if e == gorm.ErrRecordNotFound {
-		return nil, http.Problem{Detail: e.Error(), Status: http.StatusNotFound}
-	} else if e != nil {
-		return nil, http.Problem{Detail: e.Error(), Status: http.StatusBadRequest}
-	}
-	existingLicense.Update(payload)
-	// update the license in the database
-	err := server.Store().License().Update(existingLicense)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	}
-	return nil, nil
 }
 
 // ListLicenses returns a JSON struct with information about the existing licenses
@@ -356,7 +297,7 @@ func ListLicensesForContent(server http.IServer, param ParamContentIdAndPage) (m
 	//check if the license exists
 	_, err = server.Store().Content().Get(contentID)
 	if err == gorm.ErrRecordNotFound {
-		server.LogInfo("License %s not found.", contentID)
+		//server.LogInfo("License %s not found.", contentID)
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 	}
 	noOfLicenses, err := server.Store().License().CountForContentId(contentID)
@@ -382,4 +323,33 @@ func ListLicensesForContent(server http.IServer, param ParamContentIdAndPage) (m
 	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LcpServer.Port)+"/licenses", page+1, perPage, noOfLicenses))
 	return licenses, nonErr
 
+}
+
+// UpdateLicense updates an existing license.
+// parameters:
+// 		{license_id} in the calling URL
+// 		partial license containing properties which should be updated (and only these)
+// return: an http status code (200, 400 or 404)
+// Usually called from the License Status Server after a renew, return or cancel/revoke action
+// -> updates the end date.
+//
+func UpdateLicense(server http.IServer, payload *model.License, param ParamLicenseId) (*string, error) {
+	if param.LicenseID == "" {
+		return nil, http.Problem{Detail: "The license id must be set in the url", Status: http.StatusBadRequest}
+	}
+	// initialize the license from the info stored in the db.
+	existingLicense, e := server.Store().License().Get(param.LicenseID)
+	// process license not found etc.
+	if e == gorm.ErrRecordNotFound {
+		return nil, http.Problem{Detail: e.Error(), Status: http.StatusNotFound}
+	} else if e != nil {
+		return nil, http.Problem{Detail: e.Error(), Status: http.StatusBadRequest}
+	}
+	existingLicense.Update(payload)
+	// update the license in the database
+	err := server.Store().License().Update(existingLicense)
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+	}
+	return nil, nil
 }
