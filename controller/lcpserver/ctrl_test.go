@@ -41,8 +41,10 @@ import (
 	"github.com/readium/readium-lcp-server/model"
 	"gopkg.in/yaml.v1"
 	"io/ioutil"
+	"log"
 	goHttp "net/http"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"testing"
@@ -50,6 +52,18 @@ import (
 )
 
 var workingDir string
+var localhostAndPort string
+
+// debugging multiple header calls
+type debugLogger struct{}
+
+func (d debugLogger) Write(p []byte) (n int, err error) {
+	s := string(p)
+	if strings.Contains(s, "multiple response.WriteHeader") {
+		debug.PrintStack()
+	}
+	return os.Stderr.Write(p)
+}
 
 // prepare test server
 func TestMain(m *testing.M) {
@@ -138,14 +152,17 @@ func TestMain(m *testing.M) {
 		),
 		http.DelayMiddleware,
 	)
+	runningPort := strconv.Itoa(cfg.LcpServer.Port)
+	localhostAndPort = "http://localhost:" + runningPort
 
 	server := &http.Server{
 		Server: goHttp.Server{
 			Handler:        muxer,
-			Addr:           ":" + strconv.Itoa(cfg.LcpServer.Port),
+			Addr:           ":" + runningPort,
 			WriteTimeout:   15 * time.Second,
 			ReadTimeout:    15 * time.Second,
 			MaxHeaderBytes: 1 << 20,
+			ErrorLog:       log.New(debugLogger{}, "", 0), // debugging multiple header calls
 		},
 		Log:      logz,
 		Cfg:      cfg,
@@ -209,11 +226,15 @@ func TestAddContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Working dir 2 error : " + err.Error())
 	}
-	workingDir2 = strings.Replace(workingDir2, "\\src\\github.com\\readium\\readium-lcp-server", "", -1)
+	t.Logf("Working on %s", workingDir2)
+	workingDir2 = strings.Replace(workingDir2, "\\controller\\lcpserver", "", -1)
 	inputPath := workingDir2 + "\\test\\samples\\sample.epub"
+
 	// encrypt the master file found at inputPath, write in the temp file, in the "encrypted repository"
 	encryptedEpub, err := pack.CreateEncryptedEpub(inputPath, outputPath)
-
+	if err != nil {
+		t.Fatalf("error encrypting : %v \n input file : %s", err, inputPath)
+	}
 	contentDisposition := "SampleContentDisposition"
 
 	payload := http.LcpPublication{
@@ -228,7 +249,7 @@ func TestAddContent(t *testing.T) {
 	enc.SetEscapeHTML(false)
 	enc.Encode(payload)
 
-	req, err := http.NewRequest("PUT", "http://localhost:8081/contents/"+uid.String(), bytes.NewReader(buf.Bytes())) //Create request with JSON body
+	req, err := http.NewRequest("PUT", localhostAndPort+"/contents/"+uid.String(), bytes.NewReader(buf.Bytes())) //Create request with JSON body
 
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -261,8 +282,54 @@ func TestAddContent(t *testing.T) {
 	t.Logf("response : %v [http-status:%d]", string(body), resp.StatusCode)
 }
 
+func TestStoreContent(t *testing.T) {
+	workingDir2, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Working dir 2 error : " + err.Error())
+	}
+	t.Logf("Working dir : %s", workingDir2)
+	inputPath := strings.Replace(workingDir2, "\\controller\\lcpserver", "", -1) + "\\test\\samples\\sample.epub"
+
+	data, err := ioutil.ReadFile(inputPath)
+	if err != nil {
+		t.Fatalf("Error reading file : %s", inputPath)
+	}
+
+	req, err := http.NewRequest("POST", localhostAndPort+"/contents/sample", bytes.NewReader(data))
+	//req.Header.Set("Content-Type", "application/epub+zip")
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	t.Logf("response : %v [http-status:%d]", string(body), resp.StatusCode)
+}
+
 func listContent() (model.ContentCollection, error) {
-	req, err := http.NewRequest("GET", "http://localhost:8081/contents", nil)
+	req, err := http.NewRequest("GET", localhostAndPort+"/contents", nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -318,15 +385,7 @@ func TestListContents(t *testing.T) {
 }
 
 func TestGetContent(t *testing.T) {
-	list, err := listContent()
-	if err != nil {
-		t.Errorf("Error : %v", err)
-	}
-	if len(list) == 0 {
-		t.Skipf("You don't have any contents to perform this test.")
-	}
-
-	req, err := http.NewRequest("GET", "http://localhost:8081/contents/"+list[0].Id, nil)
+	req, err := http.NewRequest("GET", localhostAndPort+"/contents/8c1b45ed-c346-4fc6-8aab-e92cff8e68a9", nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -355,14 +414,7 @@ func TestGetContent(t *testing.T) {
 		t.Errorf("Error reading response body error : %v", err)
 	}
 
-	if resp.StatusCode < 300 {
-		var content model.Content
-		err = json.Unmarshal(body, &content)
-		if err != nil {
-			t.Fatalf("Error Unmarshaling : %v.\nServer response : %s", err, string(body))
-		}
-		t.Logf("response : %#v", content)
-	} else {
+	if resp.StatusCode >= 300 {
 		var problem http.Problem
 		err = json.Unmarshal(body, &problem)
 		if err != nil {
@@ -372,12 +424,8 @@ func TestGetContent(t *testing.T) {
 	}
 }
 
-func TestStoreContent(t *testing.T) {
-	// TODO : implement
-}
-
 func TestListLicenses(t *testing.T) {
-	req, err := http.NewRequest("GET", "http://localhost:8081/licenses?page=22&per_page=3", nil)
+	req, err := http.NewRequest("GET", localhostAndPort+"/licenses?page=22&per_page=3", nil)
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -438,7 +486,7 @@ func TestListLicensesForContent(t *testing.T) {
 		t.Skipf("You don't have any contents to perform this test.")
 	}
 
-	req, err := http.NewRequest("GET", "http://localhost:8081/contents/"+list[0].Id+"/licenses?page=2&per_page=1", nil)
+	req, err := http.NewRequest("GET", localhostAndPort+"/contents/"+list[0].Id+"/licenses?page=2&per_page=1", nil)
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -495,16 +543,36 @@ func TestGenerateLicense(t *testing.T) {
 	if len(list) == 0 {
 		t.Skipf("You don't have any contents to perform this test.")
 	}
-
+	uuid, _ := model.NewUUID()
 	payload := model.License{
 		ContentId: list[0].Id,
+		Provider:  "Google",
+		User: &model.User{
+			UUID: uuid.String(),
+		},
+		Encryption: model.LicenseEncryption{
+			UserKey: model.LicenseUserKey{
+				Hint:  "Hint",
+				Value: "PasswordPassword",
+			},
+		},
+		Rights: &model.LicenseUserRights{
+			Start: &model.NullTime{
+				Valid: true,
+				Time:  time.Now(),
+			},
+			End: &model.NullTime{
+				Valid: true,
+				Time:  time.Now().Add(30 * 24 * time.Hour),
+			},
+		},
 	}
 
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	enc.Encode(payload)
 
-	req, err := http.NewRequest("POST", "http://localhost:8081/contents/"+list[0].Id+"/license?page=2&per_page=1", bytes.NewReader(buf.Bytes()))
+	req, err := http.NewRequest("POST", localhostAndPort+"/contents/"+list[0].Id+"/license?page=2&per_page=1", bytes.NewReader(buf.Bytes()))
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -535,12 +603,10 @@ func TestGenerateLicense(t *testing.T) {
 	}
 
 	if resp.StatusCode < 300 {
-		var content model.License
-		err = json.Unmarshal(body, &content)
-		if err != nil {
-			t.Fatalf("Error Unmarshaling : %v.\nServer response : %s", err, string(body))
+		for hdrKey := range resp.Header {
+			t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
 		}
-		t.Logf("response : %#v", content)
+		t.Logf("response : %#v", string(body))
 	} else {
 		var problem http.Problem
 		err = json.Unmarshal(body, &problem)

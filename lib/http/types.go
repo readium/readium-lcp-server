@@ -51,6 +51,7 @@ const (
 
 	HdrAcceptLanguage         = "Accept-Language"
 	HdrContentType            = "Content-Type"
+	HdrContentLength          = "Content-Length"
 	HdrContentDisposition     = "Content-Disposition"
 	HdrXLcpLicense            = "X-Lcp-License"
 	HdrDelay                  = "X-Add-Delay"
@@ -182,32 +183,30 @@ type (
 	}
 
 	Problem struct {
-		error
-		Status      int    `json:"status,omitempty"` // if present = http response code
-		Type        string `json:"type,omitempty"`
-		Title       string `json:"title,omitempty"`
-		Detail      string `json:"detail,omitempty"`
-		Instance    string `json:"instance,omitempty"`
-		HttpHeaders http.Header
+		error       `json:"-"`
+		Status      int         `json:"status,omitempty"` // if present = http response code
+		Type        string      `json:"type,omitempty"`
+		Title       string      `json:"title,omitempty"`
+		Detail      string      `json:"detail,omitempty"`
+		Instance    string      `json:"instance,omitempty"`
+		HttpHeaders http.Header `json:"-"`
 	}
 
 	Server struct {
 		http.Server
 		Readonly       bool
-		Log            logger.StdLogger
 		GoophyMode     bool
+		Cert           *tls.Certificate
+		Log            logger.StdLogger
+		Cfg            Configuration
 		Model          model.Store
 		St             *filestor.Store
-		Cert           *tls.Certificate
 		Src            pack.ManualSource
-		Cfg            Configuration
 		secretProvider SecretProvider
 		realm          string
 	}
 
 	HandlerFunc func(w http.ResponseWriter, r *http.Request, s IServer)
-
-	HandlerPrivateFunc func(w http.ResponseWriter, r *AuthenticatedRequest, s IServer)
 
 	IServer interface {
 		Config() Configuration

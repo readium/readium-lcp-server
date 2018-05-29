@@ -144,7 +144,7 @@ func notifyLSDServer(payload *model.License, server http.IServer) {
 
 // build a license, common to get and generate license, get and generate licensed publication
 //
-func BuildLicense(license *model.License, server http.IServer) error {
+func buildLicense(license *model.License, server http.IServer) error {
 
 	// set the LCP profile
 	// possible profiles are basic and 1.0
@@ -160,7 +160,7 @@ func BuildLicense(license *model.License, server http.IServer) error {
 		server.LogError("No content with id %v %v", license.ContentId, err)
 		return err
 	}
-	server.LogInfo("setting license links.")
+
 	// set links
 	err = license.SetLinks(content)
 	if err != nil {
@@ -180,13 +180,12 @@ func BuildLicense(license *model.License, server http.IServer) error {
 
 	}
 
-	server.LogInfo("Encrypting fields.")
 	// encrypt the content key, user fieds, set the key check
 	err = license.EncryptLicenseFields(content)
 	if err != nil {
 		return err
 	}
-	server.LogInfo("Signing license.")
+
 	// sign the license
 	err = license.SignLicense(server.Certificate())
 	if err != nil {

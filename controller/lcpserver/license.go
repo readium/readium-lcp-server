@@ -30,6 +30,8 @@ package lcpserver
 import (
 	"strconv"
 
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/epub"
@@ -43,7 +45,7 @@ import (
 // The input partial license is optional: if absent, a partial license
 // is returned to the caller, with the info stored in the db.
 //
-func GetLicense(server http.IServer, payload *model.License, param ParamLicenseId) (*model.License, error) {
+func GetLicense(server http.IServer, payload *model.License, param ParamLicenseId) ([]byte, error) {
 	if param.LicenseID == "" {
 		return nil, http.Problem{Detail: "The license id must be set in the url", Status: http.StatusBadRequest}
 	}
@@ -92,7 +94,7 @@ func GetLicense(server http.IServer, payload *model.License, param ParamLicenseI
 	// copy useful data from payload to LicOut
 	payload.CopyInputToLicense(licOut)
 	// build the license
-	err = BuildLicense(licOut, server)
+	err = buildLicense(licOut, server)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
@@ -101,82 +103,73 @@ func GetLicense(server http.IServer, payload *model.License, param ParamLicenseI
 	// set the http headers
 	nonErr.HttpHeaders.Add(http.HdrContentType, http.ContentTypeLcpJson)
 	nonErr.HttpHeaders.Add(http.HdrContentDisposition, `attachment; filename="license.lcpl"`)
-	//resp.WriteHeader(http.StatusOK)
 	// send back the license
-	// TODO : do not escape characters in the json payload
-	return licOut, nonErr
+	result := new(bytes.Buffer)
+	enc := json.NewEncoder(result)
+	// do not escape characters in the json payload
+	enc.SetEscapeHTML(false)
+	enc.Encode(licOut)
+	return result.Bytes(), nonErr
 }
 
 // GenerateLicense generates and returns a new license,
 // for a given content identified by its id
 // plus a partial license given as input
 //
-func GenerateLicense(server http.IServer, payload *model.License, param ParamContentId) (*model.License, error) {
+func GenerateLicense(server http.IServer, payload *model.License, param ParamContentId) ([]byte, error) {
 	if param.ContentID == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
 
-	panic("Test")
 	// check mandatory information in the input body
 	err := payload.ValidateProviderAndUser()
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 
-	//server.LogInfo("Initialize.")
-	// init the license with an id and issue date
+	// init the license with an id and issue date, will also normalize the start and end date, UTC, no milliseconds
 	err = payload.Initialize(param.ContentID)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 
-	//server.LogInfo("Setting rights.")
-	// normalize the start and end date, UTC, no milliseconds
-	payload.SetRights()
-
-	//server.LogInfo("Building license.")
 	// build the license
-	err = BuildLicense(payload, server)
+	err = buildLicense(payload, server)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
-	//jsonPayload, err := json.MarshalIndent(payload, " ", " ")
-	//server.LogInfo("Saving to database : %s", string(jsonPayload))
+
 	// store the license in the db
 	err = server.Store().License().Add(payload)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
-	nonErr := http.Problem{Status: http.StatusCreated, HttpHeaders: make(map[string][]string)}
-	// TODO : set below headers
+	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
 	// set http headers
 	nonErr.HttpHeaders.Add(http.HdrContentType, http.ContentTypeLcpJson)
 	nonErr.HttpHeaders.Add(http.HdrContentDisposition, `attachment; filename="license.lcpl"`)
-	// TODO : do not escape characters
-	//	send back the license
-	//enc := json.NewEncoder(resp)
-	//enc.SetEscapeHTML(false)
-	//enc.Encode(payload)
+
+	result := new(bytes.Buffer)
+	enc := json.NewEncoder(result)
+	// do not escape characters
+	enc.SetEscapeHTML(false)
+	// send back the license
+	enc.Encode(payload)
 
 	// notify the lsd server of the creation of the license.
 	// this is an asynchronous call.
 	go notifyLSDServer(payload, server)
-	return payload, nonErr
+	return result.Bytes(), nonErr
 }
 
 // GetLicensedPublication returns a licensed publication
 // for a given license identified by its id
 // plus a partial license given as input
 //
-func GetLicensedPublication(server http.IServer, payload *model.License, param ParamLicenseId) (*epub.Epub, error) {
+func GetLicensedPublication(server http.IServer, payload *model.License, param ParamLicenseId) ([]byte, error) {
 	if param.LicenseID == "" {
 		return nil, http.Problem{Detail: "The license id must be set in the url", Status: http.StatusBadRequest}
 	}
-	// get the input body
-	//payload, err := ReadLicensePayload(req)
-	//if err != nil {
-	//	return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
-	//}
 	// check mandatory information in the input body
 	err := payload.ValidateEncryption()
 	if err != nil {
@@ -193,7 +186,7 @@ func GetLicensedPublication(server http.IServer, payload *model.License, param P
 	// copy useful data from payload to LicOut
 	payload.CopyInputToLicense(licOut)
 	// build the license
-	err = BuildLicense(licOut, server)
+	err = buildLicense(licOut, server)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
@@ -210,26 +203,24 @@ func GetLicensedPublication(server http.IServer, payload *model.License, param P
 	if err1 != nil {
 		return nil, http.Problem{Detail: err1.Error(), Instance: licOut.ContentId, Status: http.StatusInternalServerError}
 	}
-	server.LogInfo("Content : %#v", content)
-	nonErr := http.Problem{Status: http.StatusCreated, HttpHeaders: make(map[string][]string)}
-	// TODO : set below headers
+
+	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
 	// -- set HTTP headers
 	nonErr.HttpHeaders.Add(http.HdrContentType, epub.ContentTypeEpub)
 	nonErr.HttpHeaders.Add(http.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, content.Location))
 	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
 	nonErr.HttpHeaders.Add(http.HdrXLcpLicense, licOut.Id)
-	// -- must come *after* w.Header().Add()/Set(), but before w.Write()
-
 	// -- return the full licensed publication to the caller
-	// publication.Write(resp)
-	return publication, nonErr
+	result := new(bytes.Buffer)
+	publication.Write(result)
+	return result.Bytes(), nonErr
 }
 
 // GenerateLicensedPublication generates and returns a licensed publication
 // for a given content identified by its id
 // plus a partial license given as input
 //
-func GenerateLicensedPublication(server http.IServer, lic *model.License, param ParamContentId) (*epub.Epub, error) {
+func GenerateLicensedPublication(server http.IServer, lic *model.License, param ParamContentId) ([]byte, error) {
 	if param.ContentID == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
@@ -240,16 +231,14 @@ func GenerateLicensedPublication(server http.IServer, lic *model.License, param 
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 
 	}
-	// init the license with an id and issue date
+	// init the license with an id and issue date, will also normalize the start and end date, UTC, no milliseconds
 	err = lic.Initialize(contentID)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 
 	}
-	// normalize the start and end date, UTC, no milliseconds
-	lic.SetRights()
 	// build the license
-	err = BuildLicense(lic, server)
+	err = buildLicense(lic, server)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 
@@ -280,19 +269,17 @@ func GenerateLicensedPublication(server http.IServer, lic *model.License, param 
 	if err1 != nil {
 		return nil, http.Problem{Detail: err1.Error(), Instance: lic.ContentId, Status: http.StatusInternalServerError}
 	}
-	nonErr := http.Problem{Status: http.StatusCreated, HttpHeaders: make(map[string][]string)}
-	server.LogInfo("Content : %#v", content)
-	// TODO : return headers
+	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
+
 	// -- set HTTP headers
 	nonErr.HttpHeaders.Add(http.HdrContentType, epub.ContentTypeEpub)
 	nonErr.HttpHeaders.Add(http.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, content.Location))
 	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
 	nonErr.HttpHeaders.Add(http.HdrXLcpLicense, lic.Id)
-	// -- must come *after* w.Header().Add()/Set(), but before w.Write()
-
 	// -- return the full licensed publication to the caller
-	//publication.Write(resp)
-	return publication, nonErr
+	result := new(bytes.Buffer)
+	publication.Write(result)
+	return result.Bytes(), nonErr
 }
 
 // UpdateLicense updates an existing license.

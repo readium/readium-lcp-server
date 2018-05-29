@@ -309,7 +309,7 @@ func (l *License) ValidateProviderAndUser() error {
 	if l.Provider == "" {
 		return fmt.Errorf("Mandatory info missing in the input body  : license provider is missing.")
 	}
-	if l.User.UUID == "" {
+	if l.User == nil || l.User.UUID == "" {
 		return fmt.Errorf("Mandatory info missing in the input body : user identificator is missing.")
 	}
 	// check userkey hint, value and algorithm
@@ -327,26 +327,14 @@ func (l *License) CopyInputToLicense(lic *License) {
 	lic.User.Encrypted = l.User.Encrypted
 }
 
-// normalize the start and end date, UTC, no milliseconds
-//
-func (l *License) SetRights() {
-	// if Start nor End valid, we have nothing to save ??
-	if !l.Rights.Start.Valid || !l.Rights.End.Valid {
-		panic("SetRights not valid. Should be valid ?")
-	}
-	if l.Rights.Start.Valid {
-		// normalize the start and end date, UTC, no milliseconds
-		l.Rights.Start.Time = l.Rights.Start.Time.UTC().Truncate(time.Second)
-	}
-	if l.Rights.End.Valid {
-		// normalize the start and end date, UTC, no milliseconds
-		l.Rights.End.Time = l.Rights.End.Time.UTC().Truncate(time.Second)
-	}
-}
-
 // Initialize sets a license id and issued date, contentID,
 //
 func (l *License) Initialize(contentID string) error {
+	// TODO : maybe move to validation ?
+	// checking rights
+	if l.Rights == nil || l.Rights.Start == nil || l.Rights.End == nil || !l.Rights.Start.Valid || !l.Rights.End.Valid {
+		return errors.New("rights not valid")
+	}
 	// random license id
 	uid, errU := NewUUID()
 	if errU != nil {
@@ -357,6 +345,15 @@ func (l *License) Initialize(contentID string) error {
 	l.Issued = time.Now().UTC().Truncate(time.Second)
 	// set the content id
 	l.ContentId = contentID
+	// normalize the start and end date, UTC, no milliseconds
+	if l.Rights.Start.Valid {
+		// normalize the start and end date, UTC, no milliseconds
+		l.Rights.Start.Time = l.Rights.Start.Time.UTC().Truncate(time.Second)
+	}
+	if l.Rights.End.Valid {
+		// normalize the start and end date, UTC, no milliseconds
+		l.Rights.End.Time = l.Rights.End.Time.UTC().Truncate(time.Second)
+	}
 	return nil
 }
 
@@ -405,7 +402,7 @@ func (s *licenseStore) UpdateRights(l *License) error {
 // Add creates a new record in the license table
 //
 func (s *licenseStore) Add(l *License) error {
-	return s.db.Debug().Create(l).Error
+	return s.db.Create(l).Error
 }
 
 // Update updates a record in the license table

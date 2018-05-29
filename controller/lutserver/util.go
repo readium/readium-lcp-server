@@ -367,8 +367,6 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 		// note: this will not update the license rights
 		lcpURL = lcpServerConfig.PublicBaseUrl + "/licenses/" + purchase.LicenseUUID.String
 	}
-	// message to the console
-	//log.Println("POST " + lcpURL)
 
 	// add the partial license to the POST request
 	req, err := http.NewRequest("POST", lcpURL, bytes.NewReader(jsonBody))
@@ -472,8 +470,6 @@ func updatePurchase(purchase *model.Purchase, server http.IServer) error {
 			// Next status if LSD raises no error
 			purchase.Status = model.StatusOk
 		}
-		// message to the console
-		//log.Println("PUT " + lsdURL)
 		// prepare the request for renew or return to the license status server
 		req, err := http.NewRequest("PUT", lsdURL, nil)
 		if err != nil {

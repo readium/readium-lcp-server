@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -73,9 +74,12 @@ func (h recoveryHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if err := recover(); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			h.log(err)
-			//w.Write([]byte("{\"error\":" + fmt.Sprintf("%v", err) + ",\"detail\":\""))
-			//w.Write(debug.Stack())
-			//w.Write([]byte("\"}"))
+			problem := Problem{Status: http.StatusInternalServerError, Detail: string(debug.Stack())}
+			enc := json.NewEncoder(w)
+			encErr := enc.Encode(problem)
+			if encErr != nil {
+				println("Error encoding error : " + encErr.Error())
+			}
 		}
 	}()
 	h.handler.ServeHTTP(w, req)

@@ -81,6 +81,7 @@ func (s fsStorage) Get(key string) (Item, error) {
 	_, err := os.Stat(filepath.Join(s.fspath, key))
 	if err != nil {
 		if os.IsNotExist(err) {
+			//println(s.fspath + " " + key + " does not exist.")
 			return nil, ErrNotFound
 		}
 		return nil, err

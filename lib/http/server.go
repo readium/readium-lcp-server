@@ -111,7 +111,7 @@ Small Dependency Injection for Json API - How it works:
 
 When you register a handler, you should know the following:
 1. first parameter of the handling function should be always server http.IServer
-2. second parameter is optional and represents the expected json payload
+2. second parameter is optional and represents the expected json payload (which is a go struct). Sometimes, the http.Request is needed in the controller - it is provided for you
 3. the rest of the parameters are as following :
 a. url path parameters (e.g. /content/{content_id}) or url parameters (e.g. ?page=3)
 b. header injections (e.g. "Accept-Language")
@@ -197,11 +197,13 @@ func collect(s *Server, fnValue reflect.Value) (reflect.Type, reflect.Type, refl
 			switch functionType.In(p).Kind() {
 			case reflect.Ptr, reflect.Map, reflect.Slice:
 				payloadType = functionType.In(p)
+				/**
 				if functionType.In(p).Kind() == reflect.Ptr {
-					//s.LogInfo("%q parameter is expected as payload", payloadType.Elem().Name())
+					s.LogInfo("%q parameter is expected as payload", payloadType.Elem().Name())
 				} else {
-					//s.LogInfo("%q parameter is expected as payload", payloadType.Name())
+					s.LogInfo("%q parameter is expected as payload", payloadType.Name())
 				}
+				**/
 			default:
 				s.LogInfo("Second argument must be an *object, map, or slice and it's %q on %s [will be ignored].", functionType.In(p).String(), callerName)
 			}
@@ -251,13 +253,20 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 
 		var err error
 		var reqBody []byte
+
+		// sometimes controller expects the request itself - we're providing it
+		isRequestInjected := false
+		if payloadType != nil && payloadType.Kind() == reflect.Ptr && payloadType.Elem().Name() == "Request" {
+			isRequestInjected = true
+		}
+
 		// if the content type is form
 		ctype := r.Header[HdrContentType]
 		if len(ctype) > 0 && ctype[0] == ContentTypeFormUrlEncoded {
 			// TODO : test
 			reqBody = bytes.NewBufferString(r.PostFormValue("data")).Bytes()
-		} else {
-			// default fallback - always json
+		} else if !isRequestInjected {
+			// default fallback - always json - if not request injected (body reading inside controller)
 
 			// now we read the request body
 			reqBody, err = ioutil.ReadAll(r.Body)
@@ -281,25 +290,32 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 				deserializeTo = reflect.New(payloadType)
 				in = append(in, deserializeTo.Elem())
 			case reflect.Ptr:
-				deserializeTo = reflect.New(payloadType.Elem())
-				in = append(in, deserializeTo)
+				if !isRequestInjected {
+					// the most common scenario - expecting a struct
+					deserializeTo = reflect.New(payloadType.Elem())
+					in = append(in, deserializeTo)
+				}
 			}
-
-			// json decode the payload
-			if err = json.Unmarshal(reqBody, deserializeTo.Interface()); err != nil {
-				s.fastJsonError(w, r, http.StatusBadRequest, fmt.Sprintf("Unmarshal error: %v\nReceived from client : %v", err, string(reqBody)))
-				return
-			}
-
-			// checking if value is implementing Validate() error
-			iVal, isValidator := deserializeTo.Interface().(validator.IValidator)
-			if isValidator {
-				// it does - we call validate
-				err = iVal.Validate()
-				if err != nil {
-					s.fastJsonError(w, r, http.StatusBadRequest, fmt.Sprintf("Validation error : %v", err))
+			if !isRequestInjected {
+				// json decode the payload
+				if err = json.Unmarshal(reqBody, deserializeTo.Interface()); err != nil {
+					s.fastJsonError(w, r, http.StatusBadRequest, fmt.Sprintf("Unmarshal error: %v\nReceived from client : %v", err, string(reqBody)))
 					return
 				}
+
+				// checking if value is implementing Validate() error
+				iVal, isValidator := deserializeTo.Interface().(validator.IValidator)
+				if isValidator {
+					// it does - we call validate
+					err = iVal.Validate()
+					if err != nil {
+						s.fastJsonError(w, r, http.StatusBadRequest, fmt.Sprintf("Validation error : %v", err))
+						return
+					}
+				}
+			} else {
+				// append request as it is, since body is going to be read in controller.
+				in = append(in, reflect.ValueOf(r))
 			}
 		}
 
@@ -338,15 +354,15 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 		// finally, we're calling the handler with all the params
 		out := fnValue.Call(in)
 
-		// header
-		w.Header().Set(HdrContentType, ContentTypeJson)
-
 		// processing return of the handler (should be payload, error)
 		isError := out[0].IsNil()
 		// preparing the json encoder
 		enc := json.NewEncoder(w)
 		// we have error
 		if isError {
+			// header
+			w.Header().Set(HdrContentType, ContentTypeJson)
+
 			problem, ok := out[1].Interface().(Problem)
 			if !ok {
 				s.fastJsonError(w, r, http.StatusInternalServerError, "Error : expecting Problem, got something else.")
@@ -371,6 +387,13 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 					w.Header().Set(hdrKey, problem.HttpHeaders.Get(hdrKey))
 				}
 			}
+			// bytes are delivered as they are (downloads)
+			if byts, ok := out[0].Interface().([]byte); ok {
+				w.Write(byts)
+				return
+			}
+			// header
+			w.Header().Set(HdrContentType, ContentTypeJson)
 			// no error has occured - serializing payload
 			err := enc.Encode(out[0].Interface())
 			if err != nil {
