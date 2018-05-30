@@ -28,61 +28,36 @@
 package lutserver
 
 import (
-	"encoding/json"
-
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/http"
+	"github.com/readium/readium-lcp-server/model"
 )
 
 // GetDashboardInfos searches a publication by its uuid
-func GetDashboardInfos(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func GetDashboardInfos(server http.IServer) (*model.Dashboard, error) {
 	if pub, err := server.Store().Dashboard().GetDashboardInfos(); err == nil {
-		enc := json.NewEncoder(resp)
-		if err = enc.Encode(pub); err == nil {
-			// send json of correctly encoded user info
-			resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-			resp.WriteHeader(http.StatusOK)
-			return
-		}
-
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		return pub, nil
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			{
-				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
-			}
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		default:
-			{
-				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-			}
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	}
 }
 
 // GetDashboardBestSellers gets the dashboard bestsellers
 //
-func GetDashboardBestSellers(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func GetDashboardBestSellers(server http.IServer) ([]model.BestSeller, error) {
 	if pub, err := server.Store().Dashboard().GetDashboardBestSellers(); err == nil {
-		enc := json.NewEncoder(resp)
-		if err = enc.Encode(pub); err == nil {
-			// send json of correctly encoded user info
-			resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-			resp.WriteHeader(http.StatusOK)
-			return
-		}
-
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		return pub, nil
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			{
-				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
-			}
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		default:
-			{
-				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-			}
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	}
 }

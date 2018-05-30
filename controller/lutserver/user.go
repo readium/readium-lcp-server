@@ -28,7 +28,6 @@
 package lutserver
 
 import (
-	"encoding/json"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -38,15 +37,14 @@ import (
 )
 
 //GetUsers returns a list of users
-func GetUsers(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func GetUsers(server http.IServer, resp http.ResponseWriter, req *http.Request) (model.UsersCollection, error) {
 	var page int64
 	var perPage int64
 	var err error
 	if req.FormValue("page") != "" {
 		page, err = strconv.ParseInt((req).FormValue("page"), 10, 32)
 		if err != nil {
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-			return
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 		}
 	} else {
 		page = 1
@@ -54,8 +52,7 @@ func GetUsers(resp http.ResponseWriter, req *http.Request, server http.IServer) 
 	if req.FormValue("per_page") != "" {
 		perPage, err = strconv.ParseInt((req).FormValue("per_page"), 10, 32)
 		if err != nil {
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-			return
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 		}
 	} else {
 		perPage = 30
@@ -64,14 +61,12 @@ func GetUsers(resp http.ResponseWriter, req *http.Request, server http.IServer) 
 		page-- //pagenum starting at 0 in code, but user interface starting at 1
 	}
 	if page < 0 {
-		server.Error(resp, req, http.Problem{Detail: "page must be positive integer", Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: "page must be positive integer", Status: http.StatusBadRequest}
 	}
 
 	users, err := server.Store().User().List(int(perPage), int(page))
 	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 
 	if len(users) > 0 {
@@ -84,125 +79,78 @@ func GetUsers(resp http.ResponseWriter, req *http.Request, server http.IServer) 
 		resp.Header().Set("Link", "</users/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
 	}
 
-	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-	enc := json.NewEncoder(resp)
-	err = enc.Encode(users)
-	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
-	}
+	return users, nil
 }
 
 //GetUser searches a client by his email
-func GetUser(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func GetUser(server http.IServer, resp http.ResponseWriter, req *http.Request) (*model.User, error) {
 	vars := mux.Vars(req)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		// id is not a number
-		server.Error(resp, req, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest})
+		return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
 	}
 	if user, err := server.Store().User().Get(int64(id)); err == nil {
-		enc := json.NewEncoder(resp)
-		if err = enc.Encode(user); err == nil {
-			// send json of correctly encoded user info
-			resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-			resp.WriteHeader(http.StatusOK)
-			return
-		}
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+		return user, nil
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			{
-				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
-			}
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
+
 		default:
-			{
-				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-			}
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	}
-	return
+	return nil, nil
 }
 
 //CreateUser creates a user in the database
-func CreateUser(resp http.ResponseWriter, req *http.Request, server http.IServer) {
-	var user *model.User
+func CreateUser(server http.IServer, user *model.User) (*string, error) {
+
 	var err error
-	if user, err = ReadUserPayload(req); err != nil {
-		server.Error(resp, req, http.Problem{Detail: "incorrect JSON User " + err.Error(), Status: http.StatusBadRequest})
-		return
-	}
 	//user ok
 	if err = server.Store().User().Add(user); err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
-	// user added to db
-	resp.WriteHeader(http.StatusCreated)
+	return nil, http.Problem{Status: http.StatusCreated}
 }
 
 //UpdateUser updates an identified user (id) in the database
-func UpdateUser(resp http.ResponseWriter, req *http.Request, server http.IServer) {
-	vars := mux.Vars(req)
+func UpdateUser(server http.IServer, user *model.User, param ParamId) (*string, error) {
 	var id int
 	var err error
-	var user *model.User
-	if id, err = strconv.Atoi(vars["id"]); err != nil {
+	if id, err = strconv.Atoi(param.Id); err != nil {
 		// id is not a number
-		server.Error(resp, req, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest})
-		return
-	}
-	//ID is a number, check user (json)
-	if user, err = ReadUserPayload(req); err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
 	}
 	// user ok, id is a number, search user to update
 	if _, err = server.Store().User().Get(int64(id)); err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		default:
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	} else {
 		// client is found!
 		if err = server.Store().User().Update(&model.User{ID: int64(id), Name: user.Name, Email: user.Email, Password: user.Password, Hint: user.Hint}); err != nil {
 			//update failed!
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-			return
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
-		//database update ok
-		resp.WriteHeader(http.StatusOK)
-		//return
+		return nil, http.Problem{Status: http.StatusOK}
 	}
 
 }
 
 //Delete creates a user in the database
-func DeleteUser(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func DeleteUser(server http.IServer, resp http.ResponseWriter, req *http.Request) (*string, error) {
 	vars := mux.Vars(req)
 	uid, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 	if err = server.Store().User().Delete(uid); err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
-	// user added to db
-	resp.WriteHeader(http.StatusOK)
-}
-
-//ReadUserPayload transforms a json string to a User struct
-func ReadUserPayload(req *http.Request) (*model.User, error) {
-	var dec *json.Decoder
-	if ctype := req.Header[http.HdrContentType]; len(ctype) > 0 && ctype[0] == http.ContentTypeJson {
-		dec = json.NewDecoder(req.Body)
-	}
-	user := &model.User{}
-	err := dec.Decode(user)
-	return user, err
+	return nil, http.Problem{Status: http.StatusOK}
 }

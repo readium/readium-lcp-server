@@ -28,7 +28,6 @@
 package lutserver
 
 import (
-	"encoding/json"
 	"log"
 	"strconv"
 
@@ -41,245 +40,182 @@ import (
 
 // GetPurchases searches all purchases for a client
 //
-func GetPurchases(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func GetPurchases(server http.IServer, resp http.ResponseWriter, req *http.Request) (model.PurchaseCollection, error) {
 	var err error
 
 	pagination, err := ExtractPaginationFromRequest(req)
 	if err != nil {
 		// user id is not a number
-		server.Error(resp, req, http.Problem{Detail: "Pagination error", Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: "Pagination error", Status: http.StatusBadRequest}
+
 	}
 
 	purchases, err := server.Store().Purchase().List(pagination.PerPage, pagination.Page)
 
 	PrepareListHeaderResponse(len(purchases), "/api/v1/purchases", pagination, resp)
-	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 
-	enc := json.NewEncoder(resp)
-	err = enc.Encode(purchases)
-	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
-	}
+	return purchases, nil
 }
 
 // GetUserPurchases searches all purchases for a client
 //
-func GetUserPurchases(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func GetUserPurchases(server http.IServer, resp http.ResponseWriter, req *http.Request) (model.PurchaseCollection, error) {
 	var err error
 	var userId int64
 	vars := mux.Vars(req)
 
 	if userId, err = strconv.ParseInt(vars["user_id"], 10, 64); err != nil {
 		// user id is not a number
-		server.Error(resp, req, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
+
 	}
 
 	pagination, err := ExtractPaginationFromRequest(req)
 	if err != nil {
 		// user id is not a number
-		server.Error(resp, req, http.Problem{Detail: "Pagination error", Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: "Pagination error", Status: http.StatusBadRequest}
 	}
 	purchases, err := server.Store().Purchase().ListByUser(userId, pagination.PerPage, pagination.Page)
 	if err != nil {
 		// user id is not a number
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 	PrepareListHeaderResponse(len(purchases), "/api/v1/users/"+vars["user_id"]+"/purchases", pagination, resp)
-	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 
-	enc := json.NewEncoder(resp)
-	err = enc.Encode(purchases)
-	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
-	}
+	return purchases, nil
 }
 
 // CreatePurchase creates a purchase in the database
 //
-func CreatePurchase(resp http.ResponseWriter, req *http.Request, server http.IServer) {
-	purchase, err := ReadPurchasePayload(req)
-	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: "incorrect JSON Purchase " + err.Error(), Status: http.StatusBadRequest})
-		return
+func CreatePurchase(server http.IServer, payload *model.Purchase) (*string, error) {
+
+	if err := server.Store().Purchase().Add(payload); err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+
 	}
 
-	// purchase ok
-	if err = server.Store().Purchase().Add(purchase); err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
-	}
-
-	// publication added to db
-	resp.WriteHeader(http.StatusCreated)
-
-	if purchase.Type == model.LOAN {
-		log.Println("user " + strconv.Itoa(int(purchase.User.ID)) + " lent publication " + strconv.Itoa(int(purchase.Publication.ID)) + " until " + purchase.EndDate.Time.String())
+	if payload.Type == model.LOAN {
+		log.Println("user " + strconv.Itoa(int(payload.User.ID)) + " lent publication " + strconv.Itoa(int(payload.Publication.ID)) + " until " + payload.EndDate.Time.String())
 	} else {
-		log.Println("user " + strconv.Itoa(int(purchase.User.ID)) + " bought publication " + strconv.Itoa(int(purchase.Publication.ID)))
+		log.Println("user " + strconv.Itoa(int(payload.User.ID)) + " bought publication " + strconv.Itoa(int(payload.Publication.ID)))
 	}
+	return nil, http.Problem{Status: http.StatusCreated}
 }
 
 // GetPurchasedLicense generates a new license from the corresponding purchase id (passed as a section of the REST URL).
 // It fetches the license from the lcp server and returns it to the caller.
 // This API method is called from the client app (angular) when a license is requested after a purchase.
 //
-func GetPurchasedLicense(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func GetPurchasedLicense(server http.IServer, resp http.ResponseWriter, req *http.Request) (*model.License, error) {
 	vars := mux.Vars(req)
 	var id int64
 	var err error
 
 	if id, err = strconv.ParseInt(vars["id"], 10, 64); err != nil {
 		// id is not an integer (int64)
-		server.Error(resp, req, http.Problem{Detail: "Purchase ID must be an integer", Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: "Purchase ID must be an integer", Status: http.StatusBadRequest}
+
 	}
 
 	purchase, err := server.Store().Purchase().Get(id)
 	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
+
 	}
 	// FIXME: calling the lsd server at this point is too heavy: the max end date should be in the db.
 	// FIXME: call lsdServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID + "/status"
 	fullLicense, err := generateOrGetLicense(purchase, server)
 	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+
 	}
 
 	attachmentName := http.Slugify(purchase.Publication.Title)
 	resp.Header().Set(http.HdrContentType, http.ContentTypeLcpJson)
 	resp.Header().Set(http.HdrContentDisposition, "attachment; filename=\""+attachmentName+".lcpl\"")
 
-	enc := json.NewEncoder(resp)
-	// does not escape characters
-	enc.SetEscapeHTML(false)
-	err = enc.Encode(fullLicense)
-
-	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
-	}
 	// message to the console
 	log.Println("Return license / id " + vars["id"] + " / " + purchase.Publication.Title + " / purchase " + strconv.FormatInt(purchase.ID, 10))
-
+	return fullLicense, nil
 }
 
 // GetPurchase gets a purchase by its id in the database
 //
-func GetPurchase(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func GetPurchase(server http.IServer, resp http.ResponseWriter, req *http.Request) (*model.Purchase, error) {
 	vars := mux.Vars(req)
 	var id int
 	var err error
 	if id, err = strconv.Atoi(vars["id"]); err != nil {
 		// id is not a number
-		server.Error(resp, req, http.Problem{Detail: "Purchase ID must be an integer", Status: http.StatusBadRequest})
-		return
+		return nil, http.Problem{Detail: "Purchase ID must be an integer", Status: http.StatusBadRequest}
+
 	}
 
 	purchase, err := server.Store().Purchase().Get(int64(id))
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		default:
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
-		return
+
 	}
 	// FIXME: calling the lsd server at this point is too heavy: the max end date should be in the db.
 	// FIXME: call lsdServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID + "/status"
-	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-	// json encode the purchase info into the output stream
-	enc := json.NewEncoder(resp)
-	if err = enc.Encode(purchase); err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
-	}
+	return purchase, nil
 }
 
 // GetPurchaseByLicenseID gets a purchase by a license id in the database
 //
-func GetPurchaseByLicenseID(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func GetPurchaseByLicenseID(server http.IServer, resp http.ResponseWriter, req *http.Request) (*model.Purchase, error) {
 	vars := mux.Vars(req)
 	var err error
 	purchase, err := server.Store().Purchase().GetByLicenseID(vars["licenseID"])
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		default:
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
-		return
+
 	}
-	// purchase found
-	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-	enc := json.NewEncoder(resp)
-	if err = enc.Encode(purchase); err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
-	}
+	return purchase, nil
 }
 
 // UpdatePurchase updates a purchase in the database
 // Only updates the license id (uuid), start and end date, status
 //
-func UpdatePurchase(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func UpdatePurchase(server http.IServer, payload *model.Purchase, param ParamId) (*string, error) {
 
-	vars := mux.Vars(req)
 	var id int
 	var err error
 
 	// check that the purchase id is an integer
-	if id, err = strconv.Atoi(vars["id"]); err != nil {
-		server.Error(resp, req, http.Problem{Detail: "The purchase id must be an integer", Status: http.StatusBadRequest})
-		return
-	}
-	newPurchase, err := ReadPurchasePayload(req)
-	// parse the update info
-	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
+	if id, err = strconv.Atoi(param.Id); err != nil {
+		return nil, http.Problem{Detail: "The purchase id must be an integer", Status: http.StatusBadRequest}
+
 	}
 
 	// console
-	log.Printf("Update purchase %v, license id %v, start %v, end %v, status %v", newPurchase.ID, newPurchase.LicenseUUID.String, newPurchase.StartDate, newPurchase.EndDate, newPurchase.Status)
+	log.Printf("Update purchase %v, license id %v, start %v, end %v, status %v", payload.ID, payload.LicenseUUID.String, payload.StartDate, payload.EndDate, payload.Status)
 
 	// update the purchase, license id, start and end dates, status
 	if err := server.Store().Purchase().Update(&model.Purchase{
 		ID:          int64(id),
-		LicenseUUID: newPurchase.LicenseUUID,
-		StartDate:   newPurchase.StartDate,
-		EndDate:     newPurchase.EndDate,
-		Status:      newPurchase.Status}); err != nil {
+		LicenseUUID: payload.LicenseUUID,
+		StartDate:   payload.StartDate,
+		EndDate:     payload.EndDate,
+		Status:      payload.Status}); err != nil {
 
 		switch err {
 		case gorm.ErrRecordNotFound:
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		default:
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
-		return
+
 	}
-
-	resp.WriteHeader(http.StatusOK)
-}
-
-// ReadPurchasePayload transforms a json
-//
-func ReadPurchasePayload(req *http.Request) (*model.Purchase, error) {
-	var dec *json.Decoder
-	if ctype := req.Header[http.HdrContentType]; len(ctype) > 0 && ctype[0] == http.ContentTypeJson {
-		dec = json.NewDecoder(req.Body)
-	}
-
-	var result model.Purchase
-	return &result, dec.Decode(&result)
+	return nil, http.Problem{Status: http.StatusOK}
 }

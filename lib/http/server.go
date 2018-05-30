@@ -152,7 +152,7 @@ func collect(s *Server, fnValue reflect.Value) (reflect.Type, reflect.Type, refl
 	// convention : first param is always IServer - to give access to configuration, storage, etc
 	serverIfaceParam := functionType.In(0)
 	if "http.IServer" != serverIfaceParam.String() {
-		s.LogError("First argument must be an http.IServer and you provided %q", serverIfaceParam.String())
+		s.LogError("First argument must be an http.IServer and you provided %q on registering %s", serverIfaceParam.String(), callerName)
 		panic("bad handler func. Check logs.")
 	}
 
@@ -191,7 +191,7 @@ func collect(s *Server, fnValue reflect.Value) (reflect.Type, reflect.Type, refl
 			}
 		} else {
 			if payloadType != nil {
-				panic("Seems you are expecting two payloads. You should take only one.")
+				panic("Seems you are expecting two payloads on " + callerName + ". You should take only one.")
 			}
 			// convention : second param is always the json payload (which gets automatically decoded)
 			switch functionType.In(p).Kind() {
@@ -212,7 +212,7 @@ func collect(s *Server, fnValue reflect.Value) (reflect.Type, reflect.Type, refl
 
 	// the function must always return 2 params
 	if functionType.NumOut() != 2 {
-		panic("Handler has " + strconv.Itoa(functionType.NumOut()) + " returns. Must have two : *object or interface{}, and error.")
+		panic("Handler has " + strconv.Itoa(functionType.NumOut()) + " returns. Must have two : *object or interface{}, and error. (while registering " + callerName + ")")
 	}
 
 	// last param returned must be error

@@ -28,19 +28,18 @@
 package lutserver
 
 import (
-	"encoding/json"
 	"log"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/http"
+	"github.com/readium/readium-lcp-server/model"
 )
 
 // GetFilteredLicenses searches licenses activated by more than n devices
 //
-func GetFilteredLicenses(resp http.ResponseWriter, req *http.Request, server http.IServer) {
-
+func GetFilteredLicenses(server http.IServer, req *http.Request) (model.LicensesCollection, error) {
 	rDevices := req.FormValue("devices")
 	log.Println("Licenses used by " + rDevices + " devices")
 	if rDevices == "" {
@@ -48,21 +47,13 @@ func GetFilteredLicenses(resp http.ResponseWriter, req *http.Request, server htt
 	}
 
 	if lic, err := server.Store().License().GetFiltered(rDevices); err == nil {
-		resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-		enc := json.NewEncoder(resp)
-		if err = enc.Encode(lic); err != nil {
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		}
+		return lic, nil
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			{
-				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
-			}
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		default:
-			{
-				server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-			}
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	}
 }
@@ -72,7 +63,7 @@ func GetFilteredLicenses(resp http.ResponseWriter, req *http.Request, server htt
 // fetches the license from the lcp server and returns it to the caller.
 // This API method is called from a link in the license status document.
 //
-func GetLicense(resp http.ResponseWriter, req *http.Request, server http.IServer) {
+func GetLicense(server http.IServer, req *http.Request) (*model.License, error) {
 	vars := mux.Vars(req)
 	var licenseID = vars["license_id"]
 	purchase, err := server.Store().Purchase().GetByLicenseID(licenseID)
@@ -80,32 +71,21 @@ func GetLicense(resp http.ResponseWriter, req *http.Request, server http.IServer
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusNotFound})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		default:
-			server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
-		return
 	}
 	// get an existing license from the lcp server
 	fullLicense, err := generateOrGetLicense(purchase, server)
 	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
-	}
-	// return a json payload
-	resp.Header().Set(http.HdrContentType, http.ContentTypeLcpJson)
-	// the file name is license.lcpl
-	resp.Header().Set(http.HdrContentDisposition, "attachment; filename=\"license.lcpl\"")
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 
-	// returns the full license to the caller
-	enc := json.NewEncoder(resp)
-	// do not escape characters
-	enc.SetEscapeHTML(false)
-	err = enc.Encode(fullLicense)
-	if err != nil {
-		server.Error(resp, req, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError})
-		return
 	}
+
 	// message to the console
 	log.Println("Get license / id " + licenseID + " / " + purchase.Publication.Title + " / purchase " + strconv.FormatInt(purchase.ID, 10))
+	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
+	nonErr.HttpHeaders.Set(http.HdrContentDisposition, "attachment; filename=\"license.lcpl\"")
+	return fullLicense, nonErr
 }

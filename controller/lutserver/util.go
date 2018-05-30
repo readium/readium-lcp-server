@@ -48,6 +48,9 @@ import (
 )
 
 type (
+	ParamId struct {
+		Id string `var:"id"`
+	}
 	// Pagination used to paginate listing
 	Pagination struct {
 		Page    int
@@ -121,9 +124,7 @@ func (repManager RepositoryManager) GetMasterFiles() func() (RepositoryFile, err
 }
 
 // GetRepositoryMasterFiles returns a list of repository masterfiles
-func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s http.IServer) {
-	var err error
-
+func GetRepositoryMasterFiles(s http.IServer) ([]RepositoryFile, error) {
 	files := make([]RepositoryFile, 0)
 	if !repoInited {
 		repoManager = RepositoryManager{MasterRepositoryPath: s.Config().FrontendServer.MasterRepository, EncryptedRepositoryPath: s.Config().FrontendServer.EncryptedRepository}
@@ -134,14 +135,7 @@ func GetRepositoryMasterFiles(w http.ResponseWriter, r *http.Request, s http.ISe
 		files = append(files, it)
 	}
 
-	w.Header().Set(http.HdrContentType, http.ContentTypeJson)
-
-	enc := json.NewEncoder(w)
-	err = enc.Encode(files)
-	if err != nil {
-		s.Error(w, r, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest})
-		return
-	}
+	return files, nil
 }
 
 // EncryptEPUB encrypts an EPUB File and sends the content to the LCP server
