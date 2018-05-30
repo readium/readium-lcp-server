@@ -39,13 +39,13 @@ type (
 
 	LicenseStatus struct {
 		Id                 int64                       `json:"-" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		Status             Status                      `json:"status" gorm:"type:int"`
-		LicenseUpdated     *NullTime                   `json:"license,omitempty" gorm:"column:license_updated"`
-		StatusUpdated      *NullTime                   `json:"status,omitempty" gorm:"column:status_updated"`
-		DeviceCount        *NullInt                    `json:"device_count,omitempty" gorm:"column:device_count"`
-		PotentialRightsEnd *NullTime                   `json:"potential_rights,omitempty"`
-		LicenseRef         string                      `json:"id" gorm:"column:license_ref;associationForeignKey:Id"`
-		CurrentEndLicense  *NullTime                   `json:"-" gorm:"column:rights_end"`
+		Status             Status                      `json:"status" gorm:"type:int" sql:"NOT NULL"`
+		LicenseUpdated     *NullTime                   `json:"license,omitempty" gorm:"column:license_updated" sql:"NOT NULL"`
+		StatusUpdated      *NullTime                   `json:"status,omitempty" gorm:"column:status_updated" sql:"NOT NULL"`
+		DeviceCount        *NullInt                    `json:"device_count,omitempty" gorm:"column:device_count" sql:"DEFAULT NULL"`
+		PotentialRightsEnd *NullTime                   `json:"potential_rights,omitempty" sql:"DEFAULT NULL"`
+		LicenseRef         string                      `json:"id" gorm:"column:license_ref;associationForeignKey:Id;size:36"` // uuid - max 36
+		CurrentEndLicense  *NullTime                   `json:"-" gorm:"column:rights_end" sql:"DEFAULT NULL"`
 		Links              LicenseLinksCollection      `json:"links,omitempty"`
 		Events             TransactionEventsCollection `json:"events,omitempty"`
 		//Message            string                      `json:"message"` // TODO : this was never completed ? there was no write into it, just read

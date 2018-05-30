@@ -41,9 +41,9 @@ type (
 
 	TransactionEvent struct {
 		Id              int64     `json:"-" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		DeviceName      string    `json:"name"`
+		DeviceName      string    `json:"name" sql:"DEFAULT NULL"`
 		Timestamp       time.Time `json:"timestamp" sql:"DEFAULT:current_timestamp;NOT NULL"`
-		Type            Status    `json:"type" gorm:"type:int"`
+		Type            Status    `json:"type" gorm:"type:int" sql:"NOT NULL"`
 		DeviceId        string    `json:"id" sql:"NOT NULL"`                 // TODO : is this unique?
 		LicenseStatusFk int64     `json:"-" gorm:"associationForeignKey:Id"` // foreign key belongs-to License
 	}

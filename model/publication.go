@@ -32,10 +32,10 @@ type (
 	// Publication struct defines a publication
 	Publication struct {
 		ID             int64  `json:"id" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		UUID           string `json:"uuid" sql:"NOT NULL"`
+		UUID           string `json:"uuid" sql:"NOT NULL" gorm:"size:36"` // uuid - max size 36
 		Status         string `json:"status" sql:"NOT NULL"`
 		Title          string `json:"title,omitempty" sql:"NOT NULL"`
-		MasterFilename string `json:"masterFilename,omitempty" sql:"NOT NULL"`
+		MasterFilename string `json:"masterFilename,omitempty" gorm:"-"`
 	}
 )
 

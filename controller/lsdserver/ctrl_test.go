@@ -160,3 +160,36 @@ func TestMain(m *testing.M) {
 	logz.Printf("server is shutting down.")
 	os.Exit(0)
 }
+
+func TestAddLogToFile(t *testing.T) {
+	uid, errU := model.NewUUID()
+	if errU != nil {
+		t.Fatalf("%v", errU)
+	}
+	t.Logf("UUID has %d chars", len(uid.String()))
+}
+
+func TestCreateLicenseStatusDocument(t *testing.T) {
+
+}
+func TestFilterLicenseStatuses(t *testing.T) {
+
+}
+func TestGetLicenseStatusDocument(t *testing.T) {
+
+}
+func TestLendingCancellation(t *testing.T) {
+
+}
+func TestLendingRenewal(t *testing.T) {
+
+}
+func TestLendingReturn(t *testing.T) {
+
+}
+func TestListRegisteredDevices(t *testing.T) {
+
+}
+func TestRegisterDevice(t *testing.T) {
+
+}

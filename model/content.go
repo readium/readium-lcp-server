@@ -34,11 +34,11 @@ import (
 type (
 	ContentCollection []*Content
 	Content           struct {
-		Id            string `json:"id" gorm:"primary_key"`
-		EncryptionKey []byte `json:"-"`
-		Location      string `json:"location"`
-		Length        int64  `json:"length"` //not exported in license spec?
-		Sha256        string `json:"sha256"` //not exported in license spec?
+		Id            string `json:"id" gorm:"primary_key;size:36"` // uuid - max size 36
+		EncryptionKey []byte `json:"-" gorm:"size:64"`              // max size 64 (size is ignored because type is blob)
+		Location      string `json:"location" gorm:"type:text"`     // text
+		Length        int64  `json:"length"`                        // not exported in license spec?
+		Sha256        string `json:"sha256" gorm:"size:64"`         // max size 64 - not exported in license spec?
 	}
 )
 

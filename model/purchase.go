@@ -45,16 +45,15 @@ type (
 	//PurchaseType: BUY or LOAN
 	Purchase struct {
 		ID              int64        `json:"id,omitempty" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		PublicationId   int64        `json:"-"`
-		UserId          int64        `json:"-"`
-		UUID            string       `json:"uuid" sql:"NOT NULL"`
-		Type            string       `json:"type"`
-		Status          string       `json:"status"`
+		PublicationId   int64        `json:"-" sql:"NOT NULL"`
+		UserId          int64        `json:"-" sql:"NOT NULL"`
+		UUID            string       `json:"uuid" sql:"NOT NULL" gorm:"size:36"`
+		Type            string       `json:"type" sql:"NOT NULL"`
+		Status          string       `json:"status" sql:"NOT NULL"`
 		TransactionDate time.Time    `json:"transactionDate,omitempty" sql:"DEFAULT:current_timestamp;NOT NULL"`
-		LicenseUUID     *NullString  `json:"licenseUuid,omitempty"`
-		StartDate       *NullTime    `json:"startDate,omitempty"`
-		EndDate         *NullTime    `json:"endDate,omitempty"`
-		MaxEndDate      *NullTime    `json:"maxEndDate,omitempty"`
+		LicenseUUID     *NullString  `json:"licenseUuid,omitempty" gorm:"size:36" sql:"DEFAULT NULL"`
+		StartDate       *NullTime    `json:"startDate,omitempty" sql:"DEFAULT NULL"`
+		EndDate         *NullTime    `json:"endDate,omitempty" sql:"DEFAULT NULL"`
 		Publication     *Publication `json:"publication" gorm:"foreignKey:PublicationId"`
 		User            *User        `json:"user" gorm:"foreignKey:UserId"`
 	}
@@ -76,9 +75,6 @@ func (p *Purchase) AfterFind() error {
 	}
 	if p.EndDate != nil && !p.EndDate.Valid {
 		p.EndDate = nil
-	}
-	if p.MaxEndDate != nil && !p.MaxEndDate.Valid {
-		p.MaxEndDate = nil
 	}
 	return nil
 }

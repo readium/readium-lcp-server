@@ -32,15 +32,15 @@ import "github.com/jinzhu/gorm"
 type (
 	// License struct defines a license
 	LicenseView struct {
-		ID               string   `json:""`
-		PublicationTitle string   `json:"publication_title"`
-		UserName         string   `json:"user_name"`
-		Type             string   `json:"type"`
-		UUID             string   `json:"id"`
-		DeviceCount      *NullInt `json:"device_count"`
-		Status           Status   `json:"status"`
-		PurchaseID       int      `json:"purchase_id"`
-		Message          string   `json:"message"`
+		ID               int      `json:"-" sql:"AUTO_INCREMENT" gorm:"primary_key"`
+		PublicationTitle string   `json:"publication_title" gorm:"-"`
+		UserName         string   `json:"user_name" gorm:"-"`
+		Type             string   `json:"type" gorm:"-"`
+		UUID             string   `json:"id" gorm:"size:36"` //uuid - max size 36
+		DeviceCount      *NullInt `json:"device_count" sql:"NOT NULL"`
+		Status           Status   `json:"status"  sql:"NOT NULL"`
+		PurchaseID       int      `json:"purchase_id" gorm:"-"`
+		Message          string   `json:"message" sql:"NOT NULL"`
 	}
 
 	LicensesViewCollection []*LicenseView

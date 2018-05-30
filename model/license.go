@@ -54,7 +54,7 @@ type (
 		Key
 		Hint  string `json:"text_hint,omitempty"`
 		Check string `json:"key_check,omitempty"`
-		Value string `json:"value,omitempty"` // Used for the license request
+		Value string `json:"value,omitempty"` // Used for the license request - should have exactly 16 bytes or encrypt will complain
 	}
 
 	LicenseEncryption struct {
@@ -85,18 +85,18 @@ type (
 
 	LicensesCollection []*License
 	License            struct {
-		Id         string                 `json:"id" sql:"NOT NULL" gorm:"primary_key"`
-		UserId     string                 `json:"-" sql:"NOT NULL"`
+		Id         string                 `json:"id" sql:"NOT NULL" gorm:"primary_key;size:36"` // uuid - max size 36
+		UserId     string                 `json:"-" sql:"NOT NULL" gorm:"size:36"`              // size (uuid) 36 TODO : never used. is this work in progress?
 		Provider   string                 `json:"provider" sql:"NOT NULL"`
 		Issued     time.Time              `json:"issued" sql:"DEFAULT:current_timestamp;NOT NULL"`
 		Updated    *NullTime              `json:"updated,omitempty" sql:"DEFAULT NULL"`
-		Print      *NullInt               `json:"-" sql:"DEFAULT NULL" gorm:"column:rights_print"`
-		Copy       *NullInt               `json:"-" sql:"DEFAULT NULL" gorm:"column:rights_copy"`
+		Print      *NullInt               `json:"-" sql:"DEFAULT NULL" gorm:"column:rights_print;size:11"` // max size 11
+		Copy       *NullInt               `json:"-" sql:"DEFAULT NULL" gorm:"column:rights_copy;size:11"`  // max size 11
 		Start      *NullTime              `json:"-" sql:"DEFAULT NULL" gorm:"column:rights_start"`
 		End        *NullTime              `json:"-" sql:"DEFAULT NULL" gorm:"column:rights_end"`
 		Rights     *LicenseUserRights     `json:"rights,omitempty" gorm:"-"`
-		ContentId  string                 `json:"contentId" gorm:"column:content_fk" sql:"NOT NULL"`
-		LSDStatus  int32                  `json:"-"` // TODO : never used. is this work in progress?
+		ContentId  string                 `json:"contentId" gorm:"column:content_fk;size:36" sql:"NOT NULL"` // uuid - max size 36
+		LSDStatus  int32                  `json:"-" gorm:"size:11"`                                          // size 11 TODO : never used. is this work in progress?
 		User       *User                  `json:"user,omitempty" gorm:"-"`
 		Content    *Content               `json:"-" gorm:"associationForeignKey:Id"`
 		Encryption LicenseEncryption      `json:"encryption,omitempty"`
@@ -310,6 +310,11 @@ func (l *License) ValidateEncryption() error {
 	if l.Encryption.UserKey.Value == "" {
 		return fmt.Errorf("Mandatory info missing in the input body : hashed passphrase is missing.")
 	}
+	// TODO : documentation
+	if len(l.Encryption.UserKey.Value) != 16 {
+		return fmt.Errorf("hashed passphrase incorrect length : should be 16")
+	}
+
 	if l.Encryption.UserKey.Algorithm == "" {
 		//log.Println("User passphrase hash algorithm is missing, set default value")
 		// the only valid value in LCP basic and 10 profiles is sha256

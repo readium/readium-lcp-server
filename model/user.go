@@ -36,11 +36,11 @@ type (
 	UsersCollection []*User
 	User            struct {
 		ID        int64    `json:"id" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		UUID      string   `json:"uuid" sql:"NOT NULL"`
-		Name      string   `json:"name,omitempty"`
-		Email     string   `json:"email,omitempty"`
-		Password  string   `json:"password,omitempty"`
-		Hint      string   `json:"hint"`
+		UUID      string   `json:"uuid" sql:"NOT NULL" gorm:"size:36"` // uuid - max size 36
+		Name      string   `json:"name,omitempty"  gorm:"size:64"`
+		Email     string   `json:"email,omitempty"  gorm:"size:64"`
+		Password  string   `json:"password,omitempty"  gorm:"size:64"`
+		Hint      string   `json:"hint"  gorm:"size:64"`
 		Encrypted []string `json:"encrypted,omitempty" gorm:"-"` // TODO : never used. is this work in progress?
 	}
 )
