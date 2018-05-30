@@ -97,19 +97,19 @@ func (t NullTime) Value() (driver.Value, error) {
 }
 
 // NewTime creates a new Time.
-func NewTime(t time.Time, valid bool) *NullTime {
+func NewTime(t time.Time) *NullTime {
 	return &NullTime{
 		Time:  t,
-		Valid: valid,
+		Valid: true,
 	}
 }
 
 func Now() *NullTime {
-	return NewTime(time.Now(), true)
+	return NewTime(time.Now())
 }
 
 func TruncatedNow() *NullTime {
-	return NewTime(time.Now().UTC().Truncate(time.Second), true)
+	return NewTime(time.Now().UTC().Truncate(time.Second))
 }
 
 // ValueOrZero returns the inner value if valid, otherwise zero.

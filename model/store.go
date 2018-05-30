@@ -148,6 +148,7 @@ type (
 	LicenseStatusesRepository interface {
 		//Get(id int) (LicenseStatus, error)
 		Add(ls *LicenseStatus) error
+		Count(deviceLimit int64) (int64, error)
 		List(deviceLimit int64, limit int64, offset int64) (LicensesStatusCollection, error)
 		GetByLicenseId(id string) (*LicenseStatus, error)
 		Update(ls *LicenseStatus) error

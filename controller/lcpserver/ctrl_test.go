@@ -33,8 +33,8 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/adrg/errors"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/filestor"
 	"github.com/readium/readium-lcp-server/lib/http"
@@ -183,9 +183,6 @@ func TestMain(m *testing.M) {
 		model.DefaultLinks[key] = cfg.License.Links[key]
 	}
 	logz.Printf("License server running on port %d [Readonly %t]", cfg.LcpServer.Port, cfg.LcpServer.ReadOnly)
-	// Route.PathPrefix: http://www.gorillatoolkit.org/pkg/mux#Route.PathPrefix
-	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
-	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
 
 	RegisterRoutes(muxer, server)
 

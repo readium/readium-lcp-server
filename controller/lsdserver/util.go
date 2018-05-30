@@ -37,6 +37,7 @@ import (
 	"context"
 	"io/ioutil"
 
+	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/i18n"
@@ -74,9 +75,9 @@ type (
 
 // getEvents gets the events from database for the license status
 //
-func getEvents(ls *model.LicenseStatus, repo model.TransactionRepository) error {
+func getEvents(payload *model.LicenseStatus, repo model.TransactionRepository) error {
 	var err error
-	ls.Events, err = repo.GetByLicenseStatusId(ls.Id)
+	payload.Events, err = repo.GetByLicenseStatusId(payload.Id)
 	if err != gorm.ErrRecordNotFound {
 		return err
 	}
@@ -85,21 +86,21 @@ func getEvents(ls *model.LicenseStatus, repo model.TransactionRepository) error 
 
 // makeLinks creates and adds links to the license status
 //
-func makeLinks(ls *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpConfig http.ServerInfo, licStatus http.LicenseStatus) {
+func makeLinks(payload *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpConfig http.ServerInfo, licStatus http.LicenseStatus) {
 	lsdBaseURL := lsdConfig.PublicBaseUrl
 	licenseLinkURL := lsdConfig.LicenseLinkUrl
 	lcpBaseURL := lcpConfig.PublicBaseUrl
 	//frontendBaseUrl := config.Config.FrontendServer.PublicBaseUrl
 	registerAvailable := licStatus.Register
 
-	licenseHasRightsEnd := ls.CurrentEndLicense.Valid && !(ls.CurrentEndLicense.Time).IsZero()
+	licenseHasRightsEnd := payload.CurrentEndLicense.Valid && !(payload.CurrentEndLicense.Time).IsZero()
 	returnAvailable := licStatus.Return && licenseHasRightsEnd
 	renewAvailable := licStatus.Renew && licenseHasRightsEnd
 
 	links := make(model.LicenseLinksCollection, 0, 0)
 
 	if licenseLinkURL != "" {
-		licenseLinkURLReal := strings.Replace(licenseLinkURL, "{license_id}", ls.LicenseRef, -1)
+		licenseLinkURLReal := strings.Replace(licenseLinkURL, "{license_id}", payload.LicenseRef, -1)
 		link := &model.LicenseLink{
 			Href:      licenseLinkURLReal,
 			Rel:       "license",
@@ -109,7 +110,7 @@ func makeLinks(ls *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpConfig 
 		links = append(links, link)
 	} else {
 		link := &model.LicenseLink{
-			Href:      lcpBaseURL + "/licenses/" + ls.LicenseRef,
+			Href:      lcpBaseURL + "/licenses/" + payload.LicenseRef,
 			Rel:       "license",
 			Type:      http.ContentTypeLcpJson,
 			Templated: false,
@@ -119,7 +120,7 @@ func makeLinks(ls *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpConfig 
 
 	if registerAvailable {
 		link := &model.LicenseLink{
-			Href:      lsdBaseURL + "/licenses/" + ls.LicenseRef + "/register{?id,name}",
+			Href:      lsdBaseURL + "/licenses/" + payload.LicenseRef + "/register{?id,name}",
 			Rel:       "register",
 			Type:      http.ContentTypeLsdJson,
 			Templated: true,
@@ -129,7 +130,7 @@ func makeLinks(ls *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpConfig 
 
 	if returnAvailable {
 		link := &model.LicenseLink{
-			Href:      lsdBaseURL + "/licenses/" + ls.LicenseRef + "/return{?id,name}",
+			Href:      lsdBaseURL + "/licenses/" + payload.LicenseRef + "/return{?id,name}",
 			Rel:       "return",
 			Type:      http.ContentTypeLsdJson,
 			Templated: true,
@@ -139,7 +140,7 @@ func makeLinks(ls *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpConfig 
 
 	if renewAvailable {
 		link := &model.LicenseLink{
-			Href:      lsdBaseURL + "/licenses/" + ls.LicenseRef + "/renew{?end,id,name}",
+			Href:      lsdBaseURL + "/licenses/" + payload.LicenseRef + "/renew{?end,id,name}",
 			Rel:       "renew",
 			Type:      http.ContentTypeLsdJson,
 			Templated: true,
@@ -147,7 +148,7 @@ func makeLinks(ls *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpConfig 
 		links = append(links, link)
 	}
 
-	ls.Links = links
+	payload.Links = links
 }
 
 // makeEvent creates an event and fill it
@@ -230,15 +231,36 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, s http.IServer) (int, 
 
 // fillLicenseStatus fills the localized 'message' field, the 'links' and 'event' objects in the license status
 //
-func fillLicenseStatus(ls *model.LicenseStatus, hdr Headers, s http.IServer) error {
+func fillLicenseStatus(payload *model.LicenseStatus, hdr Headers, s http.IServer) error {
 	// add the localized message
 	acceptLanguages := hdr.AcceptLanguage
 	license := ""
-	i18n.LocalizeMessage(s.Config().Localization.DefaultLanguage, acceptLanguages, &license, ls.Status.String())
+	i18n.LocalizeMessage(s.Config().Localization.DefaultLanguage, acceptLanguages, &license, payload.Status.String())
 	// add the links
-	makeLinks(ls, s.Config().LsdServer, s.Config().LcpServer, s.Config().LicenseStatus)
+	makeLinks(payload, s.Config().LsdServer, s.Config().LcpServer, s.Config().LicenseStatus)
 	// add the events
-	err := getEvents(ls, s.Store().Transaction())
+	err := getEvents(payload, s.Store().Transaction())
 
 	return err
+}
+
+func RegisterRoutes(muxer *mux.Router, server http.IServer) {
+	muxer.NotFoundHandler = server.NotFoundHandler() //handle all other requests 404
+
+	licenseRoutesPathPrefix := "/licenses"
+	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
+	server.HandleFunc(muxer, licenseRoutesPathPrefix, FilterLicenseStatuses, true).Methods("GET")
+	server.HandleFunc(licenseRoutes, "/{key}/status", GetLicenseStatusDocument, false).Methods("GET")
+	if server.Config().ComplianceMode {
+		server.HandleFunc(muxer, "/compliancetest", AddLogToFile, false).Methods("POST")
+	}
+	server.HandleFunc(licenseRoutes, "/{key}/registered", ListRegisteredDevices, true).Methods("GET")
+	if !server.Config().LcpServer.ReadOnly {
+		server.HandleFunc(licenseRoutes, "/{key}/register", RegisterDevice, false).Methods("POST")
+		server.HandleFunc(licenseRoutes, "/{key}/return", LendingReturn, false).Methods("PUT")
+		server.HandleFunc(licenseRoutes, "/{key}/renew", LendingRenewal, false).Methods("PUT")
+		server.HandleFunc(licenseRoutes, "/{key}/status", LendingCancellation, true).Methods("PATCH")
+		server.HandleFunc(muxer, "/licenses", CreateLicenseStatusDocument, true).Methods("PUT")
+		server.HandleFunc(licenseRoutes, "/", CreateLicenseStatusDocument, true).Methods("PUT")
+	}
 }

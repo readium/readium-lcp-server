@@ -84,64 +84,6 @@ func cleanupTemp(f *os.File) {
 	os.Remove(f.Name())
 }
 
-// notifyLSDServer informs the License Status Server of the creation of a new license
-// and saves the result of the http request in the DB (using *LicenseRepository)
-//
-func notifyLSDServer(payload *model.License, server http.IServer) {
-	if server.Config().LsdServer.PublicBaseUrl == "" {
-		// can't call : url is empty
-		return
-	}
-	jsonPayload, err := json.Marshal(payload)
-	if err != nil {
-		server.LogError("Error Notify LsdServer of new License (" + payload.Id + ") Marshaling error : " + err.Error())
-	}
-
-	req, err := http.NewRequest("PUT", server.Config().LsdServer.PublicBaseUrl+"/licenses", bytes.NewReader(jsonPayload))
-	if err != nil {
-		return
-	}
-
-	// set credentials on lsd request
-	notifyAuth := server.Config().LsdNotifyAuth
-	if notifyAuth.Username != "" {
-		req.SetBasicAuth(notifyAuth.Username, notifyAuth.Password)
-	}
-	req.Header.Add(http.HdrContentType, http.ContentTypeLcpJson)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// making request
-	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
-	// If we got an error, and the context has been canceled, the context's error is probably more useful.
-	if err != nil {
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-		default:
-		}
-	}
-
-	if err != nil {
-		server.LogError("Error Notify LsdServer of new License (" + payload.Id + "):" + err.Error())
-		err = server.Store().License().UpdateLsdStatus(payload.Id, -1)
-		return
-	}
-
-	// we have a body, defering close
-	defer resp.Body.Close()
-	// reading body
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		server.LogError("Error Notify LsdServer of new License (read body error : %v)", err)
-	}
-	_ = server.Store().License().UpdateLsdStatus(payload.Id, int32(resp.StatusCode))
-	// message to the console
-	server.LogInfo("Notify LsdServer of a new License with id %q http-status %d response %v", payload.Id, resp.StatusCode, body)
-
-}
-
 // build a license, common to get and generate license, get and generate licensed publication
 //
 func buildLicense(license *model.License, server http.IServer) error {
@@ -234,45 +176,86 @@ func buildLicencedPublication(license *model.License, server http.IServer) (*epu
 	return &ep, err
 }
 
-func RegisterRoutes(muxer *mux.Router, server http.IServer) {
-	muxer.NotFoundHandler = server.NotFoundHandler() // handle all other requests 404
-	// methods related to EPUB encrypted content
-
-	contentRoutesPathPrefix := "/contents"
-	contentRoutes := muxer.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
-
-	server.HandleFunc(muxer, contentRoutesPathPrefix, ListContents, false).Methods("GET")
-
-	// get encrypted content by content id (a uuid)
-	server.HandleFunc(contentRoutes, "/{content_id}", GetContent, false).Methods("GET")
-	// get all licenses associated with a given content
-	server.HandleFunc(contentRoutes, "/{content_id}/licenses", ListLicensesForContent, true).Methods("GET")
-
-	if !server.Config().LcpServer.ReadOnly {
-		server.HandleFunc(contentRoutes, "/{name}", StoreContent, true).Methods("POST")
-		// put content to the storage
-		server.HandleFunc(contentRoutes, "/{content_id}", AddContent, true).Methods("PUT")
-		// generate a license for given content
-		server.HandleFunc(contentRoutes, "/{content_id}/license", GenerateLicense, true).Methods("POST")
-		// deprecated, from a typo in the lcp server spec
-		server.HandleFunc(contentRoutes, "/{content_id}/licenses", GenerateLicense, true).Methods("POST")
-		// generate a licensed publication
-		server.HandleFunc(contentRoutes, "/{content_id}/publication", GenerateLicensedPublication, true).Methods("POST")
-		// deprecated, from a typo in the lcp server spec
-		server.HandleFunc(contentRoutes, "/{content_id}/publications", GenerateLicensedPublication, true).Methods("POST")
+// notifyLSDServer informs the License Status Server of the creation of a new license
+// and saves the result of the http request in the DB (using *LicenseRepository)
+//
+func notifyLSDServer(payload *model.License, server http.IServer) {
+	if server.Config().LsdServer.PublicBaseUrl == "" {
+		// can't call : url is empty
+		return
+	}
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		server.LogError("Error Notify LsdServer of new License (" + payload.Id + ") Marshaling error : " + err.Error())
 	}
 
-	// methods related to licenses
+	req, err := http.NewRequest("PUT", server.Config().LsdServer.PublicBaseUrl+"/licenses", bytes.NewReader(jsonPayload))
+	if err != nil {
+		return
+	}
 
-	licenseRoutesPathPrefix := "/licenses"
+	// set credentials on lsd request
+	notifyAuth := server.Config().LsdNotifyAuth
+	if notifyAuth.Username != "" {
+		req.SetBasicAuth(notifyAuth.Username, notifyAuth.Password)
+	}
+	req.Header.Add(http.HdrContentType, http.ContentTypeLcpJson)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		server.LogError("Error Notify LsdServer of new License (" + payload.Id + "):" + err.Error())
+		err = server.Store().License().UpdateLsdStatus(payload.Id, -1)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		server.LogError("Error Notify LsdServer of new License (read body error : %v)", err)
+	}
+	_ = server.Store().License().UpdateLsdStatus(payload.Id, int32(resp.StatusCode))
+	// message to the console
+	server.LogInfo("Notify LsdServer of a new License with id %q http-status %d response %v", payload.Id, resp.StatusCode, body)
+
+}
+
+func RegisterRoutes(muxer *mux.Router, server http.IServer) {
+	muxer.NotFoundHandler = server.NotFoundHandler() // handle all other requests 404
+
+	contentRoutesPathPrefix := "/contents" // methods related to EPUB encrypted content
+	contentRoutes := muxer.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
+	server.HandleFunc(muxer, contentRoutesPathPrefix, ListContents, false).Methods("GET")
+	server.HandleFunc(contentRoutes, "/{content_id}", GetContent, false).Methods("GET")                     // get encrypted content by content id (a uuid)
+	server.HandleFunc(contentRoutes, "/{content_id}/licenses", ListLicensesForContent, true).Methods("GET") // get all licenses associated with a given content
+	if !server.Config().LcpServer.ReadOnly {
+		server.HandleFunc(contentRoutes, "/{name}", StoreContent, true).Methods("POST")
+		server.HandleFunc(contentRoutes, "/{content_id}", AddContent, true).Methods("PUT")                                // put content to the storage
+		server.HandleFunc(contentRoutes, "/{content_id}/license", GenerateLicense, true).Methods("POST")                  // generate a license for given content
+		server.HandleFunc(contentRoutes, "/{content_id}/licenses", GenerateLicense, true).Methods("POST")                 // deprecated, from a typo in the lcp server spec
+		server.HandleFunc(contentRoutes, "/{content_id}/publication", GenerateLicensedPublication, true).Methods("POST")  // generate a licensed publication
+		server.HandleFunc(contentRoutes, "/{content_id}/publications", GenerateLicensedPublication, true).Methods("POST") // deprecated, from a typo in the lcp server spec
+	}
+	licenseRoutesPathPrefix := "/licenses" // methods related to licenses
 	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
-
 	server.HandleFunc(muxer, licenseRoutesPathPrefix, ListLicenses, true).Methods("GET")
-	// get a license
-	server.HandleFunc(licenseRoutes, "/{license_id}", GetLicense, true).Methods("GET")
+	server.HandleFunc(licenseRoutes, "/{license_id}", GetLicense, true).Methods("GET") // get a license
 	server.HandleFunc(licenseRoutes, "/{license_id}", GetLicense, true).Methods("POST")
-	// get a licensed publication via a license id
-	server.HandleFunc(licenseRoutes, "/{license_id}/publication", GetLicensedPublication, true).Methods("POST")
+	server.HandleFunc(licenseRoutes, "/{license_id}/publication", GetLicensedPublication, true).Methods("POST") // get a licensed publication via a license id
 	if !server.Config().LcpServer.ReadOnly {
 		// update a license
 		server.HandleFunc(licenseRoutes, "/{license_id}", UpdateLicense, true).Methods("PATCH")

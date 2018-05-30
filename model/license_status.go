@@ -206,6 +206,13 @@ func (i licenseStatusStore) Update(ls *LicenseStatus) error {
 	return i.db.Save(ls).Error
 }
 
+// Counts statuses which have devices count more than devices limit
+func (i licenseStatusStore) Count(deviceLimit int64) (int64, error) {
+	var result int64
+	//`SELECT COUNT(*) FROM license_status WHERE device_count >= ?
+	return result, i.db.Where("device_count >= ?", deviceLimit).Count(&result).Error
+}
+
 //List gets license statuses which have devices count more than devices limit
 //input parameters: limit - how much license statuses need to get, offset - from what position need to start
 func (i licenseStatusStore) List(deviceLimit int64, page int64, pageNum int64) (LicensesStatusCollection, error) {

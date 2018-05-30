@@ -25,63 +25,62 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package main
+package lsdserver
 
 import (
-	"os"
-
-	goHttp "net/http"
-	"time"
-
 	"context"
-	"os/signal"
-
 	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/controller/lsdserver"
 	"github.com/readium/readium-lcp-server/lib/http"
-	"github.com/readium/readium-lcp-server/lib/i18n"
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/model"
+	"gopkg.in/yaml.v1"
+	"io/ioutil"
+	"log"
+	goHttp "net/http"
+	"os"
+	"runtime/debug"
 	"strconv"
+	"strings"
+	"testing"
+	"time"
 )
 
-func main() {
-	logz := logger.New()
-	logz.Printf("RUNNING LSD SERVER")
-	// read config file
-	configFile := "config.yaml"
-	if os.Getenv("READIUM_LSDSERVER_CONFIG") != "" {
-		configFile = os.Getenv("READIUM_LSDSERVER_CONFIG")
-	}
+var workingDir string
+var localhostAndPort string
 
-	cfg, err := http.ReadConfig(configFile)
+// debugging multiple header calls
+type debugLogger struct{}
+
+func (d debugLogger) Write(p []byte) (n int, err error) {
+	s := string(p)
+	if strings.Contains(s, "multiple response.WriteHeader") {
+		debug.PrintStack()
+	}
+	return os.Stderr.Write(p)
+}
+
+// prepare test server
+func TestMain(m *testing.M) {
+	var err error
+	logz := logger.New()
+	// working dir
+	workingDir, err = os.Getwd()
+	if err != nil {
+		panic("Working dir error : " + err.Error())
+	}
+	workingDir = strings.Replace(workingDir, "\\src\\github.com\\readium\\readium-lcp-server\\controller\\lsdserver", "", -1)
+
+	yamlFile, err := ioutil.ReadFile(workingDir + "\\config.yaml")
+	if err != nil {
+		panic(err)
+	}
+	var cfg http.Configuration
+	err = yaml.Unmarshal(yamlFile, &cfg)
 	if err != nil {
 		panic(err)
 	}
 
-	// check passwords file
-	if cfg.LsdServer.AuthFile == "" {
-		panic("Must have passwords file")
-	}
-	_, err = os.Stat(cfg.LsdServer.AuthFile)
-	if err != nil {
-		panic("Passwords file error : " + err.Error())
-	}
-
-	if cfg.Localization.Folder != "" {
-		err = i18n.InitTranslations(cfg.Localization.Folder, cfg.Localization.Languages)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	// use a sqlite db by default
-	dbURI := "sqlite3://file:lsd.sqlite?cache=shared&mode=rwc"
-	if cfg.LsdServer.Database != "" {
-		dbURI = cfg.LsdServer.Database
-	}
-
-	stor, err := model.SetupDB(dbURI, logz, false)
+	stor, err := model.SetupDB("sqlite3://file:"+workingDir+"\\lsd.sqlite?cache=shared&mode=rwc", logz, false)
 	if err != nil {
 		panic("Error setting up the database : " + err.Error())
 	}
@@ -89,15 +88,23 @@ func main() {
 	if err != nil {
 		panic("Error migrating database : " + err.Error())
 	}
-
 	// a log file will be created with a specifc format, for compliance testing
 	err = logger.Init(cfg.LsdServer.LogDirectory, cfg.ComplianceMode)
 	if err != nil {
 		panic(err)
 	}
 
-	muxer := mux.NewRouter()
+	storagePath := cfg.Storage.FileSystem.Directory
+	if storagePath == "" {
+		storagePath = workingDir + "\\files"
+	}
 
+	authFile := cfg.LcpServer.AuthFile
+	if authFile == "" {
+		panic("Must have passwords file")
+	}
+
+	muxer := mux.NewRouter()
 	muxer.Use(
 		http.RecoveryHandler(http.RecoveryLogger(logz), http.PrintRecoveryStack(true)),
 		http.CorsMiddleWare(
@@ -107,43 +114,38 @@ func main() {
 		),
 		http.DelayMiddleware,
 	)
-
+	runningPort := strconv.Itoa(cfg.LcpServer.Port)
+	localhostAndPort = "http://localhost:" + runningPort
 	server := &http.Server{
 		Server: goHttp.Server{
 			Handler:        muxer,
-			Addr:           ":" + strconv.Itoa(cfg.LsdServer.Port),
+			Addr:           ":" + runningPort,
 			WriteTimeout:   15 * time.Second,
 			ReadTimeout:    15 * time.Second,
 			MaxHeaderBytes: 1 << 20,
+			ErrorLog:       log.New(debugLogger{}, "", 0), // debugging multiple header calls
 		},
 		Log:        logz,
 		Cfg:        cfg,
-		Readonly:   cfg.LsdServer.ReadOnly,
+		Readonly:   cfg.LcpServer.ReadOnly,
 		Model:      stor,
-		GoophyMode: cfg.GoofyMode, // the server will behave strangely, to test the resilience of LCP compliant apps
+		GoophyMode: cfg.GoofyMode,
 	}
 
 	server.InitAuth("Basic Realm") // creates authority checker
-	lsdserver.RegisterRoutes(muxer, server)
-	server.Log.Printf("License status server running on port %d [readonly = %t]", cfg.LsdServer.Port, server.Config().LcpServer.ReadOnly)
 
-	logz.Printf("Using database : %q", dbURI)
-	logz.Printf("Public base URL : %q", cfg.LsdServer.PublicBaseUrl)
+	logz.Printf("License status server running on port %d [Readonly %t]", cfg.LcpServer.Port, cfg.LcpServer.ReadOnly)
+
+	RegisterRoutes(muxer, server)
 
 	// Run our server in a goroutine so that it doesn't block.
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			logz.Printf("Error " + err.Error())
+			logz.Printf("ListenAndServe Error " + err.Error())
 		}
 	}()
 
-	c := make(chan os.Signal, 1)
-	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
-	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
-	signal.Notify(c, os.Interrupt)
-
-	// Block until we receive our signal.
-	<-c
+	m.Run()
 
 	wait := time.Second * 15 // the duration for which the server gracefully wait for existing connections to finish
 	// Create a deadline to wait for.

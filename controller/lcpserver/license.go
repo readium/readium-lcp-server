@@ -292,15 +292,14 @@ func ListLicensesForContent(server http.IServer, param ParamContentIdAndPage) (m
 	if param.ContentID == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
-	contentID := param.ContentID
 	var err error
 	//check if the license exists
-	_, err = server.Store().Content().Get(contentID)
+	_, err = server.Store().Content().Get(param.ContentID)
 	if err == gorm.ErrRecordNotFound {
 		//server.LogInfo("License %s not found.", contentID)
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 	}
-	noOfLicenses, err := server.Store().License().CountForContentId(contentID)
+	noOfLicenses, err := server.Store().License().CountForContentId(param.ContentID)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
@@ -314,7 +313,7 @@ func ListLicensesForContent(server http.IServer, param ParamContentIdAndPage) (m
 		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
 	}
 
-	licenses, err := server.Store().License().List(contentID, perPage, page)
+	licenses, err := server.Store().License().List(param.ContentID, perPage, page)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
