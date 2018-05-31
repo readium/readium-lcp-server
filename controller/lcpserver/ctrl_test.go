@@ -441,7 +441,7 @@ func listLicenses(page, perPage int64) (model.LicensesCollection, error) {
 	}
 
 	if err != nil {
-		return nil, errors.New("Error : %v", err)
+		return nil, err
 	}
 
 	// we have a body, defering close
@@ -449,13 +449,13 @@ func listLicenses(page, perPage int64) (model.LicensesCollection, error) {
 	// reading body
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.New("Error reading response body error : %v", err)
+		return nil, errors.New("Error reading response body error : " + err.Error())
 	}
 	if resp.StatusCode < 300 {
 		var content model.LicensesCollection
 		err = json.Unmarshal(body, &content)
 		if err != nil {
-			return nil, errors.New("Error Unmarshaling : %v.\nServer response : %s", err, string(body))
+			return nil, fmt.Errorf("Error Unmarshaling : %v.\nServer response : %s", err, string(body))
 		}
 		return content, nil
 	}
@@ -463,9 +463,9 @@ func listLicenses(page, perPage int64) (model.LicensesCollection, error) {
 	var problem http.Problem
 	err = json.Unmarshal(body, &problem)
 	if err != nil {
-		return nil, errors.New("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		return nil, fmt.Errorf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
 	}
-	return nil, errors.New("error response : %#v", problem)
+	return nil, fmt.Errorf("error response : %#v", problem)
 }
 
 func TestListLicenses(t *testing.T) {

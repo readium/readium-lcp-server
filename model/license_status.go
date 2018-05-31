@@ -28,10 +28,8 @@
 package model
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"time"
 )
 
 type (
@@ -143,43 +141,6 @@ func (s *LicenseStatus) TableName() string {
 	return LSDLicenseStatusTableName
 }
 
-// makeLicenseStatus sets fields of license status according to the config file
-// and creates needed inner objects of license status
-//
-func (s *LicenseStatus) MakeLicenseStatus(license *License, registerAvailable bool, rentingDays int) {
-	s.LicenseRef = license.Id
-
-	if license.Rights == nil || !license.Rights.End.Valid {
-		// The publication was purchased (not a loan), so we do not set LSD.PotentialRights.End
-		s.CurrentEndLicense.Valid = false
-	} else {
-		// license.Rights.End exists => this is a loan
-		endFromLicense := license.Rights.End.Time.Add(0)
-		s.CurrentEndLicense = &NullTime{Time: endFromLicense, Valid: true}
-		if rentingDays > 0 {
-			endFromConfig := license.Issued.Add(time.Hour * 24 * time.Duration(rentingDays))
-			if endFromLicense.After(endFromConfig) {
-				s.PotentialRightsEnd = &NullTime{Time: endFromLicense, Valid: true}
-			} else {
-				s.PotentialRightsEnd = &NullTime{Time: endFromConfig, Valid: true}
-			}
-		} else {
-			s.PotentialRightsEnd = &NullTime{Time: endFromLicense, Valid: true}
-		}
-	}
-
-	if registerAvailable {
-		s.Status = StatusReady
-	} else {
-		s.Status = StatusActive
-	}
-
-	s.LicenseUpdated = &NullTime{Time: license.Issued, Valid: true}
-	s.StatusUpdated = TruncatedNow()
-
-	s.DeviceCount = &NullInt{sql.NullInt64{Int64: 0, Valid: true}}
-}
-
 // Implementation of GORM callback
 func (s *LicenseStatus) BeforeSave() error {
 	return nil
@@ -210,7 +171,7 @@ func (i licenseStatusStore) Update(ls *LicenseStatus) error {
 func (i licenseStatusStore) Count(deviceLimit int64) (int64, error) {
 	var result int64
 	//`SELECT COUNT(*) FROM license_status WHERE device_count >= ?
-	return result, i.db.Where("device_count >= ?", deviceLimit).Count(&result).Error
+	return result, i.db.Model(LicenseStatus{}).Where("device_count >= ?", deviceLimit).Count(&result).Error
 }
 
 //List gets license statuses which have devices count more than devices limit

@@ -257,7 +257,7 @@ func GenerateLicensedPublication(server http.IServer, lic *model.License, param 
 // 	page: page number
 //	per_page: number of items par page
 //
-func ListLicenses(server http.IServer, param http.ParamPagination) (model.LicensesCollection, error) {
+func ListLicenses(server http.IServer, param ParamPagination) (model.LicensesCollection, error) {
 	noOfLicenses, err := server.Store().License().Count()
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
@@ -292,6 +292,7 @@ func ListLicensesForContent(server http.IServer, param ParamContentIdAndPage) (m
 	if param.ContentID == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
+	//server.LogInfo("ListLicensesForContent : %#v", param)
 	var err error
 	//check if the license exists
 	_, err = server.Store().Content().Get(param.ContentID)

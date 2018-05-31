@@ -37,6 +37,7 @@ import (
 	"context"
 	"io/ioutil"
 
+	"database/sql"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/http"
@@ -46,11 +47,11 @@ import (
 
 type (
 	ParamKey struct {
-		Key string `form:"key"`
+		Key string `var:"key"`
 	}
 
 	ParamKeyAndDevice struct {
-		Key        string `form:"key"`
+		Key        string `var:"key"`
 		DeviceID   string `form:"id"`
 		DeviceName string `form:"name"`
 		End        string `form:"end"`
@@ -58,7 +59,8 @@ type (
 
 	ParamDevicesAndPage struct {
 		Devices string `form:"devices"`
-		http.ParamPagination
+		Page    string `form:"page"`
+		PerPage string `form:"per_page"`
 	}
 
 	ParamLog struct {
@@ -68,7 +70,7 @@ type (
 	}
 
 	Headers struct {
-		UserAgent      string `hdr:"User-Agent"`
+		UserAgent      string // attention : this doesn't require `hdr:"User-Agent"`
 		AcceptLanguage string `hdr:"Accept-Language"`
 	}
 )
@@ -244,23 +246,64 @@ func fillLicenseStatus(payload *model.LicenseStatus, hdr Headers, s http.IServer
 	return err
 }
 
+// makeLicenseStatus sets fields of license status according to the config file
+// and creates needed inner objects of license status
+//
+func makeLicenseStatus(license *model.License, registerAvailable bool, rentingDays int) *model.LicenseStatus {
+	result := model.LicenseStatus{
+		LicenseRef: license.Id,
+	}
+
+	if license.Rights == nil || !license.Rights.End.Valid {
+		// The publication was purchased (not a loan), so we do not set LSD.PotentialRights.End
+		result.CurrentEndLicense.Valid = false
+	} else {
+		// license.Rights.End exists => this is a loan
+		endFromLicense := license.Rights.End.Time.Add(0)
+		result.CurrentEndLicense = &model.NullTime{Time: endFromLicense, Valid: true}
+		if rentingDays > 0 {
+			endFromConfig := license.Issued.Add(time.Hour * 24 * time.Duration(rentingDays))
+			if endFromLicense.After(endFromConfig) {
+				result.PotentialRightsEnd = &model.NullTime{Time: endFromLicense, Valid: true}
+			} else {
+				result.PotentialRightsEnd = &model.NullTime{Time: endFromConfig, Valid: true}
+			}
+		} else {
+			result.PotentialRightsEnd = &model.NullTime{Time: endFromLicense, Valid: true}
+		}
+	}
+
+	if registerAvailable {
+		result.Status = model.StatusReady
+	} else {
+		result.Status = model.StatusActive
+	}
+
+	result.LicenseUpdated = &model.NullTime{Time: license.Issued, Valid: true}
+	result.StatusUpdated = model.TruncatedNow()
+	result.DeviceCount = &model.NullInt{NullInt64: sql.NullInt64{Int64: 1, Valid: true}} // default is 1, so it can be found on filter
+	return &result
+}
+
 func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	muxer.NotFoundHandler = server.NotFoundHandler() //handle all other requests 404
 
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 	server.HandleFunc(muxer, licenseRoutesPathPrefix, FilterLicenseStatuses, true).Methods("GET")
-	server.HandleFunc(licenseRoutes, "/{key}/status", GetLicenseStatusDocument, false).Methods("GET")
+	server.HandleFunc(licenseRoutes, "/{key}/status", GetLicenseStatusDocument, false).Methods("GET") // TODO : why this is unsecured
 	if server.Config().ComplianceMode {
-		server.HandleFunc(muxer, "/compliancetest", AddLogToFile, false).Methods("POST")
+		//server.LogInfo("Compliance mode is ON.")
+		server.HandleFunc(muxer, "/compliancetest", AddLogToFile, false).Methods("POST") // TODO : why this is unsecured
 	}
+
 	server.HandleFunc(licenseRoutes, "/{key}/registered", ListRegisteredDevices, true).Methods("GET")
 	if !server.Config().LcpServer.ReadOnly {
-		server.HandleFunc(licenseRoutes, "/{key}/register", RegisterDevice, false).Methods("POST")
-		server.HandleFunc(licenseRoutes, "/{key}/return", LendingReturn, false).Methods("PUT")
-		server.HandleFunc(licenseRoutes, "/{key}/renew", LendingRenewal, false).Methods("PUT")
+		server.HandleFunc(licenseRoutes, "/{key}/register", RegisterDevice, false).Methods("POST") // TODO : why this is unsecured
+		server.HandleFunc(licenseRoutes, "/{key}/return", LendingReturn, false).Methods("PUT")     // TODO : why this is unsecured
+		server.HandleFunc(licenseRoutes, "/{key}/renew", LendingRenewal, false).Methods("PUT")     // TODO : why this is unsecured
 		server.HandleFunc(licenseRoutes, "/{key}/status", LendingCancellation, true).Methods("PATCH")
-		server.HandleFunc(muxer, "/licenses", CreateLicenseStatusDocument, true).Methods("PUT")
-		server.HandleFunc(licenseRoutes, "/", CreateLicenseStatusDocument, true).Methods("PUT")
+		//server.HandleFunc(muxer, "/licenses", CreateLicenseStatusDocument, true).Methods("PUT")
+		server.HandleFunc(licenseRoutes, "", CreateLicenseStatusDocument, true).Methods("PUT")
 	}
 }

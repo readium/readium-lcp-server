@@ -66,19 +66,18 @@ func AddLogToFile(server http.IServer, param ParamLog) (*string, error) {
 	if testStage == "start" {
 		if len(testNumber) == 0 {
 			return nil, http.Problem{Type: "about:blank", Detail: "The number of compliance test cannot be null", Status: http.StatusBadRequest}
-		} else {
-			complianceTestNumber = testNumber
-			testResult = "-"
-			logger.WriteToFile(complianceTestNumber, testStage, testResult, "")
 		}
+		complianceTestNumber = testNumber
+		testResult = "-"
+		logger.WriteToFile(complianceTestNumber, testStage, testResult, "")
 	} else {
 		if testResult != "e" && testResult != "s" {
 			return nil, http.Problem{Type: "about:blank", Detail: "The result of compliance test must be either 'e' or 's'", Status: http.StatusBadRequest}
-		} else {
-			testResult = results[testResult]
-			logger.WriteToFile(complianceTestNumber, testStage, testResult, "")
-			complianceTestNumber = ""
 		}
+		testResult = results[testResult]
+		logger.WriteToFile(complianceTestNumber, testStage, testResult, "")
+		complianceTestNumber = ""
 	}
-	return nil, nil
+	response := "ok"
+	return &response, nil
 }

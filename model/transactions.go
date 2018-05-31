@@ -98,7 +98,7 @@ func (i transactionEventStore) GetByLicenseStatusId(licenseStatusFk int64) (Tran
 func (i transactionEventStore) ListRegisteredDevices(licenseStatusFk int64) (TransactionEventsCollection, error) {
 	var result TransactionEventsCollection
 	//`SELECT device_id, device_name, timestamp  FROM event  WHERE license_status_fk = ? AND type = 1`
-	return result, i.db.Where("%s.license_status_fk = ? AND %s.type = ?", licenseStatusFk, StatusActiveInt).Find(&result).Error
+	return result, i.db.Where("license_status_fk = ? AND type = ?", licenseStatusFk, StatusActiveInt).Find(&result).Error
 }
 
 // CheckDeviceStatus gets the current status of a device

@@ -47,13 +47,19 @@ type (
 		Name string `var:"name"`
 	}
 
+	ParamPagination struct {
+		Page    string `form:"page"`
+		PerPage string `form:"per_page"`
+	}
+
 	ParamContentId struct {
 		ContentID string `var:"content_id"`
 	}
 
 	ParamContentIdAndPage struct {
 		ContentID string `var:"content_id"`
-		http.ParamPagination
+		Page      string `form:"page"`
+		PerPage   string `form:"per_page"`
 	}
 
 	ParamLicenseId struct {

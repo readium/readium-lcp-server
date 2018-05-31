@@ -41,8 +41,13 @@ import (
 // It is triggered by a notification from the license server
 //
 func CreateLicenseStatusDocument(server http.IServer, payload *model.License) (*string, error) {
-	var ls *model.LicenseStatus
-	ls.MakeLicenseStatus(payload, server.Config().LicenseStatus.Register, server.Config().LicenseStatus.RentingDays)
+	// validate license id, since we're referencing it
+	if payload.Id == "" {
+		return nil, http.Problem{Status: http.StatusBadRequest, Detail: "License id is bad."}
+	}
+	//TODO : shouldn't we check with LCP if the payload.Id exists?
+
+	ls := makeLicenseStatus(payload, server.Config().LicenseStatus.Register, server.Config().LicenseStatus.RentingDays)
 
 	err := server.Store().LicenseStatus().Add(ls)
 	if err != nil {
@@ -98,6 +103,61 @@ func GetLicenseStatusDocument(server http.IServer, param ParamKey, hdr Headers) 
 	msg := licenseStatus.Status.String() + " - agent: " + hdr.UserAgent
 	logger.WriteToFile(complianceTestNumber, LicenseStatus, strconv.Itoa(http.StatusOK), msg)
 	return licenseStatus, nil
+}
+
+// FilterLicenseStatuses returns a sequence of license statuses, in their id order
+// function for detecting licenses which used a lot of devices
+//
+func FilterLicenseStatuses(server http.IServer, param ParamDevicesAndPage) (model.LicensesStatusCollection, error) {
+	if param.Devices == "" {
+		param.Devices = "1"
+	}
+	server.LogInfo("FilterLicenseStatuses : %#v", param)
+	// Get request parameters
+	devicesLimit, err := strconv.ParseInt(param.Devices, 10, 32)
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+	}
+	// Count
+	noOfLicenses, err := server.Store().LicenseStatus().Count(devicesLimit)
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+	}
+	if noOfLicenses == 0 {
+		return nil, http.Problem{Detail: "No licenses statuses found for devices limit " + param.Devices, Status: http.StatusNotFound}
+	}
+	// Pagination
+	page, perPage, err := http.ReadPagination(param.Page, param.PerPage, noOfLicenses)
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
+	}
+	// List them
+	result, err := server.Store().LicenseStatus().List(devicesLimit, perPage, page*perPage)
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+	}
+	// Result
+	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
+	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LcpServer.Port)+"/licenses/?devices="+strconv.Itoa(int(devicesLimit)), page+1, perPage, noOfLicenses))
+	return result, nonErr
+}
+
+// ListRegisteredDevices returns data about the use of a given license
+//
+func ListRegisteredDevices(server http.IServer, param ParamKey) (model.TransactionEventsCollection, error) {
+	licenseStatus, err := server.Store().LicenseStatus().GetByLicenseId(param.Key)
+	if err != nil {
+		if licenseStatus == nil {
+			return nil, http.Problem{Detail: "not found.", Status: http.StatusNotFound}
+		}
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+	}
+
+	registeredDevicesList, err := server.Store().Transaction().ListRegisteredDevices(licenseStatus.Id)
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+	}
+	return registeredDevicesList, nil
 }
 
 // RegisterDevice registers a device for a given license,
@@ -422,60 +482,6 @@ func LendingRenewal(server http.IServer, param ParamKeyAndDevice, hdr Headers) (
 	licenseStatus.DeviceCount.Valid = false
 
 	return licenseStatus, nil
-}
-
-// FilterLicenseStatuses returns a sequence of license statuses, in their id order
-// function for detecting licenses which used a lot of devices
-//
-func FilterLicenseStatuses(server http.IServer, param ParamDevicesAndPage) (model.LicensesStatusCollection, error) {
-	if param.Devices == "" {
-		param.Devices = "1"
-	}
-	// Get request parameters
-	devicesLimit, err := strconv.ParseInt(param.Devices, 10, 32)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
-	}
-	// Count
-	noOfLicenses, err := server.Store().LicenseStatus().Count(devicesLimit)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	}
-	if noOfLicenses == 0 {
-		return nil, http.Problem{Detail: "No licenses statuses found for devices limit " + param.Devices, Status: http.StatusNotFound}
-	}
-	// Pagination
-	page, perPage, err := http.ReadPagination(param.Page, param.PerPage, noOfLicenses)
-	if err != nil {
-		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
-	}
-	// List them
-	result, err := server.Store().LicenseStatus().List(devicesLimit, perPage, page*perPage)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	}
-	// Result
-	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
-	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LcpServer.Port)+"/licenses/?devices="+strconv.Itoa(int(devicesLimit)), page+1, perPage, noOfLicenses))
-	return result, nonErr
-}
-
-// ListRegisteredDevices returns data about the use of a given license
-//
-func ListRegisteredDevices(server http.IServer, param ParamKey) (model.TransactionEventsCollection, error) {
-	licenseStatus, err := server.Store().LicenseStatus().GetByLicenseId(param.Key)
-	if err != nil {
-		if licenseStatus == nil {
-			return nil, http.Problem{Detail: "not found.", Status: http.StatusNotFound}
-		}
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	}
-
-	registeredDevicesList, err := server.Store().Transaction().ListRegisteredDevices(licenseStatus.Id)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	}
-	return registeredDevicesList, nil
 }
 
 // LendingCancellation cancels (before use) or revokes (after use)  a license.

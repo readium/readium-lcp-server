@@ -28,7 +28,10 @@
 package lsdserver
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/logger"
@@ -80,7 +83,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	stor, err := model.SetupDB("sqlite3://file:"+workingDir+"\\lsd.sqlite?cache=shared&mode=rwc", logz, false)
+	stor, err := model.SetupDB("sqlite3://file:"+workingDir+"\\lsd.sqlite?cache=shared&mode=rwc", logz, true) // in debug mode, 'cause we're testing
 	if err != nil {
 		panic("Error setting up the database : " + err.Error())
 	}
@@ -162,34 +165,331 @@ func TestMain(m *testing.M) {
 }
 
 func TestAddLogToFile(t *testing.T) {
-	uid, errU := model.NewUUID()
-	if errU != nil {
-		t.Fatalf("%v", errU)
+	req, err := http.NewRequest("POST", localhostAndPort+"/compliancetest?test_stage=start&test_number=3&test_result=s", nil)
+	//req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
 	}
-	t.Logf("UUID has %d chars", len(uid.String()))
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode < 300 {
+		for hdrKey := range resp.Header {
+			t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
+		}
+		t.Logf("response : %#v", string(body))
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	}
 }
 
 func TestCreateLicenseStatusDocument(t *testing.T) {
+	var buf bytes.Buffer
 
-}
-func TestFilterLicenseStatuses(t *testing.T) {
+	uuid, _ := model.NewUUID()
+	payload := model.License{
+		Id:        uuid.String(),
+		ContentId: uuid.String(),
+		Provider:  "Google",
+		User: &model.User{
+			UUID: uuid.String(),
+		},
+		Encryption: model.LicenseEncryption{
+			UserKey: model.LicenseUserKey{
+				Hint:  "Hint",
+				Value: "PasswordPassword",
+			},
+		},
+		Rights: &model.LicenseUserRights{
+			Start: &model.NullTime{
+				Valid: true,
+				Time:  time.Now(),
+			},
+			End: &model.NullTime{
+				Valid: true,
+				Time:  time.Now().Add(30 * 24 * time.Hour),
+			},
+		},
+	}
 
+	enc := json.NewEncoder(&buf)
+	enc.Encode(payload)
+
+	req, err := http.NewRequest("PUT", localhostAndPort+"/licenses", bytes.NewReader(buf.Bytes()))
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode < 300 {
+		for hdrKey := range resp.Header {
+			t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
+		}
+		t.Logf("response : %#v", string(body))
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	}
 }
+
 func TestGetLicenseStatusDocument(t *testing.T) {
+	req, err := http.NewRequest("GET", localhostAndPort+"/licenses/673ffd51-3485-40bf-a246-7d35e8e163c4/status", nil)
+	req.Header.Set("User-Agent", "Go")
+	req.Header.Set("Accept-Language", "Ro_ro")
+	req.Header.Set("Ignored", "Ignored header")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode >= 300 {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	} else {
+		t.Logf("Raw response : %s", string(body))
+		var payload model.LicenseStatus
+		err = json.Unmarshal(body, &payload)
+		if err != nil {
+			t.Fatalf("Error unmarshaling : %v", err)
+		}
+		t.Logf("Response : %#v", payload)
+	}
 }
+
+func TestFilterLicenseStatuses(t *testing.T) {
+	req, err := http.NewRequest("GET", localhostAndPort+"/licenses?devices=3&page=1&per_page=2", nil)
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode >= 300 {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	} else {
+		t.Logf("Raw response : %s", string(body))
+		var payload model.LicensesStatusCollection
+		err = json.Unmarshal(body, &payload)
+		if err != nil {
+			t.Fatalf("Error unmarshaling : %v", err)
+		}
+		t.Logf("Response : %#v", payload)
+	}
+}
+
+func TestListRegisteredDevices(t *testing.T) {
+	req, err := http.NewRequest("GET", localhostAndPort+"/licenses/08d7cf49-d3b2-4183-9971-66ceb1636f8e/registered", nil)
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode >= 300 {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	} else {
+		t.Logf("Raw response : %s", string(body))
+		var payload model.TransactionEventsCollection
+		err = json.Unmarshal(body, &payload)
+		if err != nil {
+			t.Fatalf("Error unmarshaling : %v", err)
+		}
+		t.Logf("Response : %#v", payload)
+	}
+}
+
+func TestRegisterDevice(t *testing.T) {
+
+	req, err := http.NewRequest("POST", localhostAndPort+"/licenses/08d7cf49-d3b2-4183-9971-66ceb1636f8e/register?name=TESTDEVICE&id=9e29aa7c-9105-42ad-b344-c0c4bfbaa529&end=today", nil)
+	//req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+	req.Header.Set("User-Agent", "Go")
+	req.Header.Set("Accept-Language", "Ro_ro")
+	req.Header.Set("Ignored", "Ignored header")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode < 300 {
+		for hdrKey := range resp.Header {
+			t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
+		}
+		t.Logf("response : %#v", string(body))
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	}
+}
+
 func TestLendingCancellation(t *testing.T) {
 
 }
+
 func TestLendingRenewal(t *testing.T) {
 
 }
+
 func TestLendingReturn(t *testing.T) {
-
-}
-func TestListRegisteredDevices(t *testing.T) {
-
-}
-func TestRegisterDevice(t *testing.T) {
 
 }

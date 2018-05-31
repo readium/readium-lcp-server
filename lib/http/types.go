@@ -221,11 +221,6 @@ type (
 		NotFoundHandler() http.HandlerFunc
 		HandleFunc(router *mux.Router, route string, fn interface{}, secured bool) *mux.Route
 	}
-
-	ParamPagination struct {
-		Page    string `form:"page"`
-		PerPage string `form:"per_page"`
-	}
 )
 
 var (
