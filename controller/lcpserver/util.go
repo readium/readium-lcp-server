@@ -186,10 +186,6 @@ func buildLicencedPublication(license *model.License, server http.IServer) (*epu
 // and saves the result of the http request in the DB (using *LicenseRepository)
 //
 func notifyLSDServer(payload *model.License, server http.IServer) {
-	if server.Config().LsdServer.PublicBaseUrl == "" {
-		// can't call : url is empty
-		return
-	}
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		server.LogError("Error Notify LsdServer of new License (" + payload.Id + ") Marshaling error : " + err.Error())

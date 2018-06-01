@@ -69,6 +69,7 @@ func main() {
 	if privKeyFile = cfg.Certificate.PrivateKey; privKeyFile == "" {
 		panic("Must specify a private key")
 	}
+
 	authFile := cfg.LcpServer.AuthFile
 	if authFile == "" {
 		panic("Must have passwords file")
@@ -182,7 +183,7 @@ func main() {
 		Src:      pack.ManualSource{},
 	}
 
-	server.InitAuth("Readium License Content Protection Server") // creates authority checker
+	server.InitAuth("Readium License Content Protection Server", cfg.LcpServer.AuthFile) // creates authority checker
 
 	// CreateDefaultLinks inits the global var DefaultLinks from config data
 	// ... DefaultLinks used in several places.

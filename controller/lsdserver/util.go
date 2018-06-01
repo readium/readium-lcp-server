@@ -30,7 +30,6 @@ package lsdserver
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"strings"
 	"time"
 
@@ -89,20 +88,14 @@ func getEvents(payload *model.LicenseStatus, repo model.TransactionRepository) e
 // makeLinks creates and adds links to the license status
 //
 func makeLinks(payload *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpConfig http.ServerInfo, licStatus http.LicenseStatus) {
-	lsdBaseURL := lsdConfig.PublicBaseUrl
-	licenseLinkURL := lsdConfig.LicenseLinkUrl
-	lcpBaseURL := lcpConfig.PublicBaseUrl
-	//frontendBaseUrl := config.Config.FrontendServer.PublicBaseUrl
-	registerAvailable := licStatus.Register
-
 	licenseHasRightsEnd := payload.CurrentEndLicense.Valid && !(payload.CurrentEndLicense.Time).IsZero()
 	returnAvailable := licStatus.Return && licenseHasRightsEnd
 	renewAvailable := licStatus.Renew && licenseHasRightsEnd
 
 	links := make(model.LicenseLinksCollection, 0, 0)
 
-	if licenseLinkURL != "" {
-		licenseLinkURLReal := strings.Replace(licenseLinkURL, "{license_id}", payload.LicenseRef, -1)
+	if lsdConfig.LicenseLinkUrl != "" {
+		licenseLinkURLReal := strings.Replace(lsdConfig.LicenseLinkUrl, "{license_id}", payload.LicenseRef, -1)
 		link := &model.LicenseLink{
 			Href:      licenseLinkURLReal,
 			Rel:       "license",
@@ -112,7 +105,7 @@ func makeLinks(payload *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpCo
 		links = append(links, link)
 	} else {
 		link := &model.LicenseLink{
-			Href:      lcpBaseURL + "/licenses/" + payload.LicenseRef,
+			Href:      lcpConfig.PublicBaseUrl + "/licenses/" + payload.LicenseRef,
 			Rel:       "license",
 			Type:      http.ContentTypeLcpJson,
 			Templated: false,
@@ -120,9 +113,9 @@ func makeLinks(payload *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpCo
 		links = append(links, link)
 	}
 
-	if registerAvailable {
+	if licStatus.Register {
 		link := &model.LicenseLink{
-			Href:      lsdBaseURL + "/licenses/" + payload.LicenseRef + "/register{?id,name}",
+			Href:      lsdConfig.PublicBaseUrl + "/licenses/" + payload.LicenseRef + "/register{?id,name}",
 			Rel:       "register",
 			Type:      http.ContentTypeLsdJson,
 			Templated: true,
@@ -132,7 +125,7 @@ func makeLinks(payload *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpCo
 
 	if returnAvailable {
 		link := &model.LicenseLink{
-			Href:      lsdBaseURL + "/licenses/" + payload.LicenseRef + "/return{?id,name}",
+			Href:      lsdConfig.PublicBaseUrl + "/licenses/" + payload.LicenseRef + "/return{?id,name}",
 			Rel:       "return",
 			Type:      http.ContentTypeLsdJson,
 			Templated: true,
@@ -142,7 +135,7 @@ func makeLinks(payload *model.LicenseStatus, lsdConfig http.LsdServerInfo, lcpCo
 
 	if renewAvailable {
 		link := &model.LicenseLink{
-			Href:      lsdBaseURL + "/licenses/" + payload.LicenseRef + "/renew{?end,id,name}",
+			Href:      lsdConfig.PublicBaseUrl + "/licenses/" + payload.LicenseRef + "/renew{?end,id,name}",
 			Rel:       "renew",
 			Type:      http.ContentTypeLsdJson,
 			Templated: true,
@@ -168,13 +161,8 @@ func makeEvent(status model.Status, deviceName string, deviceID string, licenseS
 // notifyLCPServer updates a license by calling the License Server
 // called from return, renew and cancel/revoke actions
 //
-func notifyLCPServer(timeEnd time.Time, licenseID string, s http.IServer) (int, error) {
-	lcpConfig, updateAuth := s.Config().LcpServer, s.Config().LcpUpdateAuth
-	// get the lcp server url
-	lcpBaseURL := lcpConfig.PublicBaseUrl
-	if len(lcpBaseURL) <= 0 {
-		return 0, errors.New("Undefined Config.LcpServer.PublicBaseUrl")
-	}
+func notifyLCPServer(timeEnd time.Time, licenseID string, server http.IServer) (int, error) {
+	lcpConfig, updateAuth := server.Config().LcpServer, server.Config().LcpUpdateAuth
 	// create a minimum license object, limited to the license id plus rights
 	// FIXME: remove the id (here and in the lcpserver license.go)
 	minLicense := model.License{Id: licenseID, Rights: &model.LicenseUserRights{}}
@@ -182,10 +170,13 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, s http.IServer) (int, 
 	minLicense.Rights.End = &model.NullTime{Valid: true, Time: timeEnd}
 
 	// prepare the request
-	lcpURL := lcpBaseURL + "/licenses/" + licenseID
+	lcpURL := lcpConfig.PublicBaseUrl + "/licenses/" + licenseID
 	// message to the console
-	s.LogInfo("PATCH " + lcpURL)
+	server.LogInfo("PATCH " + lcpURL)
 	payload, err := json.Marshal(minLicense)
+	if err != nil {
+		return 0, err
+	}
 	// send the content to the LCP server
 	req, err := http.NewRequest("PATCH", lcpURL, bytes.NewReader(payload))
 	if err != nil {
@@ -213,7 +204,7 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, s http.IServer) (int, 
 	}
 
 	if err != nil {
-		s.LogError("Error Notify Lcp Server of License (%q): %v", licenseID, err)
+		server.LogError("Error Notify Lcp Server of License (%q): %v", licenseID, err)
 		return 0, err
 	}
 
@@ -222,11 +213,11 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, s http.IServer) (int, 
 	// reading body
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		s.LogError("Notify LsdServer of compliancetest reading body error : %v", err)
+		server.LogError("Notify LsdServer of compliancetest reading body error : %v", err)
 		return 0, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		s.LogError("Error Notify Lcp Server of License (%q) response %v [http-status:%d]", licenseID, body, resp.StatusCode)
+		server.LogError("Error Notify Lcp Server of License (%q) response %v [http-status:%d]", licenseID, string(body), resp.StatusCode)
 	}
 	return resp.StatusCode, nil
 }
@@ -298,7 +289,7 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	}
 
 	server.HandleFunc(licenseRoutes, "/{key}/registered", ListRegisteredDevices, true).Methods("GET")
-	if !server.Config().LcpServer.ReadOnly {
+	if !server.Config().LsdServer.ReadOnly {
 		server.HandleFunc(licenseRoutes, "/{key}/register", RegisterDevice, false).Methods("POST") // TODO : why this is unsecured
 		server.HandleFunc(licenseRoutes, "/{key}/return", LendingReturn, false).Methods("PUT")     // TODO : why this is unsecured
 		server.HandleFunc(licenseRoutes, "/{key}/renew", LendingRenewal, false).Methods("PUT")     // TODO : why this is unsecured

@@ -69,7 +69,7 @@ func main() {
 	log.Printf("LCP server = %s", cfg.LcpServer.PublicBaseUrl)
 	log.Printf("using login  %s ", cfg.LcpUpdateAuth.Username)
 	// use a sqlite db by default
-	if dbURI = cfg.FrontendServer.Database; dbURI == "" {
+	if dbURI = cfg.LutServer.Database; dbURI == "" {
 		dbURI = "sqlite3://file:frontend.sqlite?cache=shared&mode=rwc"
 	}
 
@@ -82,9 +82,9 @@ func main() {
 		panic("Error migrating database : " + err.Error())
 	}
 
-	tcpAddress := cfg.FrontendServer.Host + ":" + strconv.Itoa(cfg.FrontendServer.Port)
+	tcpAddress := cfg.LutServer.Host + ":" + strconv.Itoa(cfg.LutServer.Port)
 
-	static := cfg.FrontendServer.Directory
+	static := cfg.LutServer.Directory
 	if static == "" {
 		_, file, _, _ := runtime.Caller(0)
 		here := filepath.Dir(file)
@@ -108,7 +108,7 @@ func main() {
 	// To ignore your local changes, use:
 	// git update-index --assume-unchanged frontend/manage/config.js
 	window.Config = {`
-	configJs += "\n\tfrontend: {url: '" + cfg.FrontendServer.PublicBaseUrl + "' },\n"
+	configJs += "\n\tfrontend: {url: '" + cfg.LutServer.PublicBaseUrl + "' },\n"
 	configJs += "\tlcp: {url: '" + cfg.LcpServer.PublicBaseUrl + "', user: '" + cfg.LcpUpdateAuth.Username + "', password: '" + cfg.LcpUpdateAuth.Password + "'},\n"
 	configJs += "\tlsd: {url: '" + cfg.LsdServer.PublicBaseUrl + "', user: '" + cfg.LsdNotifyAuth.Username + "', password: '" + cfg.LsdNotifyAuth.Password + "'}\n}"
 
@@ -154,7 +154,7 @@ func main() {
 	cron.Start(5 * time.Minute)
 	// using Method expression instead of function
 	cron.Every(1).Minutes().Do(func() {
-		println("FetchLicenseStatusesFromLSD")
+		log.Infof("Fetching License Statuses From LSD")
 		FetchLicenseStatusesFromLSD(server)
 	})
 
@@ -230,7 +230,7 @@ func main() {
 	// get a license by id
 	server.HandleFunc(licenseRoutes, "/{license_id}", lutserver.GetLicense, false).Methods("GET")
 
-	log.Printf("Frontend webserver for LCP running on " + cfg.FrontendServer.Host + ":" + strconv.Itoa(cfg.FrontendServer.Port))
+	log.Printf("Frontend webserver for LCP running on " + cfg.LutServer.Host + ":" + strconv.Itoa(cfg.LutServer.Port))
 
 	// Run our server in a goroutine so that it doesn't block.
 	go func() {
@@ -270,7 +270,6 @@ func ReadLicensesPayloads(data []byte) (model.LicensesStatusCollection, error) {
 	return licenses, nil
 }
 
-// TODO : move this outof here
 func FetchLicenseStatusesFromLSD(s http.IServer) {
 	s.LogInfo("AUTOMATION : Fetch and save all license status documents")
 

@@ -138,7 +138,7 @@ func FilterLicenseStatuses(server http.IServer, param ParamDevicesAndPage) (mode
 	}
 	// Result
 	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
-	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LcpServer.Port)+"/licenses/?devices="+strconv.Itoa(int(devicesLimit)), page+1, perPage, noOfLicenses))
+	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LsdServer.Port)+"/licenses/?devices="+strconv.Itoa(int(devicesLimit)), page+1, perPage, noOfLicenses))
 	return result, nonErr
 }
 
@@ -276,11 +276,8 @@ func LendingReturn(server http.IServer, param ParamKeyAndDevice, hdr Headers) (*
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 
-	deviceID := param.DeviceID
-	deviceName := param.DeviceName
-
 	// check request parameters
-	if (len(deviceName) > 255) || (len(deviceID) > 255) {
+	if (len(param.DeviceName) > 255) || (len(param.DeviceID) > 255) {
 		logger.WriteToFile(complianceTestNumber, ReturnLicense, strconv.Itoa(http.StatusBadRequest), err.Error())
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
@@ -300,7 +297,7 @@ func LendingReturn(server http.IServer, param ParamKeyAndDevice, hdr Headers) (*
 	}
 
 	// create a return event
-	event := makeEvent(model.StatusReturned, deviceName, deviceID, licenseStatus.Id)
+	event := makeEvent(model.StatusReturned, param.DeviceName, param.DeviceID, licenseStatus.Id)
 	err = server.Store().Transaction().Add(event)
 	if err != nil {
 		logger.WriteToFile(complianceTestNumber, ReturnLicense, strconv.Itoa(http.StatusInternalServerError), err.Error())
@@ -315,8 +312,11 @@ func LendingReturn(server http.IServer, param ParamKeyAndDevice, hdr Headers) (*
 	}
 	if httpStatusCode != http.StatusOK && httpStatusCode != http.StatusPartialContent { // 200, 206
 		errorr = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
-
-		logger.WriteToFile(complianceTestNumber, ReturnLicense, strconv.Itoa(httpStatusCode), err.Error())
+		if err == nil {
+			logger.WriteToFile(complianceTestNumber, ReturnLicense, strconv.Itoa(httpStatusCode), "LCP server is closed.")
+		} else {
+			logger.WriteToFile(complianceTestNumber, ReturnLicense, strconv.Itoa(httpStatusCode), err.Error())
+		}
 		return nil, http.Problem{Detail: errorr.Error(), Status: httpStatusCode}
 	}
 
@@ -331,9 +331,10 @@ func LendingReturn(server http.IServer, param ParamKeyAndDevice, hdr Headers) (*
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 
-	msg = "device name: " + deviceName + "  id: " + deviceID
+	msg = "device name: " + param.DeviceName + "  id: " + param.DeviceID
 	logger.WriteToFile(complianceTestNumber, ReturnLicense, strconv.Itoa(http.StatusOK), msg)
 
+	server.LogInfo("Returning : %#v", licenseStatus)
 	// fill the license status
 	err = fillLicenseStatus(licenseStatus, hdr, server)
 	if err != nil {

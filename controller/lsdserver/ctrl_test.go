@@ -102,7 +102,7 @@ func TestMain(m *testing.M) {
 		storagePath = workingDir + "\\files"
 	}
 
-	authFile := cfg.LcpServer.AuthFile
+	authFile := cfg.LsdServer.AuthFile
 	if authFile == "" {
 		panic("Must have passwords file")
 	}
@@ -117,7 +117,7 @@ func TestMain(m *testing.M) {
 		),
 		http.DelayMiddleware,
 	)
-	runningPort := strconv.Itoa(cfg.LcpServer.Port)
+	runningPort := strconv.Itoa(cfg.LsdServer.Port)
 	localhostAndPort = "http://localhost:" + runningPort
 	server := &http.Server{
 		Server: goHttp.Server{
@@ -130,14 +130,14 @@ func TestMain(m *testing.M) {
 		},
 		Log:        logz,
 		Cfg:        cfg,
-		Readonly:   cfg.LcpServer.ReadOnly,
+		Readonly:   cfg.LsdServer.ReadOnly,
 		Model:      stor,
 		GoophyMode: cfg.GoofyMode,
 	}
 
-	server.InitAuth("Basic Realm") // creates authority checker
+	server.InitAuth("Basic Realm", cfg.LsdServer.AuthFile) // creates authority checker
 
-	logz.Printf("License status server running on port %d [Readonly %t]", cfg.LcpServer.Port, cfg.LcpServer.ReadOnly)
+	logz.Printf("License status server running on port %d [Readonly %t]", cfg.LsdServer.Port, cfg.LsdServer.ReadOnly)
 
 	RegisterRoutes(muxer, server)
 
@@ -482,14 +482,151 @@ func TestRegisterDevice(t *testing.T) {
 	}
 }
 
-func TestLendingCancellation(t *testing.T) {
+func TestLendingReturn(t *testing.T) {
+	req, err := http.NewRequest("PUT", localhostAndPort+"/licenses/08d7cf49-d3b2-4183-9971-66ceb1636f8e/return?name=TESTDEVICE&id=9e29aa7c-9105-42ad-b344-c0c4bfbaa529&end=today", nil)
+	//req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+	req.Header.Set("User-Agent", "Go")
+	req.Header.Set("Accept-Language", "Ro_ro")
+	req.Header.Set("Ignored", "Ignored header")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode < 300 {
+		for hdrKey := range resp.Header {
+			t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
+		}
+		t.Logf("response : %#v", string(body))
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	}
 }
 
 func TestLendingRenewal(t *testing.T) {
+	req, err := http.NewRequest("PUT", localhostAndPort+"/licenses/08d7cf49-d3b2-4183-9971-66ceb1636f8e/renew?name=TESTDEVICE&id=9e29aa7c-9105-42ad-b344-c0c4bfbaa529&end=today", nil)
+	//req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+	req.Header.Set("User-Agent", "Go")
+	req.Header.Set("Accept-Language", "Ro_ro")
+	req.Header.Set("Ignored", "Ignored header")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode < 300 {
+		for hdrKey := range resp.Header {
+			t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
+		}
+		t.Logf("response : %#v", string(body))
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v", problem)
+	}
 }
 
-func TestLendingReturn(t *testing.T) {
+func TestLendingCancellation(t *testing.T) {
+	var buf bytes.Buffer
+	payload := model.LicenseStatus{}
+	enc := json.NewEncoder(&buf)
+	enc.Encode(payload)
 
+	req, err := http.NewRequest("PATCH", localhostAndPort+"/licenses/08d7cf49-d3b2-4183-9971-66ceb1636f8e/status?name=TESTDEVICE&id=9e29aa7c-9105-42ad-b344-c0c4bfbaa529&end=today", bytes.NewReader(buf.Bytes()))
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
+	req.Header.Set("User-Agent", "Go")
+	req.Header.Set("Accept-Language", "Ro_ro")
+	req.Header.Set("Ignored", "Ignored header")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error : %v", err)
+		return
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+	// reading body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("Error reading response body error : %v", err)
+	}
+
+	if resp.StatusCode < 300 {
+		for hdrKey := range resp.Header {
+			t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
+		}
+		t.Logf("response : %#v", string(body))
+	} else {
+		var problem http.Problem
+		err = json.Unmarshal(body, &problem)
+		if err != nil {
+			t.Fatalf("Error Unmarshaling problem : %v.\nServer response : %s", err, string(body))
+		}
+		t.Logf("error response : %#v (%s)", problem, string(body))
+	}
 }

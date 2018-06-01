@@ -175,7 +175,7 @@ func TestMain(m *testing.M) {
 		Src:      pack.ManualSource{},
 	}
 
-	server.InitAuth("Readium License Content Protection Server") // creates authority checker
+	server.InitAuth("Readium License Content Protection Server", cfg.LcpServer.AuthFile) // creates authority checker
 	// CreateDefaultLinks inits the global var DefaultLinks from config data
 	// ... DefaultLinks used in several places.
 	model.DefaultLinks = make(map[string]string)

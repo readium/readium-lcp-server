@@ -218,9 +218,9 @@ func (c LicensesCollection) GoString() string {
 }
 **/
 func (l License) Validate() error {
-	if l.ContentId == "" {
-		return errors.New("content id is invalid")
-	}
+	//if l.ContentId == "" {
+	//	return errors.New("content id is invalid")
+	//}
 	return nil
 }
 

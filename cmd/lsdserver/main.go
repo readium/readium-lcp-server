@@ -123,9 +123,9 @@ func main() {
 		GoophyMode: cfg.GoofyMode, // the server will behave strangely, to test the resilience of LCP compliant apps
 	}
 
-	server.InitAuth("Basic Realm") // creates authority checker
+	server.InitAuth("Basic Realm", cfg.LsdServer.AuthFile) // creates authority checker
 	lsdserver.RegisterRoutes(muxer, server)
-	server.Log.Printf("License status server running on port %d [readonly = %t]", cfg.LsdServer.Port, server.Config().LcpServer.ReadOnly)
+	server.Log.Printf("License status server running on port %d [readonly = %t]", cfg.LsdServer.Port, server.Config().LsdServer.ReadOnly)
 
 	logz.Printf("Using database : %q", dbURI)
 	logz.Printf("Public base URL : %q", cfg.LsdServer.PublicBaseUrl)

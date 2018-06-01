@@ -195,7 +195,11 @@ func (logger *dblogger) Print(values ...interface{}) {
 			//logger.Printf("%v [caller %s:%d]", messages, f.Name(), line)
 			// .2) for small source and line
 			p := strings.Split(values[1].(string), "/")
-			logger.Printf("%s %s [caller %s:%d]", p[len(p)-1:], values[3], f.Name(), line)
+
+			parts := strings.Split(f.Name(), "/")
+			callerName := parts[len(parts)-1]
+
+			logger.Printf("%s %s [caller %s:%d]", p[len(p)-1:], values[3], callerName, line)
 			if len(values) >= 4 {
 				v4, ok := values[4].([]interface{})
 				if ok {

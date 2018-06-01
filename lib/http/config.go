@@ -59,7 +59,7 @@ func ReadConfig(configFileName string) (Configuration, error) {
 	}
 
 	// was SetPublicUrls()
-	var lcpPublicBaseUrl, lsdPublicBaseUrl, frontendPublicBaseUrl, lcpHost, lsdHost, frontendHost string
+	var lcpHost, lsdHost, frontendHost string
 	var lcpPort, lsdPort, frontendPort int
 
 	if lcpHost = Config.LcpServer.Host; lcpHost == "" {
@@ -76,7 +76,7 @@ func ReadConfig(configFileName string) (Configuration, error) {
 		}
 	}
 
-	if frontendHost = Config.FrontendServer.Host; frontendHost == "" {
+	if frontendHost = Config.LutServer.Host; frontendHost == "" {
 		frontendHost, err = os.Hostname()
 		if err != nil {
 			return Config, fmt.Errorf("%v", err)
@@ -89,21 +89,18 @@ func ReadConfig(configFileName string) (Configuration, error) {
 	if lsdPort = Config.LsdServer.Port; lsdPort == 0 {
 		lsdPort = 8990
 	}
-	if frontendPort = Config.FrontendServer.Port; frontendPort == 0 {
+	if frontendPort = Config.LutServer.Port; frontendPort == 0 {
 		frontendPort = 80
 	}
 
-	if lcpPublicBaseUrl = Config.LcpServer.PublicBaseUrl; lcpPublicBaseUrl == "" {
-		lcpPublicBaseUrl = "http://" + lcpHost + ":" + strconv.Itoa(lcpPort)
-		Config.LcpServer.PublicBaseUrl = lcpPublicBaseUrl
+	if len(Config.LcpServer.PublicBaseUrl) == 0 {
+		Config.LcpServer.PublicBaseUrl = "http://" + lcpHost + ":" + strconv.Itoa(lcpPort)
 	}
-	if lsdPublicBaseUrl = Config.LsdServer.PublicBaseUrl; lsdPublicBaseUrl == "" {
-		lsdPublicBaseUrl = "http://" + lsdHost + ":" + strconv.Itoa(lsdPort)
-		Config.LsdServer.PublicBaseUrl = lsdPublicBaseUrl
+	if len(Config.LsdServer.PublicBaseUrl) == 0 {
+		Config.LsdServer.PublicBaseUrl = "http://" + lsdHost + ":" + strconv.Itoa(lsdPort)
 	}
-	if frontendPublicBaseUrl = Config.FrontendServer.PublicBaseUrl; frontendPublicBaseUrl == "" {
-		frontendPublicBaseUrl = "http://" + frontendHost + ":" + strconv.Itoa(frontendPort)
-		Config.FrontendServer.PublicBaseUrl = frontendPublicBaseUrl
+	if len(Config.LutServer.PublicBaseUrl) == 0 {
+		Config.LutServer.PublicBaseUrl = "http://" + frontendHost + ":" + strconv.Itoa(frontendPort)
 	}
 
 	return Config, nil

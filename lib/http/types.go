@@ -88,7 +88,7 @@ type (
 		License        License            `yaml:"license"`
 		LcpServer      ServerInfo         `yaml:"lcp"`
 		LsdServer      LsdServerInfo      `yaml:"lsd"`
-		FrontendServer FrontendServerInfo `yaml:"frontend"`
+		LutServer      FrontendServerInfo `yaml:"frontend"`
 		LsdNotifyAuth  Auth               `yaml:"lsd_notify_auth"`
 		LcpUpdateAuth  Auth               `yaml:"lcp_update_auth"`
 		LicenseStatus  LicenseStatus      `yaml:"license_status"`

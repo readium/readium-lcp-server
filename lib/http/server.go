@@ -299,7 +299,7 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 			if !isRequestInjected {
 				// json decode the payload
 				if err = json.Unmarshal(reqBody, deserializeTo.Interface()); err != nil {
-					s.fastJsonError(w, r, http.StatusBadRequest, fmt.Sprintf("Unmarshal error: %v\nReceived from client : %v", err, string(reqBody)))
+					s.fastJsonError(w, r, http.StatusBadRequest, fmt.Sprintf("Unmarshal error: %v. Received from client : `%s`", err, string(reqBody)))
 					return
 				}
 
@@ -405,8 +405,7 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 	})
 }
 
-func (s *Server) InitAuth(realm string) {
-	authFile := s.Cfg.LcpServer.AuthFile
+func (s *Server) InitAuth(realm string, authFile string) {
 	if authFile == "" {
 		panic("Must have passwords file")
 	}

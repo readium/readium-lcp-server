@@ -127,7 +127,7 @@ func (repManager RepositoryManager) GetMasterFiles() func() (RepositoryFile, err
 func GetRepositoryMasterFiles(s http.IServer) ([]RepositoryFile, error) {
 	files := make([]RepositoryFile, 0)
 	if !repoInited {
-		repoManager = RepositoryManager{MasterRepositoryPath: s.Config().FrontendServer.MasterRepository, EncryptedRepositoryPath: s.Config().FrontendServer.EncryptedRepository}
+		repoManager = RepositoryManager{MasterRepositoryPath: s.Config().LutServer.MasterRepository, EncryptedRepositoryPath: s.Config().LutServer.EncryptedRepository}
 	}
 	fn := repoManager.GetMasterFiles()
 
@@ -150,7 +150,7 @@ func EncryptEPUB(inputPath string, contentDisposition string, server http.IServe
 
 	// create a temp file in the frontend "encrypted repository"
 	outputFilename := contentUUID + ".tmp"
-	outputPath := path.Join(server.Config().FrontendServer.EncryptedRepository, outputFilename)
+	outputPath := path.Join(server.Config().LutServer.EncryptedRepository, outputFilename)
 	defer func() {
 		// remove the temporary file in the "encrypted repository"
 		err := os.Remove(outputPath)
@@ -298,10 +298,10 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 	partialLicense := model.License{}
 
 	// set the mandatory provider URI
-	if server.Config().FrontendServer.ProviderUri == "" {
+	if server.Config().LutServer.ProviderUri == "" {
 		return nil, errors.New("Mandatory provider URI missing in the configuration")
 	}
-	partialLicense.Provider = server.Config().FrontendServer.ProviderUri
+	partialLicense.Provider = server.Config().LutServer.ProviderUri
 
 	// get user info from the purchase info
 	encryptedAttrs := []string{"email", "name"}
@@ -327,8 +327,8 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 	if purchase.LicenseUUID == nil {
 		// in case of undefined conf values for copy and print rights,
 		// these rights will be set to zero
-		copyVal := server.Config().FrontendServer.RightCopy
-		printVal := server.Config().FrontendServer.RightPrint
+		copyVal := server.Config().LutServer.RightCopy
+		printVal := server.Config().LutServer.RightPrint
 		userRights := model.LicenseUserRights{
 			Copy:  &model.NullInt{NullInt64: sql.NullInt64{Int64: copyVal, Valid: true}},
 			Print: &model.NullInt{NullInt64: sql.NullInt64{Int64: printVal, Valid: true}},

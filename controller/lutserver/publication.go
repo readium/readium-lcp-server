@@ -99,7 +99,7 @@ func GetPublications(server http.IServer, resp http.ResponseWriter, req *http.Re
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
-	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LcpServer.Port)+"/publications=", page+1, perPage, noOfPublications))
+	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LutServer.Port)+"/publications=", page+1, perPage, noOfPublications))
 	return pubs, nonErr
 }
 
@@ -168,7 +168,7 @@ func CheckPublicationByTitle(server http.IServer, resp http.ResponseWriter, req 
 func CreatePublication(server http.IServer, pub *model.Publication) (*string, error) {
 
 	// get the path to the master file
-	inputPath := path.Join(server.Config().FrontendServer.MasterRepository, pub.MasterFilename)
+	inputPath := path.Join(server.Config().LutServer.MasterRepository, pub.MasterFilename)
 
 	if _, err := os.Stat(inputPath); err != nil {
 		// the master file does not exist
@@ -265,7 +265,7 @@ func DeletePublication(server http.IServer, resp http.ResponseWriter, req *http.
 	}
 
 	// delete the epub file from the master repository
-	inputPath := path.Join(server.Config().FrontendServer.MasterRepository, publication.Title+".epub")
+	inputPath := path.Join(server.Config().LutServer.MasterRepository, publication.Title+".epub")
 
 	if _, err := os.Stat(inputPath); err == nil {
 		err = os.Remove(inputPath)
