@@ -62,6 +62,8 @@ const (
 	ContentTypeLsdJson        = "application/vnd.readium.license.status.v1.0+json"
 	ContentTypeJson           = "application/json"
 	ContentTypeFormUrlEncoded = "application/x-www-form-urlencoded"
+	ContentTypeMultipartForm  = "multipart/form-data"
+	StatusRedirect            = http.StatusFound
 	StatusBadRequest          = http.StatusBadRequest
 	StatusCreated             = http.StatusCreated
 	StatusInternalServerError = http.StatusInternalServerError
@@ -80,7 +82,7 @@ type (
 	// aliases - easy imports
 	Request        = http.Request
 	ResponseWriter = http.ResponseWriter
-
+	HandlerFunc    = http.HandlerFunc
 	// config
 	Configuration struct {
 		Certificate    Certificate        `yaml:"certificate"`
@@ -96,7 +98,6 @@ type (
 		ComplianceMode bool               `yaml:"compliance_mode"`
 		GoofyMode      bool               `yaml:"goofy_mode"`
 		Profile        string             `yaml:"profile,omitempty"`
-
 		// DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
 		//AES256_CBC_OR_GCM string             `yaml:"aes256_cbc_or_gcm,omitempty"`
 	}
@@ -124,6 +125,7 @@ type (
 		RightCopy           int64  `yaml:"right_copy"`
 		MasterRepository    string `yaml:"master_repository"`
 		EncryptedRepository string `yaml:"encrypted_repository"`
+		StopCronRunner      bool   `yaml:"stop_cron_runner,omitempty"`
 	}
 
 	Auth struct {
@@ -206,7 +208,7 @@ type (
 		realm          string
 	}
 
-	HandlerFunc func(w http.ResponseWriter, r *http.Request, s IServer)
+	//HandlerFunc func(w http.ResponseWriter, r *http.Request, s IServer)
 
 	IServer interface {
 		Config() Configuration
@@ -221,9 +223,16 @@ type (
 		NotFoundHandler() http.HandlerFunc
 		HandleFunc(router *mux.Router, route string, fn interface{}, secured bool) *mux.Route
 	}
+
+	FileHandlerWrapper struct {
+		Log    logger.StdLogger
+		Static []string
+		Public string
+	}
 )
 
 var (
 	DefaultClient = http.DefaultClient
 	NewRequest    = http.NewRequest
+	Redirect      = http.Redirect
 )

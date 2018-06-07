@@ -30,126 +30,122 @@ package lutserver
 import (
 	"strconv"
 
-	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/http"
+	"github.com/readium/readium-lcp-server/lib/views"
 	"github.com/readium/readium-lcp-server/model"
+	"strings"
 )
 
-//GetUsers returns a list of users
-func GetUsers(server http.IServer, resp http.ResponseWriter, req *http.Request) (model.UsersCollection, error) {
-	var page int64
-	var perPage int64
-	var err error
-	if req.FormValue("page") != "" {
-		page, err = strconv.ParseInt((req).FormValue("page"), 10, 32)
+// GetUsers returns a paged list of users. If param.Filter is present, returns users list filtered by email
+func GetUsers(server http.IServer, param ParamPagination) (*views.Renderer, error) {
+	noOfUsers, err := server.Store().User().Count()
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
+	} // Pagination
+	page, perPage, err := readPagination(param.Page, param.PerPage, noOfUsers)
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
+	}
+
+	var users model.UsersCollection
+	view := &views.Renderer{}
+	if param.Filter != "" {
+		view.AddKey("filter", param.Filter)
+		users, err = server.Store().User().Filter(param.Filter, perPage, page)
 		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	} else {
-		page = 1
-	}
-	if req.FormValue("per_page") != "" {
-		perPage, err = strconv.ParseInt((req).FormValue("per_page"), 10, 32)
+		users, err = server.Store().User().List(perPage, page)
 		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
-		}
-	} else {
-		perPage = 30
-	}
-	if page > 0 {
-		page-- //pagenum starting at 0 in code, but user interface starting at 1
-	}
-	if page < 0 {
-		return nil, http.Problem{Detail: "page must be positive integer", Status: http.StatusBadRequest}
-	}
-
-	users, err := server.Store().User().List(int(perPage), int(page))
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	}
-
-	if len(users) > 0 {
-		nextPage := strconv.Itoa(int(page) + 1)
-		resp.Header().Set("Link", "</users/?page="+nextPage+">; rel=\"next\"; title=\"next\"")
-	}
-
-	if page > 1 {
-		previousPage := strconv.Itoa(int(page) - 1)
-		resp.Header().Set("Link", "</users/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
-	}
-
-	return users, nil
-}
-
-//GetUser searches a client by his email
-func GetUser(server http.IServer, resp http.ResponseWriter, req *http.Request) (*model.User, error) {
-	vars := mux.Vars(req)
-	id, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		// id is not a number
-		return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
-	}
-	if user, err := server.Store().User().Get(int64(id)); err == nil {
-		return user, nil
-	} else {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-
-		default:
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	}
-	return nil, nil
+	view.AddKey("users", users)
+	view.AddKey("pageTitle", "Users list")
+	view.AddKey("total", noOfUsers)
+	view.Template("users/index.html.got")
+	return view, nil
 }
 
-//CreateUser creates a user in the database
-func CreateUser(server http.IServer, user *model.User) (*string, error) {
+//GetUser searches a client by his email
+func GetUser(server http.IServer, param ParamId) (*views.Renderer, error) {
+	view := &views.Renderer{}
+	if param.Id != "0" {
+		server.LogInfo("Listing user with id %q", param.Id)
+		id, err := strconv.Atoi(param.Id)
+		if err != nil {
+			// id is not a number
+			return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
+		}
+		user, err := server.Store().User().Get(int64(id))
+		if err != nil {
+			switch err {
+			case gorm.ErrRecordNotFound:
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 
-	var err error
-	//user ok
-	if err = server.Store().User().Add(user); err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+			default:
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			}
+		}
+		view.AddKey("user", user)
+		view.AddKey("pageTitle", "Edit user")
+	} else {
+		// convention - if user ID is zero, we're displaying create form
+		view.AddKey("user", model.User{})
+		view.AddKey("pageTitle", "Create user")
 	}
-	return nil, http.Problem{Status: http.StatusCreated}
+	view.Template("users/form.html.got")
+	return view, nil
 }
 
-//UpdateUser updates an identified user (id) in the database
-func UpdateUser(server http.IServer, user *model.User, param ParamId) (*string, error) {
+//CreateOrUpdateUser creates a user in the database
+func CreateOrUpdateUser(server http.IServer, user *model.User) (*views.Renderer, error) {
+	switch user.ID {
+	case 0:
+		err := server.Store().User().Add(user)
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+		}
+	default:
+		// searching for updated entity
+		if existingUser, err := server.Store().User().Get(user.ID); err != nil {
+			switch err {
+			case gorm.ErrRecordNotFound:
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
+			default:
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			}
+		} else {
+			server.LogInfo("Updating : %#v", user)
+			// performing update
+			if err = server.Store().User().Update(&model.User{ID: user.ID, UUID: existingUser.UUID, Name: user.Name, Email: user.Email, Password: user.Password, Hint: user.Hint}); err != nil {
+				//update failed!
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			}
+		}
+	}
+	return nil, http.Problem{Detail: "/users", Status: http.StatusRedirect}
+}
+
+// Delete removes user from the database
+func DeleteUser(server http.IServer, param ParamId) (*views.Renderer, error) {
+	ids := strings.Split(param.Id, ",")
+	for _, id := range ids {
+		server.LogInfo("Delete %s", id)
+	}
+	return &views.Renderer{}, http.Problem{Status: http.StatusOK}
 	var id int
 	var err error
 	if id, err = strconv.Atoi(param.Id); err != nil {
 		// id is not a number
 		return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
 	}
-	// user ok, id is a number, search user to update
-	if _, err = server.Store().User().Get(int64(id)); err != nil {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-		default:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
-	} else {
-		// client is found!
-		if err = server.Store().User().Update(&model.User{ID: int64(id), Name: user.Name, Email: user.Email, Password: user.Password, Hint: user.Hint}); err != nil {
-			//update failed!
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
-		return nil, http.Problem{Status: http.StatusOK}
-	}
-
-}
-
-//Delete creates a user in the database
-func DeleteUser(server http.IServer, resp http.ResponseWriter, req *http.Request) (*string, error) {
-	vars := mux.Vars(req)
-	uid, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
-	if err = server.Store().User().Delete(uid); err != nil {
+	if err = server.Store().User().Delete(int64(id)); err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 	return nil, http.Problem{Status: http.StatusOK}

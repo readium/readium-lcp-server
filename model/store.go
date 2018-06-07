@@ -29,9 +29,6 @@ package model
 
 import (
 	"fmt"
-	"runtime"
-	"strings"
-
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
@@ -40,6 +37,8 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/readium/readium-lcp-server/lib/logger"
+	"runtime"
+	"strings"
 )
 
 const (
@@ -110,7 +109,9 @@ type (
 		Add(c *User) error
 		Update(c *User) error
 		Delete(UserID int64) error
-		List(page int, pageNum int) (UsersCollection, error)
+		Count() (int64, error)
+		List(page, pageNum int64) (UsersCollection, error)
+		Filter(emailLike string, page, pageNum int64) (UsersCollection, error)
 	}
 
 	// DashboardRepository interface for publication db interaction
@@ -158,8 +159,10 @@ type (
 	PurchaseRepository interface {
 		Get(id int64) (*Purchase, error)
 		GetByLicenseID(licenseID string) (*Purchase, error)
-		List(page int, pageNum int) (PurchaseCollection, error)
-		ListByUser(userID int64, page int, pageNum int) (PurchaseCollection, error)
+		Count() (int64, error)
+		List(page int64, pageNum int64) (PurchaseCollection, error)
+		CountByUser(userID int64) (int64, error)
+		ListByUser(userID int64, page int64, pageNum int64) (PurchaseCollection, error)
 		Add(p *Purchase) error
 		Update(p *Purchase) error
 	}
@@ -277,7 +280,7 @@ func (s *dbStore) AutomigrateForLCP() error {
 	case "sqlite3":
 
 	case "postgres", "mysql", "mssql":
-		s.log.Debugf("Creating Index and Foreign Key")
+		s.log.Infof("Creating Index and Foreign Key")
 		err = s.db.Model(License{}).AddIndex("contentFKIndex", "content_fk").Error
 		if err != nil {
 			return err
@@ -299,7 +302,7 @@ func (s *dbStore) AutomigrateForLSD() error {
 	case "sqlite3":
 		//
 	case "postgres", "mysql", "mssql":
-		s.log.Debugf("Creating Index and Foreign Key")
+		s.log.Infof("Creating Index and Foreign Key")
 		err = s.db.Model(TransactionEvent{}).AddIndex("licenseStatusFKIndex", "license_status_fk").Error
 		if err != nil {
 			return err
@@ -327,7 +330,7 @@ func (s *dbStore) AutomigrateForFrontend() error {
 	case "sqlite3":
 
 	case "postgres", "mysql", "mssql":
-		s.log.Debugf("Creating Index and Foreign Key")
+		s.log.Infof("Creating Index and Foreign Key")
 		err = s.db.Model(Purchase{}).AddIndex("publicationFKIndex", "publication_id").Error
 		if err != nil {
 			return err

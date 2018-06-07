@@ -1,0 +1,28 @@
+<style>
+    body {
+        background: #5C6BC0;
+    }
+    .mdl-card {
+        margin-top: 40px;
+        margin-left: auto;
+        margin-bottom: 40px;
+        margin-right: auto;
+    }
+    .mdl-card-main > .mdl-card__title {
+        color: #fff;
+        padding-top: 40px;
+        padding-bottom: 40px;
+        background: #3F51B5;
+    }
+</style>
+<div class="mdl-card mdl-card-main mdl-shadow--8dp" style="width: 100%">
+    <div class="mdl-card__title">
+        <h2 class="mdl-card__title-text">Dashboard</h2>
+    </div>
+    <div class="mdl-card__supporting-text mdl-grid">
+        {{ .info }}
+    </div>
+    <div class="mdl-card__supporting-text mdl-grid">
+        {{ .bestSellers }}
+    </div>
+</div>

@@ -40,47 +40,47 @@ import (
 
 // GetPurchases searches all purchases for a client
 //
-func GetPurchases(server http.IServer, resp http.ResponseWriter, req *http.Request) (model.PurchaseCollection, error) {
+func GetPurchases(server http.IServer, param ParamPagination) (model.PurchaseCollection, error) {
 	var err error
-
-	pagination, err := ExtractPaginationFromRequest(req)
+	noOfPurchases, err := server.Store().Purchase().Count()
 	if err != nil {
-		// user id is not a number
-		return nil, http.Problem{Detail: "Pagination error", Status: http.StatusBadRequest}
-
+		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
+	}
+	page, perPage, err := http.ReadPagination(param.Page, param.PerPage, noOfPurchases)
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
 	}
 
-	purchases, err := server.Store().Purchase().List(pagination.PerPage, pagination.Page)
+	purchases, err := server.Store().Purchase().List(perPage, page)
 
-	PrepareListHeaderResponse(len(purchases), "/api/v1/purchases", pagination, resp)
+	//PrepareListHeaderResponse(len(purchases), "/api/v1/purchases", pagination, resp)
 
 	return purchases, nil
 }
 
 // GetUserPurchases searches all purchases for a client
 //
-func GetUserPurchases(server http.IServer, resp http.ResponseWriter, req *http.Request) (model.PurchaseCollection, error) {
-	var err error
-	var userId int64
-	vars := mux.Vars(req)
-
-	if userId, err = strconv.ParseInt(vars["user_id"], 10, 64); err != nil {
-		// user id is not a number
-		return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
-
-	}
-
-	pagination, err := ExtractPaginationFromRequest(req)
+func GetUserPurchases(server http.IServer, param ParamPaginationAndId) (model.PurchaseCollection, error) {
+	userId, err := strconv.ParseInt(param.Id, 10, 64)
 	if err != nil {
 		// user id is not a number
-		return nil, http.Problem{Detail: "Pagination error", Status: http.StatusBadRequest}
+		return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
 	}
-	purchases, err := server.Store().Purchase().ListByUser(userId, pagination.PerPage, pagination.Page)
+	noOfPurchases, err := server.Store().Purchase().CountByUser(userId)
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
+	}
+	page, perPage, err := http.ReadPagination(param.Page, param.PerPage, noOfPurchases)
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
+	}
+
+	purchases, err := server.Store().Purchase().ListByUser(userId, perPage, page)
 	if err != nil {
 		// user id is not a number
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
-	PrepareListHeaderResponse(len(purchases), "/api/v1/users/"+vars["user_id"]+"/purchases", pagination, resp)
+	//PrepareListHeaderResponse(len(purchases), "/api/v1/users/"+vars["user_id"]+"/purchases", pagination, resp)
 
 	return purchases, nil
 }

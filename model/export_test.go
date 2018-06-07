@@ -10,7 +10,7 @@ import (
 var stor model.Store
 
 // run tests for frontend, lcp and lsd by changing this var
-var whichServer = "lsd"
+var whichServer = "frontend"
 var sqlServer = "sqlite" //"mysql"
 
 func TestMain(m *testing.M) {

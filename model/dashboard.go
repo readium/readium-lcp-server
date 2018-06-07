@@ -69,7 +69,7 @@ func (s dashboardStore) GetDashboardInfos() (*Dashboard, error) {
 		return nil, err
 	}
 
-	err = s.db.Table(LUTPurchaseTableName).Select("ROUND(AVG(JULIANDAY(end_date) - JULIANDAY(start_date)))").Where("type = ?", "LOAN").Scan(&result.AverageDuration).Error
+	err = s.db.Table(LUTPurchaseTableName).Select("ROUND(AVG(JULIANDAY(end_date) - JULIANDAY(start_date))) AS averageDuration").Where("type = ?", "LOAN").Scan(&result).Error
 	if err != nil {
 		return nil, err
 	}

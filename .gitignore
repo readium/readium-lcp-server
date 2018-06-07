@@ -5,6 +5,7 @@ files/
 *.sqlite*
 config.yaml
 /web/frontend/config.js
+/web/public/config.js
 .vscode/launch.json
 debug
 *.a

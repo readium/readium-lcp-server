@@ -237,6 +237,12 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 	// keeping a value of IServer to be passed on handler called
 	serverValue := reflect.ValueOf(s)
 
+	// sometimes controller expects the request itself - we're providing it
+	isRequestInjected := false
+	if payloadType != nil && payloadType.Kind() == reflect.Ptr && payloadType.Elem().Name() == "Request" {
+		isRequestInjected = true
+	}
+
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 
 		// if the route is secured, we're checking authority
@@ -253,12 +259,6 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 
 		var err error
 		var reqBody []byte
-
-		// sometimes controller expects the request itself - we're providing it
-		isRequestInjected := false
-		if payloadType != nil && payloadType.Kind() == reflect.Ptr && payloadType.Elem().Name() == "Request" {
-			isRequestInjected = true
-		}
 
 		// if the content type is form
 		ctype := r.Header[HdrContentType]

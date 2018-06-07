@@ -1,0 +1,58 @@
+{{ script "jquery.form-validator.min" }}
+
+<form method="POST" action="/users">
+    <div class="mdl-card mdl-shadow--2dp" style="width:100%">
+        <div class="mdl-card__title">
+
+        </div>
+        <div class="mdl-card__actions mdl-card--border">
+            <input type="hidden" name="ID" value="{{.user.ID}}">
+            <input type="hidden" name="UUID" value="{{.user.UUID}}">
+            <ul class="demo-list-item mdl-list">
+                <li class="mdl-list__item">
+                    <span> Name : </span>
+                    <div class="mdl-textfield mdl-js-textfield">
+                        <input class="mdl-textfield__input" type="text" data-validation="custom" data-validation-regexp="^([a-zA-Z ]+)$" id="Name" name="Name" value="{{.user.Name}}">
+                        <label class="mdl-textfield__label" for="Name">User name...</label>
+                    </div>
+                </li>
+                <li class="mdl-list__item">
+                    <span> Email : </span>
+                    <div class="mdl-textfield mdl-js-textfield">
+                        <input class="mdl-textfield__input" type="text" data-validation="email" id="Email" name="Email" value="{{.user.Email}}">
+                        <label class="mdl-textfield__label" for="Email">User's email...</label>
+                    </div>
+                </li>
+                <li class="mdl-list__item">
+                    <span> Password : </span>
+                    <div class="mdl-textfield mdl-js-textfield">
+                        <input class="mdl-textfield__input" type="password" data-validation="length" data-validation-length="6-15" id="Password" name="Password" value="{{.user.Password}}">
+                        <label class="mdl-textfield__label" for="Password">Password...</label>
+                    </div>
+                </li>
+                <li class="mdl-list__item">
+                    <span> Hint : </span>
+                    <div class="mdl-textfield mdl-js-textfield">
+                        <input class="mdl-textfield__input" type="text" data-validation="length" data-validation-length="6-15" id="Hint" name="Hint" value="{{.user.Hint}}">
+                        <label class="mdl-textfield__label" for="Hint">Password hint...</label>
+                    </div>
+                </li>
+            </ul>
+        </div>
+        <div class="mdl-card__actions mdl-card--border">
+            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit">Save</button>
+            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel" type="reset">Cancel</button>
+        </div>
+    </div>
+</form>
+
+<script type="text/javascript">
+    (function ($) {
+        $(function () {
+            $.validate({});
+            $(".cancel").on("click", function () {
+                window.location.href = "/users";
+            });
+        }); // end of document ready
+    })(jQuery); // end of jQuery name space
+</script>

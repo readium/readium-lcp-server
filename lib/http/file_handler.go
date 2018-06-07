@@ -25,36 +25,53 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package lutserver
+package http
 
 import (
-	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/lib/http"
-	"github.com/readium/readium-lcp-server/lib/views"
+	"bytes"
+	"fmt"
+	"net/http"
+	"os"
+	"path"
+	"time"
+
+	"github.com/readium/readium-lcp-server/lib/views/assets"
 )
 
-func GetIndex(server http.IServer) (*views.Renderer, error) {
-	info, err := server.Store().Dashboard().GetDashboardInfos()
-	if err != nil {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-		default:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+func (h *FileHandlerWrapper) ServeAsset(w http.ResponseWriter, request *http.Request) error {
+	// Clean the path
+	canonicalPath := path.Clean(request.URL.Path)
+	// Try to find an asset in our list
+	f := assets.Assets.File(path.Base(canonicalPath))
+	if f == nil {
+		if path.Base(canonicalPath) == "favicon.ico" {
+			return nil
 		}
+		h.Log.Errorf("Asset not found %s base %s", canonicalPath, path.Base(canonicalPath))
+		return fmt.Errorf("Asset not found %s in list", canonicalPath)
 	}
-	bestSellers, err := server.Store().Dashboard().GetDashboardBestSellers()
-	if err != nil {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-		default:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+	//context.Logf("Serving asset %s from RAM\n", f.LocalPath())
+	http.ServeContent(w, request, f.LocalPath(), time.Now(), bytes.NewReader(f.Bytes()))
+	return nil
+}
+
+// Default file handler, used in development - in production serve with nginx
+func (h *FileHandlerWrapper) ServeFile(w http.ResponseWriter, request *http.Request) error {
+	// Clean the path
+	canonicalPath := path.Clean(request.URL.Path)
+	// Assuming we're running from the root of the website
+	localPath := h.Public + canonicalPath
+	if _, err := os.Stat(localPath); err != nil {
+		// If file not found return error
+		if os.IsNotExist(err) {
+			h.Log.Errorf("%s\n[serveFile] MISSING file %s\n", localPath, err.Error())
+			return err
 		}
+		// For other errors return not authorised
+		return fmt.Errorf("Not authorized access of %s", canonicalPath)
 	}
-	view := &views.Renderer{}
-	view.AddKey("info", info)
-	view.AddKey("bestSellers", bestSellers)
-	view.Template("dashboard/index.html.got")
-	return view, nil
+	//fmt.Printf("Serving file %s\n", localPath)
+	// If the file exists and we can access it, serve it
+	http.ServeFile(w, request, localPath)
+	return nil
 }

@@ -42,21 +42,40 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/pack"
+	"github.com/readium/readium-lcp-server/lib/validator"
+	"github.com/readium/readium-lcp-server/lib/views"
 	"github.com/readium/readium-lcp-server/model"
+	"reflect"
+	"runtime"
+	"strings"
 )
 
 type (
 	ParamId struct {
 		Id string `var:"id"`
 	}
-	// Pagination used to paginate listing
-	Pagination struct {
-		Page    int
-		PerPage int
+
+	ParamPaginationAndId struct {
+		Id      string `var:"id"`
+		Page    string `form:"page"`
+		PerPage string `form:"per_page"`
 	}
 
+	// ParamPagination used to paginate listing
+	ParamPagination struct {
+		Page    string `form:"page"`
+		PerPage string `form:"per_page"`
+		Filter  string `form:"filter"`
+	}
+
+	ParamAndIndex struct {
+		tag   string
+		index int
+		isVar bool
+	}
 	// Contains all repository definitions
 	RepositoryManager struct {
 		MasterRepositoryPath    string
@@ -73,6 +92,12 @@ type (
 	RepositoryFile struct {
 		Name string `json:"name"`
 		Path string
+	}
+
+	Headers struct {
+		UserAgent      string // attention : this doesn't require `hdr:"User-Agent"`
+		Method         string // attention : this doesn't require `hdr:"Method"`
+		AcceptLanguage string `hdr:"Accept-Language"`
 	}
 )
 
@@ -239,58 +264,6 @@ func EncryptEPUB(inputPath string, contentDisposition string, server http.IServe
 	//log.Printf("Lsd Server on compliancetest response : %v [http-status:%d]", body, resp.StatusCode)
 
 	return nil
-}
-
-// ExtractPaginationFromRequest extract from http.Request pagination information
-func ExtractPaginationFromRequest(req *http.Request) (Pagination, error) {
-	var err error
-	var page int64    // default: page 1
-	var perPage int64 // default: 30 items per page
-	pagination := Pagination{}
-
-	if req.FormValue("page") != "" {
-		page, err = strconv.ParseInt((req).FormValue("page"), 10, 32)
-		if err != nil {
-			return pagination, err
-		}
-	} else {
-		page = 1
-	}
-
-	if req.FormValue("per_page") != "" {
-		perPage, err = strconv.ParseInt((req).FormValue("per_page"), 10, 32)
-		if err != nil {
-			return pagination, err
-		}
-	} else {
-		perPage = 30
-	}
-
-	if page > 0 {
-		page-- //pagenum starting at 0 in code, but user interface starting at 1
-	}
-
-	if page < 0 {
-		return pagination, err
-	}
-
-	pagination.Page = int(page)
-	pagination.PerPage = int(perPage)
-	return pagination, err
-}
-
-// PrepareListHeaderResponse set several http headers
-// sets previous and next link headers
-func PrepareListHeaderResponse(resourceCount int, resourceLink string, pagination Pagination, resp http.ResponseWriter) {
-	if resourceCount > 0 {
-		nextPage := strconv.Itoa(int(pagination.Page) + 1)
-		resp.Header().Set("Link", "<"+resourceLink+"?page="+nextPage+">; rel=\"next\"; title=\"next\"")
-	}
-	if pagination.Page > 1 {
-		previousPage := strconv.Itoa(int(pagination.Page) - 1)
-		resp.Header().Set("Link", "<"+resourceLink+"/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
-	}
-	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
 }
 
 func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model.License, error) {
@@ -574,4 +547,487 @@ func getPartialLicense(purchase *model.Purchase, server http.IServer) (*model.Li
 	}
 
 	return &partialLicense, nil
+}
+
+func NotFoundHandler(h http.FileHandlerWrapper) http.HandlerFunc {
+	return func(w http.ResponseWriter, request *http.Request) {
+		// Clean the path
+		canonicalPath := path.Clean(request.URL.Path)
+		if len(canonicalPath) == 0 {
+			canonicalPath = "/"
+		} else if canonicalPath[0] != '/' {
+			canonicalPath = "/" + canonicalPath
+		}
+
+		err := h.ServeAsset(w, request)
+		if err != nil {
+			// on failed looking for assets
+			// Finally try serving a file from public
+			err = h.ServeFile(w, request)
+			if err == nil {
+				return
+			}
+		} else {
+			return
+		}
+
+		// The real 404
+		w.Header().Set("Content-Type", "text/html")
+		view := views.Renderer{}
+		view.SetWriter(w)
+		view.AddKey("title", "Error 404")
+		view.AddKey("message", fmt.Errorf("Requested route (%s) is not served by this server.", request.URL.Path))
+		view.Template("main/error.html.got")
+		view.Render()
+	}
+}
+
+func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, reflect.Type, []ParamAndIndex, []string) {
+
+	// checking if we're registering a function, not something else
+	functionType := fnValue.Type()
+	if functionType.Kind() != reflect.Func {
+		panic("Can only register functions.")
+	}
+	// getting the function name (for debugging purposes)
+	fnCallerName := runtime.FuncForPC(fnValue.Pointer()).Name()
+	parts := strings.Split(fnCallerName, "/")
+	callerName := parts[len(parts)-1]
+
+	// collecting injected parameters
+	var payloadType reflect.Type
+	var paramType reflect.Type
+	var headersType reflect.Type
+	var paramFields []ParamAndIndex
+	var headerFields []string
+
+	if functionType.NumIn() == 0 {
+		panic("Handler must have at least one argument: http.IServer")
+	}
+	// convention : first param is always IServer - to give access to configuration, storage, etc
+	serverIfaceParam := functionType.In(0)
+	if "http.IServer" != serverIfaceParam.String() {
+		panic("bad handler func. Check logs.")
+	}
+
+	for p := 1; p < functionType.NumIn(); p++ {
+		param := functionType.In(p)
+		paramName := param.Name()
+		// param types should have the name starting with "Param" (e.g. "ParamPageAndDeviceID")
+		if strings.HasPrefix(paramName, "Param") {
+			paramType = param
+			for j := 0; j < param.NumField(); j++ {
+				field := param.Field(j)
+				// if a field is read from muxer vars, it should have a tag set to the name of the required parameter
+				varTag := field.Tag.Get("var")
+				// if a field is read from muxer form, it should have a tag set to the name of the required parameter
+				formTag := field.Tag.Get("form")
+				if len(varTag) > 0 {
+					paramFields = append(paramFields, ParamAndIndex{tag: varTag, index: j, isVar: true})
+				}
+
+				if len(formTag) > 0 {
+					paramFields = append(paramFields, ParamAndIndex{tag: formTag, index: j})
+				}
+			}
+			// Headers struct
+		} else if strings.HasPrefix(paramName, "Headers") {
+			headersType = param
+			// forced add of the user agent
+			headerFields = append(headerFields, "User-Agent")
+			// forced add of the method (used mostly in differentiating between PUT and POST)
+			headerFields = append(headerFields, "Method")
+			for j := 0; j < param.NumField(); j++ {
+				field := param.Field(j)
+				// all headers should have hdr tag - only exception is "User-Agent" - more exceptions can be added
+				hdrTag := field.Tag.Get("hdr")
+				if len(hdrTag) > 0 {
+					headerFields = append(headerFields, hdrTag)
+				}
+			}
+		} else {
+			if payloadType != nil {
+				panic("Seems you are expecting two payloads on " + callerName + ". You should take only one.")
+			}
+			// convention : second param is always the json payload (which gets automatically decoded)
+			switch functionType.In(p).Kind() {
+			case reflect.Ptr:
+				payloadType = functionType.In(p)
+			}
+		}
+	}
+
+	// the function must always return 2 params
+	if functionType.NumOut() != 2 {
+		panic("Handler has " + strconv.Itoa(functionType.NumOut()) + " returns. Must have two : *object or interface{}, and error. (while registering " + callerName + ")")
+	}
+
+	// first param returned must be Renderer (views.Renderer)
+	if functionType.Out(0).String() != "*views.Renderer" {
+		panic("bad handler func : should return *views.Renderer as first param")
+	}
+
+	// last param returned must be error
+	if "error" != functionType.Out(1).String() {
+		panic("bad handler func : should return error as second param")
+	}
+
+	//s.LogInfo("%s registered with %d input parameters and %d output parameters.", callerName, functionType.NumIn(), functionType.NumOut())
+	return payloadType, paramType, headersType, paramFields, headerFields
+}
+
+func renderError(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "text/html")
+	view := views.Renderer{}
+	view.SetWriter(w)
+	view.AddKey("title", "Error")
+	view.AddKey("message", err.Error())
+	view.Template("main/error.html.got")
+	view.Render()
+}
+
+func HandleFunc(router *mux.Router, server http.IServer, route string, fn interface{}) *mux.Route {
+	// reflect on the provided handler
+	fnValue := reflect.ValueOf(fn)
+
+	// get payload, parameters and headers that will be injected
+	payloadType, paramType, headersType, paramFields, headerFields := collect(fnValue)
+
+	// keeping a value of IServer to be passed on handler called
+	serverValue := reflect.ValueOf(server)
+
+	// sometimes controller expects the request itself - we're providing it
+	isRequestInjected := false
+	if payloadType != nil && payloadType.Kind() == reflect.Ptr && payloadType.Elem().Name() == "Request" {
+		isRequestInjected = true
+	}
+
+	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+		// if the content type is form
+		ctype := r.Header[http.HdrContentType]
+		if r.Method == "GET" {
+			server.LogInfo("Route : %s Method : %s", r.URL.Path, r.Method)
+		} else {
+			server.LogInfo("Route : %s Method : %s Content Type : %s", r.URL.Path, r.Method, ctype)
+		}
+		// Set up arguments for handler call : first argument is the IServer
+		in := []reflect.Value{serverValue}
+
+		if len(ctype) > 0 {
+			switch ctype[0] {
+			case http.ContentTypeFormUrlEncoded:
+				// seems we're expecting a valid json payload
+				if payloadType != nil {
+					// Building the deserialize value
+					if !isRequestInjected {
+						// the most common scenario - expecting a struct
+						deserializeTo := reflect.New(payloadType.Elem())
+						in = append(in, deserializeTo)
+						// decode the payload
+						parseErr := r.ParseForm()
+						if parseErr != nil {
+							renderError(w, parseErr)
+							return
+						}
+						iFace := deserializeTo.Interface()
+						for k, v := range r.Form {
+							field := deserializeTo.Elem().FieldByName(k)
+							val := v[0]
+							//server.LogInfo("%s = %s %#v", k, v, field)
+							switch field.Kind() {
+							case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+								if val == "" {
+									val = "0"
+								}
+								intVal, err := strconv.ParseInt(val, 10, 64)
+								if err != nil {
+									renderError(w, fmt.Errorf("Value could not be parsed as int"))
+									return
+								} else {
+									field.SetInt(intVal)
+								}
+							case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+								if val == "" {
+									val = "0"
+								}
+								uintVal, err := strconv.ParseUint(val, 10, 64)
+								if err != nil {
+									renderError(w, fmt.Errorf("Value could not be parsed as uint"))
+									return
+								} else {
+									field.SetUint(uintVal)
+								}
+							case reflect.Bool:
+								if val == "" {
+									val = "false"
+								}
+								boolVal, err := strconv.ParseBool(val)
+								if err != nil {
+									renderError(w, fmt.Errorf("Value could not be parsed as boolean"))
+									return
+								} else {
+									field.SetBool(boolVal)
+								}
+							case reflect.Float32:
+								if val == "" {
+									val = "0.0"
+								}
+								floatVal, err := strconv.ParseFloat(val, 32)
+								if err != nil {
+									renderError(w, fmt.Errorf("Value could not be parsed as 32-bit float"))
+									return
+								} else {
+									field.SetFloat(floatVal)
+								}
+							case reflect.Float64:
+								if val == "" {
+									val = "0.0"
+								}
+								floatVal, err := strconv.ParseFloat(val, 64)
+								if err != nil {
+									renderError(w, fmt.Errorf("Value could not be parsed as 64-bit float"))
+									return
+								} else {
+									field.SetFloat(floatVal)
+								}
+							case reflect.String:
+								field.SetString(val)
+							}
+						}
+
+						//server.LogInfo("Payload : %#v", iFace)
+						// checking if value is implementing Validate() error
+						iVal, isValidator := iFace.(validator.IValidator)
+						if isValidator {
+							// it does - we call validate
+							err := iVal.Validate()
+							if err != nil {
+								renderError(w, err)
+								return
+							}
+						}
+					} else {
+						// append request as it is, since body is going to be read in controller.
+						in = append(in, reflect.ValueOf(r))
+					}
+				}
+			case http.ContentTypeMultipartForm:
+				// seems we're expecting a valid json payload
+				if payloadType != nil {
+					// Building the deserialize value
+					if !isRequestInjected {
+						// the most common scenario - expecting a struct
+						deserializeTo := reflect.New(payloadType.Elem())
+						in = append(in, deserializeTo)
+						// decode the payload
+						panic("Decode payload")
+						// checking if value is implementing Validate() error
+						iVal, isValidator := deserializeTo.Interface().(validator.IValidator)
+						if isValidator {
+							// it does - we call validate
+							err := iVal.Validate()
+							if err != nil {
+								renderError(w, err)
+								return
+							}
+						}
+					} else {
+						// append request as it is, since body is going to be read in controller.
+						in = append(in, reflect.ValueOf(r))
+					}
+				}
+			default:
+				// now we read the request body
+				reqBody, err := ioutil.ReadAll(r.Body)
+				if err != nil {
+					renderError(w, err)
+					return
+				}
+				// defering close
+				defer r.Body.Close()
+
+				renderError(w, fmt.Errorf("Not implemented : %s", reqBody))
+				return
+			}
+		}
+
+		// we have parameters that need to be injected
+		if paramType != nil {
+			vars := mux.Vars(r)
+			p := reflect.New(paramType).Elem()
+			for _, pf := range paramFields {
+				// if the parameter is in muxer vars
+				if pf.isVar {
+					p.Field(pf.index).Set(reflect.ValueOf(vars[pf.tag]))
+				} else {
+					// otherwise it must come from muxer form
+					fv := r.FormValue(pf.tag)
+					p.Field(pf.index).Set(reflect.ValueOf(fv))
+				}
+			}
+			// adding the injected
+			in = append(in, p)
+		}
+
+		// we have headers that need to be injected
+		if headersType != nil {
+			h := reflect.New(headersType).Elem()
+			for idx, hf := range headerFields {
+				switch hf {
+				case "Method":
+					h.Field(idx).Set(reflect.ValueOf(r.Method))
+				case "User-Agent":
+					h.Field(idx).Set(reflect.ValueOf(r.UserAgent()))
+				default:
+					h.Field(idx).Set(reflect.ValueOf(r.Header.Get(hf)))
+				}
+			}
+			in = append(in, h)
+		}
+
+		// finally, we're calling the handler with all the params
+		out := fnValue.Call(in)
+
+		w.Header().Set("Content-Type", "text/html")
+		// error is carrying http status and http headers - we're taking it
+		if !out[1].IsNil() {
+			problem, ok := out[1].Interface().(http.Problem)
+			if !ok {
+				renderError(w, fmt.Errorf("Bad http.Problem"))
+				return
+			}
+			if problem.Status == http.StatusRedirect {
+				http.Redirect(w, r, problem.Detail, problem.Status)
+				return
+			}
+			w.WriteHeader(problem.Status)
+			for hdrKey := range problem.HttpHeaders {
+				w.Header().Set(hdrKey, problem.HttpHeaders.Get(hdrKey))
+			}
+		}
+		// bytes are delivered as they are (downloads)
+		if byts, ok := out[0].Interface().([]byte); ok {
+			w.Write(byts)
+			return
+		}
+		renderer, ok := out[0].Interface().(*views.Renderer)
+		if ok && renderer != nil {
+			renderer.SetWriter(w)
+			err := renderer.Render()
+			// rendering template caused an error : usefull for debugging
+			if err != nil {
+				renderer.AddKey("title", "Template "+renderer.GetTemplate()+" rendering error.")
+				renderer.AddKey("message", err.Error())
+				renderer.Template("main/error.html.got")
+				renderer.Render()
+			}
+		} else {
+			server.LogError("Error : renderer not found.")
+			renderError(w, fmt.Errorf("Bad renderer. Should always have one"))
+		}
+	})
+}
+
+func readPagination(pg, perPg string, totalRecords int64) (int64, int64, error) {
+	var err error
+	var page, perPage int64
+
+	if pg != "" {
+		page, err = strconv.ParseInt(pg, 10, 64)
+		if err != nil {
+			return 0, 0, err
+		}
+
+	}
+	if perPg != "" {
+		perPage, err = strconv.ParseInt(perPg, 10, 64)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+
+	if page < 0 {
+		return 0, 0, errors.New("page must be positive integer")
+	}
+
+	if page > 0 { // starting at 0 in code, but user interface starting at 1
+		page--
+	}
+
+	if perPage == 0 {
+		perPage = 30
+	}
+
+	if totalRecords < page*perPage {
+		return 0, 0, errors.New("page outside known range")
+	}
+
+	return page, perPage, nil
+}
+
+func RegisterRoutes(muxer *mux.Router, server http.IServer) {
+	// dashboard
+	HandleFunc(muxer, server, "/", GetIndex).Methods("GET")
+	//
+	// user functions
+	//
+	usersRoutesPathPrefix := "/users"
+	HandleFunc(muxer, server, usersRoutesPathPrefix, GetUsers).Methods("GET")
+	HandleFunc(muxer, server, usersRoutesPathPrefix, CreateOrUpdateUser).Methods("POST")
+	usersRoutes := muxer.PathPrefix(usersRoutesPathPrefix).Subrouter().StrictSlash(false)
+	HandleFunc(usersRoutes, server, "/{id}", GetUser).Methods("GET")
+	HandleFunc(usersRoutes, server, "/{id}", DeleteUser).Methods("DELETE")
+	// get all purchases for a given user
+	server.HandleFunc(usersRoutes, "/{user_id}/purchases", GetUserPurchases, false).Methods("GET")
+
+	//
+	//  repositories of master files
+	//
+	repositoriesRoutesPathPrefix := "/repositories"
+	repositoriesRoutes := muxer.PathPrefix(repositoriesRoutesPathPrefix).Subrouter().StrictSlash(false)
+	//
+	server.HandleFunc(repositoriesRoutes, "/master-files", GetRepositoryMasterFiles, false).Methods("GET")
+	//
+	// publications
+	//
+	publicationsRoutesPathPrefix := "/publications"
+	publicationsRoutes := muxer.PathPrefix(publicationsRoutesPathPrefix).Subrouter().StrictSlash(false)
+	//
+	server.HandleFunc(muxer, publicationsRoutesPathPrefix, GetPublications, false).Methods("GET")
+	//
+	server.HandleFunc(muxer, publicationsRoutesPathPrefix, CreatePublication, false).Methods("POST")
+	//
+	server.HandleFunc(muxer, "/PublicationUpload", UploadEPUB, false).Methods("POST")
+	//
+	server.HandleFunc(publicationsRoutes, "/check-by-title", CheckPublicationByTitle, false).Methods("GET")
+	//
+	server.HandleFunc(publicationsRoutes, "/{id}", GetPublication, false).Methods("GET")
+	server.HandleFunc(publicationsRoutes, "/{id}", UpdatePublication, false).Methods("PUT")
+	server.HandleFunc(publicationsRoutes, "/{id}", DeletePublication, false).Methods("DELETE")
+
+	//
+	// purchases
+	//
+	purchasesRoutesPathPrefix := "/purchases"
+	purchasesRoutes := muxer.PathPrefix(purchasesRoutesPathPrefix).Subrouter().StrictSlash(false)
+	// get all purchases
+	server.HandleFunc(muxer, purchasesRoutesPathPrefix, GetPurchases, false).Methods("GET")
+	// create a purchase
+	server.HandleFunc(muxer, purchasesRoutesPathPrefix, CreatePurchase, false).Methods("POST")
+	// update a purchase
+	server.HandleFunc(purchasesRoutes, "/{id}", UpdatePurchase, false).Methods("PUT")
+	// get a purchase by purchase id
+	server.HandleFunc(purchasesRoutes, "/{id}", GetPurchase, false).Methods("GET")
+	// get a license from the associated purchase id
+	server.HandleFunc(purchasesRoutes, "/{id}/license", GetPurchasedLicense, false).Methods("GET")
+	//
+	// licences
+	//
+	licenseRoutesPathPrefix := "/licenses"
+	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
+	//
+	// get a list of licenses
+	server.HandleFunc(muxer, licenseRoutesPathPrefix, GetFilteredLicenses, false).Methods("GET")
+	// get a license by id
+	server.HandleFunc(licenseRoutes, "/{license_id}", GetLicense, false).Methods("GET")
 }

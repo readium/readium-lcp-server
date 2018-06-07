@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ .pageTitle }}</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    {{ style "material.min" }}
+    {{ style "style" }}
+    {{ script "material.min" }}
+    {{ script "jquery.min" }}
+    {{ script "jquery.form-validator.min" }}
+</head>
+<body>
+<div class="demo-layout mdl-layout mdl-js-layout mdl-layout--fixed-drawer mdl-layout--fixed-header">
+
+    <header class="demo-header mdl-layout__header mdl-color--grey-100 mdl-color-text--grey-600">
+        <div class="mdl-layout__header-row">
+            <span class="mdl-layout-title">{{.pageTitle}}</span>
+            <div class="mdl-layout-spacer"></div>
+            <div class="mdl-textfield mdl-js-textfield mdl-textfield--expandable">
+                <label class="mdl-button mdl-js-button mdl-button--icon" for="search">
+                    <i class="material-icons">search</i>
+                </label>
+                <div class="mdl-textfield__expandable-holder">
+                    <form accept-charset="UTF-8" method="GET" class="filter-form">
+                        <input class="mdl-textfield__input" type="text" name="filter" id="search" value="{{.filter}}">
+                        <label class="mdl-textfield__label" for="search">Enter your query...</label>
+                    </form>
+                </div>
+            </div>
+    </header>
+
+    <!-- navigation -->
+    <div class="demo-drawer mdl-layout__drawer mdl-color--blue-grey-900 mdl-color-text--blue-grey-50">
+        <nav class="demo-navigation mdl-navigation mdl-color--blue-grey-800">
+            <a class="mdl-navigation__link" href="/">Home</a>
+            <a class="mdl-navigation__link" href="/publications">Publications</a>
+            <a class="mdl-navigation__link" href="/purchases">Purchases</a>
+            <a class="mdl-navigation__link" href="/licenses">Licenses</a>
+            <a class="mdl-navigation__link" href="/repositories">Repositories</a>
+            <a class="mdl-navigation__link" href="/users">Users</a>
+        </nav>
+    </div>
+
+    <main class="mdl-layout__content mdl-color--grey-100">
+
+        {{ if .warning }}
+        <div class="container">
+            <ul class="collection with-header">
+                <li class="collection-header yellow lighten-1"><b>Warning!</b></li>
+                <li class="collection-item">{{.warning}}</li>
+            </ul>
+        </div>
+        {{ end }}
+
+        {{ .content }}
+
+    </main>
+
+    <footer class="mdl-mega-footer">
+        <div class="mdl-mega-footer--top-section" style="text-align:right">
+            <p class="mdl-typography--font-light">Copyright &copy; 2018 Readium Foundation. All rights reserved. - <a href="http://www.readium.org" target="_blank">readium.org</a></p>
+        </div>
+    </footer>
+</div>
+</body>
+</html>

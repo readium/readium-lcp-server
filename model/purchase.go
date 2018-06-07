@@ -116,17 +116,26 @@ func (s purchaseStore) GetByLicenseID(licenseID string) (*Purchase, error) {
 	return result, s.db.Where("license_uuid = ?", licenseID).Preload("User").Preload("Publication").Find(&result).Error
 }
 
+func (s purchaseStore) Count() (int64, error) {
+	var count int64
+	return count, s.db.Model(Purchase{}).Order("transaction_date DESC").Count(&count).Error
+}
+
 // List purchases, with pagination
 //
-func (s purchaseStore) List(page int, pageNum int) (PurchaseCollection, error) {
+func (s purchaseStore) List(page, pageNum int64) (PurchaseCollection, error) {
 	var result PurchaseCollection
 	return result, s.db.Offset(pageNum * page).Limit(page).Order("transaction_date DESC").Find(&result).Error
 
 }
+func (s purchaseStore) CountByUser(userID int64) (int64, error) {
+	var count int64
+	return count, s.db.Model(Purchase{}).Where("user_id = ?", userID).Order("transaction_date DESC").Count(&count).Error
+}
 
 // ListByUser: list the purchases of a given user, with pagination
 //
-func (s purchaseStore) ListByUser(userID int64, page int, pageNum int) (PurchaseCollection, error) {
+func (s purchaseStore) ListByUser(userID, page, pageNum int64) (PurchaseCollection, error) {
 	var result PurchaseCollection
 	return result, s.db.Where("user_id = ?", userID).Offset(pageNum * page).Limit(page).Order("transaction_date DESC").Find(&result).Error
 }

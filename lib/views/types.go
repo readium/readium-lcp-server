@@ -25,36 +25,55 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package lutserver
+package views
 
 import (
-	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/lib/http"
-	"github.com/readium/readium-lcp-server/lib/views"
+	"github.com/readium/readium-lcp-server/lib/views/parser"
+	"net/http"
+	"sync"
 )
 
-func GetIndex(server http.IServer) (*views.Renderer, error) {
-	info, err := server.Store().Dashboard().GetDashboardInfos()
-	if err != nil {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-		default:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
+type (
+	Debugf func(format string, args ...interface{})
+	// Renderer is a views which is set up on each request and renders the response to its writer
+	Renderer struct {
+		// The views rendering context
+		renderContext map[string]interface{}
+		// The writer to write the context to
+		writer http.ResponseWriter
+		// The layout template to render in
+		layout string
+		// The template to render
+		view string
+		// The status to render with
+		status int
+		// The request path
+		path string
+		// content type
+		contentType string
 	}
-	bestSellers, err := server.Store().Dashboard().GetDashboardBestSellers()
-	if err != nil {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-		default:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
+	// RenderContext is the type passed in to New, which helps construct the rendering views
+	// Alternatively, you can use NewWithPath, which doesn't require a RenderContext
+	RenderContext interface {
+		Path() string
+		RenderContext() map[string]interface{}
+		Writer() http.ResponseWriter
+		DefaultLayoutPath() string
+		ViewPath() string
+		ContentType() string
 	}
-	view := &views.Renderer{}
-	view.AddKey("info", info)
-	view.AddKey("bestSellers", bestSellers)
-	view.Template("dashboard/index.html.got")
-	return view, nil
-}
+)
+
+var (
+	// Production is true if this server is running in production mode
+	Production bool
+
+	DefaultLayoutPath string
+	// The scanner is a private type used for scanning templates
+	scanner *parser.Scanner
+	// This mutex guards the pkg scanner variable during reload and access
+	// it is only neccessary because of hot reload during development
+	mu sync.RWMutex
+	// Helper functions available in templates
+	Helpers parser.FuncMap
+)

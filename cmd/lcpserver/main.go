@@ -162,7 +162,6 @@ func main() {
 	)
 
 	if static != "" {
-		//logz.Infof("Serving static from %q", static)
 		muxer.PathPrefix("/static/").Handler(goHttp.StripPrefix("/static/", goHttp.FileServer(goHttp.Dir(static))))
 	}
 

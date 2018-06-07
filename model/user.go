@@ -68,9 +68,19 @@ func (u *User) BeforeSave() error {
 	return nil
 }
 
-func (s userStore) List(page int, pageNum int) (UsersCollection, error) {
+func (s userStore) Count() (int64, error) {
+	var count int64
+	return count, s.db.Model(User{}).Order("email DESC").Count(&count).Error
+}
+
+func (s userStore) List(page, pageNum int64) (UsersCollection, error) {
 	var result UsersCollection
 	return result, s.db.Offset(pageNum * page).Limit(page).Order("email DESC").Find(&result).Error
+}
+
+func (s userStore) Filter(emailLike string, page, pageNum int64) (UsersCollection, error) {
+	var result UsersCollection
+	return result, s.db.Where("email LIKE ?", emailLike).Offset(pageNum * page).Limit(page).Order("email DESC").Find(&result).Error
 }
 
 func (s userStore) Get(id int64) (*User, error) {
