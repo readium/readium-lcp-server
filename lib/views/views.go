@@ -110,10 +110,10 @@ func DefaultHelpers() parser.FuncMap {
 		"blank":  helpers.Blank,
 		"exists": helpers.Exists,
 		// Math helpers
-		"mod":      helpers.Mod,
-		"odd":      helpers.Odd,
-		"add":      helpers.Add,
-		"subtract": helpers.Subtract,
+		"mod":   helpers.Mod,
+		"odd":   helpers.Odd,
+		"plus":  helpers.Add,
+		"minus": helpers.Subtract,
 		// Array functions
 		"array":    helpers.Array,
 		"append":   helpers.Append,

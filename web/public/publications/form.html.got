@@ -1,0 +1,80 @@
+{{ script "jquery.form-validator.min" }}
+
+<form method="POST" action="/publications" enctype="multipart/form-data">
+    <div class="mdl-card mdl-shadow--2dp" style="width:100%">
+        <div class="mdl-card__title">
+
+        </div>
+        <div class="mdl-card__actions mdl-card--border">
+            <input type="hidden" name="ID" value="{{.publication.ID}}">
+            <input type="hidden" name="UUID" value="{{.publication.UUID}}">
+            <ul class="demo-list-item mdl-list">
+                <li class="mdl-list__item">
+                    <span> Name : </span>
+                    <div class="mdl-textfield mdl-js-textfield">
+                        <input class="mdl-textfield__input" type="text" data-validation="custom" data-validation-regexp="^([a-zA-Z ]+)$" id="Title" name="Title" value="{{.publication.Title}}">
+                        <label class="mdl-textfield__label" for="Title">Title...</label>
+                    </div>
+                </li>
+                <li class="mdl-list__item">
+                    <span> Status : </span>
+                    <div class="mdl-textfield mdl-js-textfield">
+                        <input class="mdl-textfield__input" type="text" id="Status" name="Status" value="{{.publication.Status}}">
+                        <label class="mdl-textfield__label" for="Status">Status...</label>
+                    </div>
+                </li>
+                <li class="mdl-list__item">
+                    <span> File : </span>
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--file">
+                        <input class="mdl-textfield__input" placeholder="File" type="file" id="uploadFile" name="Upload" readonly/>
+                        <div class="mdl-button mdl-button--primary mdl-button--icon mdl-button--file">
+                            <i class="material-icons">attach_file</i><input type="file" id="uploadBtn">
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+        <div class="mdl-card__actions mdl-card--border">
+            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit">Save</button>
+            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel" type="reset">Cancel</button>
+        </div>
+    </div>
+</form>
+
+<style>
+   .mdl-button--file input {
+        cursor: pointer;
+        height: 100%;
+        right: 0;
+        opacity: 0;
+        position: absolute;
+        top: 0;
+        width: 300px;
+        z-index: 4;
+    }
+
+    .mdl-textfield--file .mdl-textfield__input {
+        box-sizing: border-box;
+        width: calc(100% - 32px);
+    }
+    .mdl-textfield--file .mdl-button--file {
+        right: 0;
+    }
+
+</style>
+
+<script type="text/javascript">
+    (function ($) {
+        $(function () {
+            $.validate({});
+
+            document.getElementById("uploadBtn").onchange = function () {
+                document.getElementById("uploadFile").value = this.files[0].name;
+            };
+
+            $(".cancel").on("click", function () {
+                window.location.href = "/publications";
+            });
+        }); // end of document ready
+    })(jQuery); // end of jQuery name space
+</script>

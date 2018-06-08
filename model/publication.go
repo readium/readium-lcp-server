@@ -31,11 +31,11 @@ type (
 	PublicationsCollection []*Publication
 	// Publication struct defines a publication
 	Publication struct {
-		ID             int64  `json:"id" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		UUID           string `json:"uuid" sql:"NOT NULL" gorm:"size:36"` // uuid - max size 36
-		Status         string `json:"status" sql:"NOT NULL"`
-		Title          string `json:"title,omitempty" sql:"NOT NULL"`
-		MasterFilename string `json:"masterFilename,omitempty" gorm:"-"`
+		ID     int64    `json:"id" sql:"AUTO_INCREMENT" gorm:"primary_key"`
+		UUID   string   `json:"uuid" sql:"NOT NULL" gorm:"size:36"` // uuid - max size 36
+		Status string   `json:"status" sql:"NOT NULL"`
+		Title  string   `json:"title,omitempty" sql:"NOT NULL"`
+		Files  []string `json:"-" gorm:"-"`
 	}
 )
 
@@ -93,10 +93,25 @@ func (s publicationStore) Delete(id int64) error {
 	return result
 }
 
+func (s publicationStore) Count() (int64, error) {
+	var count int64
+	return count, s.db.Model(Publication{}).Count(&count).Error
+}
+
+func (s publicationStore) FilterCount(paramLike string) (int64, error) {
+	var count int64
+	return count, s.db.Model(Publication{}).Where("title LIKE ? OR uuid LIKE ?", "%"+paramLike+"%", "%"+paramLike+"%").Count(&count).Error
+}
+
+func (s publicationStore) Filter(paramLike string, page, pageNum int64) (PublicationsCollection, error) {
+	var result PublicationsCollection
+	return result, s.db.Where("title LIKE ? OR uuid LIKE ?", "%"+paramLike+"%", "%"+paramLike+"%").Offset(pageNum * page).Limit(page).Where(&Publication{}).Order("title DESC").Find(&result).Error
+}
+
 // List lists publications within a given range
 // Parameters: page = number of items per page; pageNum = page offset (0 for the first page)
 //
-func (s publicationStore) List(page int, pageNum int) (PublicationsCollection, error) {
+func (s publicationStore) List(page, pageNum int64) (PublicationsCollection, error) {
 	var result PublicationsCollection
 	return result, s.db.Offset(pageNum * page).Limit(page).Where(&Publication{}).Order("title DESC").Find(&result).Error
 }

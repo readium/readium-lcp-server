@@ -143,12 +143,12 @@ func Mod(a int, b int) int {
 }
 
 // Add returns a + b
-func Add(a int, b int) int {
+func Add(a, b int64) int64 {
 	return a + b
 }
 
 // Subtract returns a - b
-func Subtract(a int, b int) int {
+func Subtract(a, b int64) int64 {
 	return a - b
 }
 

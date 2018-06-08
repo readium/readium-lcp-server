@@ -28,132 +28,165 @@
 package lutserver
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
-	"log"
-	"strconv"
-
-	"fmt"
-	"io"
+	"github.com/jinzhu/gorm"
+	"github.com/readium/readium-lcp-server/lib/http"
+	"github.com/readium/readium-lcp-server/lib/pack"
+	"github.com/readium/readium-lcp-server/lib/views"
+	"github.com/readium/readium-lcp-server/model"
 	"io/ioutil"
 	"os"
 	"path"
-
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
-	"github.com/readium/readium-lcp-server/lib/http"
-	"github.com/readium/readium-lcp-server/model"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // GetPublications returns a list of publications
-func GetPublications(server http.IServer, resp http.ResponseWriter, req *http.Request) (model.PublicationsCollection, error) {
-	var page int64
-	var perPage int64
-	var err error
+func GetPublications(server http.IServer, param ParamPagination) (*views.Renderer, error) {
+	noOfPublications, err := server.Store().Publication().Count()
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
+	}
+	// Pagination
+	page, perPage, err := readPagination(param.Page, param.PerPage, noOfPublications)
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
+	}
 
-	if req.FormValue("page") != "" {
-		page, err = strconv.ParseInt((req).FormValue("page"), 10, 32)
+	var publications model.PublicationsCollection
+	view := &views.Renderer{}
+	if param.Filter != "" {
+		view.AddKey("filter", param.Filter)
+		noOfFilteredPublications, err := server.Store().Publication().FilterCount(param.Filter)
 		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+			return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
+		}
+		view.AddKey("filterTotal", noOfFilteredPublications)
+		publications, err = server.Store().Publication().Filter(param.Filter, perPage, page)
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		if (page+1)*perPage < noOfFilteredPublications {
+			view.AddKey("hasNextPage", true)
 		}
 	} else {
-		page = 1
-	}
-
-	if req.FormValue("per_page") != "" {
-		perPage, err = strconv.ParseInt((req).FormValue("per_page"), 10, 32)
+		publications, err = server.Store().Publication().List(perPage, page)
 		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
-	} else {
-		perPage = 30
+		if (page+1)*perPage < noOfPublications {
+			view.AddKey("hasNextPage", true)
+		}
 	}
+	view.AddKey("publications", publications)
+	view.AddKey("pageTitle", "Publications list")
+	view.AddKey("total", noOfPublications)
+	view.AddKey("currentPage", page+1)
+	view.AddKey("perPage", perPage)
+	view.Template("publications/index.html.got")
+	return view, nil
 
-	if page > 0 {
-		page-- //pagenum starting at 0 in code, but user interface starting at 1
-	}
-
-	if page < 0 {
-		return nil, http.Problem{Detail: "page must be positive integer", Status: http.StatusBadRequest}
-	}
-	// TODO : read noOfPublications
-	noOfPublications := int64(0)
-	pubs, err := server.Store().Publication().List(int(perPage), int(page))
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-
-	}
-
-	if len(pubs) > 0 {
-		nextPage := strconv.Itoa(int(page) + 1)
-		resp.Header().Set("Link", "</publications/?page="+nextPage+">; rel=\"next\"; title=\"next\"")
-	}
-	if page > 1 {
-		previousPage := strconv.Itoa(int(page) - 1)
-		resp.Header().Set("Link", "</publications/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
-	}
-	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-
-	enc := json.NewEncoder(resp)
-	err = enc.Encode(pubs)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
-	}
-	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
-	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LutServer.Port)+"/publications=", page+1, perPage, noOfPublications))
-	return pubs, nonErr
 }
 
 // GetPublication returns a publication from its numeric id, given as part of the calling url
 //
-func GetPublication(server http.IServer, resp http.ResponseWriter, req *http.Request) (*model.Publication, error) {
-	vars := mux.Vars(req)
-	var id int
-	var err error
-	if id, err = strconv.Atoi(vars["id"]); err != nil {
-		// id is not a number
-		return nil, http.Problem{Detail: "The publication id must be an integer", Status: http.StatusBadRequest}
-	}
+func GetPublication(server http.IServer, param ParamId) (*views.Renderer, error) {
+	view := &views.Renderer{}
+	if param.Id != "0" {
+		id, err := strconv.Atoi(param.Id)
+		if err != nil {
+			// id is not a number
+			return nil, http.Problem{Detail: "Publication ID must be an integer", Status: http.StatusBadRequest}
+		}
+		publication, err := server.Store().Publication().Get(int64(id))
+		if err != nil {
+			switch err {
+			case gorm.ErrRecordNotFound:
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 
-	if pub, err := server.Store().Publication().Get(int64(id)); err == nil {
-		enc := json.NewEncoder(resp)
-		if err = enc.Encode(pub); err == nil {
-			// send json of correctly encoded user info
-			resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-			resp.WriteHeader(http.StatusOK)
-			return nil, nil
+			default:
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			}
 		}
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		view.AddKey("publication", publication)
+		view.AddKey("pageTitle", "Edit publication")
 	} else {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-		default:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		// convention - if user ID is zero, we're displaying create form
+		view.AddKey("publication", model.Publication{Title: "Temporary test"})
+		view.AddKey("pageTitle", "Create publication")
+	}
+	view.Template("publications/form.html.got")
+	return view, nil
+}
+
+// CreateOrUpdatePublication creates a publication in the database - form is "multipart/form-data" for both create and update
+func CreateOrUpdatePublication(server http.IServer, pub *model.Publication) (*views.Renderer, error) {
+	switch pub.ID {
+	case 0:
+		if len(pub.Files) != 1 {
+			return nil, http.Problem{Detail: "Please upload only one file", Status: http.StatusBadRequest}
+		}
+		for _, file := range pub.Files {
+			server.LogInfo("File : %s", file)
+			// get the path to the master file
+			if _, err := os.Stat(file); err != nil {
+				// the master file does not exist
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
+			}
+
+			// encrypt the EPUB File and send the content to the LCP server
+			err := encryptEPUBSendToLCP(file, http.Slugify(pub.Title), server)
+			if err != nil {
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			}
+
+			err = server.Store().Publication().Add(pub)
+			if err != nil {
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+			}
+		}
+	default:
+		// searching for updated entity
+		if existingPublication, err := server.Store().Publication().Get(pub.ID); err != nil {
+			switch err {
+			case gorm.ErrRecordNotFound:
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
+			default:
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			}
+		} else {
+			// performing update
+			if err = server.Store().Publication().Update(&model.Publication{ID: existingPublication.ID, UUID: existingPublication.UUID, Title: pub.Title, Status: pub.Status}); err != nil {
+				//update failed!
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			}
 		}
 	}
+	return nil, http.Problem{Detail: "/publications", Status: http.StatusRedirect}
 }
 
 // CheckPublicationByTitle check if a publication with this title exist
-func CheckPublicationByTitle(server http.IServer, resp http.ResponseWriter, req *http.Request) (*string, error) {
-	var title string
-	title = req.URL.Query()["title"][0]
+func CheckPublicationByTitle(server http.IServer, param ParamTitle) (*views.Renderer, error) {
 
-	log.Println("Check publication stored with name " + string(title))
+	server.LogInfo("Check publication stored with name %q", param.Title)
 
-	if pub, err := server.Store().Publication().CheckByTitle(string(title)); err == nil {
-		enc := json.NewEncoder(resp)
-		if err = enc.Encode(pub); err == nil {
-			// send json of correctly encoded user info
-			resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-			resp.WriteHeader(http.StatusOK)
-			return nil, nil
-		}
+	if _, err := server.Store().Publication().CheckByTitle(param.Title); err == nil {
+		//enc := json.NewEncoder(resp)
+		//if err = enc.Encode(pub); err == nil {
+		// send json of correctly encoded user info
+		//	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
+		//	resp.WriteHeader(http.StatusOK)
+		//	return nil, nil
+		//}
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	} else {
 		switch err {
 		case gorm.ErrRecordNotFound:
 
-			log.Println("No publication stored with name " + string(title))
+			server.LogInfo("No publication stored with name %q", param.Title)
 			//	server.Error(w, r, s.DefaultSrvLang(), common.Problem{Detail: err.Error(),Status: http.StatusNotFound)
 
 		default:
@@ -164,102 +197,15 @@ func CheckPublicationByTitle(server http.IServer, resp http.ResponseWriter, req 
 	return nil, nil
 }
 
-// CreatePublication creates a publication in the database
-func CreatePublication(server http.IServer, pub *model.Publication) (*string, error) {
-
-	// get the path to the master file
-	inputPath := path.Join(server.Config().LutServer.MasterRepository, pub.MasterFilename)
-
-	if _, err := os.Stat(inputPath); err != nil {
-		// the master file does not exist
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-	}
-
-	contentDisposition := http.Slugify(pub.Title)
-	// encrypt the EPUB File and send the content to the LCP server
-	err := EncryptEPUB(inputPath, contentDisposition, server)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	}
-
-	// add publication
-	if err = server.Store().Publication().Add(pub); err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
-	}
-
-	return nil, http.Problem{Status: http.StatusCreated, HttpHeaders: make(map[string][]string)}
-}
-
-// UploadEPUB creates a new EPUB file, namd after a file form parameter.
-// a temp file is created then deleted.
-//UploadEPUB creates a new EPUB file
-func UploadEPUB(server http.IServer, resp http.ResponseWriter, req *http.Request) (*string, error) {
-	//var pub store.Publication
-	contentDisposition := http.Slugify(req.URL.Query()["title"][0])
-
-	file, header, err := req.FormFile("file")
-
-	tmpfile, err := ioutil.TempFile("", "example")
-
-	if err != nil {
-		fmt.Fprintln(resp, err)
-		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
-	}
-
-	defer os.Remove(tmpfile.Name())
-
-	_, err = io.Copy(tmpfile, file)
-
-	if err = tmpfile.Close(); err != nil {
-		log.Fatal(err)
-	}
-	// encrypt the EPUB File and send the content to the LCP server
-	if err = EncryptEPUB(tmpfile.Name(), contentDisposition, server); err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Fprintf(resp, "File uploaded successfully : ")
-	fmt.Fprintf(resp, header.Filename)
-	return nil, nil
-}
-
-// UpdatePublication updates an identified publication (id) in the database
-func UpdatePublication(server http.IServer, pub *model.Publication, param ParamId) (*model.Publication, error) {
-	id, err := strconv.Atoi(param.Id)
-	if err != nil {
-		// id is not a number
-		return nil, http.Problem{Detail: "Plublication ID must be an integer", Status: http.StatusBadRequest}
-	}
-
-	// publication ok, id is a number, search publication to update
-	if foundPub, err := server.Store().Publication().Get(int64(id)); err != nil {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-		default:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
-	} else {
-		// publication is found!
-		if err := server.Store().Publication().Update(&model.Publication{ID: foundPub.ID, Title: pub.Title, Status: foundPub.Status}); err != nil {
-			//update failed!
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
-		//database update ok
-		return nil, http.Problem{Status: http.StatusOK}
-	}
-	return nil, nil
-}
-
 // DeletePublication removes a publication in the database
-func DeletePublication(server http.IServer, resp http.ResponseWriter, req *http.Request) (*string, error) {
-	vars := mux.Vars(req)
-	id, err := strconv.ParseInt(vars["id"], 10, 64)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+func DeletePublication(server http.IServer, param ParamId) (*views.Renderer, error) {
+	ids := strings.Split(param.Id, ",")
+	for _, id := range ids {
+		server.LogInfo("Delete %s", id)
 	}
-
-	publication, err := server.Store().Publication().Get(id)
+	return &views.Renderer{}, http.Problem{Status: http.StatusOK}
+	id, err := strconv.Atoi(param.Id)
+	publication, err := server.Store().Publication().Get(int64(id))
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 	}
@@ -274,11 +220,109 @@ func DeletePublication(server http.IServer, resp http.ResponseWriter, req *http.
 		}
 	}
 
-	if err = server.Store().Publication().Delete(id); err != nil {
+	if err = server.Store().Publication().Delete(int64(id)); err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 
-	// publication deleted from db
-	resp.WriteHeader(http.StatusOK)
 	return nil, nil
+}
+
+// encryptEPUB encrypts an EPUB File and sends the content to the LCP server
+func encryptEPUBSendToLCP(inputPath string, contentDisposition string, server http.IServer) error {
+
+	// generate a new uuid; this will be the content id in the lcp server
+	uid, errU := model.NewUUID()
+	if errU != nil {
+		return errU
+	}
+	contentUUID := uid.String()
+
+	// create a temp file in the frontend "encrypted repository"
+	outputFilename := contentUUID + ".tmp"
+	outputPath := path.Join(server.Config().LutServer.EncryptedRepository, outputFilename)
+	defer func() {
+		// remove the temporary file in the "encrypted repository"
+		err := os.Remove(outputPath)
+		if err != nil {
+			server.LogError("Error removing trash : %v", err)
+		}
+	}()
+	// encrypt the master file found at inputPath, write in the temp file, in the "encrypted repository"
+	encryptedEpub, err := pack.CreateEncryptedEpub(inputPath, outputPath)
+
+	if err != nil {
+		// unable to encrypt the master file
+		if _, err := os.Stat(inputPath); err == nil {
+			os.Remove(inputPath)
+		}
+		return err
+	}
+
+	// prepare the request for import to the lcp server
+	lcpPublication := http.LcpPublication{
+		ContentId:          contentUUID,
+		ContentKey:         encryptedEpub.EncryptionKey,
+		Output:             outputPath,
+		ContentDisposition: &contentDisposition,
+		Checksum:           &encryptedEpub.Checksum,
+		Size:               &encryptedEpub.Size,
+	}
+
+	// json encode the payload
+	jsonBody, err := json.Marshal(lcpPublication)
+	if err != nil {
+		return err
+	}
+	// send the content to the LCP server
+	lcpURL := server.Config().LcpServer.PublicBaseUrl + "/contents/" + contentUUID
+
+	req, err := http.NewRequest("PUT", lcpURL, bytes.NewReader(jsonBody))
+	if err != nil {
+		return err
+	}
+	// authenticate
+	if server.Config().LcpUpdateAuth.Username != "" {
+		req.SetBasicAuth(server.Config().LcpUpdateAuth.Username, server.Config().LcpUpdateAuth.Password)
+	}
+	// setFieldsFromForm the payload type
+	req.Header.Add(http.HdrContentType, http.ContentTypeLcpJson)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// making request
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	if err != nil {
+		server.LogError("Error PUT on LCP Server : %v", err)
+		return err
+	}
+
+	// we have a body, defering close
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		// error on creation
+		server.LogError("Bad PUT on LCP Server. Http status ", resp.StatusCode)
+		return err
+	}
+
+	// reading body
+	_, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		server.LogError("Error PUT on LCP Server : reading body error : %v", err)
+		return err
+	}
+
+	//log.Printf("Lsd Server on compliancetest response : %v [http-status:%d]", body, resp.StatusCode)
+
+	return nil
 }

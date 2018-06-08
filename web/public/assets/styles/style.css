@@ -78,7 +78,6 @@
 }
 
 .mdl-data-tabledynamic__actions .mdl-button {
-    min-width: 45px;
     padding: 0 10px;
 }
 
@@ -120,4 +119,165 @@
 .edit-table-content:hover {
     color: #60c7cd;
     cursor: pointer;
+}
+
+/**
+ * Paging
+ */
+
+.mdl-paging {
+    color: rgba(0, 0, 0, 0.54);
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-justify-content: flex-end;
+    -ms-flex-pack: end;
+    justify-content: flex-end;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+    height: 56px;
+    -webkit-flex-flow: row wrap;
+    -ms-flex-flow: row wrap;
+    flex-flow: row wrap;
+}
+
+.mdl-paging > * {
+    -webkit-flex: none;
+    -ms-flex: none;
+    flex: none;
+}
+
+.mdl-list + .mdl-paging {
+    margin: 0;
+}
+
+.mdl-paging__per-page {
+    position: relative;
+}
+
+.mdl-paging__per-page-label {
+    margin-right: 40px;
+}
+
+.mdl-paging__per-page-value {
+    position: absolute;
+    right: 36px;
+    top: 6px;
+}
+
+.mdl-paging__per-page + .mdl-paging__count {
+    margin-left: 24px;
+}
+
+.mdl-paging .mdl-menu {
+    min-width: 64px;
+}
+
+.mdl-paging__prev:last-child {
+    margin-right: 44px;
+}
+
+.mdl-paging__count + .mdl-paging__prev {
+    margin-left: 24px;
+}
+
+.mdl-paging__prev + .mdl-paging__next {
+    margin-left: 12px;
+}
+
+.mdl-paging__count + .mdl-paging__next {
+    margin-left: 68px;
+}
+
+/* Speed dial */
+
+.mdl-speed-dial {
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+    bottom: 16px;
+    right: 16px;
+    -webkit-flex-flow: column-reverse nowrap;
+    -ms-flex-flow: column-reverse nowrap;
+    flex-flow: column-reverse nowrap;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+    z-index: 999;
+    position: fixed;
+}
+
+.mdl-speed-dial .mdl-button--fab:first-child .material-icons:not(:only-child),
+.mdl-speed-dial .mdl-button--mini-fab {
+    transition-duration: 0.2s;
+    transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    -webkit-transform-origin: center center;
+    transform-origin: center center;
+}
+
+.mdl-speed-dial .mdl-button--fab:first-child .material-icons:not(:only-child),
+.mdl-speed-dial .mdl-button--mini-fab {
+    transition-property: -webkit-transform, opacity;
+    transition-property: transform, opacity;
+    will-change: transform, opacity;
+}
+
+.mdl-speed-dial.is-active .mdl-button--fab:first-child .material-icons:first-child,
+.mdl-speed-dial .mdl-button--fab:first-child .material-icons:nth-child(2) {
+    opacity: 0;
+}
+
+.mdl-speed-dial.is-active .mdl-button--fab:first-child .material-icons:first-child {
+    transform: rotate(90deg) translate(-12px, 12px);
+}
+
+.mdl-speed-dial .mdl-button--fab:first-child .material-icons:nth-child(2) {
+    transform: rotate(-90deg);
+    top: 16px;
+    left: 16px;
+}
+
+.mdl-speed-dial.is-active .mdl-button--fab:first-child .material-icons:nth-child(2) {
+    opacity: 1;
+    transform: rotate(0deg);
+}
+
+/* Mini floating buttons */
+
+.mdl-speed-dial .mdl-button--mini-fab {
+    -webkit-transform: scale(0, 0);
+    transform: scale(0, 0);
+    margin-bottom: 16px;
+}
+
+.mdl-speed-dial.is-active .mdl-button--mini-fab {
+    -webkit-transform: scale(1, 1);
+    transform: scale(1, 1);
+}
+
+/* Mini floating buttons animations */
+
+.mdl-speed-dial .mdl-button--mini-fab:nth-of-type(6),
+.mdl-speed-dial.is-active .mdl-button--mini-fab:nth-of-type(2) {
+    transition-delay: 0s;
+}
+
+.mdl-speed-dial .mdl-button--mini-fab:nth-of-type(5),
+.mdl-speed-dial.is-active .mdl-button--mini-fab:nth-of-type(3) {
+    transition-delay: 50ms;
+}
+
+.mdl-speed-dial .mdl-button--mini-fab:nth-of-type(4) {
+    transition-delay: 100ms;
+}
+
+.mdl-speed-dial .mdl-button--mini-fab:nth-of-type(3),
+.mdl-speed-dial.is-active .mdl-button--mini-fab:nth-of-type(5) {
+    transition-delay: 150ms;
+}
+
+.mdl-speed-dial .mdl-button--mini-fab:nth-of-type(2),
+.mdl-speed-dial.is-active .mdl-button--mini-fab:nth-of-type(6) {
+    transition-delay: 200ms;
 }

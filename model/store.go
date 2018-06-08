@@ -110,6 +110,7 @@ type (
 		Update(c *User) error
 		Delete(UserID int64) error
 		Count() (int64, error)
+		FilterCount(emailLike string) (int64, error)
 		List(page, pageNum int64) (UsersCollection, error)
 		Filter(emailLike string, page, pageNum int64) (UsersCollection, error)
 	}
@@ -124,10 +125,13 @@ type (
 	PublicationRepository interface {
 		Get(id int64) (*Publication, error)
 		GetByUUID(uuid string) (*Publication, error)
+		Count() (int64, error)
+		FilterCount(paramLike string) (int64, error)
 		Add(publication *Publication) error
 		Update(publication *Publication) error
 		Delete(id int64) error
-		List(page int, pageNum int) (PublicationsCollection, error)
+		List(page, pageNum int64) (PublicationsCollection, error)
+		Filter(paramLike string, page, pageNum int64) (PublicationsCollection, error)
 		CheckByTitle(title string) (int64, error)
 	}
 

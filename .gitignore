@@ -6,6 +6,7 @@ files/
 config.yaml
 /web/frontend/config.js
 /web/public/config.js
+/web/public/.idea
 .vscode/launch.json
 debug
 *.a

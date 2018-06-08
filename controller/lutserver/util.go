@@ -38,16 +38,17 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/http"
-	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/lib/validator"
 	"github.com/readium/readium-lcp-server/lib/views"
 	"github.com/readium/readium-lcp-server/model"
+	"io"
+	"mime/multipart"
+	"net/url"
 	"reflect"
 	"runtime"
 	"strings"
@@ -56,6 +57,9 @@ import (
 type (
 	ParamId struct {
 		Id string `var:"id"`
+	}
+	ParamTitle struct {
+		Title string `var:"title"`
 	}
 
 	ParamPaginationAndId struct {
@@ -76,201 +80,15 @@ type (
 		index int
 		isVar bool
 	}
-	// Contains all repository definitions
-	RepositoryManager struct {
-		MasterRepositoryPath    string
-		EncryptedRepositoryPath string
-	}
-
-	// WebRepository interface for repository db interaction
-	WebRepository interface {
-		GetMasterFile(name string) (RepositoryFile, error)
-		GetMasterFiles() func() (RepositoryFile, error)
-	}
-
-	// RepositoryFile struct defines a file stored in a repository
-	RepositoryFile struct {
-		Name string `json:"name"`
-		Path string
-	}
-
-	Headers struct {
-		UserAgent      string // attention : this doesn't require `hdr:"User-Agent"`
-		Method         string // attention : this doesn't require `hdr:"Method"`
-		AcceptLanguage string `hdr:"Accept-Language"`
-	}
 )
 
 var ErrNotFound = errors.New("License not found")
-var repoInited bool
-var repoManager RepositoryManager
-
-// Returns a specific repository file
-func (repManager RepositoryManager) GetMasterFile(name string) (RepositoryFile, error) {
-	var filePath = path.Join(repManager.MasterRepositoryPath, name)
-
-	if _, err := os.Stat(filePath); err == nil {
-		// File exists
-		var repFile RepositoryFile
-		repFile.Name = name
-		repFile.Path = filePath
-		return repFile, err
-	}
-
-	return RepositoryFile{}, ErrNotFound
-}
-
-// Returns all repository files
-func (repManager RepositoryManager) GetMasterFiles() func() (RepositoryFile, error) {
-	files, err := ioutil.ReadDir(repManager.MasterRepositoryPath)
-	var fileIndex int
-
-	if err != nil {
-		return func() (RepositoryFile, error) { return RepositoryFile{}, err }
-	}
-
-	return func() (RepositoryFile, error) {
-		var result RepositoryFile
-
-		// Filter on epub
-		for fileIndex < len(files) {
-			file := files[fileIndex]
-			fileExt := filepath.Ext(file.Name())
-			fileIndex++
-
-			if fileExt == ".epub" {
-				result.Name = file.Name()
-				return result, err
-			}
-		}
-
-		return result, ErrNotFound
-	}
-}
-
-// GetRepositoryMasterFiles returns a list of repository masterfiles
-func GetRepositoryMasterFiles(s http.IServer) ([]RepositoryFile, error) {
-	files := make([]RepositoryFile, 0)
-	if !repoInited {
-		repoManager = RepositoryManager{MasterRepositoryPath: s.Config().LutServer.MasterRepository, EncryptedRepositoryPath: s.Config().LutServer.EncryptedRepository}
-	}
-	fn := repoManager.GetMasterFiles()
-
-	for it, err := fn(); err == nil; it, err = fn() {
-		files = append(files, it)
-	}
-
-	return files, nil
-}
-
-// EncryptEPUB encrypts an EPUB File and sends the content to the LCP server
-func EncryptEPUB(inputPath string, contentDisposition string, server http.IServer) error {
-
-	// generate a new uuid; this will be the content id in the lcp server
-	uid, errU := model.NewUUID()
-	if errU != nil {
-		return errU
-	}
-	contentUUID := uid.String()
-
-	// create a temp file in the frontend "encrypted repository"
-	outputFilename := contentUUID + ".tmp"
-	outputPath := path.Join(server.Config().LutServer.EncryptedRepository, outputFilename)
-	defer func() {
-		// remove the temporary file in the "encrypted repository"
-		err := os.Remove(outputPath)
-		if err != nil {
-			server.LogError("Error removing trash : %v", err)
-		}
-	}()
-	// encrypt the master file found at inputPath, write in the temp file, in the "encrypted repository"
-	encryptedEpub, err := pack.CreateEncryptedEpub(inputPath, outputPath)
-
-	if err != nil {
-		// unable to encrypt the master file
-		if _, err := os.Stat(inputPath); err == nil {
-			os.Remove(inputPath)
-		}
-		return err
-	}
-
-	// prepare the request for import to the lcp server
-	lcpPublication := http.LcpPublication{
-		ContentId:          contentUUID,
-		ContentKey:         encryptedEpub.EncryptionKey,
-		Output:             outputPath,
-		ContentDisposition: &contentDisposition,
-		Checksum:           &encryptedEpub.Checksum,
-		Size:               &encryptedEpub.Size,
-	}
-
-	// json encode the payload
-	jsonBody, err := json.Marshal(lcpPublication)
-	if err != nil {
-		return err
-	}
-	// send the content to the LCP server
-	lcpServerConfig := server.Config().LcpServer
-	lcpURL := lcpServerConfig.PublicBaseUrl + "/contents/" + contentUUID
-	//log.Println("PUT " + lcpURL)
-
-	req, err := http.NewRequest("PUT", lcpURL, bytes.NewReader(jsonBody))
-	if err != nil {
-		return err
-	}
-	// authenticate
-	lcpUpdateAuth := server.Config().LcpUpdateAuth
-	if server.Config().LcpUpdateAuth.Username != "" {
-		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
-	}
-	// set the payload type
-	req.Header.Add(http.HdrContentType, http.ContentTypeLcpJson)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// making request
-	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
-	// If we got an error, and the context has been canceled, the context's error is probably more useful.
-	if err != nil {
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-		default:
-		}
-	}
-
-	if err != nil {
-		server.LogError("Error PUT on LCP Server : %v", err)
-		return err
-	}
-
-	// we have a body, defering close
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 201 {
-		// error on creation
-		server.LogError("Bad PUT on LCP Server. Http status ", resp.StatusCode)
-		return err
-	}
-
-	// reading body
-	_, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		server.LogError("Error PUT on LCP Server : reading body error : %v", err)
-		return err
-	}
-
-	//log.Printf("Lsd Server on compliancetest response : %v [http-status:%d]", body, resp.StatusCode)
-
-	return nil
-}
 
 func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model.License, error) {
 	// create a partial license
 	partialLicense := model.License{}
 
-	// set the mandatory provider URI
+	// setFieldsFromForm the mandatory provider URI
 	if server.Config().LutServer.ProviderUri == "" {
 		return nil, errors.New("Mandatory provider URI missing in the configuration")
 	}
@@ -299,7 +117,7 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 	// In case of a creation of license, add the user rights
 	if purchase.LicenseUUID == nil {
 		// in case of undefined conf values for copy and print rights,
-		// these rights will be set to zero
+		// these rights will be setFieldsFromForm to zero
 		copyVal := server.Config().LutServer.RightCopy
 		printVal := server.Config().LutServer.RightPrint
 		userRights := model.LicenseUserRights{
@@ -386,7 +204,7 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 		return nil, errors.New("Unable to decode license")
 	}
 
-	// store the license id if it was not already set
+	// store the license id if it was not already setFieldsFromForm
 	if purchase.LicenseUUID == nil {
 		purchase.LicenseUUID = &model.NullString{NullString: sql.NullString{String: fullLicense.Id, Valid: true}}
 		err = updatePurchase(purchase, server)
@@ -442,7 +260,7 @@ func updatePurchase(purchase *model.Purchase, server http.IServer) error {
 		if err != nil {
 			return err
 		}
-		// set credentials
+		// setFieldsFromForm credentials
 		lsdAuth := server.Config().LsdNotifyAuth
 		if lsdAuth.Username != "" {
 			req.SetBasicAuth(lsdAuth.Username, lsdAuth.Password)
@@ -504,7 +322,7 @@ func getPartialLicense(purchase *model.Purchase, server http.IServer) (*model.Li
 	if err != nil {
 		return nil, err
 	}
-	// set credentials
+	// setFieldsFromForm credentials
 	lcpUpdateAuth := server.Config().LcpUpdateAuth
 	if server.Config().LcpUpdateAuth.Username != "" {
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
@@ -582,7 +400,7 @@ func NotFoundHandler(h http.FileHandlerWrapper) http.HandlerFunc {
 	}
 }
 
-func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, reflect.Type, []ParamAndIndex, []string) {
+func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, []ParamAndIndex) {
 
 	// checking if we're registering a function, not something else
 	functionType := fnValue.Type()
@@ -597,9 +415,7 @@ func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, reflect.Type, [
 	// collecting injected parameters
 	var payloadType reflect.Type
 	var paramType reflect.Type
-	var headersType reflect.Type
 	var paramFields []ParamAndIndex
-	var headerFields []string
 
 	if functionType.NumIn() == 0 {
 		panic("Handler must have at least one argument: http.IServer")
@@ -618,9 +434,9 @@ func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, reflect.Type, [
 			paramType = param
 			for j := 0; j < param.NumField(); j++ {
 				field := param.Field(j)
-				// if a field is read from muxer vars, it should have a tag set to the name of the required parameter
+				// if a field is read from muxer vars, it should have a tag setFieldsFromForm to the name of the required parameter
 				varTag := field.Tag.Get("var")
-				// if a field is read from muxer form, it should have a tag set to the name of the required parameter
+				// if a field is read from muxer form, it should have a tag setFieldsFromForm to the name of the required parameter
 				formTag := field.Tag.Get("form")
 				if len(varTag) > 0 {
 					paramFields = append(paramFields, ParamAndIndex{tag: varTag, index: j, isVar: true})
@@ -631,20 +447,6 @@ func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, reflect.Type, [
 				}
 			}
 			// Headers struct
-		} else if strings.HasPrefix(paramName, "Headers") {
-			headersType = param
-			// forced add of the user agent
-			headerFields = append(headerFields, "User-Agent")
-			// forced add of the method (used mostly in differentiating between PUT and POST)
-			headerFields = append(headerFields, "Method")
-			for j := 0; j < param.NumField(); j++ {
-				field := param.Field(j)
-				// all headers should have hdr tag - only exception is "User-Agent" - more exceptions can be added
-				hdrTag := field.Tag.Get("hdr")
-				if len(hdrTag) > 0 {
-					headerFields = append(headerFields, hdrTag)
-				}
-			}
 		} else {
 			if payloadType != nil {
 				panic("Seems you are expecting two payloads on " + callerName + ". You should take only one.")
@@ -673,7 +475,7 @@ func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, reflect.Type, [
 	}
 
 	//s.LogInfo("%s registered with %d input parameters and %d output parameters.", callerName, functionType.NumIn(), functionType.NumOut())
-	return payloadType, paramType, headersType, paramFields, headerFields
+	return payloadType, paramType, paramFields
 }
 
 func renderError(w http.ResponseWriter, err error) {
@@ -686,21 +488,78 @@ func renderError(w http.ResponseWriter, err error) {
 	view.Render()
 }
 
+func setFieldsFromForm(deserializeTo reflect.Value, fromForm url.Values) error {
+	for k, v := range fromForm {
+		field := deserializeTo.Elem().FieldByName(k)
+		val := v[0]
+		//server.LogInfo("%s = %s %#v", k, v, field)
+		switch field.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if val == "" {
+				val = "0"
+			}
+			intVal, err := strconv.ParseInt(val, 10, 64)
+			if err != nil {
+				return fmt.Errorf("Value could not be parsed as int")
+			} else {
+				field.SetInt(intVal)
+			}
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if val == "" {
+				val = "0"
+			}
+			uintVal, err := strconv.ParseUint(val, 10, 64)
+			if err != nil {
+				return fmt.Errorf("Value could not be parsed as uint")
+			} else {
+				field.SetUint(uintVal)
+			}
+		case reflect.Bool:
+			if val == "" {
+				val = "false"
+			}
+			boolVal, err := strconv.ParseBool(val)
+			if err != nil {
+				return fmt.Errorf("Value could not be parsed as boolean")
+			} else {
+				field.SetBool(boolVal)
+			}
+		case reflect.Float32:
+			if val == "" {
+				val = "0.0"
+			}
+			floatVal, err := strconv.ParseFloat(val, 32)
+			if err != nil {
+				return fmt.Errorf("Value could not be parsed as 32-bit float")
+			} else {
+				field.SetFloat(floatVal)
+			}
+		case reflect.Float64:
+			if val == "" {
+				val = "0.0"
+			}
+			floatVal, err := strconv.ParseFloat(val, 64)
+			if err != nil {
+				return fmt.Errorf("Value could not be parsed as 64-bit float")
+			} else {
+				field.SetFloat(floatVal)
+			}
+		case reflect.String:
+			field.SetString(val)
+		}
+	}
+	return nil
+}
+
 func HandleFunc(router *mux.Router, server http.IServer, route string, fn interface{}) *mux.Route {
 	// reflect on the provided handler
 	fnValue := reflect.ValueOf(fn)
 
 	// get payload, parameters and headers that will be injected
-	payloadType, paramType, headersType, paramFields, headerFields := collect(fnValue)
+	payloadType, paramType, paramFields := collect(fnValue)
 
 	// keeping a value of IServer to be passed on handler called
 	serverValue := reflect.ValueOf(server)
-
-	// sometimes controller expects the request itself - we're providing it
-	isRequestInjected := false
-	if payloadType != nil && payloadType.Kind() == reflect.Ptr && payloadType.Elem().Name() == "Request" {
-		isRequestInjected = true
-	}
 
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		// if the content type is form
@@ -714,140 +573,91 @@ func HandleFunc(router *mux.Router, server http.IServer, route string, fn interf
 		in := []reflect.Value{serverValue}
 
 		if len(ctype) > 0 {
-			switch ctype[0] {
-			case http.ContentTypeFormUrlEncoded:
-				// seems we're expecting a valid json payload
-				if payloadType != nil {
-					// Building the deserialize value
-					if !isRequestInjected {
-						// the most common scenario - expecting a struct
-						deserializeTo := reflect.New(payloadType.Elem())
-						in = append(in, deserializeTo)
-						// decode the payload
-						parseErr := r.ParseForm()
-						if parseErr != nil {
-							renderError(w, parseErr)
-							return
-						}
-						iFace := deserializeTo.Interface()
-						for k, v := range r.Form {
-							field := deserializeTo.Elem().FieldByName(k)
-							val := v[0]
-							//server.LogInfo("%s = %s %#v", k, v, field)
-							switch field.Kind() {
-							case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-								if val == "" {
-									val = "0"
-								}
-								intVal, err := strconv.ParseInt(val, 10, 64)
-								if err != nil {
-									renderError(w, fmt.Errorf("Value could not be parsed as int"))
-									return
-								} else {
-									field.SetInt(intVal)
-								}
-							case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-								if val == "" {
-									val = "0"
-								}
-								uintVal, err := strconv.ParseUint(val, 10, 64)
-								if err != nil {
-									renderError(w, fmt.Errorf("Value could not be parsed as uint"))
-									return
-								} else {
-									field.SetUint(uintVal)
-								}
-							case reflect.Bool:
-								if val == "" {
-									val = "false"
-								}
-								boolVal, err := strconv.ParseBool(val)
-								if err != nil {
-									renderError(w, fmt.Errorf("Value could not be parsed as boolean"))
-									return
-								} else {
-									field.SetBool(boolVal)
-								}
-							case reflect.Float32:
-								if val == "" {
-									val = "0.0"
-								}
-								floatVal, err := strconv.ParseFloat(val, 32)
-								if err != nil {
-									renderError(w, fmt.Errorf("Value could not be parsed as 32-bit float"))
-									return
-								} else {
-									field.SetFloat(floatVal)
-								}
-							case reflect.Float64:
-								if val == "" {
-									val = "0.0"
-								}
-								floatVal, err := strconv.ParseFloat(val, 64)
-								if err != nil {
-									renderError(w, fmt.Errorf("Value could not be parsed as 64-bit float"))
-									return
-								} else {
-									field.SetFloat(floatVal)
-								}
-							case reflect.String:
-								field.SetString(val)
-							}
-						}
+			// seems we're expecting a valid payload
+			if payloadType != nil {
 
-						//server.LogInfo("Payload : %#v", iFace)
-						// checking if value is implementing Validate() error
-						iVal, isValidator := iFace.(validator.IValidator)
-						if isValidator {
-							// it does - we call validate
-							err := iVal.Validate()
-							if err != nil {
-								renderError(w, err)
+				// the most common scenario - expecting a struct
+				deserializeTo := reflect.New(payloadType.Elem())
+				in = append(in, deserializeTo)
+
+				// it's  "application/x-www-form-urlencoded"
+				if ctype[0] == http.ContentTypeFormUrlEncoded {
+					// decode the payload
+					parseErr := r.ParseForm()
+					if parseErr != nil {
+						renderError(w, parseErr)
+						return
+					}
+					if err := setFieldsFromForm(deserializeTo, r.Form); err != nil {
+						renderError(w, err)
+						return
+					}
+					// it's "multipart/form-data"
+				} else if strings.HasPrefix(ctype[0], http.ContentTypeMultipartForm) {
+					parseErr := r.ParseMultipartForm(32 << 20)
+					if parseErr != nil {
+						renderError(w, parseErr)
+						return
+					}
+					if err := setFieldsFromForm(deserializeTo, r.MultipartForm.Value); err != nil {
+						renderError(w, err)
+						return
+					}
+					var err error
+					var paths []string
+					// convention : if we have a multipart, for files there has to be a "Files" property which is a slice of strings.
+					for _, fheaders := range r.MultipartForm.File {
+						for _, hdr := range fheaders {
+							var infile multipart.File
+							// input
+							if infile, err = hdr.Open(); nil != err {
+								renderError(w, fmt.Errorf("Open multipart file error : %s", err.Error()))
 								return
 							}
-						}
-					} else {
-						// append request as it is, since body is going to be read in controller.
-						in = append(in, reflect.ValueOf(r))
-					}
-				}
-			case http.ContentTypeMultipartForm:
-				// seems we're expecting a valid json payload
-				if payloadType != nil {
-					// Building the deserialize value
-					if !isRequestInjected {
-						// the most common scenario - expecting a struct
-						deserializeTo := reflect.New(payloadType.Elem())
-						in = append(in, deserializeTo)
-						// decode the payload
-						panic("Decode payload")
-						// checking if value is implementing Validate() error
-						iVal, isValidator := deserializeTo.Interface().(validator.IValidator)
-						if isValidator {
-							// it does - we call validate
-							err := iVal.Validate()
-							if err != nil {
-								renderError(w, err)
+							// destination
+							var outfile *os.File
+							filePath := server.Config().LutServer.MasterRepository + "/" + hdr.Filename
+							if outfile, err = os.Create(filePath); nil != err {
+								renderError(w, fmt.Errorf("Create file error : %s using path %s", err.Error(), filePath))
 								return
 							}
+							defer outfile.Close()
+							// 32K buffer copy
+							if _, err = io.Copy(outfile, infile); nil != err {
+								renderError(w, fmt.Errorf("Copy multipart file error : %s", err.Error()))
+								return
+							}
+							paths = append(paths, filePath)
 						}
-					} else {
-						// append request as it is, since body is going to be read in controller.
-						in = append(in, reflect.ValueOf(r))
 					}
-				}
-			default:
-				// now we read the request body
-				reqBody, err := ioutil.ReadAll(r.Body)
-				if err != nil {
-					renderError(w, err)
+					field := deserializeTo.Elem().FieldByName("Files")
+					field.Set(reflect.ValueOf(paths))
+				} else {
+					// it's nothing we can handle
+					// read the request body
+					reqBody, err := ioutil.ReadAll(r.Body)
+					if err != nil {
+						renderError(w, err)
+						return
+					}
+					// defering close
+					defer r.Body.Close()
+					server.LogError("Content type %q not handled at the time.", ctype[0])
+					renderError(w, fmt.Errorf("Not implemented : %s", reqBody))
 					return
 				}
-				// defering close
-				defer r.Body.Close()
 
-				renderError(w, fmt.Errorf("Not implemented : %s", reqBody))
-				return
+				iFace := deserializeTo.Interface()
+				// checking if value is implementing Validate() error
+				iVal, isValidator := iFace.(validator.IValidator)
+				if isValidator {
+					// it does - we call validate
+					err := iVal.Validate()
+					if err != nil {
+						renderError(w, err)
+						return
+					}
+				}
 			}
 		}
 
@@ -869,26 +679,10 @@ func HandleFunc(router *mux.Router, server http.IServer, route string, fn interf
 			in = append(in, p)
 		}
 
-		// we have headers that need to be injected
-		if headersType != nil {
-			h := reflect.New(headersType).Elem()
-			for idx, hf := range headerFields {
-				switch hf {
-				case "Method":
-					h.Field(idx).Set(reflect.ValueOf(r.Method))
-				case "User-Agent":
-					h.Field(idx).Set(reflect.ValueOf(r.UserAgent()))
-				default:
-					h.Field(idx).Set(reflect.ValueOf(r.Header.Get(hf)))
-				}
-			}
-			in = append(in, h)
-		}
-
 		// finally, we're calling the handler with all the params
 		out := fnValue.Call(in)
 
-		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set(http.HdrContentType, http.ContentTypeTextHtml)
 		// error is carrying http status and http headers - we're taking it
 		if !out[1].IsNil() {
 			problem, ok := out[1].Interface().(http.Problem)
@@ -910,6 +704,7 @@ func HandleFunc(router *mux.Router, server http.IServer, route string, fn interf
 			w.Write(byts)
 			return
 		}
+
 		renderer, ok := out[0].Interface().(*views.Renderer)
 		if ok && renderer != nil {
 			renderer.SetWriter(w)
@@ -922,8 +717,16 @@ func HandleFunc(router *mux.Router, server http.IServer, route string, fn interf
 				renderer.Render()
 			}
 		} else {
-			server.LogError("Error : renderer not found.")
-			renderError(w, fmt.Errorf("Bad renderer. Should always have one"))
+			if out[1].IsNil() {
+				renderError(w, fmt.Errorf("Bad renderer (without error). Should always have one"))
+				return
+			}
+			problem, ok := out[1].Interface().(http.Problem)
+			if !ok {
+				renderError(w, fmt.Errorf("Bad http.Problem"))
+				return
+			}
+			renderError(w, fmt.Errorf("%s", problem.Detail))
 		}
 	})
 }
@@ -983,27 +786,23 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	//
 	//  repositories of master files
 	//
-	repositoriesRoutesPathPrefix := "/repositories"
-	repositoriesRoutes := muxer.PathPrefix(repositoriesRoutesPathPrefix).Subrouter().StrictSlash(false)
 	//
-	server.HandleFunc(repositoriesRoutes, "/master-files", GetRepositoryMasterFiles, false).Methods("GET")
+	HandleFunc(muxer, server, "/repositories", GetRepositoryMasterFiles).Methods("GET")
+
 	//
 	// publications
 	//
 	publicationsRoutesPathPrefix := "/publications"
+	HandleFunc(muxer, server, publicationsRoutesPathPrefix, GetPublications).Methods("GET")
+	HandleFunc(muxer, server, publicationsRoutesPathPrefix, CreateOrUpdatePublication).Methods("POST")
 	publicationsRoutes := muxer.PathPrefix(publicationsRoutesPathPrefix).Subrouter().StrictSlash(false)
+	HandleFunc(publicationsRoutes, server, "/check-by-title", CheckPublicationByTitle).Methods("GET")
+	HandleFunc(publicationsRoutes, server, "/{id}", GetPublication).Methods("GET")
+	HandleFunc(publicationsRoutes, server, "/{id}", DeletePublication).Methods("DELETE")
 	//
-	server.HandleFunc(muxer, publicationsRoutesPathPrefix, GetPublications, false).Methods("GET")
+	//HandleFunc(muxer, "/PublicationUpload", UploadEPUB, false).Methods("POST")
 	//
-	server.HandleFunc(muxer, publicationsRoutesPathPrefix, CreatePublication, false).Methods("POST")
 	//
-	server.HandleFunc(muxer, "/PublicationUpload", UploadEPUB, false).Methods("POST")
-	//
-	server.HandleFunc(publicationsRoutes, "/check-by-title", CheckPublicationByTitle, false).Methods("GET")
-	//
-	server.HandleFunc(publicationsRoutes, "/{id}", GetPublication, false).Methods("GET")
-	server.HandleFunc(publicationsRoutes, "/{id}", UpdatePublication, false).Methods("PUT")
-	server.HandleFunc(publicationsRoutes, "/{id}", DeletePublication, false).Methods("DELETE")
 
 	//
 	// purchases
@@ -1030,4 +829,10 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	server.HandleFunc(muxer, licenseRoutesPathPrefix, GetFilteredLicenses, false).Methods("GET")
 	// get a license by id
 	server.HandleFunc(licenseRoutes, "/{license_id}", GetLicense, false).Methods("GET")
+
+	server.LogInfo("Initing repo manager.")
+	repoManager = RepositoryManager{
+		MasterRepositoryPath:    server.Config().LutServer.MasterRepository,
+		EncryptedRepositoryPath: server.Config().LutServer.EncryptedRepository,
+	}
 }

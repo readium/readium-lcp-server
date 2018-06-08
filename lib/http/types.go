@@ -60,6 +60,7 @@ const (
 	ContentTypeProblemJson    = "application/problem+json"
 	ContentTypeLcpJson        = "application/vnd.readium.lcp.license.v1.0+json"
 	ContentTypeLsdJson        = "application/vnd.readium.license.status.v1.0+json"
+	ContentTypeTextHtml       = "text/html"
 	ContentTypeJson           = "application/json"
 	ContentTypeFormUrlEncoded = "application/x-www-form-urlencoded"
 	ContentTypeMultipartForm  = "multipart/form-data"

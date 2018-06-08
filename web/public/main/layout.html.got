@@ -45,18 +45,7 @@
     </div>
 
     <main class="mdl-layout__content mdl-color--grey-100">
-
-        {{ if .warning }}
-        <div class="container">
-            <ul class="collection with-header">
-                <li class="collection-header yellow lighten-1"><b>Warning!</b></li>
-                <li class="collection-item">{{.warning}}</li>
-            </ul>
-        </div>
-        {{ end }}
-
         {{ .content }}
-
     </main>
 
     <footer class="mdl-mega-footer">

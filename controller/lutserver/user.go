@@ -42,7 +42,8 @@ func GetUsers(server http.IServer, param ParamPagination) (*views.Renderer, erro
 	noOfUsers, err := server.Store().User().Count()
 	if err != nil {
 		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
-	} // Pagination
+	}
+	// Pagination
 	page, perPage, err := readPagination(param.Page, param.PerPage, noOfUsers)
 	if err != nil {
 		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
@@ -52,19 +53,32 @@ func GetUsers(server http.IServer, param ParamPagination) (*views.Renderer, erro
 	view := &views.Renderer{}
 	if param.Filter != "" {
 		view.AddKey("filter", param.Filter)
+		noOfFilteredUsers, err := server.Store().User().FilterCount(param.Filter)
+		if err != nil {
+			return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
+		}
+		view.AddKey("filterTotal", noOfFilteredUsers)
 		users, err = server.Store().User().Filter(param.Filter, perPage, page)
 		if err != nil {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		if (page+1)*perPage < noOfFilteredUsers {
+			view.AddKey("hasNextPage", true)
 		}
 	} else {
 		users, err = server.Store().User().List(perPage, page)
 		if err != nil {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
+		if (page+1)*perPage < noOfUsers {
+			view.AddKey("hasNextPage", true)
+		}
 	}
 	view.AddKey("users", users)
 	view.AddKey("pageTitle", "Users list")
 	view.AddKey("total", noOfUsers)
+	view.AddKey("currentPage", page+1)
+	view.AddKey("perPage", perPage)
 	view.Template("users/index.html.got")
 	return view, nil
 }
@@ -73,7 +87,6 @@ func GetUsers(server http.IServer, param ParamPagination) (*views.Renderer, erro
 func GetUser(server http.IServer, param ParamId) (*views.Renderer, error) {
 	view := &views.Renderer{}
 	if param.Id != "0" {
-		server.LogInfo("Listing user with id %q", param.Id)
 		id, err := strconv.Atoi(param.Id)
 		if err != nil {
 			// id is not a number
@@ -118,7 +131,6 @@ func CreateOrUpdateUser(server http.IServer, user *model.User) (*views.Renderer,
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
 		} else {
-			server.LogInfo("Updating : %#v", user)
 			// performing update
 			if err = server.Store().User().Update(&model.User{ID: user.ID, UUID: existingUser.UUID, Name: user.Name, Email: user.Email, Password: user.Password, Hint: user.Hint}); err != nil {
 				//update failed!

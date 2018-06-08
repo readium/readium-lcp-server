@@ -1,11 +1,11 @@
 {{if eq .total 0}}
 <div class="mdl-card mdl-shadow--2dp" style="width:50%">
     <div class="mdl-card__title">
-        <h2 class="mdl-card__title-text">There are no users in the database.</h2>
+        <h2 class="mdl-card__title-text">There are no publications in the database.</h2>
     </div>
     <div class="mdl-card__actions mdl-card--border">
-        <form accept-charset="UTF-8" action="/users/0" method="GET">
-            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect">Create first user</button>
+        <form accept-charset="UTF-8" action="/publications/0" method="GET">
+            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect">Create first publication</button>
         </form>
     </div>
 </div>
@@ -13,9 +13,9 @@
 <div class="mdl-grid" style="width:100%;margin-top:10px;margin-bottom: 10px">
     <div id="entitiesList" class="mdl-data-tabledynamic mdl-shadow--2dp">
         <div class="mdl-data-tabledynamic__title">
-            <h2 class="mdl-data-tabledynamic__title-text">{{if defined .filter}}listing {{.filterTotal}} of {{.total}} for filter `{{.filter}}`{{else}}{{.total}} users in the database.{{end}}</h2>
+            <h2 class="mdl-data-tabledynamic__title-text">{{if defined .filter}}listing {{.filterTotal}} of {{.total}} for filter `{{.filter}}`{{else}}{{.total}} publication in the database.{{end}}</h2>
             <div class="mdl-data-tabledynamic__actions">
-                <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect add-row" href="/users/0">ADD</a>
+                <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect add-row" href="/publications/0">ADD</a>
                 <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect remove-row">REMOVE</a>
             </div>
         </div>
@@ -30,15 +30,12 @@
                     </th>
                     <th class="mdl-data-table__cell--non-numeric">ID</th>
                     <th class="mdl-data-table__cell--non-numeric">UUID</th>
-                    <th class="mdl-data-table__cell--non-numeric">Name</th>
-                    <th class="mdl-data-table__cell--non-numeric">Email</th>
-                    <th class="mdl-data-table__cell--non-numeric">Password</th>
-                    <th class="mdl-data-table__cell--non-numeric">Hint</th>
-                    <th class="mdl-data-table__cell--non-numeric">Encryption Key</th>
+                    <th class="mdl-data-table__cell--non-numeric">Title</th>
+                    <th class="mdl-data-table__cell--non-numeric">Status</th>
                 </tr>
                 </thead>
                 <tbody>
-                {{ range $i,$m := .users }}
+                {{ range $i,$m := .publications }}
                 <tr id="{{$m.ID}}">
                     <td>
                         <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect mdl-data-table__select">
@@ -47,12 +44,9 @@
                     </td>
                     <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.ID}}</span></td>
                     <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
-                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Name}}</span></td>
-                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Email}}</span></td>
-                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Password}}</span></td>
-                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Hint}}</span></td>
-                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Encrypted}}</span></td>
-                </tr>
+                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Title}}</span></td>
+                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
+                s</tr>
                 {{end}}
                 </tbody>
             </table>
@@ -73,10 +67,10 @@
                     </ul>
                 </span>
                 {{if gt .currentPage 1}}
-                <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" href="/users?page={{minus .currentPage 1}}&per_page={{.perPage}}"><i class="material-icons">keyboard_arrow_left</i></a>
+                <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" href="/publications?page={{minus .currentPage 1}}&per_page={{.perPage}}"><i class="material-icons">keyboard_arrow_left</i></a>
                 {{end}}
                 {{if .hasNextPage}}
-                <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" href="/users?page={{plus .currentPage 1}}&per_page={{.perPage}}"><i class="material-icons">keyboard_arrow_right</i></a>
+                <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" href="/publications?page={{plus .currentPage 1}}&per_page={{.perPage}}"><i class="material-icons">keyboard_arrow_right</i></a>
                 {{end}}
             </div>
         </div>
@@ -84,9 +78,9 @@
 </div>
 
 <dialog class="mdl-dialog">
-    <h4 class="mdl-dialog__title">Delete users?</h4>
+    <h4 class="mdl-dialog__title">Delete publications?</h4>
     <div class="mdl-dialog__content">
-        <p>Selected users will be removed. Are you sure?</p>
+        <p>Selected publications will be removed. Are you sure?</p>
     </div>
     <div class="mdl-dialog__actions">
         <button type="button" class="mdl-button remove">Yes</button>
@@ -107,7 +101,7 @@
                 var v = $(this).attr("data-value");
                 // @formatter:off
                 if (v != {{.perPage}}) {
-                    window.location.href = "/users?page=" + {{.currentPage}} + "&per_page=" + v;
+                    window.location.href = "/publications?page=" + {{.currentPage}} + "&per_page=" + v;
                 }
                 // @formatter:on
             });
@@ -132,7 +126,7 @@
                 });
                 // call server with all ids
                 $.ajax({
-                    url: '/users/' + ids,
+                    url: '/publications/' + ids,
                     type: 'DELETE',
                     success: function (result) {
                         dialog.close();
@@ -196,7 +190,7 @@
 
             // edit the clicked row
             $(document).on("click", "td.edit-table-content", function () {
-                window.location.href = "/users/" + $(this).parents("tr:first")[0].id;
+                window.location.href = "/publications/" + $(this).parents("tr:first")[0].id;
             });
         }); // end of document ready
     })(jQuery); // end of jQuery name space
