@@ -36,7 +36,10 @@ import (
 	"context"
 	"io/ioutil"
 
+	"bufio"
 	"database/sql"
+	"encoding/gob"
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/http"
@@ -297,4 +300,32 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		//server.HandleFunc(muxer, "/licenses", CreateLicenseStatusDocument, true).Methods("PUT")
 		server.HandleFunc(licenseRoutes, "", CreateLicenseStatusDocument, true).Methods("PUT")
 	}
+
+	// Gob encoding server provider.
+	endpoint := http.NewGobEndpoint(server.Logger())
+	endpoint.AddHandleFunc("LICENSES", func(rw *bufio.ReadWriter) error {
+		var authentication http.Authorization
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&authentication)
+
+		if !server.Auth(authentication.User, authentication.Password) {
+			return fmt.Errorf("Error : bad username / password (" + authentication.User + ":" + authentication.Password + ")")
+		}
+
+		enc := gob.NewEncoder(rw)
+		result, err := server.Store().LicenseStatus().ListAll()
+		if err != nil {
+			return fmt.Errorf("Error reading license statuses : " + err.Error())
+		}
+		err = enc.Encode(result)
+		if err != nil {
+			return fmt.Errorf("Error encoding result : " + err.Error())
+		}
+		return nil
+	})
+
+	go func() {
+		// Start listening.
+		endpoint.Listen(":9000")
+	}()
 }

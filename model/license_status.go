@@ -182,6 +182,11 @@ func (i licenseStatusStore) List(deviceLimit int64, page int64, pageNum int64) (
 	return result, i.db.Where("device_count >= ?", deviceLimit).Offset(pageNum * page).Limit(page).Order("id DESC").Find(&result).Error
 }
 
+func (i licenseStatusStore) ListAll() (LicensesStatusCollection, error) {
+	var result LicensesStatusCollection
+	return result, i.db.Order("id DESC").Find(&result).Error
+}
+
 //GetByLicenseId gets license status by license id
 func (i licenseStatusStore) GetByLicenseId(licenseFk string) (*LicenseStatus, error) {
 	var result LicenseStatus

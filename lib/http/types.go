@@ -31,11 +31,14 @@ import (
 	"crypto/tls"
 	"net/http"
 
+	"bufio"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/filestor"
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/model"
+	"net"
+	"sync"
 )
 
 const (
@@ -209,9 +212,22 @@ type (
 		realm          string
 	}
 
-	//HandlerFunc func(w http.ResponseWriter, r *http.Request, s IServer)
+	// GobHandleFunc is a function that handles an incoming command.
+	// It receives the open connection wrapped in a `ReadWriter` interface.
+	GobHandleFunc func(writer *bufio.ReadWriter) error
+
+	// Endpoint provides an endpoint to other processess
+	// that they can send data to.
+	GobEndpoint struct {
+		listener net.Listener
+		handler  map[string]GobHandleFunc
+		// Maps are not threadsafe, so we need a mutex to control access.
+		m   sync.RWMutex
+		log logger.StdLogger
+	}
 
 	IServer interface {
+		Auth(user, password string) bool
 		Logger() logger.StdLogger
 		Config() Configuration
 		Certificate() *tls.Certificate
@@ -226,10 +242,9 @@ type (
 		HandleFunc(router *mux.Router, route string, fn interface{}, secured bool) *mux.Route
 	}
 
-	FileHandlerWrapper struct {
-		Log    logger.StdLogger
-		Static []string
-		Public string
+	Authorization struct {
+		User     string
+		Password string
 	}
 )
 

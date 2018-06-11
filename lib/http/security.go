@@ -302,11 +302,19 @@ func (s *Server) checkAuth(r *http.Request) string {
 	if len(pair) != 2 {
 		return ""
 	}
-	user, password := pair[0], pair[1]
+
+	if s.Auth(pair[0], pair[1]) {
+		return pair[0]
+	}
+	return ""
+}
+
+func (s *Server) Auth(user, password string) bool {
 	secret := s.secretProvider(user, s.realm)
 	if secret == "" {
-		return ""
+		return false
 	}
+
 	compare := compareFuncs[0].compare
 	for _, cmp := range compareFuncs[1:] {
 		if strings.HasPrefix(secret, cmp.prefix) {
@@ -314,8 +322,10 @@ func (s *Server) checkAuth(r *http.Request) string {
 			break
 		}
 	}
+
 	if compare([]byte(secret), []byte(password)) != nil {
-		return ""
+		return false
 	}
-	return pair[0]
+
+	return true
 }
