@@ -34,10 +34,7 @@ import (
 	"github.com/readium/readium-lcp-server/lib/views/assets"
 	"github.com/readium/readium-lcp-server/lib/views/helpers"
 	"github.com/readium/readium-lcp-server/lib/views/parser"
-	"time"
 )
-
-// TODO remove public pkg vars completely, except perhaps Production
 
 func init() {
 	Helpers = DefaultHelpers()
@@ -46,7 +43,6 @@ func init() {
 // DefaultHelpers returns a default set of helpers for the app, which can then be extended/replaced
 // NB if you change helper functions the templates must be reloaded at least once afterwards
 func DefaultHelpers() parser.FuncMap {
-
 	/**
 		builtins = FuncMap{
 	    		"and":      and,
@@ -159,7 +155,6 @@ func LoadTemplatesAtPaths(paths []string, helpers parser.FuncMap, logger logger.
 
 // ReloadTemplates reloads the templates for our scanner
 func ReloadTemplates() error {
-	//TODO : panic recoverer, since if it's crashing server stops
 	mu.Lock()
 	defer mu.Unlock()
 	return scanner.ScanPaths()
@@ -173,6 +168,7 @@ func PrintTemplates() {
 		fmt.Printf("Template %s\n", k)
 	}
 }
+
 func HasTemplate(staticPath string) bool {
 	mu.RLock()
 	defer mu.RUnlock()
@@ -194,7 +190,7 @@ func SetupView(logger logger.StdLogger, isProduction, areAssetsCompiled bool, pu
 	// otherwise they serve all files in a group separately
 	Helpers["style"] = appAssets.StyleLink
 	Helpers["script"] = appAssets.ScriptLink
-	logger.Infof("Finished loading assets in %s\n", time.Now())
+	//logger.Infof("Finished loading assets in %s\n", time.Now())
 	Production = isProduction
 	//s.ErrorLogger.Debugf("SERVER URL %s", ServerURL)
 	err := LoadTemplatesAtPaths([]string{publicPath}, Helpers, logger)
@@ -203,5 +199,5 @@ func SetupView(logger logger.StdLogger, isProduction, areAssetsCompiled bool, pu
 	if err != nil {
 		logger.Errorf("Error reading templates %s\n", err)
 	}
-	logger.Infof("Finished loading templates in %s\n", time.Now())
+	//logger.Infof("Finished loading templates in %s\n", time.Now())
 }

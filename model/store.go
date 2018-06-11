@@ -165,6 +165,8 @@ type (
 		GetByLicenseID(licenseID string) (*Purchase, error)
 		Count() (int64, error)
 		List(page int64, pageNum int64) (PurchaseCollection, error)
+		Filter(paramLike string, page, pageNum int64) (PurchaseCollection, error)
+		FilterCount(paramLike string) (int64, error)
 		CountByUser(userID int64) (int64, error)
 		ListByUser(userID int64, page int64, pageNum int64) (PurchaseCollection, error)
 		Add(p *Purchase) error

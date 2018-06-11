@@ -104,7 +104,7 @@ func (g *Group) RemoveFiles(dst string) error {
 // Compile compiles all our files and calculates hashes from their contents
 // The group hash is a hash of hashes
 func (g *Group) Compile(dst string) error {
-	var scriptHashes, styleHashes string
+	scriptHashes, styleHashes := "", ""
 	var scriptWriter, styleWriter bytes.Buffer
 	for _, f := range g.files {
 		if f.Script() {
@@ -199,8 +199,7 @@ func (g *Group) ScriptPath(dst string) string {
 // MarshalJSON generates json for this collection, of the form {group:{file:hash}}
 func (g *Group) MarshalJSON() ([]byte, error) {
 	var b bytes.Buffer
-	b.WriteString(fmt.Sprintf(`"%s":{"scripts":"%s","styles":"%s","files":{`,
-		g.name, g.scripthash, g.stylehash))
+	b.WriteString(fmt.Sprintf(`"%s":{"scripts":"%s","styles":"%s","files":{`, g.name, g.scripthash, g.stylehash))
 	for i, f := range g.files {
 		fb, err := f.MarshalJSON()
 		if err != nil {

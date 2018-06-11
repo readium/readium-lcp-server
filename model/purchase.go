@@ -118,7 +118,17 @@ func (s purchaseStore) GetByLicenseID(licenseID string) (*Purchase, error) {
 
 func (s purchaseStore) Count() (int64, error) {
 	var count int64
-	return count, s.db.Model(Purchase{}).Order("transaction_date DESC").Count(&count).Error
+	return count, s.db.Model(Purchase{}).Count(&count).Error
+}
+
+func (s purchaseStore) FilterCount(paramLike string) (int64, error) {
+	var count int64
+	return count, s.db.Model(Purchase{}).Where("uuid LIKE ?", "%"+paramLike+"%").Count(&count).Error
+}
+
+func (s purchaseStore) Filter(paramLike string, page, pageNum int64) (PurchaseCollection, error) {
+	var result PurchaseCollection
+	return result, s.db.Where("uuid LIKE ?", "%"+paramLike+"%").Offset(pageNum * page).Limit(page).Where(&Publication{}).Order("transaction_date DESC").Find(&result).Error
 }
 
 // List purchases, with pagination

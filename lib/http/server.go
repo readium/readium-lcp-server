@@ -38,6 +38,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/filestor"
 	"github.com/readium/readium-lcp-server/lib/i18n"
+	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/lib/validator"
 	"github.com/readium/readium-lcp-server/model"
@@ -69,6 +70,10 @@ func (s *Server) Source() *pack.ManualSource {
 
 func (s *Server) Config() Configuration {
 	return s.Cfg
+}
+
+func (s *Server) Logger() logger.StdLogger {
+	return s.Log
 }
 
 func (s *Server) DefaultSrvLang() string {

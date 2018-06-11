@@ -36,14 +36,11 @@ import (
 	"github.com/readium/readium-lcp-server/lib/cron"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/logger"
-	"github.com/readium/readium-lcp-server/lib/views"
 	"github.com/readium/readium-lcp-server/model"
 	"io/ioutil"
 	goHttp "net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"runtime"
 	"strconv"
 	"time"
 )
@@ -82,33 +79,9 @@ func main() {
 
 	tcpAddress := cfg.LutServer.Host + ":" + strconv.Itoa(cfg.LutServer.Port)
 
-	static := cfg.LutServer.Directory
-	if static == "" {
-		_, file, _, _ := runtime.Caller(0)
-		here := filepath.Dir(file)
-		static = filepath.Join(here, "../frontend/manage")
-	}
-	log.Printf("Static folder : %s", static)
 	muxer := mux.NewRouter()
 
-	muxer.Use(
-		http.RecoveryHandler(http.RecoveryLogger(log), http.PrintRecoveryStack(true)),
-		http.CorsMiddleWare(
-			http.AllowedOrigins([]string{"*"}),
-			http.AllowedMethods([]string{"PATCH", "HEAD", "POST", "GET", "OPTIONS", "PUT", "DELETE"}),
-			http.AllowedHeaders([]string{"Range", "Content-Type", "Origin", "X-Requested-With", "Accept", "Accept-Language", "Content-Language", "Authorization"}),
-		),
-		http.DelayMiddleware,
-	)
-
-	if static != "" {
-		views.SetupView(log, false, false, static)
-		views.DefaultLayoutPath = "main/layout.html.got"
-		fh := http.FileHandlerWrapper{Log: log, Static: []string{static}, Public: static}
-		muxer.NotFoundHandler = lutserver.NotFoundHandler(fh)
-	} else {
-		panic("Should have static folder set.")
-	}
+	muxer.Use(http.RecoveryHandler(http.RecoveryLogger(log), http.PrintRecoveryStack(true)))
 
 	server := &http.Server{
 		Server: goHttp.Server{

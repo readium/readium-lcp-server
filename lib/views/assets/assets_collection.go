@@ -34,18 +34,21 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Setup returns a new assets.Collection, also stores it in public var
-func Setup(compiled bool, publicPath string, logger logger.StdLogger) *AssetsCollection {
-	Assets = &AssetsCollection{
+func Setup(compiled bool, publicPath string, logger logger.StdLogger) AssetsCollection {
+	Assets = AssetsCollection{
 		serveCompiled: compiled,
 		path:          publicPath + ASSETS,
 		logger:        logger,
@@ -55,6 +58,34 @@ func Setup(compiled bool, publicPath string, logger logger.StdLogger) *AssetsCol
 		logger.Errorf("Error loading assets %s\n", err)
 	}
 	return Assets
+}
+
+func RegisterAssetRoutes(muxer *mux.Router) {
+	for _, g := range Assets.groups {
+		for _, f := range g.files {
+			route := ASSETS + strings.Replace(f.hash, "\\", "/", -1) + f.path
+			//Assets.logger.Printf("Registering : %q", route)
+			muxer.HandleFunc(route, func(w http.ResponseWriter, request *http.Request) {
+				canonicalPath := path.Clean(request.URL.Path)
+				// Try to find an asset in our list
+				f := Assets.File(path.Base(canonicalPath))
+				if f == nil {
+					fmt.Printf("Asset not found %s base %s even if it was registered.\n", canonicalPath, path.Base(canonicalPath))
+					return
+				}
+				http.ServeContent(w, request, f.LocalPath(), time.Now(), bytes.NewReader(f.Bytes()))
+			})
+		}
+	}
+}
+
+func PrintAssets() {
+	for _, g := range Assets.groups {
+		fmt.Printf("Name : %s\n Scripts : %s\nHash:%s\n", g.name, g.scripthash, g.stylehash)
+		for _, f := range g.files {
+			fmt.Printf("Path : %q Hash : %s\n", f.path, f.hash)
+		}
+	}
 }
 
 // File returns the first asset file matching name - this assumes files have unique names between groups

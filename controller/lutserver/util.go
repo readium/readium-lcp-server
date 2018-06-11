@@ -37,7 +37,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"strconv"
 	"time"
 
@@ -45,10 +44,12 @@ import (
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/validator"
 	"github.com/readium/readium-lcp-server/lib/views"
+	"github.com/readium/readium-lcp-server/lib/views/assets"
 	"github.com/readium/readium-lcp-server/model"
 	"io"
 	"mime/multipart"
 	"net/url"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -85,22 +86,22 @@ type (
 var ErrNotFound = errors.New("License not found")
 
 func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model.License, error) {
-	// create a partial license
-	partialLicense := model.License{}
 
 	// setFieldsFromForm the mandatory provider URI
 	if server.Config().LutServer.ProviderUri == "" {
 		return nil, errors.New("Mandatory provider URI missing in the configuration")
 	}
-	partialLicense.Provider = server.Config().LutServer.ProviderUri
-
-	// get user info from the purchase info
 	encryptedAttrs := []string{"email", "name"}
-	partialLicense.User.Email = purchase.User.Email
-	partialLicense.User.Name = purchase.User.Name
-	partialLicense.User.UUID = purchase.User.UUID
-	partialLicense.User.Encrypted = encryptedAttrs
-
+	// create a partial license
+	partialLicense := model.License{
+		Provider: server.Config().LutServer.ProviderUri,
+		User: &model.User{
+			Email:     purchase.User.Email,
+			Name:      purchase.User.Name,
+			UUID:      purchase.User.UUID,
+			Encrypted: encryptedAttrs,
+		},
+	}
 	// get the hashed passphrase from the purchase
 	userKeyValue, err := hex.DecodeString(purchase.User.Password)
 
@@ -108,10 +109,13 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 		return nil, err
 	}
 
-	userKey := model.LicenseUserKey{}
-	userKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
-	userKey.Hint = purchase.User.Hint
-	userKey.Value = string(userKeyValue)
+	userKey := model.LicenseUserKey{
+		Key: model.Key{
+			Algorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+		},
+		Hint:  purchase.User.Hint,
+		Value: string(userKeyValue),
+	}
 	partialLicense.Encryption.UserKey = userKey
 
 	// In case of a creation of license, add the user rights
@@ -308,7 +312,6 @@ func updatePurchase(purchase *model.Purchase, server http.IServer) error {
 }
 
 func getPartialLicense(purchase *model.Purchase, server http.IServer) (*model.License, error) {
-
 	if purchase.LicenseUUID == nil {
 		return nil, errors.New("No license has been yet delivered")
 	}
@@ -367,39 +370,6 @@ func getPartialLicense(purchase *model.Purchase, server http.IServer) (*model.Li
 	return &partialLicense, nil
 }
 
-func NotFoundHandler(h http.FileHandlerWrapper) http.HandlerFunc {
-	return func(w http.ResponseWriter, request *http.Request) {
-		// Clean the path
-		canonicalPath := path.Clean(request.URL.Path)
-		if len(canonicalPath) == 0 {
-			canonicalPath = "/"
-		} else if canonicalPath[0] != '/' {
-			canonicalPath = "/" + canonicalPath
-		}
-
-		err := h.ServeAsset(w, request)
-		if err != nil {
-			// on failed looking for assets
-			// Finally try serving a file from public
-			err = h.ServeFile(w, request)
-			if err == nil {
-				return
-			}
-		} else {
-			return
-		}
-
-		// The real 404
-		w.Header().Set("Content-Type", "text/html")
-		view := views.Renderer{}
-		view.SetWriter(w)
-		view.AddKey("title", "Error 404")
-		view.AddKey("message", fmt.Errorf("Requested route (%s) is not served by this server.", request.URL.Path))
-		view.Template("main/error.html.got")
-		view.Render()
-	}
-}
-
 func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, []ParamAndIndex) {
 
 	// checking if we're registering a function, not something else
@@ -423,7 +393,7 @@ func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, []ParamAndIndex
 	// convention : first param is always IServer - to give access to configuration, storage, etc
 	serverIfaceParam := functionType.In(0)
 	if "http.IServer" != serverIfaceParam.String() {
-		panic("bad handler func. Check logs.")
+		panic("bad handler func.")
 	}
 
 	for p := 1; p < functionType.NumIn(); p++ {
@@ -551,7 +521,7 @@ func setFieldsFromForm(deserializeTo reflect.Value, fromForm url.Values) error {
 	return nil
 }
 
-func HandleFunc(router *mux.Router, server http.IServer, route string, fn interface{}) *mux.Route {
+func makeHandler(router *mux.Router, server http.IServer, route string, fn interface{}) *mux.Route {
 	// reflect on the provided handler
 	fnValue := reflect.ValueOf(fn)
 
@@ -564,11 +534,11 @@ func HandleFunc(router *mux.Router, server http.IServer, route string, fn interf
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		// if the content type is form
 		ctype := r.Header[http.HdrContentType]
-		if r.Method == "GET" {
-			server.LogInfo("Route : %s Method : %s", r.URL.Path, r.Method)
-		} else {
-			server.LogInfo("Route : %s Method : %s Content Type : %s", r.URL.Path, r.Method, ctype)
-		}
+		//if r.Method == "GET" {
+		//	server.LogInfo("Route : %s Method : %s", r.URL.Path, r.Method)
+		//} else {
+		//	server.LogInfo("Route : %s Method : %s Content Type : %s", r.URL.Path, r.Method, ctype)
+		//}
 		// Set up arguments for handler call : first argument is the IServer
 		in := []reflect.Value{serverValue}
 
@@ -770,69 +740,87 @@ func readPagination(pg, perPg string, totalRecords int64) (int64, int64, error) 
 
 func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	// dashboard
-	HandleFunc(muxer, server, "/", GetIndex).Methods("GET")
+	makeHandler(muxer, server, "/", GetIndex).Methods("GET")
 	//
 	// user functions
 	//
 	usersRoutesPathPrefix := "/users"
-	HandleFunc(muxer, server, usersRoutesPathPrefix, GetUsers).Methods("GET")
-	HandleFunc(muxer, server, usersRoutesPathPrefix, CreateOrUpdateUser).Methods("POST")
+	makeHandler(muxer, server, usersRoutesPathPrefix, GetUsers).Methods("GET")
+	makeHandler(muxer, server, usersRoutesPathPrefix, CreateOrUpdateUser).Methods("POST")
 	usersRoutes := muxer.PathPrefix(usersRoutesPathPrefix).Subrouter().StrictSlash(false)
-	HandleFunc(usersRoutes, server, "/{id}", GetUser).Methods("GET")
-	HandleFunc(usersRoutes, server, "/{id}", DeleteUser).Methods("DELETE")
-	// get all purchases for a given user
-	server.HandleFunc(usersRoutes, "/{user_id}/purchases", GetUserPurchases, false).Methods("GET")
+	makeHandler(usersRoutes, server, "/{id}", GetUser).Methods("GET")
+	makeHandler(usersRoutes, server, "/{id}", DeleteUser).Methods("DELETE")
 
 	//
 	//  repositories of master files
 	//
 	//
-	HandleFunc(muxer, server, "/repositories", GetRepositoryMasterFiles).Methods("GET")
+	makeHandler(muxer, server, "/repositories", GetRepositoryMasterFiles).Methods("GET")
 
 	//
 	// publications
 	//
 	publicationsRoutesPathPrefix := "/publications"
-	HandleFunc(muxer, server, publicationsRoutesPathPrefix, GetPublications).Methods("GET")
-	HandleFunc(muxer, server, publicationsRoutesPathPrefix, CreateOrUpdatePublication).Methods("POST")
+	makeHandler(muxer, server, publicationsRoutesPathPrefix, GetPublications).Methods("GET")
+	makeHandler(muxer, server, publicationsRoutesPathPrefix, CreateOrUpdatePublication).Methods("POST")
 	publicationsRoutes := muxer.PathPrefix(publicationsRoutesPathPrefix).Subrouter().StrictSlash(false)
-	HandleFunc(publicationsRoutes, server, "/check-by-title", CheckPublicationByTitle).Methods("GET")
-	HandleFunc(publicationsRoutes, server, "/{id}", GetPublication).Methods("GET")
-	HandleFunc(publicationsRoutes, server, "/{id}", DeletePublication).Methods("DELETE")
-	//
-	//HandleFunc(muxer, "/PublicationUpload", UploadEPUB, false).Methods("POST")
-	//
-	//
-
+	makeHandler(publicationsRoutes, server, "/check-by-title", CheckPublicationByTitle).Methods("GET")
+	makeHandler(publicationsRoutes, server, "/{id}", GetPublication).Methods("GET")
+	makeHandler(publicationsRoutes, server, "/{id}", DeletePublication).Methods("DELETE")
 	//
 	// purchases
 	//
 	purchasesRoutesPathPrefix := "/purchases"
+	makeHandler(muxer, server, purchasesRoutesPathPrefix, GetPurchases).Methods("GET")
+	makeHandler(muxer, server, purchasesRoutesPathPrefix, CreateOrUpdatePurchase).Methods("POST")
 	purchasesRoutes := muxer.PathPrefix(purchasesRoutesPathPrefix).Subrouter().StrictSlash(false)
-	// get all purchases
-	server.HandleFunc(muxer, purchasesRoutesPathPrefix, GetPurchases, false).Methods("GET")
-	// create a purchase
-	server.HandleFunc(muxer, purchasesRoutesPathPrefix, CreatePurchase, false).Methods("POST")
-	// update a purchase
-	server.HandleFunc(purchasesRoutes, "/{id}", UpdatePurchase, false).Methods("PUT")
-	// get a purchase by purchase id
-	server.HandleFunc(purchasesRoutes, "/{id}", GetPurchase, false).Methods("GET")
-	// get a license from the associated purchase id
-	server.HandleFunc(purchasesRoutes, "/{id}/license", GetPurchasedLicense, false).Methods("GET")
+	makeHandler(purchasesRoutes, server, "/{id}", GetPurchase).Methods("GET")
+	makeHandler(purchasesRoutes, server, "/{id}/license", GetPurchasedLicense).Methods("GET")
+	makeHandler(usersRoutes, server, "/{user_id}/purchases", GetUserPurchases).Methods("GET")
 	//
 	// licences
 	//
 	licenseRoutesPathPrefix := "/licenses"
+	makeHandler(muxer, server, licenseRoutesPathPrefix, GetFilteredLicenses).Methods("GET")
 	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
-	//
-	// get a list of licenses
-	server.HandleFunc(muxer, licenseRoutesPathPrefix, GetFilteredLicenses, false).Methods("GET")
-	// get a license by id
-	server.HandleFunc(licenseRoutes, "/{license_id}", GetLicense, false).Methods("GET")
+	makeHandler(licenseRoutes, server, "/{license_id}", GetLicense).Methods("GET")
 
 	server.LogInfo("Initing repo manager.")
 	repoManager = RepositoryManager{
 		MasterRepositoryPath:    server.Config().LutServer.MasterRepository,
 		EncryptedRepositoryPath: server.Config().LutServer.EncryptedRepository,
 	}
+
+	static := server.Config().LutServer.Directory
+	if static == "" {
+		_, file, _, _ := runtime.Caller(0)
+		here := filepath.Dir(file)
+		static = filepath.Join(here, "../public")
+	}
+	server.LogInfo("Static folder : %s", static)
+	if static != "" {
+		views.SetupView(server.Logger(), false, false, static)
+		views.DefaultLayoutPath = "main/layout.html.got"
+	} else {
+		panic("Should have static folder set.")
+	}
+
+	assets.RegisterAssetRoutes(muxer)
+
+	muxer.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		// ignoring favicon.ico request.
+		if request.URL.Path == "/favicon.ico" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		server.LogError("NotFoundHandler : %s", request.URL.Path)
+		// The real 404
+		w.Header().Set("Content-Type", "text/html")
+		view := views.Renderer{}
+		view.SetWriter(w)
+		view.AddKey("title", "Error 404")
+		view.AddKey("message", fmt.Errorf("Requested route (%s) is not served by this server.", request.URL.Path))
+		view.Template("main/error.html.got")
+		view.Render()
+	})
 }

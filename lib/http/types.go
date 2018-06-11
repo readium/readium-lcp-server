@@ -212,6 +212,7 @@ type (
 	//HandlerFunc func(w http.ResponseWriter, r *http.Request, s IServer)
 
 	IServer interface {
+		Logger() logger.StdLogger
 		Config() Configuration
 		Certificate() *tls.Certificate
 		Source() *pack.ManualSource

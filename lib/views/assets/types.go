@@ -41,7 +41,7 @@ const (
 	CSS_EXT        string = ".css"
 	JS_EXT         string = ".js"
 	styleTemplate         = `<link href="/assets/styles/%s" media="all" rel="stylesheet" type="text/css" />`
-	scriptTemplate        = `<script src="/assets/scripts/%s" type="text/javascript" ></script>`
+	scriptTemplate        = `<script src="/assets/js/%s" type="text/javascript" ></script>`
 	PERMISSIONS           = 0744
 )
 
@@ -80,7 +80,7 @@ type (
 )
 
 var (
-	Assets *AssetsCollection
+	Assets AssetsCollection
 	// Remove all other unrecognised characters apart from
 	illegalName = regexp.MustCompile(`[^[:alnum:]-.]`)
 	// A list of characters we consider separators in normal strings and replace with our canonical separator - rather than removing.
