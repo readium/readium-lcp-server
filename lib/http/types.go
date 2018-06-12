@@ -246,6 +246,12 @@ type (
 		User     string
 		Password string
 	}
+
+	AuthorizationAndLicense struct {
+		User     string
+		Password string
+		License  *model.License
+	}
 )
 
 var (

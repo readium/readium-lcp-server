@@ -128,7 +128,7 @@ func GenerateLicense(server http.IServer, payload *model.License, param ParamCon
 
 	// notify the lsd server of the creation of the license.
 	// this is an asynchronous call.
-	go notifyLSDServer(payload, server)
+	notifyLSDServer(payload, server)
 	return result.Bytes(), nonErr
 }
 
@@ -221,7 +221,7 @@ func GenerateLicensedPublication(server http.IServer, lic *model.License, param 
 	}
 
 	// notify the lsd server of the creation of the license
-	go notifyLSDServer(lic, server)
+	notifyLSDServer(lic, server)
 
 	// build a licenced publication
 	publication, err := buildLicencedPublication(lic, server)

@@ -592,7 +592,8 @@ func TestGenerateLicense(t *testing.T) {
 		ContentId: list[0].Id,
 		Provider:  "Google",
 		User: &model.User{
-			UUID: uuid.String(),
+			UUID:      uuid.String(),
+			Encrypted: []string{"email", "name"},
 		},
 		Encryption: model.LicenseEncryption{
 			UserKey: model.LicenseUserKey{

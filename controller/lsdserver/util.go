@@ -28,12 +28,9 @@
 package lsdserver
 
 import (
-	"bytes"
-	"encoding/json"
 	"strings"
 	"time"
 
-	"context"
 	"io/ioutil"
 
 	"bufio"
@@ -45,6 +42,7 @@ import (
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/i18n"
 	"github.com/readium/readium-lcp-server/model"
+	"net"
 )
 
 type (
@@ -165,64 +163,48 @@ func makeEvent(status model.Status, deviceName string, deviceID string, licenseS
 // called from return, renew and cancel/revoke actions
 //
 func notifyLCPServer(timeEnd time.Time, licenseID string, server http.IServer) (int, error) {
-	lcpConfig, updateAuth := server.Config().LcpServer, server.Config().LcpUpdateAuth
 	// create a minimum license object, limited to the license id plus rights
 	// FIXME: remove the id (here and in the lcpserver license.go)
-	minLicense := model.License{Id: licenseID, Rights: &model.LicenseUserRights{}}
+	minLicense := &model.License{Id: licenseID, Rights: &model.LicenseUserRights{}}
 	// set the new end date
 	minLicense.Rights.End = &model.NullTime{Valid: true, Time: timeEnd}
 
-	// prepare the request
-	lcpURL := lcpConfig.PublicBaseUrl + "/licenses/" + licenseID
-	// message to the console
-	server.LogInfo("PATCH " + lcpURL)
-	payload, err := json.Marshal(minLicense)
+	conn, err := net.Dial("tcp", "localhost:10000")
 	if err != nil {
-		return 0, err
+		server.LogError("Error Notify LcpServer : %v", err)
+		return http.StatusInternalServerError, err
 	}
-	// send the content to the LCP server
-	req, err := http.NewRequest("PATCH", lcpURL, bytes.NewReader(payload))
-	if err != nil {
-		return 0, err
-	}
-	// set the credentials
-	if updateAuth.Username != "" {
-		req.SetBasicAuth(updateAuth.Username, updateAuth.Password)
-	}
-	// set the content type
-	req.Header.Add(http.HdrContentType, http.ContentTypeLcpJson)
+	defer conn.Close()
+	server.LogInfo("Notifying LCP")
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// making request
-	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
-	// If we got an error, and the context has been canceled, the context's error is probably more useful.
+	_, err = rw.WriteString("UPDATELICENSE\n")
 	if err != nil {
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-		default:
-		}
+		server.LogError("Could not write : %v", err)
+		return http.StatusInternalServerError, err
 	}
 
-	if err != nil {
-		server.LogError("Error Notify Lcp Server of License (%q): %v", licenseID, err)
-		return 0, err
+	notifyAuth := server.Config().LcpUpdateAuth
+	if notifyAuth.Username == "" {
+		server.LogError("Username is empty : can't connect to LCP")
+		return http.StatusInternalServerError, fmt.Errorf("Username is empty : can't connect to LCP.")
 	}
 
-	// we have a body, defering close
-	defer resp.Body.Close()
-	// reading body
-	body, err := ioutil.ReadAll(resp.Body)
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(http.AuthorizationAndLicense{User: notifyAuth.Username, Password: notifyAuth.Password, License: minLicense})
 	if err != nil {
-		server.LogError("Notify LsdServer of compliancetest reading body error : %v", err)
-		return 0, err
+		server.LogError("Encode failed for struct: %v", err)
+		return http.StatusInternalServerError, err
 	}
-	if resp.StatusCode != http.StatusOK {
-		server.LogError("Error Notify Lcp Server of License (%q) response %v [http-status:%d]", licenseID, string(body), resp.StatusCode)
+
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return http.StatusInternalServerError, err
 	}
-	return resp.StatusCode, nil
+	// Read the reply.
+	ioutil.ReadAll(rw.Reader)
+	return http.StatusOK, nil
 }
 
 // fillLicenseStatus fills the localized 'message' field, the 'links' and 'event' objects in the license status
@@ -297,7 +279,6 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		server.HandleFunc(licenseRoutes, "/{key}/return", LendingReturn, false).Methods("PUT")     // TODO : why this is unsecured
 		server.HandleFunc(licenseRoutes, "/{key}/renew", LendingRenewal, false).Methods("PUT")     // TODO : why this is unsecured
 		server.HandleFunc(licenseRoutes, "/{key}/status", LendingCancellation, true).Methods("PATCH")
-		//server.HandleFunc(muxer, "/licenses", CreateLicenseStatusDocument, true).Methods("PUT")
 		server.HandleFunc(licenseRoutes, "", CreateLicenseStatusDocument, true).Methods("PUT")
 	}
 
@@ -307,7 +288,9 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		var authentication http.Authorization
 		dec := gob.NewDecoder(rw)
 		err := dec.Decode(&authentication)
-
+		if err != nil {
+			return fmt.Errorf("Error decoding result : " + err.Error())
+		}
 		if !server.Auth(authentication.User, authentication.Password) {
 			return fmt.Errorf("Error : bad username / password (" + authentication.User + ":" + authentication.Password + ")")
 		}
@@ -321,6 +304,27 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		if err != nil {
 			return fmt.Errorf("Error encoding result : " + err.Error())
 		}
+		return nil
+	})
+
+	endpoint.AddHandleFunc("UPDATELICENSESTATUS", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLicense
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			return fmt.Errorf("Error decoding result : " + err.Error())
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (" + payload.User + ":" + payload.Password + ")")
+		}
+		server.LogInfo("Received GOB License : %#v", payload.License)
+		ls := makeLicenseStatus(payload.License, server.Config().LicenseStatus.Register, server.Config().LicenseStatus.RentingDays)
+
+		err = server.Store().LicenseStatus().Add(ls)
+		if err != nil {
+			return fmt.Errorf("Error saving license : " + err.Error())
+		}
+
 		return nil
 	})
 

@@ -534,11 +534,6 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		// if the content type is form
 		ctype := r.Header[http.HdrContentType]
-		//if r.Method == "GET" {
-		//	server.LogInfo("Route : %s Method : %s", r.URL.Path, r.Method)
-		//} else {
-		//	server.LogInfo("Route : %s Method : %s Content Type : %s", r.URL.Path, r.Method, ctype)
-		//}
 		// Set up arguments for handler call : first argument is the IServer
 		in := []reflect.Value{serverValue}
 

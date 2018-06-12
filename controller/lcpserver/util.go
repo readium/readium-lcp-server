@@ -29,17 +29,20 @@ package lcpserver
 
 import (
 	"archive/zip"
+	"bufio"
 	"bytes"
-	"context"
+	"encoding/gob"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/epub"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/model"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
-	"time"
 )
 
 type (
@@ -186,54 +189,43 @@ func buildLicencedPublication(license *model.License, server http.IServer) (*epu
 // and saves the result of the http request in the DB (using *LicenseRepository)
 //
 func notifyLSDServer(payload *model.License, server http.IServer) {
-	jsonPayload, err := json.Marshal(payload)
+	conn, err := net.Dial("tcp", "localhost:9000")
 	if err != nil {
-		server.LogError("Error Notify LsdServer of new License (" + payload.Id + ") Marshaling error : " + err.Error())
+		server.LogError("Error Notify LsdServer : %v", err)
+		return
 	}
+	defer conn.Close()
+	server.LogInfo("Notifying LSD")
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 
-	req, err := http.NewRequest("PUT", server.Config().LsdServer.PublicBaseUrl+"/licenses", bytes.NewReader(jsonPayload))
+	_, err = rw.WriteString("UPDATELICENSESTATUS\n")
 	if err != nil {
+		server.LogError("Could not write : %v", err)
 		return
 	}
 
-	// set credentials on lsd request
 	notifyAuth := server.Config().LsdNotifyAuth
-	if notifyAuth.Username != "" {
-		req.SetBasicAuth(notifyAuth.Username, notifyAuth.Password)
-	}
-	req.Header.Add(http.HdrContentType, http.ContentTypeLcpJson)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// making request
-	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
-	// If we got an error, and the context has been canceled, the context's error is probably more useful.
-	if err != nil {
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-		default:
-		}
-	}
-
-	if err != nil {
-		server.LogError("Error Notify LsdServer of new License (" + payload.Id + "):" + err.Error())
-		err = server.Store().License().UpdateLsdStatus(payload.Id, -1)
+	if notifyAuth.Username == "" {
+		server.LogError("Username is empty : can't connect to LSD")
 		return
 	}
 
-	// we have a body, defering close
-	defer resp.Body.Close()
-	// reading body
-	body, err := ioutil.ReadAll(resp.Body)
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(http.AuthorizationAndLicense{User: notifyAuth.Username, Password: notifyAuth.Password, License: payload})
 	if err != nil {
-		server.LogError("Error Notify LsdServer of new License (read body error : %v)", err)
+		server.LogError("Encode failed for struct: %v", err)
+		return
 	}
-	_ = server.Store().License().UpdateLsdStatus(payload.Id, int32(resp.StatusCode))
-	// message to the console
-	server.LogInfo("Notify LsdServer of a new License with id %q http-status %d response %v", payload.Id, resp.StatusCode, body)
 
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return
+	}
+	// Read the reply.
+	ioutil.ReadAll(rw.Reader)
+
+	_ = server.Store().License().UpdateLsdStatus(payload.Id, http.StatusCreated)
 }
 
 func RegisterRoutes(muxer *mux.Router, server http.IServer) {
@@ -262,4 +254,34 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		// update a license
 		server.HandleFunc(licenseRoutes, "/{license_id}", UpdateLicense, true).Methods("PATCH")
 	}
+
+	endpoint := http.NewGobEndpoint(server.Logger())
+	endpoint.AddHandleFunc("UPDATELICENSE", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLicense
+
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+
+		// initialize the license from the info stored in the db.
+		existingLicense, e := server.Store().License().Get(payload.License.Id)
+		// process license not found etc.
+		if e == gorm.ErrRecordNotFound {
+			return fmt.Errorf("Record not found")
+		} else if e != nil {
+			return e
+		}
+
+		existingLicense.Update(payload.License)
+		// update the license in the database
+		err = server.Store().License().Update(existingLicense)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	go func() {
+		// Start listening.
+		endpoint.Listen(":10000")
+	}()
 }
