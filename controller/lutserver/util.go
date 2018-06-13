@@ -48,10 +48,10 @@ import (
 	"github.com/readium/readium-lcp-server/model"
 	"io"
 	"mime/multipart"
-	"net/url"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"strings"
 )
 
@@ -87,7 +87,7 @@ var ErrNotFound = errors.New("License not found")
 
 func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model.License, error) {
 
-	// setFieldsFromForm the mandatory provider URI
+	// FormToFields the mandatory provider URI
 	if server.Config().LutServer.ProviderUri == "" {
 		return nil, errors.New("Mandatory provider URI missing in the configuration")
 	}
@@ -121,7 +121,7 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 	// In case of a creation of license, add the user rights
 	if purchase.LicenseUUID == nil {
 		// in case of undefined conf values for copy and print rights,
-		// these rights will be setFieldsFromForm to zero
+		// these rights will be FormToFields to zero
 		copyVal := server.Config().LutServer.RightCopy
 		printVal := server.Config().LutServer.RightPrint
 		userRights := model.LicenseUserRights{
@@ -208,7 +208,7 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 		return nil, errors.New("Unable to decode license")
 	}
 
-	// store the license id if it was not already setFieldsFromForm
+	// store the license id if it was not already FormToFields
 	if purchase.LicenseUUID == nil {
 		purchase.LicenseUUID = &model.NullString{NullString: sql.NullString{String: fullLicense.Id, Valid: true}}
 		err = updatePurchase(purchase, server)
@@ -264,7 +264,7 @@ func updatePurchase(purchase *model.Purchase, server http.IServer) error {
 		if err != nil {
 			return err
 		}
-		// setFieldsFromForm credentials
+		// FormToFields credentials
 		lsdAuth := server.Config().LsdNotifyAuth
 		if lsdAuth.Username != "" {
 			req.SetBasicAuth(lsdAuth.Username, lsdAuth.Password)
@@ -325,7 +325,7 @@ func getPartialLicense(purchase *model.Purchase, server http.IServer) (*model.Li
 	if err != nil {
 		return nil, err
 	}
-	// setFieldsFromForm credentials
+	// FormToFields credentials
 	lcpUpdateAuth := server.Config().LcpUpdateAuth
 	if server.Config().LcpUpdateAuth.Username != "" {
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
@@ -404,9 +404,9 @@ func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, []ParamAndIndex
 			paramType = param
 			for j := 0; j < param.NumField(); j++ {
 				field := param.Field(j)
-				// if a field is read from muxer vars, it should have a tag setFieldsFromForm to the name of the required parameter
+				// if a field is read from muxer vars, it should have a tag FormToFields to the name of the required parameter
 				varTag := field.Tag.Get("var")
-				// if a field is read from muxer form, it should have a tag setFieldsFromForm to the name of the required parameter
+				// if a field is read from muxer form, it should have a tag FormToFields to the name of the required parameter
 				formTag := field.Tag.Get("form")
 				if len(varTag) > 0 {
 					paramFields = append(paramFields, ParamAndIndex{tag: varTag, index: j, isVar: true})
@@ -452,73 +452,14 @@ func renderError(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "text/html")
 	view := views.Renderer{}
 	view.SetWriter(w)
+	if true {
+		view.AddKey("message", err.Error()+"\n"+string(debug.Stack()))
+	} else {
+		view.AddKey("message", err.Error())
+	}
 	view.AddKey("title", "Error")
-	view.AddKey("message", err.Error())
 	view.Template("main/error.html.got")
 	view.Render()
-}
-
-func setFieldsFromForm(deserializeTo reflect.Value, fromForm url.Values) error {
-	for k, v := range fromForm {
-		field := deserializeTo.Elem().FieldByName(k)
-		val := v[0]
-		//server.LogInfo("%s = %s %#v", k, v, field)
-		switch field.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			if val == "" {
-				val = "0"
-			}
-			intVal, err := strconv.ParseInt(val, 10, 64)
-			if err != nil {
-				return fmt.Errorf("Value could not be parsed as int")
-			} else {
-				field.SetInt(intVal)
-			}
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			if val == "" {
-				val = "0"
-			}
-			uintVal, err := strconv.ParseUint(val, 10, 64)
-			if err != nil {
-				return fmt.Errorf("Value could not be parsed as uint")
-			} else {
-				field.SetUint(uintVal)
-			}
-		case reflect.Bool:
-			if val == "" {
-				val = "false"
-			}
-			boolVal, err := strconv.ParseBool(val)
-			if err != nil {
-				return fmt.Errorf("Value could not be parsed as boolean")
-			} else {
-				field.SetBool(boolVal)
-			}
-		case reflect.Float32:
-			if val == "" {
-				val = "0.0"
-			}
-			floatVal, err := strconv.ParseFloat(val, 32)
-			if err != nil {
-				return fmt.Errorf("Value could not be parsed as 32-bit float")
-			} else {
-				field.SetFloat(floatVal)
-			}
-		case reflect.Float64:
-			if val == "" {
-				val = "0.0"
-			}
-			floatVal, err := strconv.ParseFloat(val, 64)
-			if err != nil {
-				return fmt.Errorf("Value could not be parsed as 64-bit float")
-			} else {
-				field.SetFloat(floatVal)
-			}
-		case reflect.String:
-			field.SetString(val)
-		}
-	}
-	return nil
 }
 
 func makeHandler(router *mux.Router, server http.IServer, route string, fn interface{}) *mux.Route {
@@ -553,7 +494,7 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 						renderError(w, parseErr)
 						return
 					}
-					if err := setFieldsFromForm(deserializeTo, r.Form); err != nil {
+					if err := http.FormToFields(deserializeTo, r.Form); err != nil {
 						renderError(w, err)
 						return
 					}
@@ -564,7 +505,7 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 						renderError(w, parseErr)
 						return
 					}
-					if err := setFieldsFromForm(deserializeTo, r.MultipartForm.Value); err != nil {
+					if err := http.FormToFields(deserializeTo, r.MultipartForm.Value); err != nil {
 						renderError(w, err)
 						return
 					}
@@ -694,43 +635,6 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 			renderError(w, fmt.Errorf("%s", problem.Detail))
 		}
 	})
-}
-
-func readPagination(pg, perPg string, totalRecords int64) (int64, int64, error) {
-	var err error
-	var page, perPage int64
-
-	if pg != "" {
-		page, err = strconv.ParseInt(pg, 10, 64)
-		if err != nil {
-			return 0, 0, err
-		}
-
-	}
-	if perPg != "" {
-		perPage, err = strconv.ParseInt(perPg, 10, 64)
-		if err != nil {
-			return 0, 0, err
-		}
-	}
-
-	if page < 0 {
-		return 0, 0, errors.New("page must be positive integer")
-	}
-
-	if page > 0 { // starting at 0 in code, but user interface starting at 1
-		page--
-	}
-
-	if perPage == 0 {
-		perPage = 30
-	}
-
-	if totalRecords < page*perPage {
-		return 0, 0, errors.New("page outside known range")
-	}
-
-	return page, perPage, nil
 }
 
 func RegisterRoutes(muxer *mux.Router, server http.IServer) {

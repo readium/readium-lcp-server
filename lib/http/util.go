@@ -31,10 +31,75 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 )
+
+func FormToFields(deserializeTo reflect.Value, fromForm url.Values) error {
+	for k, v := range fromForm {
+		field := deserializeTo.Elem().FieldByName(k)
+		val := v[0]
+		//server.LogInfo("%s = %s %#v", k, v, field)
+		switch field.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if val == "" {
+				val = "0"
+			}
+			intVal, err := strconv.ParseInt(val, 10, 64)
+			if err != nil {
+				return fmt.Errorf("Value could not be parsed as int")
+			} else {
+				field.SetInt(intVal)
+			}
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if val == "" {
+				val = "0"
+			}
+			uintVal, err := strconv.ParseUint(val, 10, 64)
+			if err != nil {
+				return fmt.Errorf("Value could not be parsed as uint")
+			} else {
+				field.SetUint(uintVal)
+			}
+		case reflect.Bool:
+			if val == "" {
+				val = "false"
+			}
+			boolVal, err := strconv.ParseBool(val)
+			if err != nil {
+				return fmt.Errorf("Value could not be parsed as boolean")
+			} else {
+				field.SetBool(boolVal)
+			}
+		case reflect.Float32:
+			if val == "" {
+				val = "0.0"
+			}
+			floatVal, err := strconv.ParseFloat(val, 32)
+			if err != nil {
+				return fmt.Errorf("Value could not be parsed as 32-bit float")
+			} else {
+				field.SetFloat(floatVal)
+			}
+		case reflect.Float64:
+			if val == "" {
+				val = "0.0"
+			}
+			floatVal, err := strconv.ParseFloat(val, 64)
+			if err != nil {
+				return fmt.Errorf("Value could not be parsed as 64-bit float")
+			} else {
+				field.SetFloat(floatVal)
+			}
+		case reflect.String:
+			field.SetString(val)
+		}
+	}
+	return nil
+}
 
 /**
 Link: <https://api.github.com/user/repos?page=3&per_page=100>; rel="next",  <https://api.github.com/user/repos?page=50&per_page=100>; rel="last"
@@ -44,6 +109,9 @@ first	The link relation for the first page of results.
 prev	The link relation for the immediate previous page of results.
 */
 func ReadPagination(pg, perPg string, totalRecords int64) (int64, int64, error) {
+	if pg == "" {
+		pg = "0"
+	}
 	page, err := strconv.ParseInt(pg, 10, 64)
 	if err != nil {
 		return 0, 0, err
@@ -53,6 +121,9 @@ func ReadPagination(pg, perPg string, totalRecords int64) (int64, int64, error) 
 	}
 	if page > 0 { // starting at 0 in code, but user interface starting at 1
 		page--
+	}
+	if perPg == "" {
+		perPg = "0"
 	}
 	perPage, err := strconv.ParseInt(perPg, 10, 64)
 	if err != nil {

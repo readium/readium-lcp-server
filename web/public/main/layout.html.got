@@ -25,7 +25,7 @@
                 </label>
                 <div class="mdl-textfield__expandable-holder">
                     <form accept-charset="UTF-8" method="GET" class="filter-form">
-                        <input class="mdl-textfield__input" type="text" name="filter" id="search" value="{{.filter}}">
+                        <input class="mdl-textfield__input" type="text" name="filter" id="search" value="{{if defined .filter}}{{.filter}}{{end}}">
                         <label class="mdl-textfield__label" for="search">Enter your query...</label>
                     </form>
                 </div>

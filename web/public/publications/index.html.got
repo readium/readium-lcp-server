@@ -10,15 +10,21 @@
     </div>
 </div>
 {{else}}
-<div class="mdl-grid" style="width:100%;margin-top:10px;margin-bottom: 10px">
+<div class="mdl-grid mdl-grid-full">
     <div id="entitiesList" class="mdl-data-tabledynamic mdl-shadow--2dp">
+        {{if .noResults}}
         <div class="mdl-data-tabledynamic__title">
-            <h2 class="mdl-data-tabledynamic__title-text">{{if defined .filter}}listing {{.filterTotal}} of {{.total}} for filter `{{.filter}}`{{else}}{{.total}} publication in the database.{{end}}</h2>
+            <h2 class="mdl-data-tabledynamic__title-text">There are no results for filter `{{.filter}}`.</h2>
+        </div>
+        {{else}}
+        <div class="mdl-data-tabledynamic__title">
+            <h2 class="mdl-data-tabledynamic__title-text">{{if defined .filter}}Listing {{.filterTotal}} of {{.total}} for filter `{{.filter}}`{{else}}{{.total}} publication in the database.{{end}}</h2>
             <div class="mdl-data-tabledynamic__actions">
                 <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect add-row" href="/publications/0">ADD</a>
                 <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect remove-row">REMOVE</a>
             </div>
         </div>
+
         <div class="mdl-data-tabledynamic__content">
             <table class="mdl-data-table mdl-data-dynamictable mdl-js-data-table mdl-shadow--2dp mdl-cell--6-col mdl-data-table__row--selectable">
                 <thead>
@@ -35,7 +41,7 @@
                 </tr>
                 </thead>
                 <tbody>
-                {{ range $i,$m := .publications }}
+                {{range $i,$m := .publications}}
                 <tr id="{{$m.ID}}">
                     <td>
                         <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect mdl-data-table__select">
@@ -46,11 +52,12 @@
                     <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
                     <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Title}}</span></td>
                     <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
-                s</tr>
+                </tr>
                 {{end}}
                 </tbody>
             </table>
         </div>
+
         <div class="mdl-data-tabledynamic__title">
             <div class="mdl-paging mdl-data-tabledynamic__actions">
                 <span class="mdl-paging__per-page">
@@ -74,6 +81,7 @@
                 {{end}}
             </div>
         </div>
+        {{end}}
     </div>
 </div>
 
@@ -196,5 +204,4 @@
     })(jQuery); // end of jQuery name space
 
 </script>
-
 {{end}}

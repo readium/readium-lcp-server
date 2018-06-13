@@ -44,7 +44,7 @@ func GetUsers(server http.IServer, param ParamPagination) (*views.Renderer, erro
 		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
 	}
 	// Pagination
-	page, perPage, err := readPagination(param.Page, param.PerPage, noOfUsers)
+	page, perPage, err := http.ReadPagination(param.Page, param.PerPage, noOfUsers)
 	if err != nil {
 		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
 	}
@@ -65,6 +65,7 @@ func GetUsers(server http.IServer, param ParamPagination) (*views.Renderer, erro
 		if (page+1)*perPage < noOfFilteredUsers {
 			view.AddKey("hasNextPage", true)
 		}
+		view.AddKey("noResults", noOfFilteredUsers == 0)
 	} else {
 		users, err = server.Store().User().List(perPage, page)
 		if err != nil {
@@ -73,6 +74,7 @@ func GetUsers(server http.IServer, param ParamPagination) (*views.Renderer, erro
 		if (page+1)*perPage < noOfUsers {
 			view.AddKey("hasNextPage", true)
 		}
+		view.AddKey("noResults", noOfUsers == 0)
 	}
 	view.AddKey("users", users)
 	view.AddKey("pageTitle", "Users list")

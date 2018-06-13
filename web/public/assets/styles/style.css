@@ -25,9 +25,12 @@
     transform-origin: 165px 56px;
     box-sizing: border-box;
     display: block;
-    padding-left: 25px;
-    padding-bottom: 10px;
-    padding-top: 30px;
+    padding: 30px 25px 10px;
+}
+
+.mdl-grid-full{
+    width: 100%;
+    height: 100vh;
 }
 
 .mdl-data-tabledynamic {

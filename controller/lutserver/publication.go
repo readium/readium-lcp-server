@@ -51,7 +51,7 @@ func GetPublications(server http.IServer, param ParamPagination) (*views.Rendere
 		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
 	}
 	// Pagination
-	page, perPage, err := readPagination(param.Page, param.PerPage, noOfPublications)
+	page, perPage, err := http.ReadPagination(param.Page, param.PerPage, noOfPublications)
 	if err != nil {
 		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
 	}
@@ -72,6 +72,7 @@ func GetPublications(server http.IServer, param ParamPagination) (*views.Rendere
 		if (page+1)*perPage < noOfFilteredPublications {
 			view.AddKey("hasNextPage", true)
 		}
+		view.AddKey("noResults", noOfFilteredPublications == 0)
 	} else {
 		publications, err = server.Store().Publication().List(perPage, page)
 		if err != nil {
@@ -80,6 +81,7 @@ func GetPublications(server http.IServer, param ParamPagination) (*views.Rendere
 		if (page+1)*perPage < noOfPublications {
 			view.AddKey("hasNextPage", true)
 		}
+		view.AddKey("noResults", noOfPublications == 0)
 	}
 	view.AddKey("publications", publications)
 	view.AddKey("pageTitle", "Publications list")
@@ -284,7 +286,7 @@ func encryptEPUBSendToLCP(inputPath string, contentDisposition string, server ht
 	if server.Config().LcpUpdateAuth.Username != "" {
 		req.SetBasicAuth(server.Config().LcpUpdateAuth.Username, server.Config().LcpUpdateAuth.Password)
 	}
-	// setFieldsFromForm the payload type
+	// FormToFields the payload type
 	req.Header.Add(http.HdrContentType, http.ContentTypeLcpJson)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

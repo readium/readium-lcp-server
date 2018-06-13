@@ -10,8 +10,13 @@
     </div>
 </div>
 {{else}}
-<div class="mdl-grid" style="width:100%;margin-top:10px;margin-bottom: 10px">
+<div class="mdl-grid mdl-grid-full">
     <div id="entitiesList" class="mdl-data-tabledynamic mdl-shadow--2dp">
+        {{if .noResults}}
+        <div class="mdl-data-tabledynamic__title">
+            <h2 class="mdl-data-tabledynamic__title-text">There are no results for filter `{{.filter}}`.</h2>
+        </div>
+        {{else}}
         <div class="mdl-data-tabledynamic__title">
             <h2 class="mdl-data-tabledynamic__title-text">{{if defined .filter}}listing {{.filterTotal}} of {{.total}} for filter `{{.filter}}`{{else}}{{.total}} users in the database.{{end}}</h2>
             <div class="mdl-data-tabledynamic__actions">
@@ -80,6 +85,7 @@
                 {{end}}
             </div>
         </div>
+        {{end}}
     </div>
 </div>
 
