@@ -37,7 +37,8 @@ import (
 	"strings"
 )
 
-// GetUsers returns a paged list of users. If param.Filter is present, returns users list filtered by email
+// GetUsers returns a paged list of users.
+// If param.Filter is present, returns users list filtered by email
 func GetUsers(server http.IServer, param ParamPagination) (*views.Renderer, error) {
 	noOfUsers, err := server.Store().User().Count()
 	if err != nil {
@@ -85,16 +86,17 @@ func GetUsers(server http.IServer, param ParamPagination) (*views.Renderer, erro
 	return view, nil
 }
 
-//GetUser searches a client by his email
+// GetUser returns an user by it's ID. If user ID is zero, we're displaying create form
 func GetUser(server http.IServer, param ParamId) (*views.Renderer, error) {
 	view := &views.Renderer{}
+	var user *model.User
 	if param.Id != "0" {
 		id, err := strconv.Atoi(param.Id)
 		if err != nil {
 			// id is not a number
 			return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
 		}
-		user, err := server.Store().User().Get(int64(id))
+		user, err = server.Store().User().Get(int64(id))
 		if err != nil {
 			switch err {
 			case gorm.ErrRecordNotFound:
@@ -104,18 +106,18 @@ func GetUser(server http.IServer, param ParamId) (*views.Renderer, error) {
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
 		}
-		view.AddKey("user", user)
 		view.AddKey("pageTitle", "Edit user")
 	} else {
-		// convention - if user ID is zero, we're displaying create form
-		view.AddKey("user", model.User{})
+		user = &model.User{}
 		view.AddKey("pageTitle", "Create user")
 	}
+
+	view.AddKey("user", user)
 	view.Template("users/form.html.got")
 	return view, nil
 }
 
-//CreateOrUpdateUser creates a user in the database
+// CreateOrUpdateUser creates/updates a user in the database
 func CreateOrUpdateUser(server http.IServer, user *model.User) (*views.Renderer, error) {
 	switch user.ID {
 	case 0:
@@ -133,8 +135,23 @@ func CreateOrUpdateUser(server http.IServer, user *model.User) (*views.Renderer,
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
 		} else {
+			updateEntity := &model.User{
+				ID:       existingUser.ID,
+				UUID:     existingUser.UUID,
+				Name:     user.Name,
+				Email:    user.Email,
+				Password: user.Password,
+				Hint:     user.Hint,
+			}
+			// only if a new password was provided, allow to change password / hint
+			if user.Password == "" {
+				updateEntity.Password = existingUser.Password
+			}
+			if user.Hint == "" {
+				updateEntity.Hint = existingUser.Hint
+			}
 			// performing update
-			if err = server.Store().User().Update(&model.User{ID: user.ID, UUID: existingUser.UUID, Name: user.Name, Email: user.Email, Password: user.Password, Hint: user.Hint}); err != nil {
+			if err = server.Store().User().Update(updateEntity); err != nil {
 				//update failed!
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
@@ -146,20 +163,16 @@ func CreateOrUpdateUser(server http.IServer, user *model.User) (*views.Renderer,
 // Delete removes user from the database
 func DeleteUser(server http.IServer, param ParamId) (*views.Renderer, error) {
 	ids := strings.Split(param.Id, ",")
+	var userIds []int64
 	for _, id := range ids {
-		server.LogInfo("Delete %s", id)
+		uid, err := strconv.Atoi(id)
+		if err != nil {
+			// id is not a number
+			return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
+		}
+		userIds = append(userIds, int64(uid))
 	}
-	return &views.Renderer{}, http.Problem{Status: http.StatusOK}
-	var id int
-	var err error
-	if id, err = strconv.Atoi(param.Id); err != nil {
-		// id is not a number
-		return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
-	}
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
-	}
-	if err = server.Store().User().Delete(int64(id)); err != nil {
+	if err := server.Store().User().BulkDelete(userIds); err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 	return nil, http.Problem{Status: http.StatusOK}

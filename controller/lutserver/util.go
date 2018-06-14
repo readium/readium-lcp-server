@@ -81,6 +81,10 @@ type (
 		index int
 		isVar bool
 	}
+	// RepositoryFile struct defines a file stored in a repository
+	RepositoryFile struct {
+		Name string
+	}
 )
 
 var ErrNotFound = errors.New("License not found")
@@ -514,6 +518,10 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 					// convention : if we have a multipart, for files there has to be a "Files" property which is a slice of strings.
 					for _, fheaders := range r.MultipartForm.File {
 						for _, hdr := range fheaders {
+							if hdr.Filename == "" {
+								// ignore empty files
+								continue
+							}
 							var infile multipart.File
 							// input
 							if infile, err = hdr.Open(); nil != err {
@@ -649,13 +657,6 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	usersRoutes := muxer.PathPrefix(usersRoutesPathPrefix).Subrouter().StrictSlash(false)
 	makeHandler(usersRoutes, server, "/{id}", GetUser).Methods("GET")
 	makeHandler(usersRoutes, server, "/{id}", DeleteUser).Methods("DELETE")
-
-	//
-	//  repositories of master files
-	//
-	//
-	makeHandler(muxer, server, "/repositories", GetRepositoryMasterFiles).Methods("GET")
-
 	//
 	// publications
 	//
@@ -683,12 +684,6 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	makeHandler(muxer, server, licenseRoutesPathPrefix, GetFilteredLicenses).Methods("GET")
 	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 	makeHandler(licenseRoutes, server, "/{license_id}", GetLicense).Methods("GET")
-
-	server.LogInfo("Initing repo manager.")
-	repoManager = RepositoryManager{
-		MasterRepositoryPath:    server.Config().LutServer.MasterRepository,
-		EncryptedRepositoryPath: server.Config().LutServer.EncryptedRepository,
-	}
 
 	static := server.Config().LutServer.Directory
 	if static == "" {

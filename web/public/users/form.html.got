@@ -3,41 +3,57 @@
 <form method="POST" action="/users">
     <div class="mdl-card mdl-shadow--2dp" style="width:100%">
         <div class="mdl-card__title">
-
+            {{if and (defined .user.UUID) (ne .user.UUID "")}}User UUID : {{.user.UUID}}{{end}}
         </div>
         <div class="mdl-card__actions mdl-card--border">
             <input type="hidden" name="ID" value="{{.user.ID}}">
             <input type="hidden" name="UUID" value="{{.user.UUID}}">
-            <ul class="demo-list-item mdl-list">
-                <li class="mdl-list__item">
-                    <span> Name : </span>
-                    <div class="mdl-textfield mdl-js-textfield">
-                        <input class="mdl-textfield__input" type="text" data-validation="custom" data-validation-regexp="^([a-zA-Z ]+)$" id="Name" name="Name" value="{{.user.Name}}">
-                        <label class="mdl-textfield__label" for="Name">User name...</label>
-                    </div>
-                </li>
-                <li class="mdl-list__item">
-                    <span> Email : </span>
-                    <div class="mdl-textfield mdl-js-textfield">
-                        <input class="mdl-textfield__input" type="text" data-validation="email" id="Email" name="Email" value="{{.user.Email}}">
-                        <label class="mdl-textfield__label" for="Email">User's email...</label>
-                    </div>
-                </li>
-                <li class="mdl-list__item">
-                    <span> Password : </span>
-                    <div class="mdl-textfield mdl-js-textfield">
-                        <input class="mdl-textfield__input" type="password" data-validation="length" data-validation-length="6-15" id="Password" name="Password" value="{{.user.Password}}">
-                        <label class="mdl-textfield__label" for="Password">Password...</label>
-                    </div>
-                </li>
-                <li class="mdl-list__item">
-                    <span> Hint : </span>
-                    <div class="mdl-textfield mdl-js-textfield">
-                        <input class="mdl-textfield__input" type="text" data-validation="length" data-validation-length="6-15" id="Hint" name="Hint" value="{{.user.Hint}}">
-                        <label class="mdl-textfield__label" for="Hint">Password hint...</label>
-                    </div>
-                </li>
-            </ul>
+            <table>
+                <tr>
+                    <td style="text-align:left;">
+                        <span> Name : </span>
+                    </td>
+                    <td>
+                        <div class="mdl-textfield mdl-js-textfield">
+                            <input class="mdl-textfield__input" type="text" data-validation="custom" data-validation-regexp="^([a-zA-Z0-9 ]+)$" id="Name" name="Name" value="{{.user.Name}}">
+                            <label class="mdl-textfield__label" for="Name">User name...</label>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: left;">
+                        <span> Email : </span>
+                    </td>
+                    <td>
+                        <div class="mdl-textfield mdl-js-textfield">
+                            <input class="mdl-textfield__input" type="text" data-validation="email" id="Email" name="Email" value="{{.user.Email}}">
+                            <label class="mdl-textfield__label" for="Email">User's email...</label>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: left;">
+                        <span> Password : {{.user.Password}}</span>
+                    </td>
+                    <td>
+                        <div class="mdl-textfield mdl-js-textfield">
+                            <input class="mdl-textfield__input" type="password" {{if eq .user.ID 0}}data-validation="length" data-validation-length="6-16" {{end}} id="Password" name="Password">
+                            <label class="mdl-textfield__label" for="Password">Passphrase...</label>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: left;">
+                        <span> Hint : {{.user.Hint}}</span>
+                    </td>
+                    <td>
+                        <div class="mdl-textfield mdl-js-textfield">
+                            <input class="mdl-textfield__input" type="text" {{if eq .user.ID 0}}data-validation="length" data-validation-length="6-16" {{end}} id="Hint" name="Hint">
+                            <label class="mdl-textfield__label" for="Hint">Passphrase hint...</label>
+                        </div>
+                    </td>
+                </tr>
+            </table>
         </div>
         <div class="mdl-card__actions mdl-card--border">
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit">Save</button>

@@ -39,6 +39,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -94,16 +95,17 @@ func GetPublications(server http.IServer, param ParamPagination) (*views.Rendere
 }
 
 // GetPublication returns a publication from its numeric id, given as part of the calling url
-//
+// if ID is zero, we're displaying create form
 func GetPublication(server http.IServer, param ParamId) (*views.Renderer, error) {
 	view := &views.Renderer{}
+	var publication *model.Publication
 	if param.Id != "0" {
 		id, err := strconv.Atoi(param.Id)
 		if err != nil {
 			// id is not a number
 			return nil, http.Problem{Detail: "Publication ID must be an integer", Status: http.StatusBadRequest}
 		}
-		publication, err := server.Store().Publication().Get(int64(id))
+		publication, err = server.Store().Publication().Get(int64(id))
 		if err != nil {
 			switch err {
 			case gorm.ErrRecordNotFound:
@@ -113,13 +115,26 @@ func GetPublication(server http.IServer, param ParamId) (*views.Renderer, error)
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
 		}
-		view.AddKey("publication", publication)
 		view.AddKey("pageTitle", "Edit publication")
 	} else {
-		// convention - if user ID is zero, we're displaying create form
-		view.AddKey("publication", model.Publication{Title: "Temporary test"})
+		fileListing, err := ioutil.ReadDir(server.Config().LutServer.MasterRepository)
+		if err == nil {
+			var files []RepositoryFile
+			for _, file := range fileListing {
+				fileExt := filepath.Ext(file.Name())
+				if fileExt == ".epub" {
+					files = append(files, RepositoryFile{Name: file.Name()})
+				}
+			}
+			view.AddKey("existingFiles", files)
+		} else {
+			server.LogError("Error reading repository files : %v", err)
+		}
+
+		publication = &model.Publication{Title: "Temporary test"}
 		view.AddKey("pageTitle", "Create publication")
 	}
+	view.AddKey("publication", publication)
 	view.Template("publications/form.html.got")
 	return view, nil
 }
@@ -128,11 +143,19 @@ func GetPublication(server http.IServer, param ParamId) (*views.Renderer, error)
 func CreateOrUpdatePublication(server http.IServer, pub *model.Publication) (*views.Renderer, error) {
 	switch pub.ID {
 	case 0:
-		if len(pub.Files) != 1 {
+		if pub.RepoFile == "" && len(pub.Files) != 1 {
 			return nil, http.Problem{Detail: "Please upload only one file", Status: http.StatusBadRequest}
 		}
+		// first we're generating an UUID, before sending to LCP (so we have the same reference)
+		uid, errU := model.NewUUID()
+		if errU != nil {
+			return nil, http.Problem{Detail: "Failed to generate UUID " + errU.Error(), Status: http.StatusInternalServerError}
+		}
+		pub.UUID = uid.String()
+
+		// case : uploaded files
 		for _, file := range pub.Files {
-			server.LogInfo("File : %s", file)
+			//server.LogInfo("File : %s", file)
 			// get the path to the master file
 			if _, err := os.Stat(file); err != nil {
 				// the master file does not exist
@@ -140,7 +163,7 @@ func CreateOrUpdatePublication(server http.IServer, pub *model.Publication) (*vi
 			}
 
 			// encrypt the EPUB File and send the content to the LCP server
-			err := encryptEPUBSendToLCP(file, http.Slugify(pub.Title), server)
+			err := encryptEPUBSendToLCP(file, pub.UUID, http.Slugify(pub.Title), server)
 			if err != nil {
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
@@ -149,6 +172,21 @@ func CreateOrUpdatePublication(server http.IServer, pub *model.Publication) (*vi
 			if err != nil {
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 			}
+		}
+
+		// case : chosen files
+		if pub.RepoFile != "" {
+
+			err := encryptEPUBSendToLCP(server.Config().LutServer.MasterRepository+"/"+pub.RepoFile, pub.UUID, http.Slugify(pub.Title), server)
+			if err != nil {
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			}
+
+			err = server.Store().Publication().Add(pub)
+			if err != nil {
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+			}
+
 		}
 	default:
 		// searching for updated entity
@@ -230,15 +268,7 @@ func DeletePublication(server http.IServer, param ParamId) (*views.Renderer, err
 }
 
 // encryptEPUB encrypts an EPUB File and sends the content to the LCP server
-func encryptEPUBSendToLCP(inputPath string, contentDisposition string, server http.IServer) error {
-
-	// generate a new uuid; this will be the content id in the lcp server
-	uid, errU := model.NewUUID()
-	if errU != nil {
-		return errU
-	}
-	contentUUID := uid.String()
-
+func encryptEPUBSendToLCP(inputPath, contentUUID, contentDisposition string, server http.IServer) error {
 	// create a temp file in the frontend "encrypted repository"
 	outputFilename := contentUUID + ".tmp"
 	outputPath := path.Join(server.Config().LutServer.EncryptedRepository, outputFilename)

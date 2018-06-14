@@ -149,6 +149,8 @@ func main() {
 	// Create a deadline to wait for.
 	ctx, cancel := context.WithTimeout(context.Background(), wait)
 	defer cancel()
+	// close the database
+	stor.Close()
 	// Doesn't block if no connections, but will otherwise wait
 	// until the timeout deadline.
 	server.Shutdown(ctx)

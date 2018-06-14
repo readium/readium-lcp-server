@@ -39,7 +39,6 @@
             <a class="mdl-navigation__link" href="/publications">Publications</a>
             <a class="mdl-navigation__link" href="/purchases">Purchases</a>
             <a class="mdl-navigation__link" href="/licenses">Licenses</a>
-            <a class="mdl-navigation__link" href="/repositories">Repositories</a>
             <a class="mdl-navigation__link" href="/users">Users</a>
         </nav>
     </div>

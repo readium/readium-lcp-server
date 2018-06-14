@@ -113,6 +113,7 @@ type (
 		FilterCount(emailLike string) (int64, error)
 		List(page, pageNum int64) (UsersCollection, error)
 		Filter(emailLike string, page, pageNum int64) (UsersCollection, error)
+		BulkDelete(ids []int64) error
 	}
 
 	// DashboardRepository interface for publication db interaction
@@ -241,7 +242,6 @@ func Transaction(db *gorm.DB, fn func(txStore) error) error {
 	return tx.Commit().Error
 }
 
-// TODO : use it in closing server
 func (s *dbStore) Close() {
 	s.db.Close()
 }

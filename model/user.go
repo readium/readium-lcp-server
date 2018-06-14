@@ -37,10 +37,10 @@ type (
 	User            struct {
 		ID        int64    `json:"id" sql:"AUTO_INCREMENT" gorm:"primary_key"`
 		UUID      string   `json:"uuid" sql:"NOT NULL" gorm:"size:36"` // uuid - max size 36
-		Name      string   `json:"name,omitempty"  gorm:"size:64"`
-		Email     string   `json:"email,omitempty"  gorm:"size:64"`
-		Password  string   `json:"password,omitempty"  gorm:"size:64"`
-		Hint      string   `json:"hint"  gorm:"size:64"`
+		Name      string   `json:"name,omitempty" gorm:"size:64"`
+		Email     string   `json:"email,omitempty" gorm:"size:64"`
+		Password  string   `json:"password,omitempty" gorm:"size:64"`
+		Hint      string   `json:"hint" gorm:"size:64"`
 		Encrypted []string `json:"encrypted,omitempty" gorm:"-"` // TODO : never used. is this work in progress?
 	}
 )
@@ -113,6 +113,19 @@ func (s userStore) Delete(userID int64) error {
 			return err
 		}
 		return tx.Where("id = ?", userID).Delete(User{}).Error
+	})
+	return result
+}
+
+func (s userStore) BulkDelete(userIds []int64) error {
+	result := Transaction(s.db, func(tx txStore) error {
+		for _, userID := range userIds {
+			err := tx.Where("user_id = ?", userID).Delete(Purchase{}).Error
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	return result
 }
