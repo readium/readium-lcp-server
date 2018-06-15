@@ -34,6 +34,7 @@ import (
 	"io/ioutil"
 
 	"bufio"
+	"bytes"
 	"database/sql"
 	"encoding/gob"
 	"fmt"
@@ -42,6 +43,7 @@ import (
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/i18n"
 	"github.com/readium/readium-lcp-server/model"
+	"io"
 	"net"
 )
 
@@ -203,7 +205,24 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, server http.IServer) (
 		return http.StatusInternalServerError, err
 	}
 	// Read the reply.
-	ioutil.ReadAll(rw.Reader)
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LCP reply : %v", err)
+		return http.StatusInternalServerError, err
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		server.LogError("Error decoding LCP GOB : %v", err)
+		return http.StatusInternalServerError, err
+	}
+	if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return http.StatusInternalServerError, fmt.Errorf(responseErr.Err)
+	}
+
 	return http.StatusOK, nil
 }
 
@@ -289,10 +308,13 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		dec := gob.NewDecoder(rw)
 		err := dec.Decode(&authentication)
 		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
 			return fmt.Errorf("Error decoding result : " + err.Error())
 		}
 		if !server.Auth(authentication.User, authentication.Password) {
-			return fmt.Errorf("Error : bad username / password (" + authentication.User + ":" + authentication.Password + ")")
+			return fmt.Errorf("Error : bad username / password (`" + authentication.User + "`:`" + authentication.Password + "`)")
 		}
 
 		enc := gob.NewEncoder(rw)
@@ -312,10 +334,13 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		dec := gob.NewDecoder(rw)
 		err := dec.Decode(&payload)
 		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
 			return fmt.Errorf("Error decoding result : " + err.Error())
 		}
 		if !server.Auth(payload.User, payload.Password) {
-			return fmt.Errorf("Error : bad username / password (" + payload.User + ":" + payload.Password + ")")
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
 		}
 		server.LogInfo("Received GOB License : %#v", payload.License)
 		ls := makeLicenseStatus(payload.License, server.Config().LicenseStatus.Register, server.Config().LicenseStatus.RentingDays)

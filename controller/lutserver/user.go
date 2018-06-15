@@ -170,6 +170,10 @@ func DeleteUser(server http.IServer, param ParamId) (*views.Renderer, error) {
 			// id is not a number
 			return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
 		}
+		_, err = server.Store().User().Get(int64(uid))
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
+		}
 		userIds = append(userIds, int64(uid))
 	}
 	if err := server.Store().User().BulkDelete(userIds); err != nil {

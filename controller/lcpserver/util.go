@@ -222,10 +222,31 @@ func notifyLSDServer(payload *model.License, server http.IServer) {
 		server.LogError("Flush failed : %v", err)
 		return
 	}
-	// Read the reply.
-	ioutil.ReadAll(rw.Reader)
 
-	_ = server.Store().License().UpdateLsdStatus(payload.Id, http.StatusCreated)
+	// Read the reply.
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LSD reply : %v", err)
+		return
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		server.LogError("Error decoding LCP GOB : %v", err)
+		return
+	}
+	if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return
+	}
+
+	err = server.Store().License().UpdateLsdStatus(payload.Id, http.StatusCreated)
+	if err != nil {
+		server.LogError("Error updating LSD status : %v", err)
+		return
+	}
 }
 
 func RegisterRoutes(muxer *mux.Router, server http.IServer) {
@@ -261,6 +282,15 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 
 		dec := gob.NewDecoder(rw)
 		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			return err
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
 
 		// initialize the license from the info stored in the db.
 		existingLicense, e := server.Store().License().Get(payload.License.Id)
@@ -276,6 +306,32 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		err = server.Store().License().Update(existingLicense)
 		if err != nil {
 			return err
+		}
+		return nil
+	})
+
+	endpoint.AddHandleFunc("CREATECONTENT", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLcpPublication
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			server.LogError("Error decoding payload")
+			return err
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			server.LogError("Error unauthorized")
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+		_, err = AddContent(server, &payload)
+		if err != nil {
+			problem, ok := err.(http.Problem)
+			if ok && problem.Detail != "" {
+				server.LogError("Error creating content : " + problem.Detail)
+				return fmt.Errorf(problem.Detail)
+			}
 		}
 		return nil
 	})

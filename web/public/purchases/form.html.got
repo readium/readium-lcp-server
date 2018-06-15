@@ -1,38 +1,147 @@
 {{ script "jquery.form-validator.min" }}
+<style>
+    .dialog {
+        height: 400px;
+        width: 400px;
+    }
 
-<form method="POST" action="/purchases" enctype="multipart/form-data">
+    .dialogContent {
+        height: 380px;
+        width: 380px;
+    }
+
+    .dialogLayoutContent {
+        height: 260px;
+        width: 360px;
+    }
+
+    .selectedItem:hover {
+        color: #60c7cd;
+        cursor: pointer;
+    }
+</style>
+
+<dialog class="mdl-dialog dialog" id="usersDialog">
+    <h4 class="mdl-dialog__title">Choose user</h4>
+    <div class="mdl-dialog__content dialogContent">
+        <div class="mdl-layout mdl-js-layout dialogLayoutContent">
+            <div>
+                <ul class="mdl-list">
+                    {{range $i,$u := .existingUsers}}
+                    <li id="{{$u.ID}}" class="mdl-list__item selectedItem">
+                        <span class="mdl-list__item-primary-content"><i class="material-icons  mdl-list__item-avatar">perm_identity</i> {{$u.Name}} {{$u.Email}} </span>
+                    </li>
+                    {{end}}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="mdl-dialog__actions">
+    </div>
+</dialog>
+
+<dialog class="mdl-dialog dialog" id="publicationsDialog">
+    <h4 class="mdl-dialog__title">Choose publication</h4>
+    <div class="mdl-dialog__content dialogContent">
+        <div class="mdl-layout mdl-js-layout dialogLayoutContent">
+            <div>
+                <ul class="mdl-list">
+                    {{range $i,$p := .existingPublications}}
+                    <li id="{{$p.ID}}" class="mdl-list__item selectedItem">
+                        <span class="mdl-list__item-primary-content"><i class="material-icons  mdl-list__item-avatar">label</i> {{$p.Title}} </span>
+                    </li>
+                    {{end}}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="mdl-dialog__actions">
+    </div>
+</dialog>
+
+<form method="POST" action="/purchases">
     <div class="mdl-card mdl-shadow--2dp" style="width:100%">
         <div class="mdl-card__title">
 
         </div>
-        <div class="mdl-card__actions mdl-card--border">
+        <div class="mdl-card__supporting-text mdl-card--border">
+            <!--
+      	TransactionDate time.Time    `json:"transactionDate,omitempty" sql:"DEFAULT:current_timestamp;NOT NULL"`
+		LicenseUUID     *NullString  `json:"licenseUuid,omitempty" gorm:"size:36" sql:"DEFAULT NULL"`
+
+		-->
             <input type="hidden" name="ID" value="{{.purchase.ID}}">
             <input type="hidden" name="UUID" value="{{.purchase.UUID}}">
-            <ul class="demo-list-item mdl-list">
-                <li class="mdl-list__item">
-                    <span> Name : </span>
-                    <div class="mdl-textfield mdl-js-textfield">
-                        <input class="mdl-textfield__input" type="text" data-validation="custom" data-validation-regexp="^([a-zA-Z ]+)$" id="Title" name="Title" value="{{.purchase.Title}}">
-                        <label class="mdl-textfield__label" for="Title">Title...</label>
-                    </div>
-                </li>
-                <li class="mdl-list__item">
-                    <span> Status : </span>
-                    <div class="mdl-textfield mdl-js-textfield">
-                        <input class="mdl-textfield__input" type="text" id="Status" name="Status" value="{{.purchase.Status}}">
-                        <label class="mdl-textfield__label" for="Status">Status...</label>
-                    </div>
-                </li>
-                <li class="mdl-list__item">
-                    <span> File : </span>
-                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--file">
-                        <input class="mdl-textfield__input" placeholder="File" type="file" id="uploadFile" name="Upload" readonly/>
-                        <div class="mdl-button mdl-button--primary mdl-button--icon mdl-button--file">
-                            <i class="material-icons">attach_file</i><input type="file" id="uploadBtn">
+
+            <input type="hidden" name="UserId" value="{{.purchase.UserId}}">
+            <input type="hidden" name="PublicationId" value="{{.purchase.PublicationId}}">
+
+            <table>
+                <tr>
+                    <td>
+                        <span>User:</span>
+                    </td>
+                    <td>
+                        <button id="usersChooser" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect">
+                            <i class="material-icons">find_in_page</i>
+                        </button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <span>Publication:</span>
+                    </td>
+                    <td>
+                        <button id="publicationsChooser" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect">
+                            <i class="material-icons">find_in_page</i>
+                        </button>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align:left;">
+                        <span> Type : </span>
+                    </td>
+                    <td>
+                        <div class="mdl-textfield mdl-js-textfield">
+                            <input class="mdl-textfield__input" type="text" id="Type" name="Type" value="{{.purchase.Type}}">
+                            <label class="mdl-textfield__label" for="Type">Type...</label>
                         </div>
-                    </div>
-                </li>
-            </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: left;">
+                        <span> Status : </span>
+                    </td>
+                    <td>
+                        <div class="mdl-textfield mdl-js-textfield">
+                            <input class="mdl-textfield__input" type="text" id="Status" name="Status" value="{{.purchase.Status}}">
+                            <label class="mdl-textfield__label" for="Status">Status...</label>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: left;">
+                        <span> StartDate : {{.user.Password}}</span>
+                    </td>
+                    <td>
+                        <div class="mdl-textfield mdl-js-textfield">
+                            <input class="mdl-textfield__input" type="text" id="StartDate" name="StartDate">
+                            <label class="mdl-textfield__label" for="StartDate">StartDate...</label>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: left;">
+                        <span> EndDate : {{.user.Hint}}</span>
+                    </td>
+                    <td>
+                        <div class="mdl-textfield mdl-js-textfield">
+                            <input class="mdl-textfield__input" type="text" id="EndDate" name="EndDate">
+                            <label class="mdl-textfield__label" for="EndDate">EndDate...</label>
+                        </div>
+                    </td>
+                </tr>
+            </table>
         </div>
         <div class="mdl-card__actions mdl-card--border">
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit">Save</button>
@@ -41,36 +150,53 @@
     </div>
 </form>
 
-<style>
-   .mdl-button--file input {
-        cursor: pointer;
-        height: 100%;
-        right: 0;
-        opacity: 0;
-        position: absolute;
-        top: 0;
-        width: 300px;
-        z-index: 4;
-    }
-
-    .mdl-textfield--file .mdl-textfield__input {
-        box-sizing: border-box;
-        width: calc(100% - 32px);
-    }
-    .mdl-textfield--file .mdl-button--file {
-        right: 0;
-    }
-
-</style>
-
 <script type="text/javascript">
     (function ($) {
         $(function () {
             $.validate({});
 
-            document.getElementById("uploadBtn").onchange = function () {
-                document.getElementById("uploadFile").value = this.files[0].name;
+            var usersDialog = document.getElementById('usersDialog');
+            document.getElementById("usersChooser").onclick = function () {
+                usersDialog.showModal();
+                $(document).on("click", "li.selectedItem", function () {
+                    console.log("Clicked :  ", $(this))
+                    usersDialog.close();
+                    $(document).off("click", "li.selectedItem");
+                });
             };
+            usersDialog.addEventListener('click', function (event) {
+                // check if clicked outside
+                var rect = usersDialog.getBoundingClientRect();
+                var isInDialog = (rect.top <= event.clientY && event.clientY <= rect.top + rect.height && rect.left <= event.clientX && event.clientX <= rect.left + rect.width);
+                if (!isInDialog) {
+                    console.log("Clicked outside dialog. Closing.");
+                    usersDialog.close();
+                    $(document).off("click", "li.selectedItem");
+                }
+                // end check outside
+            });
+
+            var publicationsDialog = document.getElementById('publicationsDialog');
+            document.getElementById("publicationsChooser").onclick = function () {
+                publicationsDialog.showModal();
+                $(document).on("click", "li.selectedItem", function () {
+                    console.log("Clicked :  ", $(this));
+                    publicationsDialog.close();
+                    $(document).off("click", "li.selectedItem");
+                });
+            };
+            publicationsDialog.addEventListener('click', function (event) {
+                // check if clicked outside
+                var rect = publicationsDialog.getBoundingClientRect();
+                var isInDialog = (rect.top <= event.clientY && event.clientY <= rect.top + rect.height && rect.left <= event.clientX && event.clientX <= rect.left + rect.width);
+                if (!isInDialog) {
+                    console.log("Clicked outside dialog. Closing.");
+                    publicationsDialog.close();
+                    $(document).off("click", "li.selectedItem");
+                }
+                // end check outside
+            });
+
 
             $(".cancel").on("click", function () {
                 window.location.href = "/purchases";

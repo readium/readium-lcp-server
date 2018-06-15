@@ -456,11 +456,11 @@ func renderError(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "text/html")
 	view := views.Renderer{}
 	view.SetWriter(w)
+	// TODO : disable stack in production
 	if true {
-		view.AddKey("message", err.Error()+"\n"+string(debug.Stack()))
-	} else {
-		view.AddKey("message", err.Error())
+		debug.PrintStack()
 	}
+	view.AddKey("message", err.Error())
 	view.AddKey("title", "Error")
 	view.Template("main/error.html.got")
 	view.Render()

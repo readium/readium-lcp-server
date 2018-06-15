@@ -177,17 +177,6 @@ type (
 		DefaultLanguage string   `yaml:"default_language"`
 	}
 
-	// LcpPublication is a struct for communication with lcp-server
-	LcpPublication struct {
-		ContentId          string  `json:"content-id"`
-		ContentKey         []byte  `json:"content-encryption-key"`
-		Output             string  `json:"protected-content-location"`
-		Size               *int64  `json:"protected-content-length,omitempty"`
-		Checksum           *string `json:"protected-content-sha256,omitempty"`
-		ContentDisposition *string `json:"protected-content-disposition,omitempty"`
-		ErrorMessage       string  `json:"error"`
-	}
-
 	Problem struct {
 		error       `json:"-"`
 		Status      int         `json:"status,omitempty"` // if present = http response code
@@ -226,6 +215,10 @@ type (
 		log logger.StdLogger
 	}
 
+	GobReplyError struct {
+		Err string
+	}
+
 	IServer interface {
 		Auth(user, password string) bool
 		Logger() logger.StdLogger
@@ -251,6 +244,19 @@ type (
 		User     string
 		Password string
 		License  *model.License
+	}
+
+	// LcpPublication is a struct for communication with lcp-server
+	AuthorizationAndLcpPublication struct {
+		ContentId          string  `json:"content-id"`
+		ContentKey         []byte  `json:"content-encryption-key"`
+		Output             string  `json:"protected-content-location"`
+		Size               *int64  `json:"protected-content-length,omitempty"`
+		Checksum           *string `json:"protected-content-sha256,omitempty"`
+		ContentDisposition *string `json:"protected-content-disposition,omitempty"`
+		ErrorMessage       string  `json:"error"`
+		User               string
+		Password           string
 	}
 )
 

@@ -80,13 +80,12 @@ func StoreContent(server http.IServer, req *goHttp.Request, param ParamName) (*s
 
 //Payload: (json) {content-id, content-encryption-key, protected-content-location, protected-content-length, protected-content-sha256, protected-content-disposition}
 
-func AddContent(server http.IServer, publication *http.LcpPublication, param ParamContentId) (*string, error) {
-	server.LogInfo("Payload %#v\nParam %#v", publication, param)
-	if param.ContentID == "" {
+func AddContent(server http.IServer, publication *http.AuthorizationAndLcpPublication) (*string, error) {
+	//server.LogInfo("Payload %#v\nParam %#v", publication, publication.ContentId)
+	if publication.ContentId == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
 
-	contentID := param.ContentID
 	// open the encrypted file from the path given in the json payload
 	file, err := os.Open(publication.Output)
 	if err != nil {
@@ -96,14 +95,13 @@ func AddContent(server http.IServer, publication *http.LcpPublication, param Par
 
 	// TODO : shouldn't be this the last step, after operating database?
 	// add the file to the storage, named from contentID
-	_, err = server.Storage().Add(contentID, file)
+	_, err = server.Storage().Add(publication.ContentId, file)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 
-	var content *model.Content
-	// insert row in database if key does not exist
-	content, err = server.Store().Content().Get(contentID)
+	// check row in database
+	content, foundErr := server.Store().Content().Get(publication.ContentId)
 	content.EncryptionKey = publication.ContentKey
 	// default values
 	content.Location = ""
@@ -124,15 +122,17 @@ func AddContent(server http.IServer, publication *http.LcpPublication, param Par
 
 	//todo? check hash & length
 	code := http.StatusCreated
-	if err == gorm.ErrRecordNotFound { //insert into database
-		content.Id = contentID
-		err = server.Store().Content().Add(content)
-	} else { //update encryption key for content.Id = publication.ContentId
-		err = server.Store().Content().Update(content)
+	if foundErr == gorm.ErrRecordNotFound {
+		// insert into database
+		content.Id = publication.ContentId
+		err = server.Store().Content().Add(content) // err gets checked below
+	} else {
+		// update encryption key for content.Id = publication.ContentId
+		err = server.Store().Content().Update(content) // err gets checked below
 		code = http.StatusOK
 	}
 
-	if err != nil { //db not updated or created
+	if err != nil { //db error
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 

@@ -29,6 +29,7 @@ package http
 
 import (
 	"bufio"
+	"encoding/gob"
 	"fmt"
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"io"
@@ -109,10 +110,16 @@ func (e *GobEndpoint) handleMessages(conn net.Conn) {
 			e.log.Errorf("Command %q is not registered.", cmd)
 			return
 		}
+		// Handle command
 		err = handleCommand(rw)
 		if err != nil {
+			replyErr := GobReplyError{Err: err.Error()}
 			e.log.Errorf("Handler returned error : %v", err)
-			rw.WriteString(err.Error())
+			enc := gob.NewEncoder(rw)
+			err = enc.Encode(replyErr)
+			if err != nil {
+				e.log.Errorf("Error encoding error (should never happen) : %v", err)
+			}
 		}
 
 		err = rw.Flush()

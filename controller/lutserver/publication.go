@@ -28,21 +28,23 @@
 package lutserver
 
 import (
+	"bufio"
 	"bytes"
-	"context"
-	"encoding/json"
+	"encoding/gob"
+	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/lib/views"
 	"github.com/readium/readium-lcp-server/model"
+	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // GetPublications returns a list of publications
@@ -176,7 +178,6 @@ func CreateOrUpdatePublication(server http.IServer, pub *model.Publication) (*vi
 
 		// case : chosen files
 		if pub.RepoFile != "" {
-
 			err := encryptEPUBSendToLCP(server.Config().LutServer.MasterRepository+"/"+pub.RepoFile, pub.UUID, http.Slugify(pub.Title), server)
 			if err != nil {
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
@@ -198,8 +199,15 @@ func CreateOrUpdatePublication(server http.IServer, pub *model.Publication) (*vi
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
 		} else {
+			payload := &model.Publication{
+				ID:     existingPublication.ID,
+				UUID:   existingPublication.UUID,
+				Title:  pub.Title,
+				Status: pub.Status,
+			}
+			// TODO : seems update doesn't do anything regarding notifying LCP (to be discussed)
 			// performing update
-			if err = server.Store().Publication().Update(&model.Publication{ID: existingPublication.ID, UUID: existingPublication.UUID, Title: pub.Title, Status: pub.Status}); err != nil {
+			if err = server.Store().Publication().Update(payload); err != nil {
 				//update failed!
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
@@ -209,18 +217,13 @@ func CreateOrUpdatePublication(server http.IServer, pub *model.Publication) (*vi
 }
 
 // CheckPublicationByTitle check if a publication with this title exist
+// TODO : seems publication title should be unique (since file upload uses title slug).
+// TODO : IMO this should be LCP validation check, not front end (to be discussed)
 func CheckPublicationByTitle(server http.IServer, param ParamTitle) (*views.Renderer, error) {
 
 	server.LogInfo("Check publication stored with name %q", param.Title)
 
 	if _, err := server.Store().Publication().CheckByTitle(param.Title); err == nil {
-		//enc := json.NewEncoder(resp)
-		//if err = enc.Encode(pub); err == nil {
-		// send json of correctly encoded user info
-		//	resp.Header().Set(http.HdrContentType, http.ContentTypeJson)
-		//	resp.WriteHeader(http.StatusOK)
-		//	return nil, nil
-		//}
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	} else {
 		switch err {
@@ -238,40 +241,55 @@ func CheckPublicationByTitle(server http.IServer, param ParamTitle) (*views.Rend
 }
 
 // DeletePublication removes a publication in the database
+// TODO : shouldn't LCP delete it too ? (to be discussed)
 func DeletePublication(server http.IServer, param ParamId) (*views.Renderer, error) {
 	ids := strings.Split(param.Id, ",")
-	for _, id := range ids {
-		server.LogInfo("Delete %s", id)
-	}
-	return &views.Renderer{}, http.Problem{Status: http.StatusOK}
-	id, err := strconv.Atoi(param.Id)
-	publication, err := server.Store().Publication().Get(int64(id))
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-	}
-
-	// delete the epub file from the master repository
-	inputPath := path.Join(server.Config().LutServer.MasterRepository, publication.Title+".epub")
-
-	if _, err := os.Stat(inputPath); err == nil {
-		err = os.Remove(inputPath)
+	var pubIds []int64
+	var deletedTitles []string
+	for _, sid := range ids {
+		id, err := strconv.Atoi(sid)
+		if err != nil {
+			// id is not a number
+			return nil, http.Problem{Detail: "Publication ID must be an integer", Status: http.StatusBadRequest}
+		}
+		publication, err := server.Store().Publication().Get(int64(id))
 		if err != nil {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		}
+		deletedTitles = append(deletedTitles, publication.Title)
+		pubIds = append(pubIds, int64(id))
 	}
-
-	if err = server.Store().Publication().Delete(int64(id)); err != nil {
+	if err := server.Store().Publication().BulkDelete(pubIds); err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 
-	return nil, nil
+	// attempt to delete the epubs file from the master repository
+	for _, title := range deletedTitles {
+		inputPath := path.Join(server.Config().LutServer.MasterRepository, title+".epub")
+		if _, err := os.Stat(inputPath); err == nil {
+			err = os.Remove(inputPath)
+			if err != nil {
+				// silent fail
+				server.LogError("Error removing epub %s from %s : %v", title, server.Config().LutServer.MasterRepository, err)
+			}
+		} else {
+			server.LogError("Error finding epub %s from %s : %v", title, server.Config().LutServer.MasterRepository, err)
+		}
+	}
+
+	return &views.Renderer{}, http.Problem{Status: http.StatusOK}
 }
 
 // encryptEPUB encrypts an EPUB File and sends the content to the LCP server
 func encryptEPUBSendToLCP(inputPath, contentUUID, contentDisposition string, server http.IServer) error {
+	if server.Config().LcpUpdateAuth.Username == "" {
+		return fmt.Errorf("Username is empty : can't connect to LCP.")
+	}
+
 	// create a temp file in the frontend "encrypted repository"
 	outputFilename := contentUUID + ".tmp"
 	outputPath := path.Join(server.Config().LutServer.EncryptedRepository, outputFilename)
+	// prepare cleanup
 	defer func() {
 		// remove the temporary file in the "encrypted repository"
 		err := os.Remove(outputPath)
@@ -290,71 +308,63 @@ func encryptEPUBSendToLCP(inputPath, contentUUID, contentDisposition string, ser
 		return err
 	}
 
-	// prepare the request for import to the lcp server
-	lcpPublication := http.LcpPublication{
+	// prepare the payload for import to the lcp server
+	lcpPublication := http.AuthorizationAndLcpPublication{
 		ContentId:          contentUUID,
 		ContentKey:         encryptedEpub.EncryptionKey,
 		Output:             outputPath,
 		ContentDisposition: &contentDisposition,
 		Checksum:           &encryptedEpub.Checksum,
 		Size:               &encryptedEpub.Size,
+		User:               server.Config().LcpUpdateAuth.Username,
+		Password:           server.Config().LcpUpdateAuth.Password,
 	}
 
-	// json encode the payload
-	jsonBody, err := json.Marshal(lcpPublication)
+	conn, err := net.Dial("tcp", "localhost:10000")
 	if err != nil {
+		server.LogError("Error Notify LcpServer : %v", err)
 		return err
 	}
-	// send the content to the LCP server
-	lcpURL := server.Config().LcpServer.PublicBaseUrl + "/contents/" + contentUUID
+	defer conn.Close()
+	server.LogInfo("Notifying LCP (creating content).")
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 
-	req, err := http.NewRequest("PUT", lcpURL, bytes.NewReader(jsonBody))
+	_, err = rw.WriteString("CREATECONTENT\n")
 	if err != nil {
-		return err
-	}
-	// authenticate
-	if server.Config().LcpUpdateAuth.Username != "" {
-		req.SetBasicAuth(server.Config().LcpUpdateAuth.Username, server.Config().LcpUpdateAuth.Password)
-	}
-	// FormToFields the payload type
-	req.Header.Add(http.HdrContentType, http.ContentTypeLcpJson)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// making request
-	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
-	// If we got an error, and the context has been canceled, the context's error is probably more useful.
-	if err != nil {
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-		default:
-		}
-	}
-
-	if err != nil {
-		server.LogError("Error PUT on LCP Server : %v", err)
+		server.LogError("Could not write : %v", err)
 		return err
 	}
 
-	// we have a body, defering close
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 201 {
-		// error on creation
-		server.LogError("Bad PUT on LCP Server. Http status ", resp.StatusCode)
-		return err
-	}
-
-	// reading body
-	_, err = ioutil.ReadAll(resp.Body)
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(lcpPublication)
 	if err != nil {
-		server.LogError("Error PUT on LCP Server : reading body error : %v", err)
+		server.LogError("Encode failed for struct: %v", err)
 		return err
 	}
 
-	//log.Printf("Lsd Server on compliancetest response : %v [http-status:%d]", body, resp.StatusCode)
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return err
+	}
+	// Read the reply.
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LCP reply : %v", err)
+		return err
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		server.LogError("Error decoding LCP GOB : %v", err)
+		return err
+	}
+	if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return fmt.Errorf(responseErr.Err)
+	}
 
 	return nil
 }

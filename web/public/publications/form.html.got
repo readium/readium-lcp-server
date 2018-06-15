@@ -66,7 +66,7 @@
         <div class="mdl-card__title">
 
         </div>
-        <div class="mdl-card__actions mdl-card--border">
+        <div class="mdl-card__supporting-text mdl-card--border">
             <input type="hidden" name="ID" value="{{.publication.ID}}">
             <input type="hidden" name="UUID" value="{{.publication.UUID}}">
             <table>
@@ -76,7 +76,7 @@
                     </td>
                     <td colspan="2">
                         <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input" type="text" data-validation="custom" data-validation-regexp="^([a-zA-Z ]+)$" id="Title" name="Title" value="{{.publication.Title}}">
+                            <input class="mdl-textfield__input" type="text" data-validation="custom" data-validation-regexp="^([a-zA-Z0-9 ]+)$" id="Title" name="Title" value="{{.publication.Title}}">
                             <label class="mdl-textfield__label" for="Title">Title...</label>
                         </div>
                     </td>
@@ -92,6 +92,7 @@
                         </div>
                     </td>
                 </tr>
+                {{if eq .publication.ID 0}}
                 <tr>
                     <td>
                         <span> File : </span>
@@ -113,6 +114,7 @@
                         </div>
                     </td>
                 </tr>
+                {{end}}
             </table>
         </div>
         <div class="mdl-card__actions mdl-card--border">
@@ -136,7 +138,7 @@
 
             document.getElementById("repoChooser").onclick = function () {
                 dialog.showModal();
-            }
+            };
 
             dialog.addEventListener('click', function (event) {
                 // check if clicked outside
@@ -154,7 +156,7 @@
                 document.getElementById("repoFile").value = $(this)[0].id;
                 document.getElementById("uploadFile").value = "";
                 dialog.close();
-            })
+            });
 
             $(".cancel").on("click", function () {
                 window.location.href = "/publications";

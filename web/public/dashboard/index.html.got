@@ -2,12 +2,14 @@
     body {
         background: #5C6BC0;
     }
+
     .mdl-card {
         margin-top: 40px;
         margin-left: auto;
         margin-bottom: 40px;
         margin-right: auto;
     }
+
     .mdl-card-main > .mdl-card__title {
         color: #fff;
         padding-top: 40px;
@@ -20,9 +22,15 @@
         <h2 class="mdl-card__title-text">Dashboard</h2>
     </div>
     <div class="mdl-card__supporting-text mdl-grid">
-        {{ .info }}
+        PublicationCount :{{ .info.PublicationCount }}
+        UserCount : {{ .info.UserCount}}
+        BuyCount : {{ .info.BuyCount}}
+        LoanCount : {{ .info.LoanCount}}
+        AverageDuration : {{ .info.AverageDuration}}
     </div>
     <div class="mdl-card__supporting-text mdl-grid">
-        {{ .bestSellers }}
+        {{range $i,$b:=.bestSellers}}
+        bestSellers: Title : {{ $b.Title }} .bestSellers.Count {{$b.Count}}
+        {{end}}
     </div>
 </div>

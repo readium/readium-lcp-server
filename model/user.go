@@ -83,6 +83,11 @@ func (s userStore) List(page, pageNum int64) (UsersCollection, error) {
 	return result, s.db.Offset(pageNum * page).Limit(page).Order("email DESC").Find(&result).Error
 }
 
+func (s userStore) ListAll() (UsersCollection, error) {
+	var result UsersCollection
+	return result, s.db.Find(&result).Error
+}
+
 func (s userStore) Filter(emailLike string, page, pageNum int64) (UsersCollection, error) {
 	var result UsersCollection
 	return result, s.db.Where("email LIKE ?", "%"+emailLike+"%").Offset(pageNum * page).Limit(page).Order("email DESC").Find(&result).Error
@@ -121,6 +126,10 @@ func (s userStore) BulkDelete(userIds []int64) error {
 	result := Transaction(s.db, func(tx txStore) error {
 		for _, userID := range userIds {
 			err := tx.Where("user_id = ?", userID).Delete(Purchase{}).Error
+			if err != nil {
+				return err
+			}
+			err = tx.Where("id = ?", userID).Delete(User{}).Error
 			if err != nil {
 				return err
 			}

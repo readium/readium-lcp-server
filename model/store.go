@@ -114,6 +114,7 @@ type (
 		List(page, pageNum int64) (UsersCollection, error)
 		Filter(emailLike string, page, pageNum int64) (UsersCollection, error)
 		BulkDelete(ids []int64) error
+		ListAll() (UsersCollection, error)
 	}
 
 	// DashboardRepository interface for publication db interaction
@@ -131,7 +132,9 @@ type (
 		Add(publication *Publication) error
 		Update(publication *Publication) error
 		Delete(id int64) error
+		BulkDelete(pubIds []int64) error
 		List(page, pageNum int64) (PublicationsCollection, error)
+		ListAll() (PublicationsCollection, error)
 		Filter(paramLike string, page, pageNum int64) (PublicationsCollection, error)
 		CheckByTitle(title string) (int64, error)
 	}

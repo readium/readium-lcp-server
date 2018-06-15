@@ -159,13 +159,14 @@ func GetPurchasedLicense(server http.IServer, param ParamId) (*views.Renderer, e
 //
 func GetPurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
 	view := &views.Renderer{}
+	var purchase *model.Purchase
 	if param.Id != "0" {
 		id, err := strconv.Atoi(param.Id)
 		if err != nil {
 			// id is not a number
 			return nil, http.Problem{Detail: "Publication ID must be an integer", Status: http.StatusBadRequest}
 		}
-		purchase, err := server.Store().Purchase().Get(int64(id))
+		purchase, err = server.Store().Purchase().Get(int64(id))
 		if err != nil {
 			switch err {
 			case gorm.ErrRecordNotFound:
@@ -175,14 +176,25 @@ func GetPurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
 		}
-		view.AddKey("purchase", purchase)
 		view.AddKey("pageTitle", "Edit purchase")
 	} else {
+		existingPublications, err := server.Store().Publication().ListAll()
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		view.AddKey("existingPublications", existingPublications)
+
+		existingUsers, err := server.Store().User().ListAll()
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		view.AddKey("existingUsers", existingUsers)
 		// convention - if user ID is zero, we're displaying create form
-		view.AddKey("purchase", model.Purchase{})
+		purchase = &model.Purchase{}
 		view.AddKey("pageTitle", "Create purchase")
 	}
-	view.Template("purchase/form.html.got")
+	view.AddKey("purchase", purchase)
+	view.Template("purchases/form.html.got")
 	return view, nil
 }
 

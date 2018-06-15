@@ -94,6 +94,24 @@ func (s publicationStore) Delete(id int64) error {
 	return result
 }
 
+func (s publicationStore) BulkDelete(pubIds []int64) error {
+	result := Transaction(s.db, func(tx txStore) error {
+		for _, id := range pubIds {
+			// delete all purchases relative to this publication
+			err := tx.Where("publication_id = ?", id).Delete(Purchase{}).Error
+			if err != nil {
+				return err
+			}
+			err = tx.Where("id = ?", id).Delete(Publication{}).Error
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return result
+}
+
 func (s publicationStore) Count() (int64, error) {
 	var count int64
 	return count, s.db.Model(Publication{}).Count(&count).Error
@@ -115,6 +133,11 @@ func (s publicationStore) Filter(paramLike string, page, pageNum int64) (Publica
 func (s publicationStore) List(page, pageNum int64) (PublicationsCollection, error) {
 	var result PublicationsCollection
 	return result, s.db.Offset(pageNum * page).Limit(page).Where(&Publication{}).Order("title DESC").Find(&result).Error
+}
+
+func (s publicationStore) ListAll() (PublicationsCollection, error) {
+	var result PublicationsCollection
+	return result, s.db.Find(&result).Error
 }
 
 // Get gets a publication by its ID

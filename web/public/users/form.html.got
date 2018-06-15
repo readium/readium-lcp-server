@@ -5,7 +5,7 @@
         <div class="mdl-card__title">
             {{if and (defined .user.UUID) (ne .user.UUID "")}}User UUID : {{.user.UUID}}{{end}}
         </div>
-        <div class="mdl-card__actions mdl-card--border">
+        <div class="mdl-card__supporting-text mdl-card--border">
             <input type="hidden" name="ID" value="{{.user.ID}}">
             <input type="hidden" name="UUID" value="{{.user.UUID}}">
             <table>
