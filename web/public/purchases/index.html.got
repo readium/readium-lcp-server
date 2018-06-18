@@ -35,8 +35,13 @@
                     </th>
                     <th class="mdl-data-table__cell--non-numeric">ID</th>
                     <th class="mdl-data-table__cell--non-numeric">UUID</th>
-                    <th class="mdl-data-table__cell--non-numeric">Title</th>
+                    <th class="mdl-data-table__cell--non-numeric">Transaction Date</th>
+                    <th class="mdl-data-table__cell--non-numeric">Type</th>
                     <th class="mdl-data-table__cell--non-numeric">Status</th>
+                    <th class="mdl-data-table__cell--non-numeric">User</th>
+                    <th class="mdl-data-table__cell--non-numeric">Publication</th>
+                    <th class="mdl-data-table__cell--non-numeric">Start Date</th>
+                    <th class="mdl-data-table__cell--non-numeric">End Date</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -49,9 +54,13 @@
                     </td>
                     <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.ID}}</span></td>
                     <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
-                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Title}}</span></td>
+                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.TransactionDate}}</span></td>
+                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Type}}</span></td>
                     <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
-                    s
+                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.User.Email}}</span></td>
+                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Publication.Title}}</span></td>
+                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if eq $m.Type "Buy"}}-{{else}}{{$m.StartDate}}{{end}}</span></td>
+                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if eq $m.Type "Buy"}}-{{else}}{{$m.EndDate}}{{end}}</span></td>
                 </tr>
                 {{end}}
                 </tbody>

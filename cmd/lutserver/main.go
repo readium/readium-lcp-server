@@ -151,6 +151,48 @@ func ReadLicensesPayloads(data []byte) (model.LicensesStatusCollection, error) {
 	return licenses, nil
 }
 
+//TODO : replace FetchLicenseStatusesFromLSD with :
+/**
+// Open a connection to the server.
+	rw, cl, err := GOBClient(t, "localhost:9000")
+	if err != nil {
+		t.Fatalf("Client: Failed to open connection  : %v", err)
+	}
+
+	defer cl.Close()
+	t.Log("Placing a licenses request.")
+	_, err = rw.WriteString("LICENSES\n")
+	if err != nil {
+		t.Fatalf("Could not write : %v", err)
+	}
+
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(http.Authorization{User: "badu", Password: "hello"})
+	if err != nil {
+		t.Fatalf("Encode failed for struct: %v", err)
+	}
+
+	t.Log("Flushing the command.")
+	err = rw.Flush()
+	if err != nil {
+		t.Fatalf("Flush failed : %v", err)
+	}
+	// Read the reply.
+	t.Log("Read the reply.")
+
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		t.Fatalf("Error reading response body : %v", err)
+	}
+
+	var data model.LicensesStatusCollection
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&data)
+	if err != nil {
+		t.Fatalf("Error decoding GOB data: %v\n%s", err, bodyBytes)
+	}
+	t.Logf("Response (%d statuses):\n%v", len(data), data)
+*/
 func FetchLicenseStatusesFromLSD(s http.IServer) {
 	s.LogInfo("AUTOMATION : Fetch and save all license status documents")
 

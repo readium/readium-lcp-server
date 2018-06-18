@@ -1,4 +1,9 @@
+<script src="https://unpkg.com/babel-polyfill@6.2.0/dist/polyfill.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.17.1/moment.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/rome/2.1.22/rome.js"></script>
 {{ script "jquery.form-validator.min" }}
+{{ style "material-datetime-picker" }}
+{{ script "material-datetime-picker" }}
 <style>
     .dialog {
         height: 400px;
@@ -19,8 +24,50 @@
         color: #60c7cd;
         cursor: pointer;
     }
-</style>
 
+    .c-btn {
+        font-size: 14px;
+        text-transform: capitalize;
+        font-weight: 600;
+        display: inline-block;
+        line-height: 36px;
+        cursor: pointer;
+        text-align: center;
+        text-transform: uppercase;
+        min-width: 88px;
+        height: 36px;
+        margin: 10px 8px;
+        padding: 0 8px;
+        text-align: center;
+        letter-spacing: .5px;
+        border-radius: 2px;
+        background: #F1F1F1;
+        color: #393939;
+        transition: background 200ms ease-in-out;
+        box-shadow: 0 3.08696px 5.82609px 0 rgba(0, 0, 0, 0.16174), 0 3.65217px 12.91304px 0 rgba(0, 0, 0, 0.12435);
+    }
+
+    .c-btn--flat {
+        background: transparent;
+        margin: 10px 8px;
+        min-width: 52px;
+    }
+
+    .c-btn:hover {
+        background: rgba(153, 153, 153, 0.2);
+        color: #393939;
+    }
+
+    .c-btn:active {
+        box-shadow: 0 9.6087px 10.78261px 0 rgba(0, 0, 0, 0.17217), 0 13.56522px 30.3913px 0 rgba(0, 0, 0, 0.15043);
+    }
+
+    .c-btn--flat, .c-btn--flat:hover, .c-btn--flat:active {
+        box-shadow: none;
+    }
+</style>
+</head>
+<body>
 <dialog class="mdl-dialog dialog" id="usersDialog">
     <h4 class="mdl-dialog__title">Choose user</h4>
     <div class="mdl-dialog__content dialogContent">
@@ -65,23 +112,15 @@
 
         </div>
         <div class="mdl-card__supporting-text mdl-card--border">
-            <!--
-      	TransactionDate time.Time    `json:"transactionDate,omitempty" sql:"DEFAULT:current_timestamp;NOT NULL"`
-		LicenseUUID     *NullString  `json:"licenseUuid,omitempty" gorm:"size:36" sql:"DEFAULT NULL"`
-
-		-->
             <input type="hidden" name="ID" value="{{.purchase.ID}}">
             <input type="hidden" name="UUID" value="{{.purchase.UUID}}">
-
-            <input type="hidden" name="UserId" value="{{.purchase.UserId}}">
-            <input type="hidden" name="PublicationId" value="{{.purchase.PublicationId}}">
-
             <table>
                 <tr>
                     <td>
                         <span>User:</span>
                     </td>
                     <td>
+                        <input type="text" id="UserId" name="UserId" {{if defined .purchase.User}}value="{{.purchase.User.ID}}" {{end}} required readonly>
                         <button id="usersChooser" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect">
                             <i class="material-icons">find_in_page</i>
                         </button>
@@ -92,6 +131,7 @@
                         <span>Publication:</span>
                     </td>
                     <td>
+                        <input type="text" id="PublicationId" name="PublicationId" {{if defined .purchase.Publication}}value="{{.purchase.Publication.ID}}" {{end}} required readonly>
                         <button id="publicationsChooser" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect">
                             <i class="material-icons">find_in_page</i>
                         </button>
@@ -102,10 +142,11 @@
                         <span> Type : </span>
                     </td>
                     <td>
-                        <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input" type="text" id="Type" name="Type" value="{{.purchase.Type}}">
-                            <label class="mdl-textfield__label" for="Type">Type...</label>
-                        </div>
+                        <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="switch-input">
+                            <input type="checkbox" id="switch-input" class="mdl-switch__input" checked>
+                            <input type="hidden" id="Type" name="Type" value="{{.purchase.Type}}">
+                            <span id="switch-label" class="mdl-switch__label">Loan</span>
+                        </label>
                     </td>
                 </tr>
                 <tr>
@@ -119,25 +160,25 @@
                         </div>
                     </td>
                 </tr>
-                <tr>
+                <tr id="startDateRow">
                     <td style="text-align: left;">
-                        <span> StartDate : {{.user.Password}}</span>
+                        <span> StartDate : </span>
                     </td>
                     <td>
                         <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input" type="text" id="StartDate" name="StartDate">
-                            <label class="mdl-textfield__label" for="StartDate">StartDate...</label>
+                            <input class="mdl-textfield__input c-start-date" type="text" id="StartDate" name="StartDate" readonly>
+                            <label class="mdl-textfield__label" for="StartDate">Start Date...</label>
                         </div>
                     </td>
                 </tr>
-                <tr>
+                <tr id="endDateRow">
                     <td style="text-align: left;">
-                        <span> EndDate : {{.user.Hint}}</span>
+                        <span> EndDate : </span>
                     </td>
                     <td>
                         <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input" type="text" id="EndDate" name="EndDate">
-                            <label class="mdl-textfield__label" for="EndDate">EndDate...</label>
+                            <input class="mdl-textfield__input c-end-date" type="text" id="EndDate" name="EndDate" readonly>
+                            <label class="mdl-textfield__label" for="EndDate">End Date...</label>
                         </div>
                     </td>
                 </tr>
@@ -155,11 +196,85 @@
         $(function () {
             $.validate({});
 
+            var hasOpenedPicker = false;
+            var currentPicking = "";
+            var buyLoadSwitch = document.getElementById("switch-label");
+            var buyLoadHidden = document.getElementById("Type");
+            var startDdateChooser = document.querySelector('.c-start-date');
+            var endDateChooser = document.querySelector('.c-end-date');
+            var publicationsDialog = document.getElementById('publicationsDialog');
             var usersDialog = document.getElementById('usersDialog');
+
+            buyLoadHidden.value = "Loan";
+
+            var picker = new MaterialDatetimePicker({})
+                .on('submit', function (dat) {
+                    hasOpenedPicker = false;
+                    switch (currentPicking) {
+                        case "start":
+                            console.log("Submitted start", dat.format());
+                            document.getElementById("StartDate").value = dat.format();
+                            break;
+                        case "end":
+                            console.log("Submitted end", dat.format());
+                            document.getElementById("EndDate").value = dat.format();
+                            break;
+                        default:
+                            console.log("Submitted unknown", dat.format());
+                    }
+                });
+
+            picker.on('close', function () {
+                console.log("Closed");
+                hasOpenedPicker = false;
+            });
+
+            startDdateChooser.addEventListener('click', function () {
+                if (hasOpenedPicker) {
+                    console.log("Picker already opened.")
+                    return;
+                }
+                console.log("Opening");
+                picker.open();
+                hasOpenedPicker = true;
+                currentPicking = "start";
+            }, false);
+
+            endDateChooser.addEventListener('click', function () {
+                if (hasOpenedPicker) {
+                    console.log("Picker already opened.")
+                    return;
+                }
+                console.log("Opening");
+                picker.open();
+                hasOpenedPicker = true;
+                currentPicking = "end";
+            }, false);
+
+
+            document.getElementById("switch-input").onclick = function () {
+                if (buyLoadSwitch.textContent == "Loan") {
+                    buyLoadSwitch.textContent = "Buy";
+                    buyLoadHidden.value = "Buy";
+                    $("#startDateRow").hide();
+                    $("#endDateRow").hide();
+                } else {
+                    buyLoadSwitch.textContent = "Loan";
+                    buyLoadHidden.value = "Loan";
+                    $("#startDateRow").show();
+                    $("#endDateRow").show();
+                }
+            };
+
             document.getElementById("usersChooser").onclick = function () {
+                if (hasOpenedPicker) {
+                    picker.close();
+                    hasOpenedPicker = false;
+                }
                 usersDialog.showModal();
                 $(document).on("click", "li.selectedItem", function () {
-                    console.log("Clicked :  ", $(this))
+                    console.log("Clicked :  ", $(this)[0]);
+                    document.getElementById("UserId").value = $(this)[0].id;
                     usersDialog.close();
                     $(document).off("click", "li.selectedItem");
                 });
@@ -176,11 +291,17 @@
                 // end check outside
             });
 
-            var publicationsDialog = document.getElementById('publicationsDialog');
+
             document.getElementById("publicationsChooser").onclick = function () {
+                if (hasOpenedPicker) {
+                    picker.close();
+                    hasOpenedPicker = false;
+                }
                 publicationsDialog.showModal();
                 $(document).on("click", "li.selectedItem", function () {
-                    console.log("Clicked :  ", $(this));
+                    console.log("Clicked :  ", $(this)[0]);
+                    document.getElementById("PublicationId").value = $(this)[0].id;
+
                     publicationsDialog.close();
                     $(document).off("click", "li.selectedItem");
                 });

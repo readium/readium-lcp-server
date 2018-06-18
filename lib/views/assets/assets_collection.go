@@ -73,6 +73,11 @@ func RegisterAssetRoutes(muxer *mux.Router) {
 					fmt.Printf("Asset not found %s base %s even if it was registered.\n", canonicalPath, path.Base(canonicalPath))
 					return
 				}
+				if strings.Contains(f.name, ".js") {
+					w.Header().Set("Content-Type", "application/javascript;charset=utf-8")
+				} else if strings.Contains(f.name, ".css") {
+					w.Header().Set("Content-Type", "text/css")
+				}
 				http.ServeContent(w, request, f.LocalPath(), time.Now(), bytes.NewReader(f.Bytes()))
 			})
 		}

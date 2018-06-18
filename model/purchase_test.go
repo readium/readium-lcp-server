@@ -14,8 +14,8 @@ func TestPurchaseStore_Add(t *testing.T) {
 	}
 	for _, user := range users {
 		entity := &model.Purchase{
-			User: user,
-			Publication: &model.Publication{
+			User: *user,
+			Publication: model.Publication{
 				Title: faker.Name().Name(),
 			},
 		}

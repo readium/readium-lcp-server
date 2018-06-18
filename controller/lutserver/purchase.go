@@ -228,9 +228,9 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 		}
 
 		if payload.Type == model.LOAN {
-			log.Println("user " + strconv.Itoa(int(payload.User.ID)) + " lent publication " + strconv.Itoa(int(payload.Publication.ID)) + " until " + payload.EndDate.Time.String())
+			log.Println("user " + strconv.Itoa(int(payload.UserId)) + " lent publication " + strconv.Itoa(int(payload.PublicationId)) + " until " + payload.EndDate.Time.String())
 		} else {
-			log.Println("user " + strconv.Itoa(int(payload.User.ID)) + " bought publication " + strconv.Itoa(int(payload.Publication.ID)))
+			log.Println("user " + strconv.Itoa(int(payload.UserId)) + " bought publication " + strconv.Itoa(int(payload.PublicationId)))
 		}
 	default:
 		// update the purchase, license id, start and end dates, status

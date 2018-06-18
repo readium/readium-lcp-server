@@ -28,6 +28,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -44,18 +45,18 @@ type (
 	//Purchase struct defines a user in json and database
 	//PurchaseType: BUY or LOAN
 	Purchase struct {
-		ID              int64        `json:"id,omitempty" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		PublicationId   int64        `json:"-" sql:"NOT NULL"`
-		UserId          int64        `json:"-" sql:"NOT NULL"`
-		UUID            string       `json:"uuid" sql:"NOT NULL" gorm:"size:36"`
-		Type            string       `json:"type" sql:"NOT NULL"`
-		Status          string       `json:"status" sql:"NOT NULL"`
-		TransactionDate time.Time    `json:"transactionDate,omitempty" sql:"DEFAULT:current_timestamp;NOT NULL"`
-		LicenseUUID     *NullString  `json:"licenseUuid,omitempty" gorm:"size:36" sql:"DEFAULT NULL"`
-		StartDate       *NullTime    `json:"startDate,omitempty" sql:"DEFAULT NULL"`
-		EndDate         *NullTime    `json:"endDate,omitempty" sql:"DEFAULT NULL"`
-		Publication     *Publication `json:"publication" gorm:"foreignKey:PublicationId"`
-		User            *User        `json:"user" gorm:"foreignKey:UserId"`
+		ID              int64       `json:"id,omitempty" sql:"AUTO_INCREMENT" gorm:"primary_key"`
+		PublicationId   int64       `json:"-" sql:"NOT NULL"`
+		UserId          int64       `json:"-" sql:"NOT NULL"`
+		UUID            string      `json:"uuid" sql:"NOT NULL" gorm:"size:36"`
+		Type            string      `json:"type" sql:"NOT NULL"`
+		Status          string      `json:"status" sql:"NOT NULL"`
+		TransactionDate time.Time   `json:"transactionDate,omitempty" sql:"DEFAULT:current_timestamp;NOT NULL"`
+		LicenseUUID     *NullString `json:"licenseUuid,omitempty" gorm:"size:36" sql:"DEFAULT NULL"`
+		StartDate       *NullTime   `json:"startDate,omitempty" sql:"DEFAULT NULL"`
+		EndDate         *NullTime   `json:"endDate,omitempty" sql:"DEFAULT NULL"`
+		Publication     Publication `json:"publication" gorm:"foreignKey:PublicationId"`
+		User            User        `json:"user" gorm:"foreignKey:UserId"`
 	}
 )
 
@@ -85,7 +86,10 @@ func (p *Purchase) BeforeSave() error {
 	if p.TransactionDate.IsZero() {
 		p.TransactionDate = now.Time
 	}
-	if p.User != nil {
+	if p.UserId == 0 {
+		if p.User.ID == 0 {
+			return fmt.Errorf("User ID is zero. Must be set.")
+		}
 		p.UserId = p.User.ID
 	}
 	if p.Type == LOAN && p.StartDate == nil {
@@ -128,14 +132,14 @@ func (s purchaseStore) FilterCount(paramLike string) (int64, error) {
 
 func (s purchaseStore) Filter(paramLike string, page, pageNum int64) (PurchaseCollection, error) {
 	var result PurchaseCollection
-	return result, s.db.Where("uuid LIKE ?", "%"+paramLike+"%").Offset(pageNum * page).Limit(page).Where(&Publication{}).Order("transaction_date DESC").Find(&result).Error
+	return result, s.db.Where("uuid LIKE ?", "%"+paramLike+"%").Offset(pageNum * page).Limit(page).Where(&Publication{}).Order("transaction_date DESC").Preload("User").Preload("Publication").Find(&result).Error
 }
 
 // List purchases, with pagination
 //
 func (s purchaseStore) List(page, pageNum int64) (PurchaseCollection, error) {
 	var result PurchaseCollection
-	return result, s.db.Offset(pageNum * page).Limit(page).Order("transaction_date DESC").Find(&result).Error
+	return result, s.db.Offset(pageNum * page).Limit(page).Order("transaction_date DESC").Preload("User").Preload("Publication").Find(&result).Error
 
 }
 func (s purchaseStore) CountByUser(userID int64) (int64, error) {
@@ -147,7 +151,7 @@ func (s purchaseStore) CountByUser(userID int64) (int64, error) {
 //
 func (s purchaseStore) ListByUser(userID, page, pageNum int64) (PurchaseCollection, error) {
 	var result PurchaseCollection
-	return result, s.db.Where("user_id = ?", userID).Offset(pageNum * page).Limit(page).Order("transaction_date DESC").Find(&result).Error
+	return result, s.db.Where("user_id = ?", userID).Offset(pageNum * page).Limit(page).Order("transaction_date DESC").Preload("User").Preload("Publication").Find(&result).Error
 }
 
 // Add a purchase

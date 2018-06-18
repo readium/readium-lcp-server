@@ -1,0 +1,341 @@
+.c-scrim {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.541176);
+    opacity: 0;
+    transition: 200ms ease opacity;
+    will-change: opacity;
+}
+
+.c-scrim--shown {
+    opacity: 1;
+}
+
+.c-datepicker {
+    min-height: 610px;
+    position: fixed;
+    left: 50%;
+    top: 45%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border: 0;
+    width: 300px;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25), 0 10px 18px rgba(0, 0, 0, 0.22);
+    border-radius: 2px;
+    opacity: 0;
+    will-change: opacity;
+    transition: 200ms ease-in-out opacity, 200ms ease-in-out top;
+    z-index: 100;
+}
+
+.c-datepicker--open {
+    opacity: 1;
+    top: 50%;
+}
+
+.c-datepicker__header {
+    position: relative;
+}
+
+.c-datepicker__header-day {
+    height: 32px;
+    background: #0097a7;
+    color: white;
+    line-height: 32px;
+    font-size: 12px;
+    font-weight: 200;
+    letter-spacing: 0.3px;
+}
+
+.c-datepicker__header::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.c-datepicker__header-date {
+    background: #00bcd4;
+    padding: 16px 0;
+}
+
+.rd-month-label {
+    height: 56px;
+    line-height: 56px;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.c-datepicker__back, .c-datepicker__next, .c-datepicker__toggle {
+    position: absolute;
+    border: 0;
+    background: white;
+    font-family: 'Material Icons';
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "liga" 1;
+    font-style: normal;
+    text-transform: none;
+    line-height: 1;
+    font-size: 24px;
+    width: 56px;
+    height: 56px;
+    display: inline-block;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    cursor: pointer;
+}
+
+.c-datepicker__back:focus, .c-datepicker__next:focus, .c-datepicker__toggle:focus {
+    outline: 0;
+}
+
+.c-datepicker__back {
+    left: 0;
+}
+
+.c-datepicker__next {
+    right: 0;
+}
+
+.c-datepicker__back:before {
+    content: 'chevron_left';
+}
+
+.c-datepicker__next:after {
+    content: 'chevron_right';
+}
+
+.c-datepicker--show-time:after {
+    content: 'access_time';
+    color: white;
+    visibility: visible;
+}
+
+.c-datepicker--show-calendar:after {
+    content: 'grid_on';
+    color: white;
+    visibility: visible;
+}
+
+.c-datepicker__header-date span {
+    display: block;
+    color: white;
+    margin: 0;
+    transition: opacity 100ms ease-in-out;
+}
+
+.c-datepicker__header-date__month {
+    cursor: pointer;
+    font-size: 24px;
+    opacity: 0.6;
+}
+
+.c-datepicker__header-date__day {
+    cursor: pointer;
+    font-size: 64px;
+    opacity: 0.6;
+}
+
+.modal-btns {
+    padding: 20px;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+}
+
+.c-datepicker__day-body {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.8);
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    position: relative;
+}
+
+.c-datepicker__day-body:hover {
+    /* color: white; */
+}
+
+.c-datepicker__day--selected::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.c-datepicker__day-head {
+    color: rgba(0, 0, 0, 0.54);
+    font-size: 12px;
+    height: 36px;
+}
+
+.c-datepicker__day-head, c-datepicker__day-body {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.modal-btns {
+    float: right;
+}
+
+.c-btn {
+    display: inline-block;
+    min-width: 56px;
+    cursor: pointer;
+}
+
+.rd-day-prev-month {
+    opacity: 0.1;
+    pointer-events: none;
+}
+
+.rd-day-next-month {
+    opacity: 0.1;
+    pointer-events: none;
+}
+
+.c-datepicker__calendar {
+    height: 300px;
+}
+
+.c-datepicker__date {
+    position: absolute;
+    left: 0;
+    right: 0;
+}
+
+.c-datepicker__days {
+    margin: 10px 20px;
+}
+
+.c-datepicker__header-toggle {
+    position: absolute;
+    top: 50%;
+    color: white;
+    cursor: pointer;
+}
+
+.c-datepicker__header-toggle i {
+    font-size: 26px;
+}
+
+.c-datepicker__header-toggle--left {
+    left: 20px;
+}
+
+.c-datepicker__header-toggle--right {
+    right: 20px;
+}
+
+.c-datepicker__header-toggle--inactive {
+    opacity: 0.2;
+}
+
+.c-datepicker__toggle {
+    top: 170px;
+    width: 36px;
+    height: 30px;
+    visibility: hidden;
+    opacity: 0.5;
+    z-index: 1;
+    transition: opacity 200ms ease-in-out;
+}
+
+.c-datepicker__toggle--right {
+    right: 10px;
+}
+
+.c-datepicker__toggle--left {
+    left: 10px;
+}
+
+.c-datepicker__toggle.is-selected {
+    opacity: 1;
+}
+
+.c-datepicker__clock {
+    position: relative;
+    /* [1] */
+    width: 200px;
+    height: 200px;
+    padding: 0;
+    border-radius: 50%;
+    list-style: none;
+    /* [2] */
+    font-size: 14px;
+    line-height: 50px;
+    padding: 160px 0 20px 0;
+    margin: 0 auto;
+}
+
+.c-datepicker__clock .c-datepicker__clock__num {
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 50px;
+    height: 50px;
+    margin: -25px;
+    z-index: 98;
+}
+
+.c-datepicker__clock::before {
+    content: "";
+    position: absolute;
+    top: 70px;
+    left: -20px;
+    width: 240px;
+    height: 240px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 50%;
+}
+
+.c-datepicker__day-body--active:not(.hide-hand), .c-datepicker__clock__num--active:not(.hide-hand) {
+    color: white;
+}
+
+.c-datepicker__day-body--active:not(.hide-hand):before, .c-datepicker__clock__num--active:not(.hide-hand):before {
+    background: #00bcd4;
+    width: 35px;
+    height: 35px;
+    z-index: -1;
+}
+
+.c-datepicker__mask {
+    width: 127px;
+    height: 132px;
+    position: absolute;
+    top: 122px;
+    left: 37px;
+    z-index: 99;
+}
+
+.c-datepicker__mask:after {
+    content: ' ';
+    width: 156px;
+    height: 70px;
+    display: block;
+    position: absolute;
+    top: 32px;
+    left: 0;
+    margin-left: -13px;
+}
+
+.c-datepicker__mask:before {
+    content: ' ';
+    width: 75px;
+    height: 158px;
+    display: block;
+    position: absolute;
+    top: 6px;
+    left: 28px;
+    margin-top: -18px;
+}
