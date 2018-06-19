@@ -47,7 +47,7 @@ func (p *Publication) TableName() string {
 
 // Implementation of GORM callback
 func (p *Publication) BeforeSave() error {
-	if p.ID == 0 {
+	if p.ID == 0 && p.UUID == "" {
 		// Create uuid
 		uid, errU := NewUUID()
 		if errU != nil {
@@ -62,11 +62,11 @@ func (p *Publication) BeforeSave() error {
 // Encrypts a master File and sends the content to the LCP server
 //
 func (s publicationStore) Add(pub *Publication) error {
-	return s.db.Create(pub).Error
+	return s.db.Debug().Create(pub).Error
 }
 
 // Update updates a publication
-// Only the title is updated
+// Only the title and status is updated
 //
 func (s publicationStore) Update(changedPub *Publication) error {
 	var result Publication

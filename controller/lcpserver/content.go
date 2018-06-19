@@ -80,7 +80,7 @@ func StoreContent(server http.IServer, req *goHttp.Request, param ParamName) (*s
 
 //Payload: (json) {content-id, content-encryption-key, protected-content-location, protected-content-length, protected-content-sha256, protected-content-disposition}
 
-func AddContent(server http.IServer, publication *http.AuthorizationAndLcpPublication) (*string, error) {
+func AddContent(server http.IServer, publication *http.AuthorizationAndLcpPublication) (*model.Content, error) {
 	//server.LogInfo("Payload %#v\nParam %#v", publication, publication.ContentId)
 	if publication.ContentId == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
@@ -102,6 +102,7 @@ func AddContent(server http.IServer, publication *http.AuthorizationAndLcpPublic
 
 	// check row in database
 	content, foundErr := server.Store().Content().Get(publication.ContentId)
+	content.Id = publication.ContentId
 	content.EncryptionKey = publication.ContentKey
 	// default values
 	content.Location = ""
@@ -124,7 +125,6 @@ func AddContent(server http.IServer, publication *http.AuthorizationAndLcpPublic
 	code := http.StatusCreated
 	if foundErr == gorm.ErrRecordNotFound {
 		// insert into database
-		content.Id = publication.ContentId
 		err = server.Store().Content().Add(content) // err gets checked below
 	} else {
 		// update encryption key for content.Id = publication.ContentId
@@ -136,7 +136,7 @@ func AddContent(server http.IServer, publication *http.AuthorizationAndLcpPublic
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 
-	return &publication.ContentId, http.Problem{Status: code}
+	return content, http.Problem{Status: code}
 }
 
 // ListContents lists the content in the storage index

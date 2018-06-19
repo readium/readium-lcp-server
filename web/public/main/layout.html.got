@@ -13,8 +13,8 @@
     {{ script "jquery.form-validator.min" }}
 </head>
 <body>
-<div class="demo-layout mdl-layout mdl-js-layout mdl-layout--fixed-drawer mdl-layout--fixed-header">
-
+<div class="mdl-layout mdl-js-layout mdl-layout--fixed-drawer mdl-layout--fixed-header">
+    <!-- header and search -->
     <header class="demo-header mdl-layout__header mdl-color--grey-100 mdl-color-text--grey-600">
         <div class="mdl-layout__header-row">
             <span class="mdl-layout-title">{{.pageTitle}}</span>
@@ -30,6 +30,7 @@
                     </form>
                 </div>
             </div>
+        </div>
     </header>
 
     <!-- navigation -->
@@ -43,13 +44,17 @@
         </nav>
     </div>
 
+    <!-- main page content -->
     <main class="mdl-layout__content mdl-color--grey-100">
         {{ .content }}
     </main>
 
-    <footer class="mdl-mega-footer">
-        <div class="mdl-mega-footer--top-section" style="text-align:right">
-            <p class="mdl-typography--font-light">Copyright &copy; 2018 Readium Foundation. All rights reserved. - <a href="http://www.readium.org" target="_blank">readium.org</a></p>
+    <!-- footer -->
+    <footer class="mdl-mini-footer">
+        <div class="mdl-mini-footer__right-section">
+            <ul class="mdl-mini-footer__link-list">
+                <li><p class="mdl-typography--font-light">Copyright &copy; 2018 Readium Foundation. All rights reserved. - <a href="http://www.readium.org" target="_blank">readium.org</a></p></li>
+            </ul>
         </div>
     </footer>
 </div>

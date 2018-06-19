@@ -323,7 +323,7 @@ func encryptEPUBSendToLCP(inputPath, contentUUID, contentDisposition string, ser
 	conn, err := net.Dial("tcp", "localhost:10000")
 	if err != nil {
 		server.LogError("Error Notify LcpServer : %v", err)
-		return err
+		return fmt.Errorf("LCP Server probably not running : %v", err)
 	}
 	defer conn.Close()
 	server.LogInfo("Notifying LCP (creating content).")
@@ -358,13 +358,17 @@ func encryptEPUBSendToLCP(inputPath, contentUUID, contentDisposition string, ser
 	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
 	err = dec.Decode(&responseErr)
 	if err != nil && err != io.EOF {
-		server.LogError("Error decoding LCP GOB : %v", err)
-		return err
-	}
-	if responseErr.Err != "" {
+		var content model.Content
+		dec = gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+		err = dec.Decode(&content)
+		if err != nil {
+			server.LogError("Error decoding GOB content : %v", err)
+		} else {
+			server.LogInfo("Model content : %#v", content)
+		}
+	} else if responseErr.Err != "" {
 		server.LogError("LCP GOB Error : %v", responseErr)
 		return fmt.Errorf(responseErr.Err)
 	}
-
 	return nil
 }

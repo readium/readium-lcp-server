@@ -109,15 +109,15 @@ func (p *Purchase) BeforeSave() error {
 // Get a purchase using its id
 //
 func (s purchaseStore) Get(id int64) (*Purchase, error) {
-	var result *Purchase
-	return result, s.db.Where("id = ?", id).Preload("User").Preload("Publication").Find(&result).Error
+	var result Purchase
+	return &result, s.db.Where("id = ?", id).Preload("User").Preload("Publication").Find(&result).Error
 }
 
 // GetByLicenseID gets a purchase by the associated license id
 //
 func (s purchaseStore) GetByLicenseID(licenseID string) (*Purchase, error) {
-	var result *Purchase
-	return result, s.db.Where("license_uuid = ?", licenseID).Preload("User").Preload("Publication").Find(&result).Error
+	var result Purchase
+	return &result, s.db.Where("license_uuid = ?", licenseID).Preload("User").Preload("Publication").Find(&result).Error
 }
 
 func (s purchaseStore) Count() (int64, error) {
@@ -161,6 +161,16 @@ func (s purchaseStore) Add(p *Purchase) error {
 }
 
 func (s purchaseStore) Update(p *Purchase) error {
-	return s.db.Save(p).Error
+	var result Purchase
+	err := s.db.Where(Publication{ID: p.ID}).Find(&result).Error
+	if err != nil {
+		return err
+	}
+	return s.db.Model(&result).Updates(map[string]interface{}{
+		"end_date":   p.StartDate,
+		"start_date": p.EndDate,
+		"status":     p.Status,
+		"type":       p.Type,
+	}).Error
 
 }

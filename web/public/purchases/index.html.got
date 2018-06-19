@@ -1,16 +1,15 @@
 {{if eq .total 0}}
 <div class="mdl-card mdl-shadow--2dp" style="width:50%">
     <div class="mdl-card__title">
-        <h2 class="mdl-card__title-text">There are no purchases in the database.</h2>
+        <h2 class="mdl-card__title-text">There are no licenses in the database.</h2>
     </div>
     <div class="mdl-card__actions mdl-card--border">
         <form accept-charset="UTF-8" action="/purchases/0" method="GET">
-            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect">Create first purchase</button>
+            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect">Create a license</button>
         </form>
     </div>
 </div>
 {{else}}
-<div class="mdl-grid" style="width:100%;margin-top:10px;margin-bottom: 10px">
     <div id="entitiesList" class="mdl-data-tabledynamic mdl-shadow--2dp">
         {{if .noResults}}
         <div class="mdl-data-tabledynamic__title">
@@ -54,13 +53,13 @@
                     </td>
                     <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.ID}}</span></td>
                     <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
-                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.TransactionDate}}</span></td>
+                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{utcdate $m.TransactionDate}}</span></td>
                     <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Type}}</span></td>
                     <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
                     <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.User.Email}}</span></td>
                     <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Publication.Title}}</span></td>
-                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if eq $m.Type "Buy"}}-{{else}}{{$m.StartDate}}{{end}}</span></td>
-                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if eq $m.Type "Buy"}}-{{else}}{{$m.EndDate}}{{end}}</span></td>
+                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if eq $m.Type "Buy"}}-{{else}}{{utcdate $m.StartDate}}{{end}}</span></td>
+                    <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if eq $m.Type "Buy"}}-{{else}}{{utcdate $m.EndDate}}{{end}}</span></td>
                 </tr>
                 {{end}}
                 </tbody>
@@ -91,7 +90,7 @@
         </div>
         {{end}}
     </div>
-</div>
+
 
 <dialog class="mdl-dialog">
     <h4 class="mdl-dialog__title">Delete purchases?</h4>

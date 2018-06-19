@@ -325,7 +325,9 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 			server.LogError("Error unauthorized")
 			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
 		}
-		_, err = AddContent(server, &payload)
+		server.LogInfo("Creating content with UUID : %s", payload.ContentId)
+
+		content, err := AddContent(server, &payload)
 		if err != nil {
 			problem, ok := err.(http.Problem)
 			if ok && problem.Detail != "" {
@@ -333,6 +335,13 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 				return fmt.Errorf(problem.Detail)
 			}
 		}
+
+		enc := gob.NewEncoder(rw)
+		err = enc.Encode(content)
+		if err != nil {
+			server.LogError("Error encoding response : %v", err)
+		}
+
 		return nil
 	})
 

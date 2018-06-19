@@ -31,6 +31,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/readium/readium-lcp-server/model"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -42,7 +43,6 @@ func FormToFields(deserializeTo reflect.Value, fromForm url.Values) error {
 	for k, v := range fromForm {
 		field := deserializeTo.Elem().FieldByName(k)
 		val := v[0]
-		//server.LogInfo("%s = %s %#v", k, v, field)
 		switch field.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			if val == "" {
@@ -96,6 +96,17 @@ func FormToFields(deserializeTo reflect.Value, fromForm url.Values) error {
 			}
 		case reflect.String:
 			field.SetString(val)
+		case reflect.Ptr:
+			fv := reflect.New(field.Type())
+			if iNull, ok := fv.Elem().Interface().(*model.NullTime); ok {
+				iNull = model.Now()
+				err := iNull.UnmarshalText([]byte(val))
+				if err == nil {
+					field.Set(reflect.ValueOf(iNull))
+				} else {
+					panic("Could not unmarshal text on model.NullTime :" + err.Error())
+				}
+			}
 		}
 	}
 	return nil

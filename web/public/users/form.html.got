@@ -1,14 +1,14 @@
 {{ script "jquery.form-validator.min" }}
 
 <form method="POST" action="/users">
-    <div class="mdl-card mdl-shadow--2dp" style="width:100%">
+    <div class="mdl-card mdl-shadow--2dp page-content">
         <div class="mdl-card__title">
             {{if and (defined .user.UUID) (ne .user.UUID "")}}User UUID : {{.user.UUID}}{{end}}
         </div>
         <div class="mdl-card__supporting-text mdl-card--border">
             <input type="hidden" name="ID" value="{{.user.ID}}">
             <input type="hidden" name="UUID" value="{{.user.UUID}}">
-            <table>
+            <table style="height: 80vh">
                 <tr>
                     <td style="text-align:left;">
                         <span> Name : </span>
@@ -55,7 +55,7 @@
                 </tr>
             </table>
         </div>
-        <div class="mdl-card__actions mdl-card--border">
+        <div class="mdl-paging mdl-data-tabledynamic__actions">
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit">Save</button>
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel" type="reset">Cancel</button>
         </div>

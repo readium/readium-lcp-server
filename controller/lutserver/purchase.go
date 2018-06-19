@@ -36,54 +36,8 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/views"
+	"time"
 )
-
-// GetPurchases searches all purchases for a client
-//
-func GetPurchases(server http.IServer, param ParamPagination) (*views.Renderer, error) {
-	var err error
-	noOfPurchases, err := server.Store().Purchase().Count()
-	if err != nil {
-		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
-	}
-	page, perPage, err := http.ReadPagination(param.Page, param.PerPage, noOfPurchases)
-	if err != nil {
-		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
-	}
-
-	var purchases model.PurchaseCollection
-	view := &views.Renderer{}
-	if param.Filter != "" {
-		view.AddKey("filter", param.Filter)
-		noOfFilteredPurchases, err := server.Store().Purchase().FilterCount(param.Filter)
-		if err != nil {
-			return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
-		}
-		view.AddKey("filterTotal", noOfFilteredPurchases)
-		purchases, err = server.Store().Purchase().Filter(param.Filter, perPage, page)
-		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
-		if (page+1)*perPage < noOfFilteredPurchases {
-			view.AddKey("hasNextPage", true)
-		}
-	} else {
-		purchases, err = server.Store().Purchase().List(perPage, page)
-		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
-		if (page+1)*perPage < noOfPurchases {
-			view.AddKey("hasNextPage", true)
-		}
-	}
-	view.AddKey("purchases", purchases)
-	view.AddKey("pageTitle", "Purchases list")
-	view.AddKey("total", noOfPurchases)
-	view.AddKey("currentPage", page+1)
-	view.AddKey("perPage", perPage)
-	view.Template("purchases/index.html.got")
-	return view, nil
-}
 
 // GetUserPurchases searches all purchases for a client
 //
@@ -189,8 +143,8 @@ func GetPurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 		view.AddKey("existingUsers", existingUsers)
-		// convention - if user ID is zero, we're displaying create form
-		purchase = &model.Purchase{}
+		// convention - if sID is zero, we're displaying create form
+		purchase = &model.Purchase{Type: "Loan"}
 		view.AddKey("pageTitle", "Create purchase")
 	}
 	view.AddKey("purchase", purchase)
@@ -218,6 +172,53 @@ func GetPurchaseByLicenseID(server http.IServer, param ParamPaginationAndId) (*v
 	return view, nil
 }
 
+// GetPurchases searches all purchases for a client
+//
+func GetPurchases(server http.IServer, param ParamPagination) (*views.Renderer, error) {
+	var err error
+	noOfPurchases, err := server.Store().Purchase().Count()
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
+	}
+	page, perPage, err := http.ReadPagination(param.Page, param.PerPage, noOfPurchases)
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
+	}
+
+	var purchases model.PurchaseCollection
+	view := &views.Renderer{}
+	if param.Filter != "" {
+		view.AddKey("filter", param.Filter)
+		noOfFilteredPurchases, err := server.Store().Purchase().FilterCount(param.Filter)
+		if err != nil {
+			return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
+		}
+		view.AddKey("filterTotal", noOfFilteredPurchases)
+		purchases, err = server.Store().Purchase().Filter(param.Filter, perPage, page)
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		if (page+1)*perPage < noOfFilteredPurchases {
+			view.AddKey("hasNextPage", true)
+		}
+	} else {
+		purchases, err = server.Store().Purchase().List(perPage, page)
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		if (page+1)*perPage < noOfPurchases {
+			view.AddKey("hasNextPage", true)
+		}
+	}
+	view.AddKey("purchases", purchases)
+	view.AddKey("pageTitle", "Purchases list")
+	view.AddKey("total", noOfPurchases)
+	view.AddKey("currentPage", page+1)
+	view.AddKey("perPage", perPage)
+	view.Template("purchases/index.html.got")
+	return view, nil
+}
+
 // CreatePurchase creates a purchase in the database
 //
 func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*views.Renderer, error) {
@@ -233,13 +234,21 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 			log.Println("user " + strconv.Itoa(int(payload.UserId)) + " bought publication " + strconv.Itoa(int(payload.PublicationId)))
 		}
 	default:
+
+		if payload.StartDate.Valid {
+			payload.StartDate.Time = payload.StartDate.Time.UTC().Truncate(time.Second)
+		}
+
+		if payload.EndDate.Valid {
+			payload.EndDate.Time = payload.EndDate.Time.UTC().Truncate(time.Second)
+		}
+
 		// update the purchase, license id, start and end dates, status
 		if err := server.Store().Purchase().Update(&model.Purchase{
-			ID:          int64(payload.ID),
-			LicenseUUID: payload.LicenseUUID,
-			StartDate:   payload.StartDate,
-			EndDate:     payload.EndDate,
-			Status:      payload.Status}); err != nil {
+			StartDate: payload.StartDate,
+			EndDate:   payload.EndDate,
+			Type:      payload.Type,
+			Status:    payload.Status}); err != nil {
 
 			switch err {
 			case gorm.ErrRecordNotFound:

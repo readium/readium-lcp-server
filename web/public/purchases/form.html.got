@@ -2,8 +2,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.17.1/moment.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/rome/2.1.22/rome.js"></script>
 {{ script "jquery.form-validator.min" }}
-{{ style "material-datetime-picker" }}
-{{ script "material-datetime-picker" }}
+{{ script "material-extensions" }}
 <style>
     .dialog {
         height: 400px;
@@ -66,8 +65,7 @@
         box-shadow: none;
     }
 </style>
-</head>
-<body>
+
 <dialog class="mdl-dialog dialog" id="usersDialog">
     <h4 class="mdl-dialog__title">Choose user</h4>
     <div class="mdl-dialog__content dialogContent">
@@ -75,7 +73,7 @@
             <div>
                 <ul class="mdl-list">
                     {{range $i,$u := .existingUsers}}
-                    <li id="{{$u.ID}}" class="mdl-list__item selectedItem">
+                    <li id="{{$u.ID}}" name="{{$u.Email}}" class="mdl-list__item selectedItem">
                         <span class="mdl-list__item-primary-content"><i class="material-icons  mdl-list__item-avatar">perm_identity</i> {{$u.Name}} {{$u.Email}} </span>
                     </li>
                     {{end}}
@@ -94,7 +92,7 @@
             <div>
                 <ul class="mdl-list">
                     {{range $i,$p := .existingPublications}}
-                    <li id="{{$p.ID}}" class="mdl-list__item selectedItem">
+                    <li id="{{$p.ID}}" name="{{$p.Title}}" class="mdl-list__item selectedItem">
                         <span class="mdl-list__item-primary-content"><i class="material-icons  mdl-list__item-avatar">label</i> {{$p.Title}} </span>
                     </li>
                     {{end}}
@@ -106,97 +104,133 @@
     </div>
 </dialog>
 
-<form method="POST" action="/purchases">
-    <div class="mdl-card mdl-shadow--2dp" style="width:100%">
-        <div class="mdl-card__title">
+<div id="toastMessage" class="mdl-js-snackbar mdl-snackbar">
+    <div class="mdl-snackbar__text"></div>
+    <button class="mdl-snackbar__action" type="button"></button>
+</div>
 
-        </div>
-        <div class="mdl-card__supporting-text mdl-card--border">
-            <input type="hidden" name="ID" value="{{.purchase.ID}}">
-            <input type="hidden" name="UUID" value="{{.purchase.UUID}}">
-            <table>
-                <tr>
-                    <td>
-                        <span>User:</span>
-                    </td>
-                    <td>
-                        <input type="text" id="UserId" name="UserId" {{if defined .purchase.User}}value="{{.purchase.User.ID}}" {{end}} required readonly>
-                        <button id="usersChooser" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect">
-                            <i class="material-icons">find_in_page</i>
-                        </button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <span>Publication:</span>
-                    </td>
-                    <td>
-                        <input type="text" id="PublicationId" name="PublicationId" {{if defined .purchase.Publication}}value="{{.purchase.Publication.ID}}" {{end}} required readonly>
-                        <button id="publicationsChooser" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect">
-                            <i class="material-icons">find_in_page</i>
-                        </button>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="text-align:left;">
-                        <span> Type : </span>
-                    </td>
-                    <td>
-                        <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="switch-input">
-                            <input type="checkbox" id="switch-input" class="mdl-switch__input" checked>
-                            <input type="hidden" id="Type" name="Type" value="{{.purchase.Type}}">
-                            <span id="switch-label" class="mdl-switch__label">Loan</span>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="text-align: left;">
-                        <span> Status : </span>
-                    </td>
-                    <td>
-                        <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input" type="text" id="Status" name="Status" value="{{.purchase.Status}}">
-                            <label class="mdl-textfield__label" for="Status">Status...</label>
-                        </div>
-                    </td>
-                </tr>
-                <tr id="startDateRow">
-                    <td style="text-align: left;">
-                        <span> StartDate : </span>
-                    </td>
-                    <td>
-                        <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input c-start-date" type="text" id="StartDate" name="StartDate" readonly>
-                            <label class="mdl-textfield__label" for="StartDate">Start Date...</label>
-                        </div>
-                    </td>
-                </tr>
-                <tr id="endDateRow">
-                    <td style="text-align: left;">
-                        <span> EndDate : </span>
-                    </td>
-                    <td>
-                        <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input c-end-date" type="text" id="EndDate" name="EndDate" readonly>
-                            <label class="mdl-textfield__label" for="EndDate">End Date...</label>
-                        </div>
-                    </td>
-                </tr>
-            </table>
-        </div>
-        <div class="mdl-card__actions mdl-card--border">
-            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit">Save</button>
+<div class="page-content mdl-card mdl-shadow--2dp">
+    <form method="POST" action="/purchases">
+        <input type="hidden" name="ID" value="{{.purchase.ID}}">
+        <input type="hidden" name="UUID" value="{{.purchase.UUID}}">
+
+        <table style="height: 70vh;width: 100%">
+            <tr>
+                <td>
+                    <span>User:</span>
+                </td>
+                <td>
+                    <input type="hidden" id="UserId" name="UserId" {{if defined .purchase.User}}value="{{.purchase.User.ID}}" {{end}}>
+                    <input type="text" id="userEmail" {{if defined .purchase.User}}value="{{.purchase.User.Email}}" {{else}}value="Choose user" {{end}}>
+                    <button id="usersChooser" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect">
+                        <i class="material-icons">find_in_page</i>
+                    </button>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <span>Publication:</span>
+                </td>
+                <td>
+                    <input type="hidden" id="PublicationId" name="PublicationId" {{if defined .purchase.Publication}}value="{{.purchase.Publication.ID}}" {{end}}>
+                    <input type="text" id="publicationTitle" {{if defined .purchase.Publication}}value="{{.purchase.Publication.Title}}" {{else}}value="Choose publication" {{end}}>
+                    <button id="publicationsChooser" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect">
+                        <i class="material-icons">find_in_page</i>
+                    </button>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">
+                    <span> Status : </span>
+                </td>
+                <td>
+                    <div class="mdl-textfield mdl-js-textfield getmdl-select">
+                        <input class="mdl-textfield__input" value="{{.purchase.Status}}" id="Status" readonly/>
+                        <input value="{{.purchase.Status}}" type="hidden" name="Status"/>
+                        <i class="mdl-icon-toggle__label material-icons">keyboard_arrow_down</i>
+                        <label class="mdl-textfield__label" for="Status">Status</label>
+                        <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu" for="Status">
+                            {{if eq .purchase.Status "Active"}}
+                            <li class="mdl-menu__item" data-val="Active" data-selected="true">Active</li>
+                            {{else}}
+                            <li class="mdl-menu__item" data-val="Active">Active</li>
+                            {{end}}
+                            {{if eq .purchase.Status "Revoked"}}
+                            <li class="mdl-menu__item" data-val="Revoked" data-selected="true">Revoked</li>
+                            {{else}}
+                            <li class="mdl-menu__item" data-val="Revoked">Revoked</li>
+                            {{end}}
+                            {{if eq .purchase.Status "Returned"}}
+                            <li class="mdl-menu__item" data-val="Returned" data-selected="true">Returned</li>
+                            {{else}}
+                            <li class="mdl-menu__item" data-val="Returned">Returned</li>
+                            {{end}}
+                            {{if eq .purchase.Status "Cancelled"}}
+                            <li class="mdl-menu__item" data-val="Cancelled" data-selected="true">Cancelled</li>
+                            {{else}}
+                            <li class="mdl-menu__item" data-val="Cancelled">Cancelled</li>
+                            {{end}}
+                            {{if eq .purchase.Status "Expired"}}
+                            <li class="mdl-menu__item" data-val="Expired" data-selected="true">Expired</li>
+                            {{else}}
+                            <li class="mdl-menu__item" data-val="Expired">Expired</li>
+                            {{end}}
+                            {{if eq .purchase.Status "Renewed"}}
+                            <li class="mdl-menu__item" data-val="Renewed" data-selected="true">Renewed</li>
+                            {{else}}
+                            <li class="mdl-menu__item" data-val="Renewed">Renewed</li>
+                            {{end}}
+                        </ul>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align:left;">
+                    <span> Type : </span>
+                </td>
+                <td>
+                    <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="switch-input">
+                        <input type="checkbox" id="switch-input" class="mdl-switch__input" {{if eq .purchase.Type "Loan"}}checked{{end}}>
+                        <input type="hidden" id="Type" name="Type" value="{{.purchase.Type}}">
+                        <span id="switch-label" class="mdl-switch__label">{{.purchase.Type}}</span>
+                    </label>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">
+                    <span> StartDate : </span>
+                </td>
+                <td>
+                    <div class="mdl-textfield mdl-js-textfield">
+                        <input class="mdl-textfield__input c-start-date" type="text" id="StartDate" name="StartDate" readonly>
+                        <label class="mdl-textfield__label" for="StartDate">Start Date...</label>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: left;">
+                    <span> EndDate : </span>
+                </td>
+                <td>
+                    <div class="mdl-textfield mdl-js-textfield">
+                        <input class="mdl-textfield__input c-end-date" type="text" id="EndDate" name="EndDate" readonly>
+                        <label class="mdl-textfield__label" for="EndDate">End Date...</label>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <div class="mdl-paging mdl-data-tabledynamic__actions">
+            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect save" type="submit">Save</button>
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel" type="reset">Cancel</button>
         </div>
-    </div>
-</form>
+    </form>
+</div>
 
 <script type="text/javascript">
     (function ($) {
         $(function () {
             $.validate({});
 
-            var hasOpenedPicker = false;
             var currentPicking = "";
             var buyLoadSwitch = document.getElementById("switch-label");
             var buyLoadHidden = document.getElementById("Type");
@@ -204,77 +238,93 @@
             var endDateChooser = document.querySelector('.c-end-date');
             var publicationsDialog = document.getElementById('publicationsDialog');
             var usersDialog = document.getElementById('usersDialog');
+            var notificator = document.querySelector('#toastMessage');
 
-            buyLoadHidden.value = "Loan";
+            $(".save").on("submit", function (event) {
+                var errorMessage = "";
+                if (document.getElementById("PublicationId").value == 0) {
+                    errorMessage = "Choose a publication.";
+                }
+                if (document.getElementById("UserId").value == 0) {
+                    errorMessage = "Choose an user.";
+                }
+                // Each time the user tries to send the data, we check
+                // if the email field is valid.
+                if (errorMessage != "") {
+                    notificator.MaterialSnackbar.showSnackbar({
+                        message: "Error : " + errorMessage,
+                        timeout: 2000,
+                        actionHandler: function (event) {
+                        },
+                        actionText: 'Ok'
+                    });
+                    // And we prevent the form from being sent by canceling the event
+                    event.preventDefault();
+                }
+            }, false);
 
             var picker = new MaterialDatetimePicker({})
                 .on('submit', function (dat) {
                     hasOpenedPicker = false;
                     switch (currentPicking) {
                         case "start":
-                            console.log("Submitted start", dat.format());
                             document.getElementById("StartDate").value = dat.format();
+                            currentPicking = "";
                             break;
                         case "end":
-                            console.log("Submitted end", dat.format());
                             document.getElementById("EndDate").value = dat.format();
+                            currentPicking = "";
                             break;
                         default:
                             console.log("Submitted unknown", dat.format());
+                            currentPicking = "";
                     }
                 });
 
             picker.on('close', function () {
-                console.log("Closed");
-                hasOpenedPicker = false;
+                currentPicking == "";
             });
 
             startDdateChooser.addEventListener('click', function () {
-                if (hasOpenedPicker) {
-                    console.log("Picker already opened.")
+                if (currentPicking != "") {
                     return;
                 }
-                console.log("Opening");
-                picker.open();
-                hasOpenedPicker = true;
-                currentPicking = "start";
+                if (buyLoadHidden.value == "Loan") {
+                    picker.open();
+                    currentPicking = "start";
+                }
             }, false);
 
             endDateChooser.addEventListener('click', function () {
-                if (hasOpenedPicker) {
-                    console.log("Picker already opened.")
+                if (currentPicking != "") {
                     return;
                 }
-                console.log("Opening");
-                picker.open();
-                hasOpenedPicker = true;
-                currentPicking = "end";
+                if (buyLoadHidden.value == "Loan") {
+                    picker.open();
+                    currentPicking = "end";
+                }
             }, false);
 
 
             document.getElementById("switch-input").onclick = function () {
                 if (buyLoadSwitch.textContent == "Loan") {
-                    buyLoadSwitch.textContent = "Buy";
-                    buyLoadHidden.value = "Buy";
-                    $("#startDateRow").hide();
-                    $("#endDateRow").hide();
+                    buyLoadHidden.value = buyLoadSwitch.textContent = "Buy";
+
                 } else {
-                    buyLoadSwitch.textContent = "Loan";
-                    buyLoadHidden.value = "Loan";
-                    $("#startDateRow").show();
-                    $("#endDateRow").show();
+                    buyLoadHidden.value = buyLoadSwitch.textContent = "Loan";
                 }
             };
 
             document.getElementById("usersChooser").onclick = function () {
-                if (hasOpenedPicker) {
+                if (currentPicking != "") {
                     picker.close();
-                    hasOpenedPicker = false;
+                    currentPicking = "";
                 }
                 usersDialog.showModal();
                 $(document).on("click", "li.selectedItem", function () {
                     console.log("Clicked :  ", $(this)[0]);
                     document.getElementById("UserId").value = $(this)[0].id;
+                    document.getElementById("userEmail").value = $(this)[0].name;
                     usersDialog.close();
                     $(document).off("click", "li.selectedItem");
                 });
@@ -284,24 +334,22 @@
                 var rect = usersDialog.getBoundingClientRect();
                 var isInDialog = (rect.top <= event.clientY && event.clientY <= rect.top + rect.height && rect.left <= event.clientX && event.clientX <= rect.left + rect.width);
                 if (!isInDialog) {
-                    console.log("Clicked outside dialog. Closing.");
                     usersDialog.close();
                     $(document).off("click", "li.selectedItem");
                 }
                 // end check outside
             });
 
-
             document.getElementById("publicationsChooser").onclick = function () {
-                if (hasOpenedPicker) {
+                if (currentPicking != "") {
                     picker.close();
-                    hasOpenedPicker = false;
+                    currentPicking = "";
                 }
                 publicationsDialog.showModal();
                 $(document).on("click", "li.selectedItem", function () {
                     console.log("Clicked :  ", $(this)[0]);
                     document.getElementById("PublicationId").value = $(this)[0].id;
-
+                    document.getElementById("publicationTitle").value = $(this)[0].name;
                     publicationsDialog.close();
                     $(document).off("click", "li.selectedItem");
                 });
@@ -311,7 +359,6 @@
                 var rect = publicationsDialog.getBoundingClientRect();
                 var isInDialog = (rect.top <= event.clientY && event.clientY <= rect.top + rect.height && rect.left <= event.clientX && event.clientX <= rect.left + rect.width);
                 if (!isInDialog) {
-                    console.log("Clicked outside dialog. Closing.");
                     publicationsDialog.close();
                     $(document).off("click", "li.selectedItem");
                 }

@@ -62,14 +62,14 @@
 </dialog>
 
 <form method="POST" action="/publications" enctype="multipart/form-data">
-    <div class="mdl-card mdl-shadow--2dp" style="width:100%">
+    <div class="mdl-card mdl-shadow--2dp page-content">
         <div class="mdl-card__title">
 
         </div>
         <div class="mdl-card__supporting-text mdl-card--border">
             <input type="hidden" name="ID" value="{{.publication.ID}}">
             <input type="hidden" name="UUID" value="{{.publication.UUID}}">
-            <table>
+            <table style="height: 80vh">
                 <tr>
                     <td>
                         <span> Name : </span>
@@ -117,7 +117,7 @@
                 {{end}}
             </table>
         </div>
-        <div class="mdl-card__actions mdl-card--border">
+        <div class="mdl-paging mdl-data-tabledynamic__actions">
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit">Save</button>
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel" type="reset">Cancel</button>
         </div>

@@ -29,6 +29,7 @@ package helpers
 
 import (
 	"fmt"
+	"github.com/readium/readium-lcp-server/model"
 	got "html/template"
 	"reflect"
 	"strings"
@@ -152,8 +153,27 @@ func Date(t time.Time, formats ...string) got.HTML {
 }
 
 // UTCDate returns a formatted date string in 2006-01-02
-func UTCDate(t time.Time) got.HTML {
-	return Date(t.UTC(), "2006-01-02")
+func UTCDate(t interface{}) got.HTML {
+	switch tim := t.(type) {
+	case time.Time:
+		return Date(tim.UTC(), "2006-01-02")
+	case model.NullTime:
+		if tim.Valid {
+			return Date(tim.Time.UTC(), "2006-01-02")
+		}
+		return "-"
+	case *model.NullTime:
+		if tim == nil {
+			return "-"
+		}
+		if tim.Valid {
+			return Date(tim.Time.UTC(), "2006-01-02")
+		}
+		return "-"
+	default:
+		fmt.Printf("And interface is %#v\n", tim)
+		panic("Bad usage of utcdate (requires time.Time or NullTime)")
+	}
 }
 
 // UTCTime returns a formatted date string in 2006-01-02

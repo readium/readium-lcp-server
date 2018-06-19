@@ -35,8 +35,8 @@ import (
 type (
 	UsersCollection []*User
 	User            struct {
-		ID        int64    `json:"id" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		UUID      string   `json:"uuid" sql:"NOT NULL" gorm:"size:36"` // uuid - max size 36
+		ID        int64    `json:"user_id" sql:"AUTO_INCREMENT" gorm:"primary_key"`
+		UUID      string   `json:"id" sql:"NOT NULL" gorm:"size:36"` // uuid - max size 36
 		Name      string   `json:"name,omitempty" gorm:"size:64"`
 		Email     string   `json:"email,omitempty" gorm:"size:64"`
 		Password  string   `json:"password,omitempty" gorm:"size:64"`
