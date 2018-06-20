@@ -1,5 +1,5 @@
 {{if eq .total 0}}
-<div class="mdl-card mdl-shadow--2dp" style="width:50%">
+<div class="page-content mdl-card mdl-shadow--2dp">
     <div class="mdl-card__title">
         <h2 class="mdl-card__title-text">There are no licenses in the database.</h2>
     </div>
@@ -10,7 +10,12 @@
     </div>
 </div>
 {{else}}
-<div class="mdl-data-tabledynamic mdl-shadow--2dp page-content">
+<div class="page-content mdl-data-tabledynamic mdl-shadow--2dp">
+    {{if .noResults}}
+    <div class="mdl-data-tabledynamic__title">
+        <h2 class="mdl-data-tabledynamic__title-text">There are no results for filter `{{.filter}}`.</h2>
+    </div>
+    {{else}}
     <div class="mdl-data-tabledynamic__title">
         <h2 class="mdl-data-tabledynamic__title-text">{{if defined .filter}}listing {{.filterTotal}} of {{.total}} for filter `{{.filter}}`{{else}}{{.total}} licenses in the database.{{end}}</h2>
         <div class="mdl-data-tabledynamic__actions">
@@ -29,7 +34,7 @@
                 </th>
                 <th class="mdl-data-table__cell--non-numeric">ID</th>
                 <th class="mdl-data-table__cell--non-numeric">UUID</th>
-                <th class="mdl-data-table__cell--non-numeric">Title</th>
+                <th class="mdl-data-table__cell--non-numeric">DeviceCount</th>
                 <th class="mdl-data-table__cell--non-numeric">Status</th>
             </tr>
             </thead>
@@ -43,9 +48,8 @@
                 </td>
                 <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.ID}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
-                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Title}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if $m.DeviceCount.Valid}}{{$m.DeviceCount.Int64}}{{else}}-{{end}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
-                s
             </tr>
             {{end}}
             </tbody>
@@ -74,6 +78,7 @@
             {{end}}
         </div>
     </div>
+    {{end}}
 </div>
 
 

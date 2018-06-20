@@ -51,7 +51,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"runtime/debug"
 	"strings"
 )
 
@@ -456,10 +455,6 @@ func renderError(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "text/html")
 	view := views.Renderer{}
 	view.SetWriter(w)
-	// TODO : disable stack in production
-	if true {
-		debug.PrintStack()
-	}
 	view.AddKey("message", err.Error())
 	view.AddKey("title", "Error")
 	view.Template("main/error.html.got")
@@ -676,6 +671,7 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	purchasesRoutes := muxer.PathPrefix(purchasesRoutesPathPrefix).Subrouter().StrictSlash(false)
 	makeHandler(purchasesRoutes, server, "/{id}", GetPurchase).Methods("GET")
 	makeHandler(purchasesRoutes, server, "/{id}/license", GetPurchasedLicense).Methods("GET")
+	makeHandler(purchasesRoutes, server, "/{id}", DeletePurchase).Methods("DELETE")
 	makeHandler(usersRoutes, server, "/{user_id}/purchases", GetUserPurchases).Methods("GET")
 	//
 	// licences

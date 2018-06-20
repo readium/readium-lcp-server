@@ -1,5 +1,5 @@
 {{if eq .total 0}}
-<div class="mdl-card mdl-shadow--2dp" style="width:50%">
+<div class="page-content mdl-card mdl-shadow--2dp">
     <div class="mdl-card__title">
         <h2 class="mdl-card__title-text">There are no publications in the database.</h2>
     </div>
@@ -11,7 +11,7 @@
 </div>
 {{else}}
 
-<div id="entitiesList" class="mdl-data-tabledynamic mdl-shadow--2dp">
+<div class="page-content mdl-data-tabledynamic mdl-shadow--2dp">
     {{if .noResults}}
     <div class="mdl-data-tabledynamic__title">
         <h2 class="mdl-data-tabledynamic__title-text">There are no results for filter `{{.filter}}`.</h2>

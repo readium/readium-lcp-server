@@ -27,20 +27,15 @@
 
 package model
 
-import "github.com/jinzhu/gorm"
-
 type (
 	// License struct defines a license
 	LicenseView struct {
-		ID               int      `json:"-" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		PublicationTitle string   `json:"publication_title" gorm:"-"`
-		UserName         string   `json:"user_name" gorm:"-"`
-		Type             string   `json:"type" gorm:"-"`
-		UUID             string   `json:"id" gorm:"size:36"` //uuid - max size 36
-		DeviceCount      *NullInt `json:"device_count" sql:"NOT NULL"`
-		Status           Status   `json:"status"  sql:"NOT NULL"`
-		PurchaseID       int      `json:"purchase_id" gorm:"-"`
-		Message          string   `json:"message" sql:"NOT NULL"`
+		ID          int      `json:"-" sql:"AUTO_INCREMENT" gorm:"primary_key"`
+		UUID        string   `json:"id" gorm:"size:36"` //uuid - max size 36 - purchase id
+		DeviceCount *NullInt `json:"device_count" sql:"NOT NULL"`
+		Status      Status   `json:"status"  sql:"NOT NULL"`
+		Message     string   `json:"message" sql:"NOT NULL"`
+		Purchase    Purchase `json:"-" gorm:"foreignKey:UUID"`
 	}
 
 	LicensesViewCollection []*LicenseView
@@ -51,81 +46,28 @@ func (l *LicenseView) TableName() string {
 	return LUTLicenseViewTableName
 }
 
-// Get a license for a given ID
-//
-func (s licenseStore) GetView(id int64) (License, error) {
-	/**
-		dbGetByID, err := s.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license_view AS l
-												INNER JOIN purchase as p ON l.uuid = p.license_uuid
-												INNER JOIN publication as pu ON p.publication_id = pu.id
-												INNER JOIN user as u ON p.user_id = u.id
-												WHERE id = ?`)
-		if err != nil {
-			return LicenseView{}, err
-		}
-		defer dbGetByID.Close()
-
-		records, err := dbGetByID.Query(id)
-		if records.Next() {
-			var result LicenseView
-			err = records.Scan(
-				&result.ID,
-				&result.PublicationTitle,
-				&result.UserName,
-				&result.Type,
-				&result.DeviceCount,
-				&result.Status,
-				&result.PurchaseID,
-				&result.Message)
-			records.Close()
-			return result, err
-		}
-	**/
-	return License{}, gorm.ErrRecordNotFound
+func (s licenseStore) CountFiltered(deviceLimit string) (int64, error) {
+	var result int64
+	return result, s.db.Model(LicenseView{}).Where("device_count >= ?", deviceLimit).Count(&result).Error
 }
 
 // GetFiltered give a license with more than the filtered number
 //
-func (s licenseStore) GetFiltered(filter string) (LicensesCollection, error) {
-	/**
-	dbGetByID, err := s.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license_view AS l
-											INNER JOIN purchase as p ON l.uuid = p.license_uuid
-											INNER JOIN publication as pu ON p.publication_id = pu.id
-											INNER JOIN user as u ON p.user_id = u.id
-											WHERE l.device_count >= ?`)
-	if err != nil {
-		return []LicenseView{}, err
-	}
-	defer dbGetByID.Close()
-	records, err := dbGetByID.Query(filter)
-	result := make([]LicenseView, 0, 20)
+func (s licenseStore) GetFiltered(deviceLimit string, page, pageNum int64) (LicensesViewCollection, error) {
+	var result LicensesViewCollection
+	return result, s.db.Where("device_count >= ?", deviceLimit).Offset(pageNum * page).Limit(page).Order("id DESC").Find(&result).Error
+}
 
-	for records.Next() {
-		var lic LicenseView
-		err = records.Scan(
-			&lic.ID,
-			&lic.PublicationTitle,
-			&lic.UserName,
-			&lic.Type,
-			&lic.DeviceCount,
-			&lic.Status,
-			&lic.PurchaseID,
-			&lic.Message)
-		if err != nil {
-			fmt.Println(err)
-		}
-		result = append(result, lic)
-	}
-	records.Close()
-
-	return result, nil
-	**/
-	return make(LicensesCollection, 0, 0), nil
+// Get a license for a given ID
+//
+func (s licenseStore) GetView(id int64) (*LicenseView, error) {
+	var result LicenseView
+	return &result, s.db.Where("id = ?", id).Find(&result).Error
 }
 
 // Add adds a new license
 //
-func (s licenseStore) AddView(licenses LicenseView) error {
+func (s licenseStore) AddView(licenses *LicenseView) error {
 	return s.db.Create(licenses).Error
 }
 
@@ -158,7 +100,7 @@ func (s licenseStore) PurgeDataBase() error {
 
 // Update updates a license
 //
-func (s licenseStore) UpdateView(lic LicenseView) error {
+func (s licenseStore) UpdateView(lic *LicenseView) error {
 	return s.db.Save(lic).Error
 }
 

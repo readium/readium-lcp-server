@@ -1,7 +1,7 @@
 {{ script "jquery.form-validator.min" }}
 
-<form method="POST" action="/licenses" enctype="multipart/form-data">
-    <div class="mdl-card mdl-shadow--2dp" style="width:100%">
+<div class="mdl-card mdl-shadow--2dp page-content">
+    <form method="POST" action="/licenses" enctype="multipart/form-data">
         <div class="mdl-card__title">
 
         </div>
@@ -38,11 +38,11 @@
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit">Save</button>
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel" type="reset">Cancel</button>
         </div>
-    </div>
-</form>
+    </form>
+</div>
 
 <style>
-   .mdl-button--file input {
+    .mdl-button--file input {
         cursor: pointer;
         height: 100%;
         right: 0;
@@ -57,6 +57,7 @@
         box-sizing: border-box;
         width: calc(100% - 32px);
     }
+
     .mdl-textfield--file .mdl-button--file {
         right: 0;
     }

@@ -311,7 +311,7 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 			if err == io.EOF {
 				return fmt.Errorf("Missing mandatory payload.")
 			}
-			return fmt.Errorf("Error decoding result : " + err.Error())
+			return fmt.Errorf("Error decoding result : `" + err.Error() + "`. Username and password are missing?")
 		}
 		if !server.Auth(authentication.User, authentication.Password) {
 			return fmt.Errorf("Error : bad username / password (`" + authentication.User + "`:`" + authentication.Password + "`)")

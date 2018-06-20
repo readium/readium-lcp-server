@@ -62,7 +62,7 @@ func (p *Publication) BeforeSave() error {
 // Encrypts a master File and sends the content to the LCP server
 //
 func (s publicationStore) Add(pub *Publication) error {
-	return s.db.Debug().Create(pub).Error
+	return s.db.Create(pub).Error
 }
 
 // Update updates a publication
@@ -95,7 +95,7 @@ func (s publicationStore) Delete(id int64) error {
 }
 
 func (s publicationStore) BulkDelete(pubIds []int64) error {
-	result := Transaction(s.db, func(tx txStore) error {
+	return Transaction(s.db, func(tx txStore) error {
 		for _, id := range pubIds {
 			// delete all purchases relative to this publication
 			err := tx.Where("publication_id = ?", id).Delete(Purchase{}).Error
@@ -109,7 +109,6 @@ func (s publicationStore) BulkDelete(pubIds []int64) error {
 		}
 		return nil
 	})
-	return result
 }
 
 func (s publicationStore) Count() (int64, error) {

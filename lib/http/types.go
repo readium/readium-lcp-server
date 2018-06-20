@@ -39,6 +39,7 @@ import (
 	"github.com/readium/readium-lcp-server/model"
 	"net"
 	"sync"
+	"time"
 )
 
 const (
@@ -238,6 +239,12 @@ type (
 	Authorization struct {
 		User     string
 		Password string
+	}
+
+	AuthorizationAndTimestamp struct {
+		User     string
+		Password string
+		Sync     time.Time
 	}
 
 	AuthorizationAndLicense struct {

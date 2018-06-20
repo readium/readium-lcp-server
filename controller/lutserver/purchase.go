@@ -28,7 +28,6 @@
 package lutserver
 
 import (
-	"log"
 	"strconv"
 
 	"github.com/readium/readium-lcp-server/lib/http"
@@ -36,6 +35,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/views"
+	"strings"
 	"time"
 )
 
@@ -221,20 +221,14 @@ func GetPurchases(server http.IServer, param ParamPagination) (*views.Renderer, 
 
 // CreatePurchase creates a purchase in the database
 //
+// TODO : shouldn't this notify LCP / LSD on create/update ?
 func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*views.Renderer, error) {
 	switch payload.ID {
 	case 0:
 		if err := server.Store().Purchase().Add(payload); err != nil {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
-
-		if payload.Type == model.LOAN {
-			log.Println("user " + strconv.Itoa(int(payload.UserId)) + " lent publication " + strconv.Itoa(int(payload.PublicationId)) + " until " + payload.EndDate.Time.String())
-		} else {
-			log.Println("user " + strconv.Itoa(int(payload.UserId)) + " bought publication " + strconv.Itoa(int(payload.PublicationId)))
-		}
 	default:
-
 		if payload.StartDate.Valid {
 			payload.StartDate.Time = payload.StartDate.Time.UTC().Truncate(time.Second)
 		}
@@ -245,6 +239,7 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 
 		// update the purchase, license id, start and end dates, status
 		if err := server.Store().Purchase().Update(&model.Purchase{
+			ID:        payload.ID,
 			StartDate: payload.StartDate,
 			EndDate:   payload.EndDate,
 			Type:      payload.Type,
@@ -261,4 +256,26 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 	}
 
 	return nil, http.Problem{Detail: "/purchases", Status: http.StatusRedirect}
+}
+
+// Delete removes purchase from the database
+func DeletePurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
+	ids := strings.Split(param.Id, ",")
+	var pendingDeleteIds []int64
+	for _, id := range ids {
+		uid, err := strconv.Atoi(id)
+		if err != nil {
+			// id is not a number
+			return nil, http.Problem{Detail: "ID must be an integer", Status: http.StatusBadRequest}
+		}
+		_, err = server.Store().Purchase().Get(int64(uid))
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
+		}
+		pendingDeleteIds = append(pendingDeleteIds, int64(uid))
+	}
+	if err := server.Store().Purchase().BulkDelete(pendingDeleteIds); err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+	}
+	return nil, http.Problem{Status: http.StatusOK}
 }

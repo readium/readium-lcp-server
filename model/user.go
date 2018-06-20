@@ -123,7 +123,7 @@ func (s userStore) Delete(userID int64) error {
 }
 
 func (s userStore) BulkDelete(userIds []int64) error {
-	result := Transaction(s.db, func(tx txStore) error {
+	return Transaction(s.db, func(tx txStore) error {
 		for _, userID := range userIds {
 			err := tx.Where("user_id = ?", userID).Delete(Purchase{}).Error
 			if err != nil {
@@ -136,5 +136,4 @@ func (s userStore) BulkDelete(userIds []int64) error {
 		}
 		return nil
 	})
-	return result
 }

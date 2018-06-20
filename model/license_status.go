@@ -30,6 +30,7 @@ package model
 import (
 	"database/sql/driver"
 	"fmt"
+	"strconv"
 )
 
 type (
@@ -87,8 +88,14 @@ func (t *Status) Scan(i interface{}) error {
 		return nil
 	case int64:
 		vv = v
+	case []byte:
+		inter, err := strconv.Atoi(string(v))
+		if err != nil {
+			return fmt.Errorf("can't scan %T into %T (%s)", v, t, v)
+		}
+		vv = int64(inter)
 	default:
-		return fmt.Errorf("can't scan %T into %T", v, t)
+		return fmt.Errorf("can't scan %T into %T (%#v)", v, t, i)
 	}
 
 	switch vv {
@@ -135,6 +142,27 @@ func (t Status) Value() (driver.Value, error) {
 	default:
 		return nil, fmt.Errorf("invalid value of type RideStatus: %v", t)
 	}
+}
+
+func (s *LicenseStatus) String() string {
+	result := fmt.Sprintf("%d Status : %s LicRef : %s\n", s.Id, s.Status, s.LicenseRef)
+	if s.LicenseUpdated != nil && s.LicenseUpdated.Valid {
+		result += " Updated on : " + s.LicenseUpdated.Time.String()
+	}
+	if s.StatusUpdated != nil && s.StatusUpdated.Valid {
+		result += " Status Updated on : " + s.StatusUpdated.Time.String()
+	}
+	if s.DeviceCount != nil && s.DeviceCount.Valid {
+		result += fmt.Sprintf(" %d devices", s.DeviceCount.Int64)
+	}
+	if s.PotentialRightsEnd != nil && s.PotentialRightsEnd.Valid {
+		result += " PotentialRightsEnd : " + s.PotentialRightsEnd.Time.String()
+	}
+	if s.CurrentEndLicense != nil && s.CurrentEndLicense.Valid {
+		result += " CurrentEndLicense : " + s.CurrentEndLicense.Time.String()
+	}
+	result += fmt.Sprintf(" %d links %d events", len(s.Links), len(s.Events))
+	return result
 }
 
 func (s *LicenseStatus) TableName() string {

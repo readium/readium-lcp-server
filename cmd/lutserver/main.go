@@ -28,16 +28,19 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
+	"encoding/gob"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/controller/lutserver"
 	"github.com/readium/readium-lcp-server/lib/cron"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/model"
+	"io"
 	"io/ioutil"
+	"net"
 	goHttp "net/http"
 	"os"
 	"os/signal"
@@ -98,6 +101,8 @@ func main() {
 
 	// for development
 	if !cfg.LutServer.StopCronRunner {
+		// Fetch for the first time
+		go FetchLicenseStatusesFromLSD(server)
 		// Cron, get license status information
 		cron.Start(5 * time.Minute)
 		// using Method expression instead of function
@@ -142,111 +147,77 @@ func main() {
 	os.Exit(0)
 }
 
-func ReadLicensesPayloads(data []byte) (model.LicensesStatusCollection, error) {
-	var licenses model.LicensesStatusCollection
-	err := json.Unmarshal(data, &licenses)
-	if err != nil {
-		return nil, err
-	}
-	return licenses, nil
-}
-
-//TODO : replace FetchLicenseStatusesFromLSD with :
-/**
-// Open a connection to the server.
-	rw, cl, err := GOBClient(t, "localhost:9000")
-	if err != nil {
-		t.Fatalf("Client: Failed to open connection  : %v", err)
-	}
-
-	defer cl.Close()
-	t.Log("Placing a licenses request.")
-	_, err = rw.WriteString("LICENSES\n")
-	if err != nil {
-		t.Fatalf("Could not write : %v", err)
-	}
-
-	enc := gob.NewEncoder(rw)
-	err = enc.Encode(http.Authorization{User: "badu", Password: "hello"})
-	if err != nil {
-		t.Fatalf("Encode failed for struct: %v", err)
-	}
-
-	t.Log("Flushing the command.")
-	err = rw.Flush()
-	if err != nil {
-		t.Fatalf("Flush failed : %v", err)
-	}
-	// Read the reply.
-	t.Log("Read the reply.")
-
-	bodyBytes, err := ioutil.ReadAll(rw.Reader)
-	if err != nil {
-		t.Fatalf("Error reading response body : %v", err)
-	}
-
-	var data model.LicensesStatusCollection
-	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
-	err = dec.Decode(&data)
-	if err != nil {
-		t.Fatalf("Error decoding GOB data: %v\n%s", err, bodyBytes)
-	}
-	t.Logf("Response (%d statuses):\n%v", len(data), data)
-*/
 func FetchLicenseStatusesFromLSD(s http.IServer) {
+	conn, err := net.Dial("tcp", "localhost:9000")
+	if err != nil {
+		s.LogError("Error dialing LSD : %v", err)
+		return
+	}
+	defer conn.Close()
+
 	s.LogInfo("AUTOMATION : Fetch and save all license status documents")
 
-	url := s.Config().LsdServer.PublicBaseUrl + "/licenses"
-	auth := s.Config().LsdNotifyAuth
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 
-	// prepare the request
-	req, err := http.NewRequest("GET", url, nil)
+	_, err = rw.WriteString("LICENSES\n")
 	if err != nil {
-		panic(err)
-	}
-	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(auth.Username+":"+auth.Password)))
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// making request
-	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
-	// If we got an error, and the context has been canceled, the context's error is probably more useful.
-	if err != nil {
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-		default:
-		}
-	}
-
-	if err != nil {
-		s.LogError("AUTOMATION : Error getting license statuses : %v", err)
+		s.LogError("Could not write : %v", err)
 		return
 	}
 
-	// we have a body, defering close
-	defer resp.Body.Close()
-	// reading body
-	body, err := ioutil.ReadAll(resp.Body)
+	enc := gob.NewEncoder(rw)
+	//TODO : add Sync time below - to make smaller payloads
+	err = enc.Encode(http.AuthorizationAndTimestamp{User: s.Config().LsdNotifyAuth.Username, Password: s.Config().LsdNotifyAuth.Password})
 	if err != nil {
-		s.LogError("AUTOMATION : Error reading response body error : %v", err)
+		s.LogError("Encode failed for struct: %v", err)
+		return
 	}
 
-	s.LogInfo("AUTOMATION : lsd server response : %v [http-status:%d]", body, resp.StatusCode)
+	s.LogInfo("Flushing the command.")
+	err = rw.Flush()
+	if err != nil {
+		s.LogError("Flush failed : %v", err)
+		return
+	}
+	// Read the reply.
+	s.LogInfo("Read the reply.")
 
-	// clear the db
-	err = s.Store().License().PurgeDataBase()
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
 	if err != nil {
-		panic(err)
+		s.LogError("Error reading response body : %v", err)
+		return
 	}
 
-	licenses, err := ReadLicensesPayloads(body)
-	if err != nil {
-		panic(err)
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		var licenses model.LicensesStatusCollection
+		dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+		err = dec.Decode(&licenses)
+		if err != nil {
+			s.LogError("Error decoding GOB licenses: %v\n%s", err, bodyBytes)
+			return
+		}
+		for _, licenseStatus := range licenses {
+			s.LogInfo("License status :\n%v", licenseStatus)
+		}
+		// TODO : once Sync in place, no need to purge database - just Create or Update
+		// clear the db
+		err = s.Store().License().PurgeDataBase()
+		if err != nil {
+			panic(err)
+		}
+
+		// fill the db
+		err = s.Store().License().BulkAdd(licenses)
+		if err != nil {
+			panic(err)
+		}
+
+	} else if responseErr.Err != "" {
+		s.LogError("LDS Replied with Error : %v", responseErr)
+		return
 	}
-	// fill the db
-	err = s.Store().License().BulkAdd(licenses)
-	if err != nil {
-		panic(err)
-	}
+
 }

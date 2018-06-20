@@ -162,7 +162,7 @@ func (s purchaseStore) Add(p *Purchase) error {
 
 func (s purchaseStore) Update(p *Purchase) error {
 	var result Purchase
-	err := s.db.Where(Publication{ID: p.ID}).Find(&result).Error
+	err := s.db.Where(Purchase{ID: p.ID}).Find(&result).Error
 	if err != nil {
 		return err
 	}
@@ -173,4 +173,16 @@ func (s purchaseStore) Update(p *Purchase) error {
 		"type":       p.Type,
 	}).Error
 
+}
+
+func (s purchaseStore) BulkDelete(ids []int64) error {
+	return Transaction(s.db, func(tx txStore) error {
+		for _, deletedId := range ids {
+			err := tx.Where("id = ?", deletedId).Delete(Purchase{}).Error
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

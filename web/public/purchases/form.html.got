@@ -23,47 +23,6 @@
         color: #60c7cd;
         cursor: pointer;
     }
-
-    .c-btn {
-        font-size: 14px;
-        text-transform: capitalize;
-        font-weight: 600;
-        display: inline-block;
-        line-height: 36px;
-        cursor: pointer;
-        text-align: center;
-        text-transform: uppercase;
-        min-width: 88px;
-        height: 36px;
-        margin: 10px 8px;
-        padding: 0 8px;
-        text-align: center;
-        letter-spacing: .5px;
-        border-radius: 2px;
-        background: #F1F1F1;
-        color: #393939;
-        transition: background 200ms ease-in-out;
-        box-shadow: 0 3.08696px 5.82609px 0 rgba(0, 0, 0, 0.16174), 0 3.65217px 12.91304px 0 rgba(0, 0, 0, 0.12435);
-    }
-
-    .c-btn--flat {
-        background: transparent;
-        margin: 10px 8px;
-        min-width: 52px;
-    }
-
-    .c-btn:hover {
-        background: rgba(153, 153, 153, 0.2);
-        color: #393939;
-    }
-
-    .c-btn:active {
-        box-shadow: 0 9.6087px 10.78261px 0 rgba(0, 0, 0, 0.17217), 0 13.56522px 30.3913px 0 rgba(0, 0, 0, 0.15043);
-    }
-
-    .c-btn--flat, .c-btn--flat:hover, .c-btn--flat:active {
-        box-shadow: none;
-    }
 </style>
 
 <dialog class="mdl-dialog dialog" id="usersDialog">
@@ -116,7 +75,7 @@
 
         <table style="height: 70vh;width: 100%">
             <tr>
-                <td>
+                <td style="text-align: right;">
                     <span>User:</span>
                 </td>
                 <td>
@@ -128,7 +87,7 @@
                 </td>
             </tr>
             <tr>
-                <td>
+                <td style="text-align: right;">
                     <span>Publication:</span>
                 </td>
                 <td>
@@ -140,7 +99,7 @@
                 </td>
             </tr>
             <tr>
-                <td style="text-align: left;">
+                <td style="text-align: right;">
                     <span> Status : </span>
                 </td>
                 <td>
@@ -150,6 +109,11 @@
                         <i class="mdl-icon-toggle__label material-icons">keyboard_arrow_down</i>
                         <label class="mdl-textfield__label" for="Status">Status</label>
                         <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu" for="Status">
+                            {{if eq .purchase.Status "Ready"}}
+                            <li class="mdl-menu__item" data-val="Ready" data-selected="true">Ready</li>
+                            {{else}}
+                            <li class="mdl-menu__item" data-val="Active">Active</li>
+                            {{end}}
                             {{if eq .purchase.Status "Active"}}
                             <li class="mdl-menu__item" data-val="Active" data-selected="true">Active</li>
                             {{else}}
@@ -185,7 +149,7 @@
                 </td>
             </tr>
             <tr>
-                <td style="text-align:left;">
+                <td style="text-align:right;">
                     <span> Type : </span>
                 </td>
                 <td>
@@ -196,8 +160,8 @@
                     </label>
                 </td>
             </tr>
-            <tr>
-                <td style="text-align: left;">
+            <tr id="startDateRow">
+                <td style="text-align: right;">
                     <span> StartDate : </span>
                 </td>
                 <td>
@@ -207,8 +171,8 @@
                     </div>
                 </td>
             </tr>
-            <tr>
-                <td style="text-align: left;">
+            <tr id="endDateRow">
+                <td style="text-align: right;">
                     <span> EndDate : </span>
                 </td>
                 <td>
@@ -220,7 +184,7 @@
             </tr>
         </table>
         <div class="mdl-paging mdl-data-tabledynamic__actions">
-            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect save" type="submit">Save</button>
+            <button id="saveButton" class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit">Save</button>
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel" type="reset">Cancel</button>
         </div>
     </form>
@@ -239,14 +203,39 @@
             var publicationsDialog = document.getElementById('publicationsDialog');
             var usersDialog = document.getElementById('usersDialog');
             var notificator = document.querySelector('#toastMessage');
+            var saveButton = document.getElementById('saveButton');
+            var startDateEl = document.getElementById("StartDate");
+            var endDateEl = document.getElementById("EndDate");
+            var checkLoanAndSetStart = function () {
+                if (buyLoadHidden.value == "Loan") {
+                    if (startDateEl.value == "") {
+                        startDateEl.value = moment().utc().startOf('day').format();
+                    }
+                }
+            };
 
-            $(".save").on("submit", function (event) {
+            checkLoanAndSetStart();
+
+            saveButton.addEventListener("click", function (event) {
                 var errorMessage = "";
                 if (document.getElementById("PublicationId").value == 0) {
                     errorMessage = "Choose a publication.";
                 }
                 if (document.getElementById("UserId").value == 0) {
                     errorMessage = "Choose an user.";
+                }
+                if (document.getElementById("Status").value == "") {
+                    errorMessage = "Choose a status";
+                }
+                if (buyLoadHidden.value == "Loan") {
+                    // checking start date before end date
+                    if (moment(endDateEl.value).isBefore(moment(startDateEl.value))) {
+                        errorMessage = "Start date must be before end date.";
+                    }
+                } else {
+                    // cleaning up start and end - it's a buy
+                    startDateEl.value = "";
+                    endDateEl.value = "";
                 }
                 // Each time the user tries to send the data, we check
                 // if the email field is valid.
@@ -268,11 +257,11 @@
                     hasOpenedPicker = false;
                     switch (currentPicking) {
                         case "start":
-                            document.getElementById("StartDate").value = dat.format();
+                            startDateEl.value = dat.utc().startOf('day').format();
                             currentPicking = "";
                             break;
                         case "end":
-                            document.getElementById("EndDate").value = dat.format();
+                            endDateEl.value = dat.utc().startOf('day').format();
                             currentPicking = "";
                             break;
                         default:
@@ -309,9 +298,13 @@
             document.getElementById("switch-input").onclick = function () {
                 if (buyLoadSwitch.textContent == "Loan") {
                     buyLoadHidden.value = buyLoadSwitch.textContent = "Buy";
-
+                    $("#startDateRow").css("visibility", "hidden");
+                    $("#endDateRow").css("visibility", "hidden");
                 } else {
                     buyLoadHidden.value = buyLoadSwitch.textContent = "Loan";
+                    checkLoanAndSetStart();
+                    $("#startDateRow").css("visibility", "visible");
+                    $("#endDateRow").css("visibility", "visible");
                 }
             };
 
@@ -322,9 +315,9 @@
                 }
                 usersDialog.showModal();
                 $(document).on("click", "li.selectedItem", function () {
-                    console.log("Clicked :  ", $(this)[0]);
-                    document.getElementById("UserId").value = $(this)[0].id;
-                    document.getElementById("userEmail").value = $(this)[0].name;
+                    var chosen = $(this)[0];
+                    document.getElementById("UserId").value = chosen.getAttribute("id");
+                    document.getElementById("userEmail").value = chosen.getAttribute("name");
                     usersDialog.close();
                     $(document).off("click", "li.selectedItem");
                 });
@@ -347,9 +340,9 @@
                 }
                 publicationsDialog.showModal();
                 $(document).on("click", "li.selectedItem", function () {
-                    console.log("Clicked :  ", $(this)[0]);
-                    document.getElementById("PublicationId").value = $(this)[0].id;
-                    document.getElementById("publicationTitle").value = $(this)[0].name;
+                    var chosen = $(this)[0];
+                    document.getElementById("PublicationId").value = chosen.getAttribute("id");
+                    document.getElementById("publicationTitle").value = chosen.getAttribute("name");
                     publicationsDialog.close();
                     $(document).off("click", "li.selectedItem");
                 });

@@ -176,6 +176,7 @@ type (
 		ListByUser(userID int64, page int64, pageNum int64) (PurchaseCollection, error)
 		Add(p *Purchase) error
 		Update(p *Purchase) error
+		BulkDelete(ids []int64) error
 	}
 
 	LicenseRepository interface {
@@ -188,10 +189,15 @@ type (
 		UpdateLsdStatus(id string, status int32) error
 		Add(l *License) error
 		Get(id string) (*License, error)
-		//from license view
-		GetFiltered(filter string) (LicensesCollection, error)
+		// from license view
+		GetView(id int64) (*LicenseView, error)
+		CountFiltered(deviceLimit string) (int64, error)
+		GetFiltered(deviceLimit string, page, pageNum int64) (LicensesViewCollection, error)
+		AddView(licenses *LicenseView) error
 		BulkAdd(licenses LicensesStatusCollection) error
 		PurgeDataBase() error
+		UpdateView(lic *LicenseView) error
+		Delete(id int64) error
 	}
 )
 

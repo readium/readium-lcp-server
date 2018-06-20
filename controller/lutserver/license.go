@@ -37,15 +37,22 @@ import (
 
 // GetFilteredLicenses searches licenses activated by more than n devices
 //
-func GetFilteredLicenses(server http.IServer, param ParamId) (*views.Renderer, error) {
+func GetFilteredLicenses(server http.IServer, param ParamPaginationAndId) (*views.Renderer, error) {
 	if param.Id == "" {
-		param.Id = "0"
+		param.Id = "1"
+	}
+	noOfLicenses, err := server.Store().License().CountFiltered(param.Id)
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
+	}
+	page, perPage, err := http.ReadPagination(param.Page, param.PerPage, noOfLicenses)
+	if err != nil {
+		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
 	}
 
-	if lic, err := server.Store().License().GetFiltered(param.Id); err == nil {
-		server.LogInfo("License for device : %#v", lic)
-		return &views.Renderer{}, nil
-	} else {
+	view := &views.Renderer{}
+	licenses, err := server.Store().License().GetFiltered(param.Id, perPage, page)
+	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
@@ -53,6 +60,13 @@ func GetFilteredLicenses(server http.IServer, param ParamId) (*views.Renderer, e
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	}
+	view.AddKey("licenses", licenses)
+	view.AddKey("pageTitle", "Licenses list")
+	view.AddKey("total", noOfLicenses)
+	view.AddKey("currentPage", 1)
+	view.AddKey("perPage", 20)
+	view.Template("licenses/index.html.got")
+	return view, nil
 }
 
 // GetLicense gets an existing license by its id (passed as a section of the REST URL).
