@@ -53,6 +53,7 @@ func GetLicense(server http.IServer, payload *model.License, param ParamLicenseI
 	licOut, e := server.Store().License().Get(param.LicenseID)
 	// process license not found etc.
 	if e == gorm.ErrRecordNotFound {
+		server.LogError("License id %q NOT found.", param.LicenseID)
 		return nil, http.Problem{Detail: e.Error(), Status: http.StatusNotFound}
 	} else if e != nil {
 		return nil, http.Problem{Detail: e.Error(), Status: http.StatusBadRequest}

@@ -92,6 +92,7 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 
 	// FormToFields the mandatory provider URI
 	if server.Config().LutServer.ProviderUri == "" {
+		server.LogError("Missing ProviderURI")
 		return nil, errors.New("Mandatory provider URI missing in the configuration")
 	}
 	encryptedAttrs := []string{"email", "name"}
@@ -109,9 +110,14 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 	userKeyValue, err := hex.DecodeString(purchase.User.Password)
 
 	if err != nil {
+		server.LogError("Missing User Password [%q] or hex.DecodeString error : %v", purchase.User.Password, err)
 		return nil, err
 	}
-
+	/**
+		if len(userKeyValue) != 16 {
+			return nil, fmt.Errorf("Error : user password should have 16 bytes.")
+		}
+	**/
 	userKey := model.LicenseUserKey{
 		Key: model.Key{
 			Algorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
@@ -144,6 +150,7 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 	// encode in json
 	jsonBody, err := json.Marshal(partialLicense)
 	if err != nil {
+		server.LogError("Error encoding json : %v", err)
 		return nil, err
 	}
 
@@ -163,8 +170,10 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 	// add the partial license to the POST request
 	req, err := http.NewRequest("POST", lcpURL, bytes.NewReader(jsonBody))
 	if err != nil {
+		server.LogError("Error POST LCP : %v", err)
 		return nil, err
 	}
+	server.LogInfo("Executing POST on %q", lcpURL)
 	lcpUpdateAuth := server.Config().LcpUpdateAuth
 	if server.Config().LcpUpdateAuth.Username != "" {
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
@@ -198,7 +207,13 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 	// is neither 201 Created or 200 ok, return an internal error
 	if (purchase.LicenseUUID == nil && resp.StatusCode != 201) ||
 		(purchase.LicenseUUID != nil && resp.StatusCode != 200) {
-		return nil, errors.New("The License Server returned an error")
+		server.LogError("LCP Responded with Error code: %d calling %q", resp.StatusCode, lcpURL)
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			server.LogError("Error reading response : %v", err)
+			return nil, fmt.Errorf("The License Server returned an error, but it's empty.")
+		}
+		return nil, fmt.Errorf("The License Server returned an error : %s", string(bodyBytes))
 	}
 
 	// decode the full license
@@ -208,6 +223,7 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 	err = dec.Decode(fullLicense)
 
 	if err != nil {
+		server.LogError("Error decoding json : %v", err)
 		return nil, errors.New("Unable to decode license")
 	}
 
@@ -216,6 +232,7 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 		purchase.LicenseUUID = &model.NullString{NullString: sql.NullString{String: fullLicense.Id, Valid: true}}
 		err = updatePurchase(purchase, server)
 		if err != nil {
+			server.LogError("Error updating purchase : %v", err)
 			return fullLicense, err
 		}
 	}
@@ -437,9 +454,9 @@ func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, []ParamAndIndex
 		panic("Handler has " + strconv.Itoa(functionType.NumOut()) + " returns. Must have two : *object or interface{}, and error. (while registering " + callerName + ")")
 	}
 
-	// first param returned must be Renderer (views.Renderer)
-	if functionType.Out(0).String() != "*views.Renderer" {
-		panic("bad handler func : should return *views.Renderer as first param")
+	// first param returned must be Renderer (views.Renderer) or []byte (for downloads)
+	if functionType.Out(0).String() != "*views.Renderer" && functionType.Out(0).String() != "[]uint8" {
+		panic("bad handler func : (" + callerName + ") should return *views.Renderer as first param ( you provided -> " + functionType.Out(0).String() + ")")
 	}
 
 	// last param returned must be error
@@ -591,15 +608,17 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 		// finally, we're calling the handler with all the params
 		out := fnValue.Call(in)
 
-		w.Header().Set(http.HdrContentType, http.ContentTypeTextHtml)
 		// error is carrying http status and http headers - we're taking it
 		if !out[1].IsNil() {
+
 			problem, ok := out[1].Interface().(http.Problem)
 			if !ok {
+				w.Header().Set(http.HdrContentType, http.ContentTypeTextHtml)
 				renderError(w, fmt.Errorf("Bad http.Problem"))
 				return
 			}
 			if problem.Status == http.StatusRedirect {
+				w.Header().Set(http.HdrContentType, http.ContentTypeTextHtml)
 				http.Redirect(w, r, problem.Detail, problem.Status)
 				return
 			}
@@ -608,12 +627,14 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 				w.Header().Set(hdrKey, problem.HttpHeaders.Get(hdrKey))
 			}
 		}
+
 		// bytes are delivered as they are (downloads)
 		if byts, ok := out[0].Interface().([]byte); ok {
 			w.Write(byts)
 			return
 		}
 
+		w.Header().Set(http.HdrContentType, http.ContentTypeTextHtml)
 		renderer, ok := out[0].Interface().(*views.Renderer)
 		if ok && renderer != nil {
 			renderer.SetWriter(w)
@@ -679,7 +700,7 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	licenseRoutesPathPrefix := "/licenses"
 	makeHandler(muxer, server, licenseRoutesPathPrefix, GetFilteredLicenses).Methods("GET")
 	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
-	makeHandler(licenseRoutes, server, "/{license_id}", GetLicense).Methods("GET")
+	makeHandler(licenseRoutes, server, "/{id}", GetLicense).Methods("GET")
 
 	static := server.Config().LutServer.Directory
 	if static == "" {

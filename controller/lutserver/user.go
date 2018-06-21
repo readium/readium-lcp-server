@@ -30,6 +30,7 @@ package lutserver
 import (
 	"strconv"
 
+	"encoding/hex"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/views"
@@ -121,6 +122,9 @@ func GetUser(server http.IServer, param ParamId) (*views.Renderer, error) {
 func CreateOrUpdateUser(server http.IServer, user *model.User) (*views.Renderer, error) {
 	switch user.ID {
 	case 0:
+		if user.Password != "" {
+			user.Password = hex.EncodeToString([]byte(user.Password))
+		}
 		err := server.Store().User().Add(user)
 		if err != nil {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
@@ -146,6 +150,8 @@ func CreateOrUpdateUser(server http.IServer, user *model.User) (*views.Renderer,
 			// only if a new password was provided, allow to change password / hint
 			if user.Password == "" {
 				updateEntity.Password = existingUser.Password
+			} else {
+				user.Password = hex.EncodeToString([]byte(user.Password))
 			}
 			if user.Hint == "" {
 				updateEntity.Hint = existingUser.Hint

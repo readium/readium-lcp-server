@@ -27,15 +27,21 @@
 
 package model
 
+import (
+	"fmt"
+	"original_gorm"
+)
+
 type (
 	// License struct defines a license
 	LicenseView struct {
-		ID          int      `json:"-" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		UUID        string   `json:"id" gorm:"size:36"` //uuid - max size 36 - purchase id
-		DeviceCount *NullInt `json:"device_count" sql:"NOT NULL"`
-		Status      Status   `json:"status"  sql:"NOT NULL"`
-		Message     string   `json:"message" sql:"NOT NULL"`
-		Purchase    Purchase `json:"-" gorm:"foreignKey:UUID"`
+		ID             int       `json:"-" sql:"AUTO_INCREMENT" gorm:"primary_key"`
+		UUID           string    `json:"id" gorm:"size:36"` //uuid - max size 36 - purchase id
+		DeviceCount    *NullInt  `json:"device_count" sql:"NOT NULL"`
+		Status         Status    `json:"status"  sql:"NOT NULL"`
+		Message        string    `json:"message" sql:"NOT NULL"`
+		Purchase       Purchase  `json:"-" gorm:"-"`
+		LicenseUpdated *NullTime `json:"updated,omitempty" gorm:"column:license_updated"`
 	}
 
 	LicensesViewCollection []*LicenseView
@@ -55,7 +61,18 @@ func (s licenseStore) CountFiltered(deviceLimit string) (int64, error) {
 //
 func (s licenseStore) GetFiltered(deviceLimit string, page, pageNum int64) (LicensesViewCollection, error) {
 	var result LicensesViewCollection
-	return result, s.db.Where("device_count >= ?", deviceLimit).Offset(pageNum * page).Limit(page).Order("id DESC").Find(&result).Error
+	err := s.db.Where("device_count >= ?", deviceLimit).Offset(pageNum * page).Limit(page).Order("id DESC").Find(&result).Error
+
+	for _, license := range result {
+		var p Purchase
+		sErr := s.db.Model(Purchase{}).Where("license_uuid = ?", license.UUID).Find(&p).Preload("User").Preload("Publication").Error
+		if sErr != nil && sErr == gorm.ErrRecordNotFound {
+			fmt.Printf("Purchase with UUID %q NOT FOUND.\n", license.UUID)
+		}
+		license.Purchase = p
+	}
+
+	return result, err
 }
 
 // Get a license for a given ID
@@ -77,9 +94,10 @@ func (s licenseStore) BulkAdd(licenses LicensesStatusCollection) error {
 	result := Transaction(s.db, func(tx txStore) error {
 		for _, l := range licenses {
 			entity := &LicenseView{
-				UUID:        l.LicenseRef,
-				DeviceCount: l.DeviceCount,
-				Status:      l.Status,
+				UUID:           l.LicenseRef,
+				DeviceCount:    l.DeviceCount,
+				Status:         l.Status,
+				LicenseUpdated: l.LicenseUpdated,
 			}
 			err := tx.Create(entity).Error
 			if err != nil {

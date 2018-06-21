@@ -40,7 +40,7 @@
             </thead>
             <tbody>
             {{ range $i,$m := .licenses }}
-            <tr id="{{$m.ID}}">
+            <tr id="{{$m.Purchase.LicenseUUIDString}}">
                 <td>
                     <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect mdl-data-table__select">
                         <input type="checkbox" class="mdl-checkbox__input">

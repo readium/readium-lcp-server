@@ -286,17 +286,17 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 	server.HandleFunc(muxer, licenseRoutesPathPrefix, FilterLicenseStatuses, true).Methods("GET")
-	server.HandleFunc(licenseRoutes, "/{key}/status", GetLicenseStatusDocument, false).Methods("GET") // TODO : why this is unsecured
+	server.HandleFunc(licenseRoutes, "/{key}/status", GetLicenseStatusDocument, false).Methods("GET") // Note : this is unsecured
 	if server.Config().ComplianceMode {
 		//server.LogInfo("Compliance mode is ON.")
-		server.HandleFunc(muxer, "/compliancetest", AddLogToFile, false).Methods("POST") // TODO : why this is unsecured
+		server.HandleFunc(muxer, "/compliancetest", AddLogToFile, false).Methods("POST") // Note :  this is unsecured
 	}
 
 	server.HandleFunc(licenseRoutes, "/{key}/registered", ListRegisteredDevices, true).Methods("GET")
 	if !server.Config().LsdServer.ReadOnly {
-		server.HandleFunc(licenseRoutes, "/{key}/register", RegisterDevice, false).Methods("POST") // TODO : why this is unsecured
-		server.HandleFunc(licenseRoutes, "/{key}/return", LendingReturn, false).Methods("PUT")     // TODO : why this is unsecured
-		server.HandleFunc(licenseRoutes, "/{key}/renew", LendingRenewal, false).Methods("PUT")     // TODO : why this is unsecured
+		server.HandleFunc(licenseRoutes, "/{key}/register", RegisterDevice, false).Methods("POST") // Note : this is unsecured
+		server.HandleFunc(licenseRoutes, "/{key}/return", LendingReturn, false).Methods("PUT")     // Note : this is unsecured
+		server.HandleFunc(licenseRoutes, "/{key}/renew", LendingRenewal, false).Methods("PUT")     // Note : this is unsecured
 		server.HandleFunc(licenseRoutes, "/{key}/status", LendingCancellation, true).Methods("PATCH")
 		server.HandleFunc(licenseRoutes, "", CreateLicenseStatusDocument, true).Methods("PUT")
 	}

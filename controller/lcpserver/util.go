@@ -277,6 +277,40 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	}
 
 	endpoint := http.NewGobEndpoint(server.Logger())
+
+	endpoint.AddHandleFunc("GETLICENSE", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLicense
+
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			return err
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+
+		// initialize the license from the info stored in the db.
+		existingLicense, e := server.Store().License().Get(payload.License.Id)
+		// process license not found etc.
+		if e == gorm.ErrRecordNotFound {
+			return fmt.Errorf("Record not found")
+		} else if e != nil {
+			return e
+		}
+
+		enc := gob.NewEncoder(rw)
+		err = enc.Encode(existingLicense)
+		if err != nil {
+			server.LogError("Error encoding response : %v", err)
+		}
+
+		return nil
+	})
+
 	endpoint.AddHandleFunc("UPDATELICENSE", func(rw *bufio.ReadWriter) error {
 		var payload http.AuthorizationAndLicense
 

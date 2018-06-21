@@ -64,8 +64,6 @@ func main() {
 		panic(err)
 	}
 
-	log.Printf("LCP server = %s", cfg.LcpServer.PublicBaseUrl)
-	log.Printf("using login  %s ", cfg.LcpUpdateAuth.Username)
 	// use a sqlite db by default
 	if dbURI = cfg.LutServer.Database; dbURI == "" {
 		dbURI = "sqlite3://file:frontend.sqlite?cache=shared&mode=rwc"
@@ -101,13 +99,12 @@ func main() {
 
 	// for development
 	if !cfg.LutServer.StopCronRunner {
-		// Fetch for the first time
+		// fetch for the first time
 		go FetchLicenseStatusesFromLSD(server)
 		// Cron, get license status information
-		cron.Start(5 * time.Minute)
+		cron.Start(30 * time.Second) // TODO : set sync to 5 minutes
 		// using Method expression instead of function
 		cron.Every(1).Minutes().Do(func() {
-			log.Infof("Fetching License Statuses From LSD")
 			FetchLicenseStatusesFromLSD(server)
 		})
 	}
@@ -148,43 +145,40 @@ func main() {
 }
 
 func FetchLicenseStatusesFromLSD(s http.IServer) {
-	conn, err := net.Dial("tcp", "localhost:9000")
-	if err != nil {
-		s.LogError("Error dialing LSD : %v", err)
-		return
-	}
-	defer conn.Close()
-
 	s.LogInfo("AUTOMATION : Fetch and save all license status documents")
-
-	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
-
-	_, err = rw.WriteString("LICENSES\n")
+	lsdConn, err := net.Dial("tcp", "localhost:9000")
 	if err != nil {
-		s.LogError("Could not write : %v", err)
+		s.LogError("Error dialing LSD : %v\nAutomation fails.", err)
 		return
 	}
 
-	enc := gob.NewEncoder(rw)
+	defer lsdConn.Close()
+	lsdRW := bufio.NewReadWriter(bufio.NewReader(lsdConn), bufio.NewWriter(lsdConn))
+
+	_, err = lsdRW.WriteString("LICENSES\n")
+	if err != nil {
+		s.LogError("[LDS] Could not write : %v", err)
+		return
+	}
+
+	enc := gob.NewEncoder(lsdRW)
 	//TODO : add Sync time below - to make smaller payloads
 	err = enc.Encode(http.AuthorizationAndTimestamp{User: s.Config().LsdNotifyAuth.Username, Password: s.Config().LsdNotifyAuth.Password})
 	if err != nil {
-		s.LogError("Encode failed for struct: %v", err)
+		s.LogError("[LDS] Encode failed for struct: %v", err)
 		return
 	}
 
-	s.LogInfo("Flushing the command.")
-	err = rw.Flush()
+	err = lsdRW.Flush()
 	if err != nil {
-		s.LogError("Flush failed : %v", err)
+		s.LogError("[LDS] Flush failed : %v", err)
 		return
 	}
 	// Read the reply.
-	s.LogInfo("Read the reply.")
 
-	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	bodyBytes, err := ioutil.ReadAll(lsdRW.Reader)
 	if err != nil {
-		s.LogError("Error reading response body : %v", err)
+		s.LogError("[LDS] Error reading response body : %v", err)
 		return
 	}
 
@@ -193,15 +187,23 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 	err = dec.Decode(&responseErr)
 	if err != nil && err != io.EOF {
 		var licenses model.LicensesStatusCollection
-		dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+		dec = gob.NewDecoder(bytes.NewBuffer(bodyBytes))
 		err = dec.Decode(&licenses)
 		if err != nil {
-			s.LogError("Error decoding GOB licenses: %v\n%s", err, bodyBytes)
+			s.LogError("[LDS] Error decoding GOB : %v\n%s", err, bodyBytes)
 			return
 		}
+		//TODO : add Sync time below - to make smaller payloads
+
 		for _, licenseStatus := range licenses {
-			s.LogInfo("License status :\n%v", licenseStatus)
+			// reading license referenced by license status, one by one
+			lcpLicense := readLCPLicense(licenseStatus.LicenseRef, s)
+			if lcpLicense != nil {
+				s.LogInfo("LICENSE STATUS : %#v", licenseStatus)
+				s.LogInfo("LCP LICENSE :  %#v", lcpLicense)
+			}
 		}
+
 		// TODO : once Sync in place, no need to purge database - just Create or Update
 		// clear the db
 		err = s.Store().License().PurgeDataBase()
@@ -214,10 +216,68 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 		if err != nil {
 			panic(err)
 		}
-
+		s.LogInfo("Automation done.")
 	} else if responseErr.Err != "" {
-		s.LogError("LDS Replied with Error : %v", responseErr)
+		s.LogError("[LDS] Replied with Error : %v", responseErr)
 		return
 	}
 
+}
+
+func readLCPLicense(uuid string, s http.IServer) *model.License {
+	lcpConn, err := net.Dial("tcp", "localhost:10000")
+	if err != nil {
+		s.LogError("Error dialing LCP : %v\nAutomation fails.", err)
+		return nil
+	}
+
+	defer lcpConn.Close()
+	lcpRW := bufio.NewReadWriter(bufio.NewReader(lcpConn), bufio.NewWriter(lcpConn))
+	_, err = lcpRW.WriteString("GETLICENSE\n")
+	if err != nil {
+		s.LogError("[LCP] Could not write : %v", err)
+		return nil
+	}
+
+	enc := gob.NewEncoder(lcpRW)
+	err = enc.Encode(http.AuthorizationAndLicense{
+		User:     s.Config().LsdNotifyAuth.Username,
+		Password: s.Config().LsdNotifyAuth.Password,
+		License: &model.License{
+			Id: uuid,
+		},
+	})
+	if err != nil {
+		s.LogError("[LCP] Encode failed for struct: %v", err)
+		return nil
+	}
+
+	err = lcpRW.Flush()
+	if err != nil {
+		s.LogError("[LCP] Flush failed : %v", err)
+		return nil
+	}
+
+	bodyBytes, err := ioutil.ReadAll(lcpRW.Reader)
+	if err != nil {
+		s.LogError("[LCP] Error reading response body : %v", err)
+		return nil
+	}
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		var fullLicense model.License
+		dec = gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+		err = dec.Decode(&fullLicense)
+		if err != nil {
+			s.LogError("[LCP] Error decoding GOB : %v\n%s", err, bodyBytes)
+			return nil
+		}
+		s.LogInfo("[LCP] License :\n%v", fullLicense)
+		return &fullLicense
+	} else {
+		s.LogError("[LCP] Replied with Error : %v", responseErr)
+		return nil
+	}
 }

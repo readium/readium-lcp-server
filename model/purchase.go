@@ -60,6 +60,13 @@ type (
 	}
 )
 
+func (p *Purchase) LicenseUUIDString() string {
+	if p.LicenseUUID != nil && p.LicenseUUID.Valid {
+		return p.LicenseUUID.String
+	}
+	return ""
+}
+
 // Implementation of gorm Tabler
 func (p *Purchase) TableName() string {
 	return LUTPurchaseTableName

@@ -28,8 +28,8 @@
 package lutserver
 
 import (
-	"strconv"
-
+	"bytes"
+	"encoding/json"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/views"
@@ -37,11 +37,14 @@ import (
 
 // GetFilteredLicenses searches licenses activated by more than n devices
 //
-func GetFilteredLicenses(server http.IServer, param ParamPaginationAndId) (*views.Renderer, error) {
-	if param.Id == "" {
-		param.Id = "1"
+func GetFilteredLicenses(server http.IServer, param ParamPagination) (*views.Renderer, error) {
+	view := &views.Renderer{}
+	if param.Filter == "" {
+		param.Filter = "1"
+	} else {
+		view.AddKey("filter", param.Filter)
 	}
-	noOfLicenses, err := server.Store().License().CountFiltered(param.Id)
+	noOfLicenses, err := server.Store().License().CountFiltered(param.Filter)
 	if err != nil {
 		return nil, http.Problem{Status: http.StatusInternalServerError, Detail: err.Error()}
 	}
@@ -50,8 +53,7 @@ func GetFilteredLicenses(server http.IServer, param ParamPaginationAndId) (*view
 		return nil, http.Problem{Status: http.StatusBadRequest, Detail: err.Error()}
 	}
 
-	view := &views.Renderer{}
-	licenses, err := server.Store().License().GetFiltered(param.Id, perPage, page)
+	licenses, err := server.Store().License().GetFiltered(param.Filter, perPage, page)
 	if err != nil {
 		switch err {
 		case gorm.ErrRecordNotFound:
@@ -74,7 +76,8 @@ func GetFilteredLicenses(server http.IServer, param ParamPaginationAndId) (*view
 // fetches the license from the lcp server and returns it to the caller.
 // This API method is called from a link in the license status document.
 //
-func GetLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
+func GetLicense(server http.IServer, param ParamId) ([]byte, error) {
+	server.LogInfo("Param %q", param.Id)
 	purchase, err := server.Store().Purchase().GetByLicenseID(param.Id)
 	// get the license id in the URL
 	if err != nil {
@@ -88,14 +91,23 @@ func GetLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
 	// get an existing license from the lcp server
 	fullLicense, err := generateOrGetLicense(purchase, server)
 	if err != nil {
+		server.LogError("Error generating or getting license : %v", err)
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 
 	}
 
 	// message to the console
-	server.LogInfo("Get license / id " + param.Id + " / " + purchase.Publication.Title + " / purchase " + strconv.FormatInt(purchase.ID, 10))
-	server.LogInfo("Full license : %#v", fullLicense)
+	//server.LogInfo("Get license / id " + param.Id + " / " + purchase.Publication.Title + " / purchase " + strconv.FormatInt(purchase.ID, 10))
+	//server.LogInfo("Full license : %#v", fullLicense)
 	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
+	nonErr.HttpHeaders.Add(http.HdrContentType, http.ContentTypeLcpJson)
 	nonErr.HttpHeaders.Set(http.HdrContentDisposition, "attachment; filename=\"license.lcpl\"")
-	return &views.Renderer{}, nil
+	result := new(bytes.Buffer)
+	enc := json.NewEncoder(result)
+	// do not escape characters
+	enc.SetEscapeHTML(false)
+	// send back the license
+	enc.Encode(fullLicense)
+
+	return result.Bytes(), nonErr
 }
