@@ -237,8 +237,7 @@
                     startDateEl.value = "";
                     endDateEl.value = "";
                 }
-                // Each time the user tries to send the data, we check
-                // if the email field is valid.
+
                 if (errorMessage != "") {
                     notificator.MaterialSnackbar.showSnackbar({
                         message: "Error : " + errorMessage,

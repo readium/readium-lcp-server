@@ -28,6 +28,7 @@
 package helpers
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/readium/readium-lcp-server/model"
 	got "html/template"
@@ -211,4 +212,12 @@ func NotEmpty(a interface{}) bool {
 }
 func Defined(a interface{}) bool {
 	return a != nil
+}
+
+func DecodeHexPasswd(s string) string {
+	userKeyValue, err := hex.DecodeString(s)
+	if err != nil {
+		return "Error : " + err.Error()
+	}
+	return string(userKeyValue)
 }

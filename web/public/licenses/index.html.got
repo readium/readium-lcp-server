@@ -195,7 +195,20 @@
 
             // edit the clicked row
             $(document).on("click", "td.edit-table-content", function () {
-                window.location.href = "/licenses/" + $(this).parents("tr:first")[0].id;
+                if ($(this).parents("tr:first")[0].id == ""){
+                    notificator.MaterialSnackbar.showSnackbar({
+                        message: 'Error : Bad UUID.',
+                        timeout: 2000,
+                        actionHandler: function (event) {
+                        },
+                        actionText: 'Ok'
+                    });
+                    return;
+                }
+                var url = "/licenses/" + $(this).parents("tr:first")[0].id;
+                console.log("Going to URL ", url)
+                var win = window.open(url, '_blank');
+                win.focus();
             });
         }); // end of document ready
     })(jQuery); // end of jQuery name space

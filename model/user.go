@@ -37,9 +37,9 @@ type (
 	User            struct {
 		ID        int64    `json:"user_id" sql:"AUTO_INCREMENT" gorm:"primary_key"`
 		UUID      string   `json:"id" sql:"NOT NULL" gorm:"size:36"` // uuid - max size 36
-		Name      string   `json:"name,omitempty" gorm:"size:64"`
-		Email     string   `json:"email,omitempty" gorm:"size:64"`
-		Password  string   `json:"password,omitempty" gorm:"size:64"`
+		Name      string   `json:"name" gorm:"size:64"`
+		Email     string   `json:"email" gorm:"size:254;UNIQUE_INDEX"`
+		Password  string   `json:"password" gorm:"size:64"`
 		Hint      string   `json:"hint" gorm:"size:64"`
 		Encrypted []string `json:"encrypted,omitempty" gorm:"-"` // TODO : never used. is this work in progress?
 	}

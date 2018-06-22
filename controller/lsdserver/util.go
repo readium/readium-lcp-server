@@ -274,8 +274,8 @@ func makeLicenseStatus(license *model.License, registerAvailable bool, rentingDa
 		result.Status = model.StatusActive
 	}
 
-	result.LicenseUpdated = &model.NullTime{Time: license.Issued, Valid: true}
-	result.StatusUpdated = model.TruncatedNow()
+	result.LicenseUpdated = license.Issued
+	result.StatusUpdated = time.Now()
 	result.DeviceCount = &model.NullInt{NullInt64: sql.NullInt64{Int64: 1, Valid: true}} // default is 1, so it can be found on filter
 	return &result
 }

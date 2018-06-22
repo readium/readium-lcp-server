@@ -673,6 +673,7 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	usersRoutes := muxer.PathPrefix(usersRoutesPathPrefix).Subrouter().StrictSlash(false)
 	makeHandler(usersRoutes, server, "/{id}", GetUser).Methods("GET")
 	makeHandler(usersRoutes, server, "/{id}", DeleteUser).Methods("DELETE")
+	makeHandler(usersRoutes, server, "/check/{title}", CheckEmailExists).Methods("GET")
 	//
 	// publications
 	//

@@ -30,6 +30,7 @@ package model
 import (
 	"fmt"
 	"original_gorm"
+	"time"
 )
 
 type (
@@ -41,7 +42,7 @@ type (
 		Status         Status    `json:"status"  sql:"NOT NULL"`
 		Message        string    `json:"message" sql:"NOT NULL"`
 		Purchase       Purchase  `json:"-" gorm:"-"`
-		LicenseUpdated *NullTime `json:"updated,omitempty" gorm:"column:license_updated"`
+		LicenseUpdated time.Time `json:"updated" gorm:"column:license_updated"`
 	}
 
 	LicensesViewCollection []*LicenseView

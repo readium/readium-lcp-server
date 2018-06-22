@@ -193,15 +193,24 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 			s.LogError("[LDS] Error decoding GOB : %v\n%s", err, bodyBytes)
 			return
 		}
+		if len(licenses) == 0 {
+			s.LogInfo("No license statuses : Automation done.")
+			return
+		}
 		//TODO : add Sync time below - to make smaller payloads
-
-		for _, licenseStatus := range licenses {
-			// reading license referenced by license status, one by one
-			lcpLicense := readLCPLicense(licenseStatus.LicenseRef, s)
-			if lcpLicense != nil {
-				s.LogInfo("LICENSE STATUS : %#v", licenseStatus)
-				s.LogInfo("LCP LICENSE :  %#v", lcpLicense)
+		licRefIds := ""
+		for idx, licenseStatus := range licenses {
+			if idx > 0 {
+				licRefIds += ","
 			}
+			licRefIds += licenseStatus.LicenseRef
+			s.LogInfo("LICENSE STATUS : %#v", licenseStatus)
+		}
+
+		s.LogInfo("Querying : %q", licRefIds)
+		lcpLicenses := readLCPLicense(licRefIds, s)
+		for _, lcpLic := range lcpLicenses {
+			s.LogInfo("LCP LICENSE :  %#v", lcpLic)
 		}
 
 		// TODO : once Sync in place, no need to purge database - just Create or Update
@@ -224,7 +233,7 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 
 }
 
-func readLCPLicense(uuid string, s http.IServer) *model.License {
+func readLCPLicense(uuids string, s http.IServer) model.LicensesCollection {
 	lcpConn, err := net.Dial("tcp", "localhost:10000")
 	if err != nil {
 		s.LogError("Error dialing LCP : %v\nAutomation fails.", err)
@@ -233,7 +242,7 @@ func readLCPLicense(uuid string, s http.IServer) *model.License {
 
 	defer lcpConn.Close()
 	lcpRW := bufio.NewReadWriter(bufio.NewReader(lcpConn), bufio.NewWriter(lcpConn))
-	_, err = lcpRW.WriteString("GETLICENSE\n")
+	_, err = lcpRW.WriteString("GETLICENSES\n")
 	if err != nil {
 		s.LogError("[LCP] Could not write : %v", err)
 		return nil
@@ -244,7 +253,7 @@ func readLCPLicense(uuid string, s http.IServer) *model.License {
 		User:     s.Config().LsdNotifyAuth.Username,
 		Password: s.Config().LsdNotifyAuth.Password,
 		License: &model.License{
-			Id: uuid,
+			Id: uuids,
 		},
 	})
 	if err != nil {
@@ -267,15 +276,15 @@ func readLCPLicense(uuid string, s http.IServer) *model.License {
 	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
 	err = dec.Decode(&responseErr)
 	if err != nil && err != io.EOF {
-		var fullLicense model.License
+		var allLicenses model.LicensesCollection
 		dec = gob.NewDecoder(bytes.NewBuffer(bodyBytes))
-		err = dec.Decode(&fullLicense)
+		err = dec.Decode(&allLicenses)
 		if err != nil {
 			s.LogError("[LCP] Error decoding GOB : %v\n%s", err, bodyBytes)
 			return nil
 		}
-		s.LogInfo("[LCP] License :\n%v", fullLicense)
-		return &fullLicense
+		s.LogInfo("[LCP] Licenses :\n%v", allLicenses)
+		return allLicenses
 	} else {
 		s.LogError("[LCP] Replied with Error : %v", responseErr)
 		return nil

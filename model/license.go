@@ -452,6 +452,11 @@ func (s *licenseStore) Get(id string) (*License, error) {
 	return &result, s.db.Where(License{Id: id}).Find(&result).Error
 }
 
+func (s *licenseStore) GetLicensesById(ids string) (LicensesCollection, error) {
+	var result LicensesCollection
+	return result, s.db.Where("id IN (?)", ids).Find(&result).Error
+}
+
 // Counts licenses for pagination
 func (s *licenseStore) Count() (int64, error) {
 	var count int64

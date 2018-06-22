@@ -225,7 +225,7 @@ func RegisterDevice(server http.IServer, param ParamKeyAndDevice, hdr Headers) (
 		}
 
 		// the license has been updated, the corresponding field is set
-		licenseStatus.StatusUpdated = model.NewTime(event.Timestamp)
+		licenseStatus.StatusUpdated = event.Timestamp
 
 		// license status set to active if it was ready
 		if licenseStatus.Status == model.StatusReady {
@@ -322,8 +322,8 @@ func LendingReturn(server http.IServer, param ParamKeyAndDevice, hdr Headers) (*
 
 	licenseStatus.CurrentEndLicense = model.NewTime(event.Timestamp)
 	// update the license status
-	licenseStatus.StatusUpdated = model.NewTime(event.Timestamp)
-	licenseStatus.LicenseUpdated = model.NewTime(event.Timestamp)
+	licenseStatus.StatusUpdated = event.Timestamp
+	licenseStatus.LicenseUpdated = event.Timestamp
 
 	err = server.Store().LicenseStatus().Update(licenseStatus)
 	if err != nil {
@@ -459,8 +459,8 @@ func LendingRenewal(server http.IServer, param ParamKeyAndDevice, hdr Headers) (
 	// update the license status fields
 	licenseStatus.Status = model.StatusActive
 	licenseStatus.CurrentEndLicense = model.NewTime(suggestedEnd)
-	licenseStatus.StatusUpdated = model.NewTime(event.Timestamp)
-	licenseStatus.LicenseUpdated = model.NewTime(event.Timestamp)
+	licenseStatus.StatusUpdated = event.Timestamp
+	licenseStatus.LicenseUpdated = event.Timestamp
 
 	// update the license status in db
 	err = server.Store().LicenseStatus().Update(licenseStatus)
@@ -555,8 +555,8 @@ func LendingCancellation(server http.IServer, payload *model.LicenseStatus, para
 	// update the license status properties with the new status & expiration item (now)
 	licenseStatus.Status = payload.Status
 	licenseStatus.CurrentEndLicense = currentTime
-	licenseStatus.StatusUpdated = currentTime
-	licenseStatus.LicenseUpdated = currentTime
+	licenseStatus.StatusUpdated = time.Now()
+	licenseStatus.LicenseUpdated = time.Now()
 
 	// update the license status in db
 	err = server.Store().LicenseStatus().Update(licenseStatus)

@@ -31,6 +31,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 type (
@@ -38,16 +39,15 @@ type (
 
 	LicenseStatus struct {
 		Id                 int64                       `json:"-" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		Status             Status                      `json:"status" gorm:"type:int" sql:"NOT NULL"`
-		LicenseUpdated     *NullTime                   `json:"license,omitempty" gorm:"column:license_updated" sql:"NOT NULL"`
-		StatusUpdated      *NullTime                   `json:"status,omitempty" gorm:"column:status_updated" sql:"NOT NULL"`
-		DeviceCount        *NullInt                    `json:"device_count,omitempty" gorm:"column:device_count" sql:"DEFAULT NULL"`
-		PotentialRightsEnd *NullTime                   `json:"potential_rights,omitempty" sql:"DEFAULT NULL"`
 		LicenseRef         string                      `json:"id" gorm:"column:license_ref;associationForeignKey:Id;size:36"` // uuid - max 36
+		Status             Status                      `json:"status" gorm:"type:int" sql:"NOT NULL"`
+		LicenseUpdated     time.Time                   `json:"updatedAt" gorm:"column:license_updated" sql:"NOT NULL"`
+		StatusUpdated      time.Time                   `json:"statusUpdatedAt" gorm:"column:status_updated" sql:"NOT NULL"`
+		DeviceCount        *NullInt                    `json:"device_count,omitempty" gorm:"column:device_count" sql:"DEFAULT NULL"`
+		PotentialRightsEnd *NullTime                   `json:"potential_rights_end,omitempty" sql:"DEFAULT NULL"`
 		CurrentEndLicense  *NullTime                   `json:"-" gorm:"column:rights_end" sql:"DEFAULT NULL"`
 		Links              LicenseLinksCollection      `json:"links,omitempty"`
 		Events             TransactionEventsCollection `json:"events,omitempty"`
-		//Message            string                      `json:"message"` // TODO : this was never completed ? there was no write into it, just read
 	}
 
 	Status string
@@ -91,11 +91,11 @@ func (t *Status) Scan(i interface{}) error {
 	case []byte:
 		inter, err := strconv.Atoi(string(v))
 		if err != nil {
-			return fmt.Errorf("can't scan %T into %T (%s)", v, t, v)
+			return fmt.Errorf("can't scan %T into %T (%s). Convert failed : %v\n", v, t, v, err)
 		}
 		vv = int64(inter)
 	default:
-		return fmt.Errorf("can't scan %T into %T (%#v)", v, t, i)
+		return fmt.Errorf("can't scan %T into %T (%#v)\n", v, t, i)
 	}
 
 	switch vv {
@@ -146,12 +146,8 @@ func (t Status) Value() (driver.Value, error) {
 
 func (s *LicenseStatus) String() string {
 	result := fmt.Sprintf("%d Status : %s LicRef : %s\n", s.Id, s.Status, s.LicenseRef)
-	if s.LicenseUpdated != nil && s.LicenseUpdated.Valid {
-		result += " Updated on : " + s.LicenseUpdated.Time.String()
-	}
-	if s.StatusUpdated != nil && s.StatusUpdated.Valid {
-		result += " Status Updated on : " + s.StatusUpdated.Time.String()
-	}
+	result += " Updated on : " + s.LicenseUpdated.String()
+	result += " Status Updated on : " + s.StatusUpdated.String()
 	if s.DeviceCount != nil && s.DeviceCount.Valid {
 		result += fmt.Sprintf(" %d devices", s.DeviceCount.Int64)
 	}

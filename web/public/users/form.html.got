@@ -26,14 +26,14 @@
                     </td>
                     <td>
                         <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input" type="text" data-validation="email" id="Email" name="Email" value="{{.user.Email}}">
+                            <input class="mdl-textfield__input" type="text" data-validation="email" id="Email" name="Email" value="{{.user.Email}}" {{if gt .user.ID 0}}readonly{{end}}>
                             <label class="mdl-textfield__label" for="Email">User's email...</label>
                         </div>
                     </td>
                 </tr>
                 <tr>
                     <td style="text-align: left;">
-                        <span> Password : {{.user.Password}}</span>
+                        <span> Password : {{decodeHexPasswd .user.Password}}</span>
                     </td>
                     <td>
                         <div class="mdl-textfield mdl-js-textfield">
@@ -56,16 +56,66 @@
             </table>
         </div>
         <div class="mdl-paging mdl-data-tabledynamic__actions">
-            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit">Save</button>
+            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit" id="saveButton">Save</button>
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel" type="reset">Cancel</button>
         </div>
     </div>
 </form>
 
+<div id="toastMessage" class="mdl-js-snackbar mdl-snackbar">
+    <div class="mdl-snackbar__text"></div>
+    <button class="mdl-snackbar__action" type="button"></button>
+</div>
+
 <script type="text/javascript">
     (function ($) {
         $(function () {
             $.validate({});
+            // @formatter:off
+            {{if eq .user.ID 0}}
+            // @formatter:on
+            var notificator = document.querySelector('#toastMessage');
+            var saveButton = document.getElementById('saveButton');
+            var emailInput = document.getElementById('Email');
+            var emailValid = false;
+
+            $("#Email").on('blur', function () {
+                $.get("/users/check/" + emailInput.value, function (data, status) {
+                    if (status == "success") {
+                        emailValid = true;
+                    }
+                }).fail(function (failure) {
+                    if (failure.status == 500) {
+                        notificator.MaterialSnackbar.showSnackbar({
+                            message: "Internal server error (check server logs)!",
+                            timeout: 2000,
+                            actionHandler: function (event) {
+                            },
+                            actionText: 'Ok'
+                        });
+                    } else if (failure.status == 400) {
+                        // an user with the same email already exists
+                        emailValid = false;
+                    }
+                });
+            });
+
+            saveButton.addEventListener("click", function (event) {
+                if (!emailValid) {
+                    notificator.MaterialSnackbar.showSnackbar({
+                        message: "Invalid email or an user with the same email exists!",
+                        timeout: 2000,
+                        actionHandler: function (event) {
+                        },
+                        actionText: 'Ok'
+                    });
+                    // And we prevent the form from being sent by canceling the event
+                    event.preventDefault();
+                }
+            }, false);
+            // @formatter:off
+            {{end}}
+            // @formatter:on
             $(".cancel").on("click", function () {
                 window.location.href = "/users";
             });

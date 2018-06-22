@@ -81,17 +81,6 @@
                         </div>
                     </td>
                 </tr>
-                <tr>
-                    <td>
-                        <span> Status : </span>
-                    </td>
-                    <td colspan="2">
-                        <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input" type="text" id="Status" name="Status" value="{{.publication.Status}}">
-                            <label class="mdl-textfield__label" for="Status">Status...</label>
-                        </div>
-                    </td>
-                </tr>
                 {{if eq .publication.ID 0}}
                 <tr>
                     <td>

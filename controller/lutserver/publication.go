@@ -133,7 +133,7 @@ func GetPublication(server http.IServer, param ParamId) (*views.Renderer, error)
 			server.LogError("Error reading repository files : %v", err)
 		}
 
-		publication = &model.Publication{Title: "Temporary test"}
+		publication = &model.Publication{}
 		view.AddKey("pageTitle", "Create publication")
 	}
 	view.AddKey("publication", publication)
@@ -200,10 +200,9 @@ func CreateOrUpdatePublication(server http.IServer, pub *model.Publication) (*vi
 			}
 		} else {
 			payload := &model.Publication{
-				ID:     existingPublication.ID,
-				UUID:   existingPublication.UUID,
-				Title:  pub.Title,
-				Status: pub.Status,
+				ID:    existingPublication.ID,
+				UUID:  existingPublication.UUID,
+				Title: pub.Title,
 			}
 			// TODO : seems update doesn't do anything regarding notifying LCP (to be discussed)
 			// performing update

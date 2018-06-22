@@ -77,7 +77,6 @@ func GetFilteredLicenses(server http.IServer, param ParamPagination) (*views.Ren
 // This API method is called from a link in the license status document.
 //
 func GetLicense(server http.IServer, param ParamId) ([]byte, error) {
-	server.LogInfo("Param %q", param.Id)
 	purchase, err := server.Store().Purchase().GetByLicenseID(param.Id)
 	// get the license id in the URL
 	if err != nil {

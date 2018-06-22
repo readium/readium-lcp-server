@@ -259,7 +259,7 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 				s.fastJsonError(w, r, http.StatusUnauthorized, "User or password do not match!")
 				return
 			}
-			s.Log.Infof("user=%s", username)
+			//s.Log.Infof("user=%s", username)
 		}
 
 		var err error

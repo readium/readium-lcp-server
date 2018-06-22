@@ -189,6 +189,7 @@ type (
 		UpdateLsdStatus(id string, status int32) error
 		Add(l *License) error
 		Get(id string) (*License, error)
+		GetLicensesById(ids string) (LicensesCollection, error)
 		// from license view
 		GetView(id int64) (*LicenseView, error)
 		CountFiltered(deviceLimit string) (int64, error)

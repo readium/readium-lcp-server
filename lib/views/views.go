@@ -132,7 +132,8 @@ func DefaultHelpers() parser.FuncMap {
 		"dynamicBooleanValue": helpers.DynamicScopeBooleanValue,
 		"dynamicStringValue":  helpers.DynamicStringValue,
 
-		"displayFloat": helpers.FormatFloatNoDecimals,
+		"displayFloat":    helpers.FormatFloatNoDecimals,
+		"decodeHexPasswd": helpers.DecodeHexPasswd,
 	}
 }
 

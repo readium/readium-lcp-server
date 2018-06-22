@@ -140,20 +140,20 @@ func CreateOrUpdateUser(server http.IServer, user *model.User) (*views.Renderer,
 			}
 		} else {
 			updateEntity := &model.User{
-				ID:       existingUser.ID,
-				UUID:     existingUser.UUID,
-				Name:     user.Name,
-				Email:    user.Email,
-				Password: user.Password,
-				Hint:     user.Hint,
+				ID:    existingUser.ID,
+				UUID:  existingUser.UUID,
+				Name:  user.Name,
+				Email: user.Email,
 			}
 			// only if a new password was provided, allow to change password / hint
-			if user.Password == "" {
-				updateEntity.Password = existingUser.Password
+			if user.Password != existingUser.Password {
+				updateEntity.Password = hex.EncodeToString([]byte(user.Password))
 			} else {
-				user.Password = hex.EncodeToString([]byte(user.Password))
+				updateEntity.Password = existingUser.Password
 			}
-			if user.Hint == "" {
+			if user.Hint != existingUser.Hint {
+				updateEntity.Hint = user.Hint
+			} else {
 				updateEntity.Hint = existingUser.Hint
 			}
 			// performing update
@@ -186,4 +186,22 @@ func DeleteUser(server http.IServer, param ParamId) (*views.Renderer, error) {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 	return nil, http.Problem{Status: http.StatusOK}
+}
+
+func CheckEmailExists(server http.IServer, param ParamTitle) ([]byte, error) {
+	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
+	_, err := server.Store().User().GetByEmail(param.Title)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// returns StatusOK (frontend proceed)
+			return nil, nonErr
+		}
+		server.LogError("Error checking for user with email %q : %v", param.Title, err)
+		// returns StatusInternalServerError (frontend uncertain)
+		nonErr.Status = http.StatusInternalServerError
+		return nil, nonErr
+	}
+	// returns StatusBadRequest (frontend deny creation)
+	nonErr.Status = http.StatusBadRequest
+	return nil, nonErr
 }

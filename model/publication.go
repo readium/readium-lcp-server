@@ -33,7 +33,6 @@ type (
 	Publication struct {
 		ID       int64    `json:"id" sql:"AUTO_INCREMENT" gorm:"primary_key"`
 		UUID     string   `json:"uuid" sql:"NOT NULL" gorm:"size:36"` // uuid - max size 36
-		Status   string   `json:"status" sql:"NOT NULL"`
 		Title    string   `json:"title,omitempty" sql:"NOT NULL"`
 		Files    []string `json:"-" gorm:"-"`
 		RepoFile string   `gorm:"-"`
@@ -75,8 +74,7 @@ func (s publicationStore) Update(changedPub *Publication) error {
 		return err
 	}
 	return s.db.Model(&result).Updates(map[string]interface{}{
-		"title":  changedPub.Title,
-		"status": changedPub.Status,
+		"title": changedPub.Title,
 	}).Error
 }
 
