@@ -58,7 +58,9 @@ type (
 	ParamId struct {
 		Id string `var:"id"`
 	}
-	ParamTitle struct {
+
+	ParamTitleAndId struct {
+		Id    string `var:"id"`
 		Title string `var:"title"`
 	}
 
@@ -681,7 +683,7 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	makeHandler(muxer, server, publicationsRoutesPathPrefix, GetPublications).Methods("GET")
 	makeHandler(muxer, server, publicationsRoutesPathPrefix, CreateOrUpdatePublication).Methods("POST")
 	publicationsRoutes := muxer.PathPrefix(publicationsRoutesPathPrefix).Subrouter().StrictSlash(false)
-	makeHandler(publicationsRoutes, server, "/check-by-title", CheckPublicationByTitle).Methods("GET")
+	makeHandler(publicationsRoutes, server, "/{id}/check/{title}", CheckPublicationTitleExists).Methods("GET")
 	makeHandler(publicationsRoutes, server, "/{id}", GetPublication).Methods("GET")
 	makeHandler(publicationsRoutes, server, "/{id}", DeletePublication).Methods("DELETE")
 	//

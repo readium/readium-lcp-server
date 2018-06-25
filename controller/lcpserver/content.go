@@ -93,6 +93,7 @@ func AddContent(server http.IServer, publication *http.AuthorizationAndLcpPublic
 	}
 	defer file.Close()
 
+	// TODO : seems this route is used for both create and update - so update is going to replace the file without any checks.
 	// TODO : shouldn't be this the last step, after operating database?
 	// add the file to the storage, named from contentID
 	_, err = server.Storage().Add(publication.ContentId, file)
@@ -127,6 +128,7 @@ func AddContent(server http.IServer, publication *http.AuthorizationAndLcpPublic
 		// insert into database
 		err = server.Store().Content().Add(content) // err gets checked below
 	} else {
+		//TODO : in which conditions this happens?
 		// update encryption key for content.Id = publication.ContentId
 		err = server.Store().Content().Update(content) // err gets checked below
 		code = http.StatusOK

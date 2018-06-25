@@ -188,7 +188,7 @@ func DeleteUser(server http.IServer, param ParamId) (*views.Renderer, error) {
 	return nil, http.Problem{Status: http.StatusOK}
 }
 
-func CheckEmailExists(server http.IServer, param ParamTitle) ([]byte, error) {
+func CheckEmailExists(server http.IServer, param ParamTitleAndId) ([]byte, error) {
 	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
 	_, err := server.Store().User().GetByEmail(param.Title)
 	if err != nil {

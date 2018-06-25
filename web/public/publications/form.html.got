@@ -67,7 +67,7 @@
 
         </div>
         <div class="mdl-card__supporting-text mdl-card--border">
-            <input type="hidden" name="ID" value="{{.publication.ID}}">
+            <input type="hidden" id="publicationID" name="ID" value="{{.publication.ID}}">
             <input type="hidden" name="UUID" value="{{.publication.UUID}}">
             <table style="height: 80vh">
                 <tr>
@@ -76,7 +76,7 @@
                     </td>
                     <td colspan="2">
                         <div class="mdl-textfield mdl-js-textfield">
-                            <input class="mdl-textfield__input" type="text" data-validation="custom" data-validation-regexp="^([a-zA-Z0-9 ]+)$" id="Title" name="Title" value="{{.publication.Title}}">
+                            <input class="mdl-textfield__input" type="text" id="Title" name="Title" value="{{.publication.Title}}">
                             <label class="mdl-textfield__label" for="Title">Title...</label>
                         </div>
                     </td>
@@ -107,19 +107,29 @@
             </table>
         </div>
         <div class="mdl-paging mdl-data-tabledynamic__actions">
-            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit">Save</button>
+            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit" id="saveButton">Save</button>
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel" type="reset">Cancel</button>
         </div>
     </div>
 </form>
 
 
+<div id="toastMessage" class="mdl-js-snackbar mdl-snackbar">
+    <div class="mdl-snackbar__text"></div>
+    <button class="mdl-snackbar__action" type="button"></button>
+</div>
+
 <script type="text/javascript">
     (function ($) {
         $(function () {
             $.validate({});
-            var dialog = document.querySelector('dialog');
 
+            var titleValid = false;
+
+            var dialog = document.querySelector('dialog');
+            // @formatter:off
+            {{if eq .publication.ID 0}}
+            // @formatter:on
             document.getElementById("uploadFile").onchange = function () {
                 document.getElementById("uploadFileName").value = this.files[0].name;
                 document.getElementById("repoFile").value = "";
@@ -146,10 +156,65 @@
                 document.getElementById("uploadFile").value = "";
                 dialog.close();
             });
-
+            // @formatter:off
+            {{else}}
+            // @formatter:on
+            titleValid = true;// by default, title is valid, since it came from the server
+            // @formatter:off
+            {{end}}
+            // @formatter:on
             $(".cancel").on("click", function () {
                 window.location.href = "/publications";
             });
+
+            var notificator = document.querySelector('#toastMessage');
+            var saveButton = document.getElementById('saveButton');
+            var titleInput = document.getElementById('Title');
+            var publicationId = document.getElementById('publicationID');
+
+            $("#Title").on('blur', function () {
+                $.get("/publications/" + publicationId.value + "/check/" + titleInput.value, function (data, status) {
+                    if (status == "success") {
+                        titleValid = true;
+                    }
+                }).fail(function (failure) {
+                    if (failure.status == 500) {
+                        titleValid = false;
+                        notificator.MaterialSnackbar.showSnackbar({
+                            message: "Internal server error (check server logs)!",
+                            timeout: 2000,
+                            actionHandler: function (event) {
+                            },
+                            actionText: 'Ok'
+                        });
+                    } else if (failure.status == 400) {
+                        // an user with the same email already exists
+                        titleValid = false;
+                        notificator.MaterialSnackbar.showSnackbar({
+                            message: "Invalid title : a publication with the same title exists!",
+                            timeout: 2000,
+                            actionHandler: function (event) {
+                            },
+                            actionText: 'Ok'
+                        });
+                    }
+                });
+            });
+
+            saveButton.addEventListener("click", function (event) {
+                if (!titleValid) {
+                    notificator.MaterialSnackbar.showSnackbar({
+                        message: "Invalid title!",
+                        timeout: 2000,
+                        actionHandler: function (event) {
+                        },
+                        actionText: 'Ok'
+                    });
+                    // And we prevent the form from being sent by canceling the event
+                    event.preventDefault();
+                }
+            }, false);
+
         }); // end of document ready
     })(jQuery); // end of jQuery name space
 </script>

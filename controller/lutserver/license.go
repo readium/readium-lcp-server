@@ -71,10 +71,9 @@ func GetFilteredLicenses(server http.IServer, param ParamPagination) (*views.Ren
 	return view, nil
 }
 
-// GetLicense gets an existing license by its id (passed as a section of the REST URL).
+// GetLicense gets an existing license by its id (passed as a section of the URL).
 // It generates a partial license from the purchase info,
 // fetches the license from the lcp server and returns it to the caller.
-// This API method is called from a link in the license status document.
 //
 func GetLicense(server http.IServer, param ParamId) ([]byte, error) {
 	purchase, err := server.Store().Purchase().GetByLicenseID(param.Id)

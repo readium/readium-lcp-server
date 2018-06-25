@@ -153,11 +153,7 @@ func (s publicationStore) GetByUUID(uuid string) (*Publication, error) {
 
 // CheckByTitle checks if the publication exists or not, by its title
 //
-func (s publicationStore) CheckByTitle(title string) (int64, error) {
-	var result int64
-	err := s.db.Model(Publication{}).Where("title = ?", title).Count(&result).Error
-	if err != nil {
-		return -1, err
-	}
-	return result, nil
+func (s publicationStore) CheckByTitle(title string) (*Publication, error) {
+	var result Publication
+	return &result, s.db.Model(Publication{}).Where("title = ?", title).Find(&result).Error
 }

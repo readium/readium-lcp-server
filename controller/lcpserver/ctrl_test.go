@@ -68,7 +68,7 @@ func (d debugLogger) Write(p []byte) (n int, err error) {
 }
 
 // prepare test server
-func TestMain(m *testing.M) {
+func _TestMain(m *testing.M) {
 	var err error
 	logz := logger.New()
 	// working dir
@@ -236,7 +236,7 @@ func TestAddContent(t *testing.T) {
 	}
 	contentDisposition := "SampleContentDisposition"
 
-	payload := http.LcpPublication{
+	payload := http.AuthorizationAndLcpPublication{
 		ContentId:          uid.String(),
 		ContentKey:         encryptedEpub.EncryptionKey,
 		Output:             outputPath,
@@ -383,7 +383,10 @@ func TestListContents(t *testing.T) {
 }
 
 func TestGetContent(t *testing.T) {
-	req, err := http.NewRequest("GET", localhostAndPort+"/contents/8c1b45ed-c346-4fc6-8aab-e92cff8e68a9", nil)
+	if localhostAndPort == "" {
+		localhostAndPort = "http://localhost:8081"
+	}
+	req, err := http.NewRequest("GET", localhostAndPort+"/contents/73794ae8-54de-4bc4-bb0f-c701a517db3f", nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -420,6 +423,7 @@ func TestGetContent(t *testing.T) {
 		}
 		t.Logf("error response : %#v", problem)
 	}
+	t.Logf("%s", body)
 }
 
 func listLicenses(page, perPage int64) (model.LicensesCollection, error) {

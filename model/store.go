@@ -136,14 +136,16 @@ type (
 		List(page, pageNum int64) (PublicationsCollection, error)
 		ListAll() (PublicationsCollection, error)
 		Filter(paramLike string, page, pageNum int64) (PublicationsCollection, error)
-		CheckByTitle(title string) (int64, error)
+		CheckByTitle(title string) (*Publication, error)
 	}
 
 	ContentRepository interface {
 		Get(id string) (*Content, error)
 		Add(c *Content) error
 		Update(c *Content) error
+		UpdateTitle(c *Content) error
 		List() (ContentCollection, error)
+		Delete(contentID string) error
 	}
 
 	TransactionRepository interface {

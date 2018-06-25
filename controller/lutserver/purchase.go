@@ -41,6 +41,7 @@ import (
 
 // GetUserPurchases searches all purchases for a client
 //
+// TODO : unused (should delete or make view)
 func GetUserPurchases(server http.IServer, param ParamPaginationAndId) (*views.Renderer, error) {
 	userId, err := strconv.ParseInt(param.Id, 10, 64)
 	if err != nil {
@@ -71,10 +72,10 @@ func GetUserPurchases(server http.IServer, param ParamPaginationAndId) (*views.R
 	return view, nil
 }
 
-// GetPurchasedLicense generates a new license from the corresponding purchase id (passed as a section of the REST URL).
+// GetPurchasedLicense generates a new license from the corresponding purchase id (passed as a section of the URL).
 // It fetches the license from the lcp server and returns it to the caller.
-// This API method is called from the client app (angular) when a license is requested after a purchase.
 //
+// TODO : unused (should delete or make view)
 func GetPurchasedLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
 	id, err := strconv.Atoi(param.Id)
 	if err != nil {
@@ -144,7 +145,7 @@ func GetPurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
 		}
 		view.AddKey("existingUsers", existingUsers)
 		// convention - if sID is zero, we're displaying create form
-		purchase = &model.Purchase{Type: "Loan"}
+		purchase = &model.Purchase{Type: "Loan", Status: model.StatusReady}
 		view.AddKey("pageTitle", "Create purchase")
 	}
 	view.AddKey("purchase", purchase)
@@ -154,6 +155,7 @@ func GetPurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
 
 // GetPurchaseByLicenseID gets a purchase by a license id in the database
 //
+// TODO : unused (should delete)
 func GetPurchaseByLicenseID(server http.IServer, param ParamPaginationAndId) (*views.Renderer, error) {
 	var err error
 	purchase, err := server.Store().Purchase().GetByLicenseID(param.Id)
@@ -221,10 +223,10 @@ func GetPurchases(server http.IServer, param ParamPagination) (*views.Renderer, 
 
 // CreatePurchase creates a purchase in the database
 //
-// TODO : shouldn't this notify LCP / LSD on create/update ?
 func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*views.Renderer, error) {
 	switch payload.ID {
 	case 0:
+		// TODO : create a License on LCP (which is going to notify LSD)
 		if err := server.Store().Purchase().Add(payload); err != nil {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
@@ -237,6 +239,7 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 			payload.EndDate.Time = payload.EndDate.Time.UTC().Truncate(time.Second)
 		}
 
+		// TODO : update a License on LCP (which is going to notify LSD)
 		// update the purchase, license id, start and end dates, status
 		if err := server.Store().Purchase().Update(&model.Purchase{
 			ID:        payload.ID,
@@ -274,6 +277,7 @@ func DeletePurchase(server http.IServer, param ParamId) (*views.Renderer, error)
 		}
 		pendingDeleteIds = append(pendingDeleteIds, int64(uid))
 	}
+	// TODO : delete License from LSD + LCP
 	if err := server.Store().Purchase().BulkDelete(pendingDeleteIds); err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}

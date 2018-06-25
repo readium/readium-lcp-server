@@ -54,7 +54,7 @@ import (
 )
 
 // notification of newly added content (Publication)
-func notifyLcpServer(lcpService, contentid string, lcpPublication http.LcpPublication, username string, password string) error {
+func notifyLcpServer(lcpService, contentid string, lcpPublication http.AuthorizationAndLcpPublication, username string, password string) error {
 	//exchange encryption key with lcp service/content/<id>,
 	//Payload: {content-encryption-key, protected-content-location}
 
@@ -143,7 +143,7 @@ func showHelpAndExit() {
 	return
 }
 
-func exitWithError(lcpPublication http.LcpPublication, err error, errorlevel int) {
+func exitWithError(lcpPublication http.AuthorizationAndLcpPublication, err error, errorlevel int) {
 	os.Stderr.WriteString(lcpPublication.ErrorMessage)
 	os.Stderr.WriteString("\n")
 	if err != nil {
@@ -170,7 +170,7 @@ func getChecksum(filename string) string {
 
 func main() {
 	var err error
-	var addedPublication http.LcpPublication
+	var addedPublication http.AuthorizationAndLcpPublication
 	var inputFilename = flag.String("input", "", "source epub file locator (file system or http GET)")
 	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new one is generated")
 	var outputFilename = flag.String("output", "", "optional target location for the encrypted content (file system or http PUT)")

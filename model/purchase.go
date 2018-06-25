@@ -50,7 +50,7 @@ type (
 		UserId          int64       `json:"-" sql:"NOT NULL"`
 		UUID            string      `json:"uuid" sql:"NOT NULL" gorm:"size:36"`
 		Type            string      `json:"type" sql:"NOT NULL"`
-		Status          string      `json:"status" sql:"NOT NULL"`
+		Status          Status      `json:"status" sql:"NOT NULL"`
 		TransactionDate time.Time   `json:"transactionDate,omitempty" sql:"DEFAULT:current_timestamp;NOT NULL"`
 		LicenseUUID     *NullString `json:"licenseUuid,omitempty" gorm:"size:36" sql:"DEFAULT NULL"`
 		StartDate       *NullTime   `json:"startDate,omitempty" sql:"DEFAULT NULL"`

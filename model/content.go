@@ -92,8 +92,24 @@ func (s contentStore) Update(updatedContent *Content) error {
 	return s.db.Save(updatedContent).Error
 }
 
+func (s contentStore) UpdateTitle(c *Content) error {
+	return s.db.Model(c).Updates(map[string]interface{}{
+		"location": c.Location,
+	}).Error
+}
+
 // TODO : shouldn't we have pagination here as well ?
 func (s contentStore) List() (ContentCollection, error) {
 	var result ContentCollection
 	return result, s.db.Find(&result).Error
+}
+
+func (s contentStore) Delete(contentID string) error {
+	return Transaction(s.db, func(tx txStore) error {
+		err := tx.Where("content_fk = ?", contentID).Delete(License{}).Error
+		if err != nil {
+			return err
+		}
+		return tx.Where("id = ?", contentID).Delete(Content{}).Error
+	})
 }

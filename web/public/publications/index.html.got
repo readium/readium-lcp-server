@@ -35,9 +35,7 @@
                     </label>
                 </th>
                 <th class="mdl-data-table__cell--non-numeric">ID</th>
-                <th class="mdl-data-table__cell--non-numeric">UUID</th>
                 <th class="mdl-data-table__cell--non-numeric">Title</th>
-                <th class="mdl-data-table__cell--non-numeric">Status</th>
             </tr>
             </thead>
             <tbody>
@@ -49,9 +47,7 @@
                     </label>
                 </td>
                 <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.ID}}</span></td>
-                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Title}}</span></td>
-                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
             </tr>
             {{end}}
             </tbody>

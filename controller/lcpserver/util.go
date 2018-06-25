@@ -377,6 +377,71 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		return nil
 	})
 
+	endpoint.AddHandleFunc("UPDATECONTENT", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLcpPublication
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			server.LogError("Error decoding payload")
+			return err
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			server.LogError("Error unauthorized")
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+		server.LogInfo("Updating content with UUID : %s", payload.ContentId)
+		content, foundErr := server.Store().Content().Get(payload.ContentId)
+		if foundErr == gorm.ErrRecordNotFound {
+			return fmt.Errorf("Error finding content with id %s for update", payload.ContentId)
+		} else {
+			content.Location = *payload.ContentDisposition
+			err = server.Store().Content().UpdateTitle(content)
+			if err != nil {
+				return fmt.Errorf("Error updating content location : %v", err)
+			}
+		}
+		enc := gob.NewEncoder(rw)
+		err = enc.Encode(content)
+		if err != nil {
+			server.LogError("Error encoding response : %v", err)
+			return fmt.Errorf("Error encoding response : %v", err)
+		}
+
+		return nil
+	})
+
+	endpoint.AddHandleFunc("DELETECONTENT", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLcpPublication
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			server.LogError("Error decoding payload")
+			return err
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			server.LogError("Error unauthorized")
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+		server.LogInfo("Deleting content with UUID : %s", payload.ContentId)
+		content, foundErr := server.Store().Content().Get(payload.ContentId)
+		if foundErr == gorm.ErrRecordNotFound {
+			return fmt.Errorf("Error finding content with id %s for update", payload.ContentId)
+		}
+
+		err = server.Store().Content().Delete(content.Id)
+		if err != nil {
+			return fmt.Errorf("Error deleting content location : %v", err)
+		}
+
+		return nil
+	})
+
 	go func() {
 		// Start listening.
 		endpoint.Listen(":10000")

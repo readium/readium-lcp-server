@@ -199,12 +199,19 @@ func CreateOrUpdatePublication(server http.IServer, pub *model.Publication) (*vi
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
 		} else {
+			if existingPublication.Title == pub.Title {
+				// nothing changed : the user pressed save for nothing
+				return nil, http.Problem{Detail: "/publications", Status: http.StatusRedirect}
+			}
 			payload := &model.Publication{
 				ID:    existingPublication.ID,
 				UUID:  existingPublication.UUID,
 				Title: pub.Title,
 			}
-			// TODO : seems update doesn't do anything regarding notifying LCP (to be discussed)
+			err = sendTitleUpdateToLCP(existingPublication.UUID, http.Slugify(pub.Title), server)
+			if err != nil {
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			}
 			// performing update
 			if err = server.Store().Publication().Update(payload); err != nil {
 				//update failed!
@@ -215,32 +222,7 @@ func CreateOrUpdatePublication(server http.IServer, pub *model.Publication) (*vi
 	return nil, http.Problem{Detail: "/publications", Status: http.StatusRedirect}
 }
 
-// CheckPublicationByTitle check if a publication with this title exist
-// TODO : seems publication title should be unique (since file upload uses title slug).
-// TODO : IMO this should be LCP validation check, not front end (to be discussed)
-func CheckPublicationByTitle(server http.IServer, param ParamTitle) (*views.Renderer, error) {
-
-	server.LogInfo("Check publication stored with name %q", param.Title)
-
-	if _, err := server.Store().Publication().CheckByTitle(param.Title); err == nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	} else {
-		switch err {
-		case gorm.ErrRecordNotFound:
-
-			server.LogInfo("No publication stored with name %q", param.Title)
-			//	server.Error(w, r, s.DefaultSrvLang(), common.Problem{Detail: err.Error(),Status: http.StatusNotFound)
-
-		default:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-
-		}
-	}
-	return nil, nil
-}
-
-// DeletePublication removes a publication in the database
-// TODO : shouldn't LCP delete it too ? (to be discussed)
+// DeletePublication removes a publication in the database and LCP
 func DeletePublication(server http.IServer, param ParamId) (*views.Renderer, error) {
 	ids := strings.Split(param.Id, ",")
 	var pubIds []int64
@@ -255,9 +237,17 @@ func DeletePublication(server http.IServer, param ParamId) (*views.Renderer, err
 		if err != nil {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		}
+
+		// tell LCP to delete content and licenses
+		err = deleteContentFromLCP(publication.UUID, server)
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		// everything ok, adding to bulk delete
 		deletedTitles = append(deletedTitles, publication.Title)
 		pubIds = append(pubIds, int64(id))
 	}
+
 	if err := server.Store().Publication().BulkDelete(pubIds); err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
@@ -277,6 +267,34 @@ func DeletePublication(server http.IServer, param ParamId) (*views.Renderer, err
 	}
 
 	return &views.Renderer{}, http.Problem{Status: http.StatusOK}
+}
+
+func CheckPublicationTitleExists(server http.IServer, param ParamTitleAndId) ([]byte, error) {
+	id, err := strconv.Atoi(param.Id)
+	if err != nil {
+		// id is not a number
+		return nil, http.Problem{Detail: "Publication ID must be an integer", Status: http.StatusBadRequest}
+	}
+	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
+	publication, err := server.Store().Publication().CheckByTitle(param.Title)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// returns StatusOK (frontend proceed)
+			return nil, nonErr
+		}
+		server.LogError("Error checking for publication with tile %q : %v", param.Title, err)
+		// returns StatusInternalServerError (frontend uncertain)
+		nonErr.Status = http.StatusInternalServerError
+		return nil, nonErr
+	}
+	if id == int(publication.ID) {
+		// returns StatusOK (is the very same record - allow it to save)
+		return nil, nonErr
+	}
+	server.LogInfo("Found same title %d?=%d %s", id, publication.ID, publication.Title)
+	// returns StatusBadRequest (frontend deny creation)
+	nonErr.Status = http.StatusBadRequest
+	return nil, nonErr
 }
 
 // encryptEPUB encrypts an EPUB File and sends the content to the LCP server
@@ -365,6 +383,130 @@ func encryptEPUBSendToLCP(inputPath, contentUUID, contentDisposition string, ser
 		} else {
 			server.LogInfo("Model content : %#v", content)
 		}
+	} else if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return fmt.Errorf(responseErr.Err)
+	}
+	return nil
+}
+
+func sendTitleUpdateToLCP(contentUUID, contentDisposition string, server http.IServer) error {
+	if server.Config().LcpUpdateAuth.Username == "" {
+		return fmt.Errorf("Username is empty : can't connect to LCP.")
+	}
+
+	// prepare the payload for import to the lcp server
+	lcpPublication := http.AuthorizationAndLcpPublication{
+		ContentId:          contentUUID,
+		ContentDisposition: &contentDisposition,
+		User:               server.Config().LcpUpdateAuth.Username,
+		Password:           server.Config().LcpUpdateAuth.Password,
+	}
+
+	conn, err := net.Dial("tcp", "localhost:10000")
+	if err != nil {
+		server.LogError("Error Notify LcpServer : %v", err)
+		return fmt.Errorf("LCP Server probably not running : %v", err)
+	}
+	defer conn.Close()
+	server.LogInfo("Notifying LCP (updating content title).")
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+
+	_, err = rw.WriteString("UPDATECONTENT\n")
+	if err != nil {
+		server.LogError("Could not write : %v", err)
+		return err
+	}
+
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(lcpPublication)
+	if err != nil {
+		server.LogError("Encode failed for struct: %v", err)
+		return err
+	}
+
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return err
+	}
+	// Read the reply.
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LCP reply : %v", err)
+		return err
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		var content model.Content
+		dec = gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+		err = dec.Decode(&content)
+		if err != nil {
+			server.LogError("Error decoding GOB content : %v", err)
+		} else {
+			server.LogInfo("Model content : %#v", content)
+		}
+	} else if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return fmt.Errorf(responseErr.Err)
+	}
+	return nil
+}
+
+func deleteContentFromLCP(contentUUID string, server http.IServer) error {
+	if server.Config().LcpUpdateAuth.Username == "" {
+		return fmt.Errorf("Username is empty : can't connect to LCP.")
+	}
+
+	// prepare the payload for import to the lcp server
+	lcpPublication := http.AuthorizationAndLcpPublication{
+		ContentId: contentUUID,
+		User:      server.Config().LcpUpdateAuth.Username,
+		Password:  server.Config().LcpUpdateAuth.Password,
+	}
+
+	conn, err := net.Dial("tcp", "localhost:10000")
+	if err != nil {
+		server.LogError("Error Notify LcpServer : %v", err)
+		return fmt.Errorf("LCP Server probably not running : %v", err)
+	}
+	defer conn.Close()
+	server.LogInfo("Notifying LCP (updating content title).")
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+
+	_, err = rw.WriteString("DELETECONTENT\n")
+	if err != nil {
+		server.LogError("Could not write : %v", err)
+		return err
+	}
+
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(lcpPublication)
+	if err != nil {
+		server.LogError("Encode failed for struct: %v", err)
+		return err
+	}
+
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return err
+	}
+	// Read the reply.
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LCP reply : %v", err)
+		return err
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		// nothing to do
 	} else if responseErr.Err != "" {
 		server.LogError("LCP GOB Error : %v", responseErr)
 		return fmt.Errorf(responseErr.Err)

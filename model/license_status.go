@@ -37,12 +37,19 @@ import (
 type (
 	LicensesStatusCollection []*LicenseStatus
 
+	// just for legacy of old API
+	LicenseStatusUpdatedJSON struct {
+		LicenseUpdated time.Time `json:"-" gorm:"column:license" sql:"NOT NULL"`
+		StatusUpdated  time.Time `json:"-" gorm:"column:status" sql:"NOT NULL"`
+	}
+
 	LicenseStatus struct {
 		Id                 int64                       `json:"-" sql:"AUTO_INCREMENT" gorm:"primary_key"`
 		LicenseRef         string                      `json:"id" gorm:"column:license_ref;associationForeignKey:Id;size:36"` // uuid - max 36
 		Status             Status                      `json:"status" gorm:"type:int" sql:"NOT NULL"`
-		LicenseUpdated     time.Time                   `json:"updatedAt" gorm:"column:license_updated" sql:"NOT NULL"`
-		StatusUpdated      time.Time                   `json:"statusUpdatedAt" gorm:"column:status_updated" sql:"NOT NULL"`
+		LicenseUpdated     time.Time                   `json:"-" gorm:"column:license_updated" sql:"NOT NULL"`
+		StatusUpdated      time.Time                   `json:"-" gorm:"column:status_updated" sql:"NOT NULL"`
+		Updated            LicenseStatusUpdatedJSON    `json:"updated" gorm:"-"` // just for legacy of old API
 		DeviceCount        *NullInt                    `json:"device_count,omitempty" gorm:"column:device_count" sql:"DEFAULT NULL"`
 		PotentialRightsEnd *NullTime                   `json:"potential_rights_end,omitempty" sql:"DEFAULT NULL"`
 		CurrentEndLicense  *NullTime                   `json:"-" gorm:"column:rights_end" sql:"DEFAULT NULL"`
@@ -55,13 +62,13 @@ type (
 
 // List of status values as strings
 const (
-	StatusReady     Status = "ready"
-	StatusActive    Status = "active"
-	StatusRevoked   Status = "revoked"
-	StatusReturned  Status = "returned"
-	StatusCancelled Status = "cancelled"
-	StatusExpired   Status = "expired"
-	EventRenewed    Status = "renewed"
+	StatusReady     Status = "Ready"
+	StatusActive    Status = "Active"
+	StatusRevoked   Status = "Revoked"
+	StatusReturned  Status = "Returned"
+	StatusCancelled Status = "Cancelled"
+	StatusExpired   Status = "Expired"
+	EventRenewed    Status = "Renewed"
 )
 
 // List of status values as int
@@ -177,6 +184,11 @@ func (s *LicenseStatus) AfterFind() error {
 		if !s.DeviceCount.Valid {
 			s.DeviceCount = nil
 		}
+	}
+	// just for legacy of old API
+	s.Updated = LicenseStatusUpdatedJSON{
+		StatusUpdated:  s.StatusUpdated,
+		LicenseUpdated: s.LicenseUpdated,
 	}
 	return nil
 }

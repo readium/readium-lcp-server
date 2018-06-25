@@ -112,14 +112,13 @@ func (s userStore) Update(changedUser *User) error {
 }
 
 func (s userStore) Delete(userID int64) error {
-	result := Transaction(s.db, func(tx txStore) error {
+	return Transaction(s.db, func(tx txStore) error {
 		err := tx.Where("user_id = ?", userID).Delete(Purchase{}).Error
 		if err != nil {
 			return err
 		}
 		return tx.Where("id = ?", userID).Delete(User{}).Error
 	})
-	return result
 }
 
 func (s userStore) BulkDelete(userIds []int64) error {
