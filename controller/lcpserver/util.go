@@ -154,35 +154,38 @@ func buildLicencedPublication(license *model.License, server http.IServer) (*epu
 		return nil, err
 	}
 	// get the epub content
-	epubContent, err1 := epubFile.Contents()
-	if err1 != nil {
-		return nil, err1
+	epubContent, err := epubFile.Contents()
+	if err != nil {
+		return nil, err
 	}
-	var b bytes.Buffer
+	var epubBuf bytes.Buffer
 	// copy the epub content to a buffer
-	io.Copy(&b, epubContent)
-	// create a zip reader
-	zr, err2 := zip.NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
-	if err2 != nil {
-		return nil, err2
+	_, err = io.Copy(&epubBuf, epubContent)
+	if err != nil {
+		return nil, err
 	}
-	ep, err3 := epub.Read(zr)
-	if err3 != nil {
-		return nil, err3
+	// create a zip reader
+	zipReader, err := zip.NewReader(bytes.NewReader(epubBuf.Bytes()), int64(epubBuf.Len()))
+	if err != nil {
+		return nil, err
+	}
+	result, err := epub.Read(zipReader)
+	if err != nil {
+		return nil, err
 	}
 	// add the license to publication
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
+	var licenseBuf bytes.Buffer
+	enc := json.NewEncoder(&licenseBuf)
 	// do not escape characters
 	enc.SetEscapeHTML(false)
 	enc.Encode(license)
 	// write the buffer in the zip, and suppress the trailing newline
 	// FIXME: check that the newline is not present anymore
-	// FIXME/ try to optimize with buf.ReadBytes(byte('\n')) instead of creating a new buffer.
-	var buf2 bytes.Buffer
-	buf2.Write(bytes.TrimRight(buf.Bytes(), "\n"))
-	ep.Add(epub.LicenseFile, &buf2, uint64(buf2.Len()))
-	return &ep, err
+	// FIXME/ try to optimize with licenseBuf.ReadBytes(byte('\n')) instead of creating a new buffer.
+	var additionalBuf bytes.Buffer
+	additionalBuf.Write(bytes.TrimRight(licenseBuf.Bytes(), "\n"))
+	result.Add(epub.LicenseFile, &additionalBuf, uint64(additionalBuf.Len()))
+	return &result, err
 }
 
 // notifyLSDServer informs the License Status Server of the creation of a new license

@@ -30,6 +30,7 @@ package lcpserver
 import (
 	"strconv"
 
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -38,6 +39,7 @@ import (
 	"github.com/readium/readium-lcp-server/lib/filestor"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/model"
+	"io"
 )
 
 // GetLicense returns an existing license,
@@ -137,7 +139,7 @@ func GenerateLicense(server http.IServer, payload *model.License, param ParamCon
 // for a given license identified by its id
 // plus a partial license given as input
 //
-func GetLicensedPublication(server http.IServer, payload *model.License, param ParamLicenseId) ([]byte, error) {
+func GetLicensedPublication(server http.IServer, payload *model.License, param ParamLicenseId) (io.ReadCloser, error) {
 	if param.LicenseID == "" {
 		return nil, http.Problem{Detail: "The license id must be set in the url", Status: http.StatusBadRequest}
 	}
@@ -169,29 +171,29 @@ func GetLicensedPublication(server http.IServer, payload *model.License, param P
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 	// get the content location to fill an http header
-	// FIXME: redundant as the content location has been set in a link (publication)
 	content, err1 := server.Store().Content().Get(licOut.ContentId)
 	if err1 != nil {
 		return nil, http.Problem{Detail: err1.Error(), Instance: licOut.ContentId, Status: http.StatusInternalServerError}
 	}
 
-	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
+	nonErr := http.Problem{HttpHeaders: make(map[string][]string)}
 	// -- set HTTP headers
 	nonErr.HttpHeaders.Add(http.HdrContentType, epub.ContentTypeEpub)
 	nonErr.HttpHeaders.Add(http.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, content.Location))
-	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
 	nonErr.HttpHeaders.Add(http.HdrXLcpLicense, licOut.Id)
 	// -- return the full licensed publication to the caller
-	result := new(bytes.Buffer)
-	publication.Write(result)
-	return result.Bytes(), nonErr
+	var b bytes.Buffer
+	writer := bufio.NewReadWriter(bufio.NewReader(&b), bufio.NewWriter(&b))
+	publication.Write(writer)
+	return http.NOOpCloser{writer}, nonErr
+
 }
 
 // GenerateLicensedPublication generates and returns a licensed publication
 // for a given content identified by its id
 // plus a partial license given as input
 //
-func GenerateLicensedPublication(server http.IServer, lic *model.License, param ParamContentId) ([]byte, error) {
+func GenerateLicensedPublication(server http.IServer, lic *model.License, param ParamContentId) (io.ReadCloser, error) {
 	if param.ContentID == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
@@ -235,22 +237,20 @@ func GenerateLicensedPublication(server http.IServer, lic *model.License, param 
 	}
 
 	// get the content location to fill an http header
-	// FIXME: redundant as the content location has been set in a link (publication)
 	content, err1 := server.Store().Content().Get(lic.ContentId)
 	if err1 != nil {
 		return nil, http.Problem{Detail: err1.Error(), Instance: lic.ContentId, Status: http.StatusInternalServerError}
 	}
-	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
+	nonErr := http.Problem{HttpHeaders: make(map[string][]string)}
 
 	// -- set HTTP headers
 	nonErr.HttpHeaders.Add(http.HdrContentType, epub.ContentTypeEpub)
 	nonErr.HttpHeaders.Add(http.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, content.Location))
-	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
 	nonErr.HttpHeaders.Add(http.HdrXLcpLicense, lic.Id)
-	// -- return the full licensed publication to the caller
-	result := new(bytes.Buffer)
-	publication.Write(result)
-	return result.Bytes(), nonErr
+	var b bytes.Buffer
+	writer := bufio.NewReadWriter(bufio.NewReader(&b), bufio.NewWriter(&b))
+	publication.Write(writer)
+	return http.NOOpCloser{writer}, nonErr
 }
 
 // ListLicenses returns a JSON struct with information about the existing licenses

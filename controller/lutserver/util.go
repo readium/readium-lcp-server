@@ -612,7 +612,6 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 
 		// error is carrying http status and http headers - we're taking it
 		if !out[1].IsNil() {
-
 			problem, ok := out[1].Interface().(http.Problem)
 			if !ok {
 				w.Header().Set(http.HdrContentType, http.ContentTypeTextHtml)
@@ -624,42 +623,50 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 				http.Redirect(w, r, problem.Detail, problem.Status)
 				return
 			}
-			w.WriteHeader(problem.Status)
 			for hdrKey := range problem.HttpHeaders {
 				w.Header().Set(hdrKey, problem.HttpHeaders.Get(hdrKey))
 			}
 		}
 
-		// bytes are delivered as they are (downloads)
-		if byts, ok := out[0].Interface().([]byte); ok {
-			w.Write(byts)
-			return
+		switch value := out[0].Interface().(type) {
+		case []byte:
+			// payload is already build. Important : will overwrite headers above.
+			w.Write(value)
+		case io.ReadCloser:
+			// it's our responsibility to close the ReadCloser
+			defer value.Close()
+			// we have a read closer interface - headers are set above
+			_, err := io.Copy(w, value)
+			if err != nil {
+				server.LogError("IO Error : %v", err)
+			}
+		default:
+			w.Header().Set(http.HdrContentType, http.ContentTypeTextHtml)
+			renderer, ok := out[0].Interface().(*views.Renderer)
+			if ok && renderer != nil {
+				renderer.SetWriter(w)
+				err := renderer.Render()
+				// rendering template caused an error : usefull for debugging
+				if err != nil {
+					renderer.AddKey("title", "Template "+renderer.GetTemplate()+" rendering error.")
+					renderer.AddKey("message", err.Error())
+					renderer.Template("main/error.html.got")
+					renderer.Render()
+				}
+			} else {
+				if out[1].IsNil() {
+					renderError(w, fmt.Errorf("Bad renderer (without error). Should always have one"))
+					return
+				}
+				problem, ok := out[1].Interface().(http.Problem)
+				if !ok {
+					renderError(w, fmt.Errorf("Bad http.Problem"))
+					return
+				}
+				renderError(w, fmt.Errorf("%s", problem.Detail))
+			}
 		}
 
-		w.Header().Set(http.HdrContentType, http.ContentTypeTextHtml)
-		renderer, ok := out[0].Interface().(*views.Renderer)
-		if ok && renderer != nil {
-			renderer.SetWriter(w)
-			err := renderer.Render()
-			// rendering template caused an error : usefull for debugging
-			if err != nil {
-				renderer.AddKey("title", "Template "+renderer.GetTemplate()+" rendering error.")
-				renderer.AddKey("message", err.Error())
-				renderer.Template("main/error.html.got")
-				renderer.Render()
-			}
-		} else {
-			if out[1].IsNil() {
-				renderError(w, fmt.Errorf("Bad renderer (without error). Should always have one"))
-				return
-			}
-			problem, ok := out[1].Interface().(http.Problem)
-			if !ok {
-				renderError(w, fmt.Errorf("Bad http.Problem"))
-				return
-			}
-			renderError(w, fmt.Errorf("%s", problem.Detail))
-		}
 	})
 }
 

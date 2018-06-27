@@ -137,7 +137,7 @@ func FilterLicenseStatuses(server http.IServer, param ParamDevicesAndPage) (mode
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 	// Result
-	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
+	nonErr := http.Problem{HttpHeaders: make(map[string][]string)}
 	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LsdServer.Port)+"/licenses/?devices="+strconv.Itoa(int(devicesLimit)), page+1, perPage, noOfLicenses))
 	return result, nonErr
 }

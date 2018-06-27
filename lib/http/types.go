@@ -37,6 +37,7 @@ import (
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/model"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -79,6 +80,10 @@ const (
 )
 
 type (
+	NOOpCloser struct {
+		io.Reader
+	}
+
 	ParamAndIndex struct {
 		tag   string
 		index int

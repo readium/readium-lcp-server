@@ -35,35 +35,36 @@ import (
 	"strings"
 )
 
-func (ep *Epub) addCleartextResources(names []string) {
-	if ep.cleartextResources == nil {
-		ep.cleartextResources = []string{}
+func (epub *Epub) addCleartextResources(names []string) {
+	if epub.cleartextResources == nil {
+		epub.cleartextResources = []string{}
 	}
 
 	for _, name := range names {
-		ep.cleartextResources = append(ep.cleartextResources, name)
+		epub.cleartextResources = append(epub.cleartextResources, name)
 	}
 }
 
-func (ep *Epub) addCleartextResource(name string) {
-	if ep.cleartextResources == nil {
-		ep.cleartextResources = []string{}
+func (epub *Epub) addCleartextResource(name string) {
+	if epub.cleartextResources == nil {
+		epub.cleartextResources = []string{}
 	}
 
-	ep.cleartextResources = append(ep.cleartextResources, name)
+	epub.cleartextResources = append(epub.cleartextResources, name)
 }
 
-func (ep Epub) Write(dst io.Writer) error {
-	w := NewWriter(dst)
+// io.Writer implementation
+func (epub Epub) Write(dst io.Writer) error {
+	writer := NewWriter(dst)
 
-	err := w.WriteHeader()
+	err := writer.WriteHeader()
 	if err != nil {
 		return err
 	}
 
-	for _, res := range ep.Resource {
+	for _, res := range epub.Resource {
 		if res.Path != "mimetype" {
-			fw, err := w.AddResource(res.Path, res.StorageMethod)
+			fw, err := writer.AddResource(res.Path, res.StorageMethod)
 			if err != nil {
 				return err
 			}
@@ -74,16 +75,16 @@ func (ep Epub) Write(dst io.Writer) error {
 		}
 	}
 
-	if ep.Encryption != nil {
-		writeEncryption(ep, w)
+	if epub.Encryption != nil {
+		writeEncryption(epub, writer)
 	}
 
-	return w.Close()
+	return writer.Close()
 }
 
-func (ep Epub) Cover() (bool, *Resource) {
+func (epub Epub) Cover() (bool, *Resource) {
 
-	for _, p := range ep.Package {
+	for _, p := range epub.Package {
 
 		var coverImageID string
 		coverImageID = "cover-image"
@@ -99,7 +100,7 @@ func (ep Epub) Cover() (bool, *Resource) {
 				it.Id == coverImageID {
 
 				path := filepath.Join(p.BasePath, it.Href)
-				for _, r := range ep.Resource {
+				for _, r := range epub.Resource {
 					if r.Path == path {
 						return true, r
 					}
@@ -111,13 +112,13 @@ func (ep Epub) Cover() (bool, *Resource) {
 	return false, nil
 }
 
-func (ep *Epub) Add(name string, body io.Reader, size uint64) error {
-	ep.Resource = append(ep.Resource, &Resource{Contents: body, StorageMethod: zip.Deflate, Path: name, OriginalSize: size})
+func (epub *Epub) Add(name string, body io.Reader, size uint64) error {
+	epub.Resource = append(epub.Resource, &Resource{Contents: body, StorageMethod: zip.Deflate, Path: name, OriginalSize: size})
 
 	return nil
 }
 
-func (ep Epub) CanEncrypt(file string) bool {
-	i := sort.SearchStrings(ep.cleartextResources, file)
-	return i >= len(ep.cleartextResources) || ep.cleartextResources[i] != file
+func (epub Epub) CanEncrypt(file string) bool {
+	i := sort.SearchStrings(epub.cleartextResources, file)
+	return i >= len(epub.cleartextResources) || epub.cleartextResources[i] != file
 }

@@ -36,6 +36,7 @@ import (
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/model"
+	"io"
 	"io/ioutil"
 	goHttp "net/http"
 	"os"
@@ -154,7 +155,7 @@ func ListContents(server http.IServer) (model.ContentCollection, error) {
 // GetContent fetches and returns an encrypted content file
 // selected by it content id (uuid)
 //
-func GetContent(server http.IServer, param ParamContentId) ([]byte, error) {
+func GetContent(server http.IServer, param ParamContentId) (io.ReadCloser, error) {
 	if param.ContentID == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
@@ -178,22 +179,18 @@ func GetContent(server http.IServer, param ParamContentId) ([]byte, error) {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	}
-	nonErr := http.Problem{Status: http.StatusCreated, HttpHeaders: make(map[string][]string)}
+	nonErr := http.Problem{HttpHeaders: make(map[string][]string)}
 
 	// opens the file
 	contentReadCloser, err := item.Contents()
-	defer contentReadCloser.Close()
-	if err != nil { //file probably not found
+	if err != nil {
+		//file probably not found
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
-	// TODO : set below headers
 	// set headers
 	nonErr.HttpHeaders.Add(http.HdrContentDisposition, "attachment; filename="+content.Location)
 	nonErr.HttpHeaders.Add(http.HdrContentType, epub.ContentTypeEpub)
 	nonErr.HttpHeaders.Add(http.HdrContentLength, fmt.Sprintf("%d", content.Length))
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(contentReadCloser)
-	// TODO : no error checking ? no verification if that file exists ?
-	// returns the content of the file to the caller
-	return buf.Bytes(), nil
+	// closing the io.ReadCloser is done in the server
+	return contentReadCloser, nonErr
 }

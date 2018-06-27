@@ -42,6 +42,7 @@ import (
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/lib/validator"
 	"github.com/readium/readium-lcp-server/model"
+	"io"
 	"io/ioutil"
 	"reflect"
 	"runtime"
@@ -202,13 +203,6 @@ func collect(s *Server, fnValue reflect.Value) (reflect.Type, reflect.Type, refl
 			switch functionType.In(p).Kind() {
 			case reflect.Ptr, reflect.Map, reflect.Slice:
 				payloadType = functionType.In(p)
-				/**
-				if functionType.In(p).Kind() == reflect.Ptr {
-					s.LogInfo("%q parameter is expected as payload", payloadType.Elem().Name())
-				} else {
-					s.LogInfo("%q parameter is expected as payload", payloadType.Name())
-				}
-				**/
 			default:
 				s.LogInfo("Second argument must be an *object, map, or slice and it's %q on %s [will be ignored].", functionType.In(p).String(), callerName)
 			}
@@ -361,8 +355,6 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 
 		// processing return of the handler (should be payload, error)
 		isError := out[0].IsNil()
-		// preparing the json encoder
-		enc := json.NewEncoder(w)
 		// we have error
 		if isError {
 			// header
@@ -374,6 +366,8 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 				return
 			}
 			w.WriteHeader(problem.Status)
+			// preparing the json encoder
+			enc := json.NewEncoder(w)
 			err := enc.Encode(problem)
 			if err != nil {
 				s.fastJsonError(w, r, http.StatusInternalServerError, fmt.Sprintf("Error encoding json : %v", err))
@@ -387,25 +381,40 @@ func (s *Server) HandleFunc(router *mux.Router, route string, fn interface{}, se
 					s.fastJsonError(w, r, http.StatusInternalServerError, "Error : expecting Problem, got something else.")
 					return
 				}
-				w.WriteHeader(problem.Status)
+				// Important note : status not set, comes from io.ReadCloser (doesn't allow it)
+				if problem.Status > 0 {
+					w.WriteHeader(problem.Status)
+				}
 				for hdrKey := range problem.HttpHeaders {
+					//s.LogInfo("Adding header %s = %#v", hdrKey, problem.HttpHeaders.Get(hdrKey))
 					w.Header().Set(hdrKey, problem.HttpHeaders.Get(hdrKey))
 				}
 			}
-			// bytes are delivered as they are (downloads)
-			if byts, ok := out[0].Interface().([]byte); ok {
-				w.Write(byts)
-				return
-			}
-			// header
-			w.Header().Set(HdrContentType, ContentTypeJson)
-			// no error has occured - serializing payload
-			err := enc.Encode(out[0].Interface())
-			if err != nil {
-				s.fastJsonError(w, r, http.StatusInternalServerError, fmt.Sprintf("Error encoding json : %v", err))
-				return
-			}
 
+			switch value := out[0].Interface().(type) {
+			case []byte:
+				// payload is already build. Important : will overwrite headers above.
+				w.Write(value)
+			case io.ReadCloser:
+				// we have a ReadCloser interface - headers are set above
+				// it's our responsibility to close the ReadCloser
+				defer value.Close()
+				_, err = io.Copy(w, value)
+				if err != nil {
+					s.LogError("IO Error : %v", err)
+				}
+			default:
+				// header
+				w.Header().Set(HdrContentType, ContentTypeJson)
+				// no error has occured - serializing payload
+				// preparing the json encoder
+				enc := json.NewEncoder(w)
+				err := enc.Encode(value)
+				if err != nil {
+					s.fastJsonError(w, r, http.StatusInternalServerError, fmt.Sprintf("Error encoding json : %v", err))
+					return
+				}
+			}
 		}
 	})
 }

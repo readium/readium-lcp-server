@@ -159,7 +159,9 @@ func (l *License) EncryptLicenseFields(content *Content) error {
 
 	// generate the user key
 	encryptionKey := []byte(l.Encryption.UserKey.Value)
-
+	if len(encryptionKey) == 0 {
+		return fmt.Errorf("Error : encryption key is empty.")
+	}
 	// empty the passphrase hash to avoid sending it back to the user
 	l.Encryption.UserKey.Value = ""
 

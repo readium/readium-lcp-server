@@ -67,7 +67,7 @@ func (d debugLogger) Write(p []byte) (n int, err error) {
 	return os.Stderr.Write(p)
 }
 
-// prepare test server
+// prepare test server - without LCP running
 func _TestMain(m *testing.M) {
 	var err error
 	logz := logger.New()
@@ -386,7 +386,7 @@ func TestGetContent(t *testing.T) {
 	if localhostAndPort == "" {
 		localhostAndPort = "http://localhost:8081"
 	}
-	req, err := http.NewRequest("GET", localhostAndPort+"/contents/73794ae8-54de-4bc4-bb0f-c701a517db3f", nil)
+	req, err := http.NewRequest("GET", localhostAndPort+"/contents/b61d6278-afaf-42d7-af5e-57efb816bb66", nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -415,6 +415,11 @@ func TestGetContent(t *testing.T) {
 		t.Errorf("Error reading response body error : %v", err)
 	}
 
+	t.Logf("Server responsed with status : %d", resp.StatusCode)
+	for hdrKey := range resp.Header {
+		t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
+	}
+
 	if resp.StatusCode >= 300 {
 		var problem http.Problem
 		err = json.Unmarshal(body, &problem)
@@ -423,7 +428,7 @@ func TestGetContent(t *testing.T) {
 		}
 		t.Logf("error response : %#v", problem)
 	}
-	t.Logf("%s", body)
+	//t.Logf("%s", body)
 }
 
 func listLicenses(page, perPage int64) (model.LicensesCollection, error) {
@@ -583,7 +588,9 @@ func TestListLicensesForContent(t *testing.T) {
 
 func TestGenerateLicense(t *testing.T) {
 	var buf bytes.Buffer
-
+	if localhostAndPort == "" {
+		localhostAndPort = "http://localhost:8081"
+	}
 	list, err := listContent()
 	if err != nil {
 		t.Errorf("Error : %v", err)
@@ -665,9 +672,11 @@ func TestGenerateLicense(t *testing.T) {
 	}
 }
 
-func TestGetLicensedPublication(t *testing.T) {
+func TestCreateLicensedPublication(t *testing.T) {
 	var buf bytes.Buffer
-
+	if localhostAndPort == "" {
+		localhostAndPort = "http://localhost:8081"
+	}
 	list, err := listContent()
 	if err != nil {
 		t.Errorf("Error : %v", err)
@@ -680,7 +689,8 @@ func TestGetLicensedPublication(t *testing.T) {
 		ContentId: list[0].Id,
 		Provider:  "Google",
 		User: &model.User{
-			UUID: uuid.String(),
+			UUID:      uuid.String(),
+			Encrypted: []string{"email", "name"},
 		},
 		Encryption: model.LicenseEncryption{
 			UserKey: model.LicenseUserKey{
@@ -703,7 +713,7 @@ func TestGetLicensedPublication(t *testing.T) {
 	enc := json.NewEncoder(&buf)
 	enc.Encode(payload)
 
-	req, err := http.NewRequest("POST", localhostAndPort+"/contents/8c1b45ed-c346-4fc6-8aab-e92cff8e68a9/publication?page=2&per_page=1", bytes.NewReader(buf.Bytes()))
+	req, err := http.NewRequest("POST", localhostAndPort+"/contents/"+list[0].Id+"/publication?page=2&per_page=1", bytes.NewReader(buf.Bytes()))
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("badu:hello")))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -734,10 +744,12 @@ func TestGetLicensedPublication(t *testing.T) {
 	}
 
 	if resp.StatusCode < 300 {
+		t.Logf("Response status code : %d", resp.StatusCode)
 		for hdrKey := range resp.Header {
 			t.Logf("Header : %s = %s", hdrKey, resp.Header.Get(hdrKey))
 		}
-		t.Logf("response : %#v", string(body))
+		//t.Logf("response : %#v", string(body))
+		t.Logf("Content length : %d", len(body))
 	} else {
 		var problem http.Problem
 		err = json.Unmarshal(body, &problem)

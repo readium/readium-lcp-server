@@ -39,6 +39,8 @@ import (
 	"unicode/utf8"
 )
 
+func (NOOpCloser) Close() error { return nil }
+
 func FormToFields(deserializeTo reflect.Value, fromForm url.Values) error {
 	for k, v := range fromForm {
 		field := deserializeTo.Elem().FieldByName(k)
