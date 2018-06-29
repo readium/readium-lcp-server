@@ -97,7 +97,7 @@ type (
 		Rights     *LicenseUserRights     `json:"rights,omitempty" gorm:"-"`
 		ContentId  string                 `json:"contentId" gorm:"column:content_fk;size:36" sql:"NOT NULL"` // uuid - max size 36
 		LSDStatus  int32                  `json:"-" gorm:"size:11"`                                          // size 11 TODO : never used. is this work in progress?
-		User       *User                  `json:"user,omitempty" gorm:"-"`
+		User       User                   `json:"user" gorm:"-"`
 		Content    *Content               `json:"-" gorm:"associationForeignKey:Id"`
 		Encryption LicenseEncryption      `json:"encryption,omitempty"`
 		Links      LicenseLinksCollection `json:"links,omitempty"`
@@ -188,11 +188,8 @@ func (l *License) EncryptLicenseFields(content *Content) error {
 }
 
 func (l *License) encryptFields(encrypter crypto.Encrypter, key []byte) error {
-	if l.User == nil {
-		return errors.New("empty user")
-	}
 	if l.User.Encrypted == nil {
-		return errors.New("empty encrypted")
+		return errors.New("empty user encrypted")
 	}
 	for _, toEncrypt := range l.User.Encrypted {
 		var out bytes.Buffer
@@ -288,11 +285,6 @@ func (l *License) BeforeSave() error {
 		}
 		l.Id = uid.String()
 	}
-	if l.User != nil {
-		if err := l.User.BeforeSave(); err != nil {
-			return err
-		}
-	}
 	// transfer from json to db
 	if l.Rights != nil {
 		l.Copy = l.Rights.Copy
@@ -313,9 +305,9 @@ func (l *License) ValidateEncryption() error {
 		return fmt.Errorf("Mandatory info missing in the input body : hashed passphrase is missing.")
 	}
 	// TODO : documentation
-	if len(l.Encryption.UserKey.Value) != 16 {
-		return fmt.Errorf("hashed passphrase incorrect length : should be 16")
-	}
+	//if len(l.Encryption.UserKey.Value) != 16 {
+	//	return fmt.Errorf("hashed passphrase incorrect length : should be 16")
+	//}
 
 	if l.Encryption.UserKey.Algorithm == "" {
 		//log.Println("User passphrase hash algorithm is missing, set default value")
@@ -331,7 +323,7 @@ func (l *License) ValidateProviderAndUser() error {
 	if l.Provider == "" {
 		return fmt.Errorf("Mandatory info missing in the input body  : license provider is missing.")
 	}
-	if l.User == nil || l.User.UUID == "" {
+	if l.User.UUID == "" {
 		return fmt.Errorf("Mandatory info missing in the input body : user identificator is missing.")
 	}
 	// check userkey hint, value and algorithm
@@ -343,8 +335,6 @@ func (l *License) ValidateProviderAndUser() error {
 func (l *License) CopyInputToLicense(lic *License) {
 	// copy the hashed passphrase, user hint and algorithm
 	lic.Encryption.UserKey = l.Encryption.UserKey
-	// fix : user is always nil
-	lic.User = &User{}
 	// copy optional user information
 	lic.User.Email = l.User.Email
 	lic.User.Name = l.User.Name
@@ -354,11 +344,6 @@ func (l *License) CopyInputToLicense(lic *License) {
 // Initialize sets a license id and issued date, contentID,
 //
 func (l *License) Initialize(contentID string) error {
-	// TODO : maybe move to validation ?
-	// checking rights
-	if l.Rights == nil || l.Rights.Start == nil || l.Rights.End == nil || !l.Rights.Start.Valid || !l.Rights.End.Valid {
-		return errors.New("rights not valid")
-	}
 	// random license id
 	uid, errU := NewUUID()
 	if errU != nil {
@@ -369,14 +354,16 @@ func (l *License) Initialize(contentID string) error {
 	l.Issued = time.Now().UTC().Truncate(time.Second)
 	// set the content id
 	l.ContentId = contentID
-	// normalize the start and end date, UTC, no milliseconds
-	if l.Rights.Start.Valid {
+	if l.Rights != nil {
 		// normalize the start and end date, UTC, no milliseconds
-		l.Rights.Start.Time = l.Rights.Start.Time.UTC().Truncate(time.Second)
-	}
-	if l.Rights.End.Valid {
-		// normalize the start and end date, UTC, no milliseconds
-		l.Rights.End.Time = l.Rights.End.Time.UTC().Truncate(time.Second)
+		if l.Rights.Start != nil && l.Rights.Start.Valid {
+			// normalize the start and end date, UTC, no milliseconds
+			l.Rights.Start.Time = l.Rights.Start.Time.UTC().Truncate(time.Second)
+		}
+		if l.Rights.End != nil && l.Rights.End.Valid {
+			// normalize the start and end date, UTC, no milliseconds
+			l.Rights.End.Time = l.Rights.End.Time.UTC().Truncate(time.Second)
+		}
 	}
 	return nil
 }

@@ -146,12 +146,12 @@ func CreateOrUpdateUser(server http.IServer, user *model.User) (*views.Renderer,
 				Email: user.Email,
 			}
 			// only if a new password was provided, allow to change password / hint
-			if user.Password != existingUser.Password {
+			if user.Password != "" && user.Password != existingUser.Password {
 				updateEntity.Password = hex.EncodeToString([]byte(user.Password))
 			} else {
 				updateEntity.Password = existingUser.Password
 			}
-			if user.Hint != existingUser.Hint {
+			if user.Hint != "" && user.Hint != existingUser.Hint {
 				updateEntity.Hint = user.Hint
 			} else {
 				updateEntity.Hint = existingUser.Hint

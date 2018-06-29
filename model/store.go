@@ -179,6 +179,8 @@ type (
 		Add(p *Purchase) error
 		Update(p *Purchase) error
 		BulkDelete(ids []int64) error
+		LoadUser(p *Purchase) error
+		LoadPublication(p *Purchase) error
 	}
 
 	LicenseRepository interface {

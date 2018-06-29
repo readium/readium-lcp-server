@@ -88,8 +88,6 @@ type (
 	}
 )
 
-var ErrNotFound = errors.New("License not found")
-
 func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model.License, error) {
 
 	// FormToFields the mandatory provider URI
@@ -97,37 +95,32 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 		server.LogError("Missing ProviderURI")
 		return nil, errors.New("Mandatory provider URI missing in the configuration")
 	}
-	encryptedAttrs := []string{"email", "name"}
-	// create a partial license
-	partialLicense := model.License{
-		Provider: server.Config().LutServer.ProviderUri,
-		User: &model.User{
-			Email:     purchase.User.Email,
-			Name:      purchase.User.Name,
-			UUID:      purchase.User.UUID,
-			Encrypted: encryptedAttrs,
-		},
-	}
 	// get the hashed passphrase from the purchase
 	userKeyValue, err := hex.DecodeString(purchase.User.Password)
-
 	if err != nil {
 		server.LogError("Missing User Password [%q] or hex.DecodeString error : %v", purchase.User.Password, err)
 		return nil, err
 	}
-	/**
-		if len(userKeyValue) != 16 {
-			return nil, fmt.Errorf("Error : user password should have 16 bytes.")
-		}
-	**/
-	userKey := model.LicenseUserKey{
-		Key: model.Key{
-			Algorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+
+	// create a partial license
+	partialLicense := model.License{
+		Provider: server.Config().LutServer.ProviderUri,
+		User: model.User{
+			Email:     purchase.User.Email,
+			Name:      purchase.User.Name,
+			UUID:      purchase.User.UUID,
+			Encrypted: []string{"email", "name"},
 		},
-		Hint:  purchase.User.Hint,
-		Value: string(userKeyValue),
+		Encryption: model.LicenseEncryption{
+			UserKey: model.LicenseUserKey{
+				Key: model.Key{
+					Algorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+				},
+				Hint:  purchase.User.Hint,
+				Value: string(userKeyValue),
+			},
+		},
 	}
-	partialLicense.Encryption.UserKey = userKey
 
 	// In case of a creation of license, add the user rights
 	if purchase.LicenseUUID == nil {
@@ -141,7 +134,7 @@ func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model
 		}
 
 		// if this is a loan, include start and end dates from the purchase info
-		if purchase.Type == model.LOAN {
+		if purchase.Type == "Loan" {
 			userRights.Start = purchase.StartDate
 			userRights.End = purchase.EndDate
 		}

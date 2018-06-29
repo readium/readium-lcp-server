@@ -28,13 +28,21 @@
 package lutserver
 
 import (
-	"strconv"
-
-	"github.com/readium/readium-lcp-server/lib/http"
-	"github.com/readium/readium-lcp-server/model"
-
+	"bufio"
+	"bytes"
+	"database/sql"
+	"encoding/gob"
+	"encoding/hex"
+	"errors"
+	"fmt"
 	"github.com/jinzhu/gorm"
+	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/views"
+	"github.com/readium/readium-lcp-server/model"
+	"io"
+	"io/ioutil"
+	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -221,13 +229,48 @@ func GetPurchases(server http.IServer, param ParamPagination) (*views.Renderer, 
 	return view, nil
 }
 
+// Delete removes purchase from the database
+func DeletePurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
+	ids := strings.Split(param.Id, ",")
+	var pendingDeleteIds []int64
+	for _, id := range ids {
+		uid, err := strconv.Atoi(id)
+		if err != nil {
+			// id is not a number
+			return nil, http.Problem{Detail: "ID must be an integer", Status: http.StatusBadRequest}
+		}
+		_, err = server.Store().Purchase().Get(int64(uid))
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
+		}
+		pendingDeleteIds = append(pendingDeleteIds, int64(uid))
+	}
+	// TODO : delete License from LSD + LCP
+	if err := server.Store().Purchase().BulkDelete(pendingDeleteIds); err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+	}
+	return nil, http.Problem{Status: http.StatusOK}
+}
+
 // CreatePurchase creates a purchase in the database
 //
 func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*views.Renderer, error) {
 	switch payload.ID {
 	case 0:
-		// TODO : create a License on LCP (which is going to notify LSD)
-		if err := server.Store().Purchase().Add(payload); err != nil {
+		err := server.Store().Purchase().LoadUser(payload)
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		err = server.Store().Purchase().LoadPublication(payload)
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		err = generateLicenseOnLCP(server, payload)
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		err = server.Store().Purchase().Add(payload)
+		if err != nil {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	default:
@@ -261,25 +304,112 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 	return nil, http.Problem{Detail: "/purchases", Status: http.StatusRedirect}
 }
 
-// Delete removes purchase from the database
-func DeletePurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
-	ids := strings.Split(param.Id, ",")
-	var pendingDeleteIds []int64
-	for _, id := range ids {
-		uid, err := strconv.Atoi(id)
-		if err != nil {
-			// id is not a number
-			return nil, http.Problem{Detail: "ID must be an integer", Status: http.StatusBadRequest}
-		}
-		_, err = server.Store().Purchase().Get(int64(uid))
-		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-		}
-		pendingDeleteIds = append(pendingDeleteIds, int64(uid))
+func generateLicenseOnLCP(server http.IServer, fromPurchase *model.Purchase) error {
+	if server.Config().LutServer.ProviderUri == "" {
+		server.LogError("Missing ProviderURI")
+		return errors.New("Mandatory provider URI missing in the configuration")
 	}
-	// TODO : delete License from LSD + LCP
-	if err := server.Store().Purchase().BulkDelete(pendingDeleteIds); err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+	// get the hashed passphrase from the purchase
+	userKeyValue, err := hex.DecodeString(fromPurchase.User.Password)
+	if err != nil {
+		server.LogError("Missing User Password [%q] or hex.DecodeString error : %v", fromPurchase.User.Password, err)
+		return err
 	}
-	return nil, http.Problem{Status: http.StatusOK}
+
+	// create a partial license
+	newLicense := model.License{
+		Provider:  server.Config().LutServer.ProviderUri,
+		ContentId: fromPurchase.Publication.UUID,
+		User: model.User{
+			Email:     fromPurchase.User.Email,
+			Name:      fromPurchase.User.Name,
+			UUID:      fromPurchase.User.UUID,
+			Encrypted: []string{"email", "name"},
+		},
+		Encryption: model.LicenseEncryption{
+			UserKey: model.LicenseUserKey{
+				Key: model.Key{
+					Algorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+				},
+				Hint:  fromPurchase.User.Hint,
+				Value: string(userKeyValue),
+			},
+		},
+		Rights: &model.LicenseUserRights{
+			Copy:  &model.NullInt{NullInt64: sql.NullInt64{Int64: server.Config().LutServer.RightCopy, Valid: true}},
+			Print: &model.NullInt{NullInt64: sql.NullInt64{Int64: server.Config().LutServer.RightPrint, Valid: true}},
+		},
+	}
+
+	// if this is a loan, include start and end dates from the purchase info
+	if fromPurchase.Type == "Loan" {
+		newLicense.Rights.Start = fromPurchase.StartDate
+		newLicense.Rights.End = fromPurchase.EndDate
+	}
+
+	notifyAuth := server.Config().LcpUpdateAuth
+	if notifyAuth.Username == "" {
+		server.LogError("Username is empty : can't connect to LCP")
+		return fmt.Errorf("Username is empty : can't connect to LCP.")
+	}
+
+	payload := http.AuthorizationAndLicense{
+		License:  &newLicense,
+		User:     notifyAuth.Username,
+		Password: notifyAuth.Password,
+	}
+	conn, err := net.Dial("tcp", "localhost:10000")
+	if err != nil {
+		server.LogError("Error Notify LcpServer : %v", err)
+		return fmt.Errorf("LCP Server probably not running : %v", err)
+	}
+	defer conn.Close()
+	server.LogInfo("Notifying LCP (creating license).")
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+
+	_, err = rw.WriteString("CREATELICENSE\n")
+	if err != nil {
+		server.LogError("Could not write : %v", err)
+		return err
+	}
+
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(payload)
+	if err != nil {
+		server.LogError("Encode failed for struct: %v", err)
+		return err
+	}
+
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return err
+	}
+	// Read the reply.
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LCP reply : %v", err)
+		return err
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		var license model.License
+		dec = gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+		err = dec.Decode(&license)
+		if err != nil {
+			server.LogError("Error decoding GOB license : %v", err)
+		} else {
+			server.LogInfo("Model license : %#v", license)
+			// store the license id if it was not already FormToFields
+			fromPurchase.LicenseUUID = &model.NullString{NullString: sql.NullString{String: license.Id, Valid: true}}
+		}
+	} else if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return fmt.Errorf(responseErr.Err)
+	}
+
+	return nil
 }

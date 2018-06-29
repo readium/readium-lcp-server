@@ -34,6 +34,7 @@ import (
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"io"
 	"net"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -110,6 +111,22 @@ func (e *GobEndpoint) handleMessages(conn net.Conn) {
 			e.log.Errorf("Command %q is not registered.", cmd)
 			return
 		}
+		// Handle panic
+		defer func() {
+			if recoverErr := recover(); recoverErr != nil {
+				replyErr := GobReplyError{Err: recoverErr.(error).Error()}
+				e.log.Errorf("Handler panic error : %v\n%s", recoverErr, string(debug.Stack()))
+				enc := gob.NewEncoder(rw)
+				err = enc.Encode(replyErr)
+				if err != nil {
+					e.log.Errorf("Error encoding error (should never happen) : %v", err)
+				}
+				err = rw.Flush()
+				if err != nil {
+					e.log.Printf("Flush failed : %v", err)
+				}
+			}
+		}()
 		// Handle command
 		err = handleCommand(rw)
 		if err != nil {

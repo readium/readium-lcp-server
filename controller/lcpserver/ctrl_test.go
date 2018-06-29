@@ -41,7 +41,6 @@ import (
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/lib/pack"
 	"github.com/readium/readium-lcp-server/model"
-	"gopkg.in/yaml.v1"
 	"io/ioutil"
 	"log"
 	goHttp "net/http"
@@ -602,7 +601,7 @@ func TestGenerateLicense(t *testing.T) {
 	payload := model.License{
 		ContentId: list[0].Id,
 		Provider:  "Google",
-		User: &model.User{
+		User: model.User{
 			UUID:      uuid.String(),
 			Encrypted: []string{"email", "name"},
 		},
@@ -688,7 +687,7 @@ func TestCreateLicensedPublication(t *testing.T) {
 	payload := model.License{
 		ContentId: list[0].Id,
 		Provider:  "Google",
-		User: &model.User{
+		User: model.User{
 			UUID:      uuid.String(),
 			Encrypted: []string{"email", "name"},
 		},
@@ -774,7 +773,7 @@ func TestGetLicense(t *testing.T) {
 	payload := model.License{
 		ContentId: list[0].Id,
 		Provider:  "Google",
-		User: &model.User{
+		User: model.User{
 			UUID: uuid.String(),
 			Encrypted: []string{
 				"Email", "UUID",
@@ -860,7 +859,7 @@ func TestUpdateLicense(t *testing.T) {
 	payload := model.License{
 		ContentId: list[0].Id,
 		Provider:  "Google",
-		User: &model.User{
+		User: model.User{
 			UUID: uuid.String(),
 			Encrypted: []string{
 				"Email", "UUID",

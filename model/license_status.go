@@ -73,13 +73,13 @@ const (
 
 // List of status values as int
 const (
-	StatusReadyInt     int64 = 0
-	StatusActiveInt    int64 = 1
-	StatusRevokedInt   int64 = 2
-	StatusReturnedInt  int64 = 3
-	StatusCancelledInt int64 = 4
-	StatusExpiredInt   int64 = 5
-	EventRenewedInt    int64 = 6
+	StatusReadyInt     int64 = 1
+	StatusActiveInt    int64 = 2
+	StatusRevokedInt   int64 = 4
+	StatusReturnedInt  int64 = 8
+	StatusCancelledInt int64 = 16
+	StatusExpiredInt   int64 = 32
+	EventRenewedInt    int64 = 64
 )
 
 // Implementation of Stringer

@@ -99,7 +99,7 @@ func (p *Purchase) BeforeSave() error {
 		}
 		p.UserId = p.User.ID
 	}
-	if p.Type == LOAN && p.StartDate == nil {
+	if p.Type == "Loan" && p.StartDate == nil {
 		p.StartDate = now
 	}
 	if p.UUID == "" || p.ID == 0 {
@@ -111,6 +111,14 @@ func (p *Purchase) BeforeSave() error {
 		p.UUID = uid.String()
 	}
 	return nil
+}
+
+func (s purchaseStore) LoadUser(p *Purchase) error {
+	return s.db.Model(User{}).Where("id = ?", p.UserId).Find(&p.User).Error
+}
+
+func (s purchaseStore) LoadPublication(p *Purchase) error {
+	return s.db.Model(User{}).Where("id = ?", p.PublicationId).Find(&p.Publication).Error
 }
 
 // Get a purchase using its id

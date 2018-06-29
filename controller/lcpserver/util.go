@@ -191,11 +191,11 @@ func buildLicencedPublication(license *model.License, server http.IServer) (*epu
 // notifyLSDServer informs the License Status Server of the creation of a new license
 // and saves the result of the http request in the DB (using *LicenseRepository)
 //
-func notifyLSDServer(payload *model.License, server http.IServer) {
+func notifyLSDServer(payload *model.License, server http.IServer) error {
 	conn, err := net.Dial("tcp", "localhost:9000")
 	if err != nil {
 		server.LogError("Error Notify LsdServer : %v", err)
-		return
+		return err
 	}
 	defer conn.Close()
 	server.LogInfo("Notifying LSD")
@@ -204,33 +204,33 @@ func notifyLSDServer(payload *model.License, server http.IServer) {
 	_, err = rw.WriteString("UPDATELICENSESTATUS\n")
 	if err != nil {
 		server.LogError("Could not write : %v", err)
-		return
+		return err
 	}
 
 	notifyAuth := server.Config().LsdNotifyAuth
 	if notifyAuth.Username == "" {
 		server.LogError("Username is empty : can't connect to LSD")
-		return
+		return err
 	}
 
 	enc := gob.NewEncoder(rw)
 	err = enc.Encode(http.AuthorizationAndLicense{User: notifyAuth.Username, Password: notifyAuth.Password, License: payload})
 	if err != nil {
 		server.LogError("Encode failed for struct: %v", err)
-		return
+		return err
 	}
 
 	err = rw.Flush()
 	if err != nil {
 		server.LogError("Flush failed : %v", err)
-		return
+		return err
 	}
 
 	// Read the reply.
 	bodyBytes, err := ioutil.ReadAll(rw.Reader)
 	if err != nil {
 		server.LogError("Error reading LSD reply : %v", err)
-		return
+		return err
 	}
 
 	var responseErr http.GobReplyError
@@ -238,18 +238,20 @@ func notifyLSDServer(payload *model.License, server http.IServer) {
 	err = dec.Decode(&responseErr)
 	if err != nil && err != io.EOF {
 		server.LogError("Error decoding LCP GOB : %v", err)
-		return
+		return err
 	}
 	if responseErr.Err != "" {
 		server.LogError("LCP GOB Error : %v", responseErr)
-		return
+		return err
 	}
 
 	err = server.Store().License().UpdateLsdStatus(payload.Id, http.StatusCreated)
 	if err != nil {
 		server.LogError("Error updating LSD status : %v", err)
-		return
+		return err
 	}
+	server.LogInfo("Notified LSD, status updated for %q", payload.Id)
+	return nil
 }
 
 func RegisterRoutes(muxer *mux.Router, server http.IServer) {
@@ -312,6 +314,45 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		return nil
 	})
 
+	endpoint.AddHandleFunc("CREATELICENSE", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLicense
+		// decoding payload
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			return err
+		}
+		// checking authorization
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+		// validating content id
+		if payload.License.ContentId == "" {
+			return fmt.Errorf("Error : invalid (empty) content id")
+		}
+		// checking that content with that id exists
+		_, err = server.Store().Content().Get(payload.License.ContentId)
+		if err != nil {
+			return fmt.Errorf("Error finding content : %v", err)
+		}
+		// generating the license
+		err = saveLicense(server, payload.License, payload.License.ContentId)
+		if err != nil {
+			return fmt.Errorf("Error generating license : %v", err)
+		}
+		server.LogInfo("Replying via GOB with new license having id %d", payload.License.Id)
+		enc := gob.NewEncoder(rw)
+		err = enc.Encode(payload.License)
+		if err != nil {
+			server.LogError("Error encoding response : %v", err)
+		}
+
+		return nil
+	})
+
 	endpoint.AddHandleFunc("UPDATELICENSE", func(rw *bufio.ReadWriter) error {
 		var payload http.AuthorizationAndLicense
 
@@ -341,6 +382,12 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		err = server.Store().License().Update(existingLicense)
 		if err != nil {
 			return err
+		}
+
+		enc := gob.NewEncoder(rw)
+		err = enc.Encode(existingLicense)
+		if err != nil {
+			server.LogError("Error encoding response : %v", err)
 		}
 		return nil
 	})
@@ -449,4 +496,34 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		// Start listening.
 		endpoint.Listen(":10000")
 	}()
+}
+
+func saveLicense(server http.IServer, payload *model.License, contentID string) error {
+	// check mandatory information in the input body
+	err := payload.ValidateProviderAndUser()
+	if err != nil {
+		return err
+	}
+
+	// init the license with an id and issue date, will also normalize the start and end date, UTC, no milliseconds
+	err = payload.Initialize(contentID)
+	if err != nil {
+		return err
+	}
+
+	// build the license
+	err = buildLicense(payload, server)
+	if err != nil {
+		return err
+	}
+
+	// store the license in the db
+	err = server.Store().License().Add(payload)
+	if err != nil {
+		return err
+	}
+
+	// notify the lsd server of the creation of the license.
+	// we can't go async, since the result is updating the license status
+	return notifyLSDServer(payload, server)
 }

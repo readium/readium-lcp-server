@@ -42,10 +42,8 @@ import (
 	"io"
 )
 
-// GetLicense returns an existing license,
-// selected by a license id and a partial license both given as input.
-// The input partial license is optional: if absent, a partial license
-// is returned to the caller, with the info stored in the db.
+// GetLicense returns an existing license, selected by a license id and a partial license both given as input.
+// The input partial license is optional: if absent, a partial license is returned to the caller, with the info stored in the db.
 //
 func GetLicense(server http.IServer, payload *model.License, param ParamLicenseId) ([]byte, error) {
 	if param.LicenseID == "" {
@@ -85,38 +83,18 @@ func GetLicense(server http.IServer, payload *model.License, param ParamLicenseI
 	return result.Bytes(), nonErr
 }
 
-// GenerateLicense generates and returns a new license,
-// for a given content identified by its id
-// plus a partial license given as input
+// GenerateLicense generates and returns a new license, for a given content identified by its id plus a partial license given as input
 //
 func GenerateLicense(server http.IServer, payload *model.License, param ParamContentId) ([]byte, error) {
 	if param.ContentID == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
 
-	// check mandatory information in the input body
-	err := payload.ValidateProviderAndUser()
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
-	}
-
-	// init the license with an id and issue date, will also normalize the start and end date, UTC, no milliseconds
-	err = payload.Initialize(param.ContentID)
+	err := saveLicense(server, payload, param.ContentID)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 
-	// build the license
-	err = buildLicense(payload, server)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	}
-
-	// store the license in the db
-	err = server.Store().License().Add(payload)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	}
 	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
 	// set http headers
 	nonErr.HttpHeaders.Add(http.HdrContentType, http.ContentTypeLcpJson)
@@ -129,15 +107,10 @@ func GenerateLicense(server http.IServer, payload *model.License, param ParamCon
 	// send back the license
 	enc.Encode(payload)
 
-	// notify the lsd server of the creation of the license.
-	// this is an asynchronous call.
-	notifyLSDServer(payload, server)
 	return result.Bytes(), nonErr
 }
 
-// GetLicensedPublication returns a licensed publication
-// for a given license identified by its id
-// plus a partial license given as input
+// GetLicensedPublication returns a licensed publication for a given license identified by its id plus a partial license given as input
 //
 func GetLicensedPublication(server http.IServer, payload *model.License, param ParamLicenseId) (io.ReadCloser, error) {
 	if param.LicenseID == "" {
@@ -182,79 +155,53 @@ func GetLicensedPublication(server http.IServer, payload *model.License, param P
 	nonErr.HttpHeaders.Add(http.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, content.Location))
 	nonErr.HttpHeaders.Add(http.HdrXLcpLicense, licOut.Id)
 	// -- return the full licensed publication to the caller
-	var b bytes.Buffer
-	writer := bufio.NewReadWriter(bufio.NewReader(&b), bufio.NewWriter(&b))
+	var resultBuffer bytes.Buffer
+	writer := bufio.NewReadWriter(bufio.NewReader(&resultBuffer), bufio.NewWriter(&resultBuffer))
 	publication.Write(writer)
-	return http.NOOpCloser{writer}, nonErr
+	return http.NOOpCloser{Reader: writer}, nonErr
 
 }
 
-// GenerateLicensedPublication generates and returns a licensed publication
-// for a given content identified by its id
-// plus a partial license given as input
+// GenerateLicensedPublication generates and returns a licensed publication for a given content identified by its id plus a partial license given as input
 //
-func GenerateLicensedPublication(server http.IServer, lic *model.License, param ParamContentId) (io.ReadCloser, error) {
+func GenerateLicensedPublication(server http.IServer, payload *model.License, param ParamContentId) (io.ReadCloser, error) {
 	if param.ContentID == "" {
 		return nil, http.Problem{Detail: "The content id must be set in the url", Status: http.StatusBadRequest}
 	}
-	// check mandatory information in the input body
-	err := lic.ValidateProviderAndUser()
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 
-	}
-	// init the license with an id and issue date, will also normalize the start and end date, UTC, no milliseconds
-	err = lic.Initialize(param.ContentID)
+	err := saveLicense(server, payload, param.ContentID)
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-
 	}
-	// build the license
-	err = buildLicense(lic, server)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-
-	}
-
-	// store the license in the db
-	err = server.Store().License().Add(lic)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Instance: param.ContentID, Status: http.StatusInternalServerError}
-
-	}
-
-	// notify the lsd server of the creation of the license
-	notifyLSDServer(lic, server)
 
 	// build a licenced publication
-	publication, err := buildLicencedPublication(lic, server)
+	publication, err := buildLicencedPublication(payload, server)
 	if err == filestor.ErrNotFound {
 		server.LogError("File storage error : %s", err.Error())
-		return nil, http.Problem{Detail: err.Error(), Instance: lic.ContentId, Status: http.StatusNotFound}
+		return nil, http.Problem{Detail: err.Error(), Instance: payload.ContentId, Status: http.StatusNotFound}
 
 	} else if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Instance: lic.ContentId, Status: http.StatusInternalServerError}
+		return nil, http.Problem{Detail: err.Error(), Instance: payload.ContentId, Status: http.StatusInternalServerError}
 	}
 
 	// get the content location to fill an http header
-	content, err1 := server.Store().Content().Get(lic.ContentId)
+	content, err1 := server.Store().Content().Get(payload.ContentId)
 	if err1 != nil {
-		return nil, http.Problem{Detail: err1.Error(), Instance: lic.ContentId, Status: http.StatusInternalServerError}
+		return nil, http.Problem{Detail: err1.Error(), Instance: payload.ContentId, Status: http.StatusInternalServerError}
 	}
 	nonErr := http.Problem{HttpHeaders: make(map[string][]string)}
 
 	// -- set HTTP headers
 	nonErr.HttpHeaders.Add(http.HdrContentType, epub.ContentTypeEpub)
 	nonErr.HttpHeaders.Add(http.HdrContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, content.Location))
-	nonErr.HttpHeaders.Add(http.HdrXLcpLicense, lic.Id)
-	var b bytes.Buffer
-	writer := bufio.NewReadWriter(bufio.NewReader(&b), bufio.NewWriter(&b))
+	nonErr.HttpHeaders.Add(http.HdrXLcpLicense, payload.Id)
+	var resultBuffer bytes.Buffer
+	writer := bufio.NewReadWriter(bufio.NewReader(&resultBuffer), bufio.NewWriter(&resultBuffer))
 	publication.Write(writer)
-	return http.NOOpCloser{writer}, nonErr
+	return http.NOOpCloser{Reader: writer}, nonErr
 }
 
-// ListLicenses returns a JSON struct with information about the existing licenses
-// parameters:
+// ListLicenses returns a JSON struct with information about the existing licenses parameters:
 // 	page: page number
 //	per_page: number of items par page
 //
@@ -279,12 +226,11 @@ func ListLicenses(server http.IServer, param ParamPagination) (model.LicensesCol
 	}
 
 	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
-	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LcpServer.Port)+"/licenses", page+1, perPage, noOfLicenses))
+	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://"+server.Config().LcpServer.Host+strconv.Itoa(server.Config().LcpServer.Port)+"/licenses", page+1, perPage, noOfLicenses))
 	return licenses, nonErr
 }
 
-// ListLicensesForContent lists all licenses associated with a given content
-// parameters:
+// ListLicensesForContent lists all licenses associated with a given content parameters:
 //	content_id: content identifier
 // 	page: page number (default 1)
 //	per_page: number of items par page (default 30)
@@ -321,7 +267,7 @@ func ListLicensesForContent(server http.IServer, param ParamContentIdAndPage) (m
 	}
 
 	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
-	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://localhost:"+strconv.Itoa(server.Config().LcpServer.Port)+"/licenses", page+1, perPage, noOfLicenses))
+	nonErr.HttpHeaders.Set("Link", http.MakePaginationHeader("http://"+server.Config().LcpServer.Host+strconv.Itoa(server.Config().LcpServer.Port)+"/licenses", page+1, perPage, noOfLicenses))
 	return licenses, nonErr
 
 }

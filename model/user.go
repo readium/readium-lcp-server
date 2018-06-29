@@ -41,7 +41,7 @@ type (
 		Email     string   `json:"email" gorm:"size:254;UNIQUE_INDEX"`
 		Password  string   `json:"password" gorm:"size:64"`
 		Hint      string   `json:"hint" gorm:"size:64"`
-		Encrypted []string `json:"encrypted,omitempty" gorm:"-"` // TODO : never used. is this work in progress?
+		Encrypted []string `json:"encrypted,omitempty" gorm:"-"`
 	}
 )
 

@@ -40,12 +40,6 @@ import (
 	"time"
 )
 
-// Enumeration of PurchaseType
-const (
-	BUY  = "BUY"
-	LOAN = "LOAN"
-)
-
 const BasicProfile = "http://readium.org/lcp/basic-profile"
 
 const V1Profile = "http://readium.org/lcp/profile-1.0"
