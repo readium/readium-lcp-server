@@ -79,11 +79,9 @@ If you want to use the master branch:
 ```sh
 // from the go workspace
 cd $GOPATH
-// get the different packages and their dependencies, then installs the packages
-go get github.com/readium/readium-lcp-server
 ```
 
-If you want to use a feature/F branch:
+Alternatively, if you want to use a feature/F branch:
 ```sh
 // from the go workspace
 cd $GOPATH
@@ -91,18 +89,19 @@ cd $GOPATH
 mkdir -p src/github.com/readium/readium-lcp-server
 // clone the repo, selecting the development branch
 git clone -b feature/F https://github.com/readium/readium-lcp-server.git src/github.com/readium/readium-lcp-server
+```
+Then fetch, build and install the different modules with:
+```sh
 // move to the project repository
 cd src/github.com/readium/readium-lcp-server
 // get the different packages and their dependencies, then installs the packages (dot / triple dot pattern)
 go get ./...
-```
+````
 
 You may prefer to install only some of the three executables. 
 In such a case, the "go get" command should be called once for each package, e.g. for the lcpserver from the master branch:
 ```sh
-// from the go workspace
 cd $GOPATH
-// get the different packages and their dependencies, then installs the packages
 go get github.com/readium/readium-lcp-server/lcpserver
 ```
 
@@ -128,9 +127,20 @@ The License Server, License Status Server and Frontend test server will search t
 * READIUM_LSDSERVER_CONFIG for the LSD server
 * READIUM_FRONTEND_CONFIG for the frontend test server
 
-The three servers may share the same configuration file (if they are both executed on the same server) or they may have their own configuration file. In the first case, the htpasswd file and database may also be shared.
+The value of the three global variables will be on the form /<path>/lcpconfig.yaml.
 
-Here are details about all configuration properties:
+The three servers may share the same configuration file (if they are both executed on the same server) or they may have their own configuration file. 
+
+The LCP and LSD servers also require authenticated API requests for some of their functionalities. A password file name .htpasswd must therefore be created to handle such authentication data, for each module. Like the configuration file, the .htpasswd file may be shared between the two modules.
+
+A source example for creating a password file is http://www.htaccesstools.com/htpasswd-generator/. 
+The htpasswd file format is e.g.:
+```sh
+	User1:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
+	User2:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKMT
+```
+
+Here are details about the configuration properties:
 
 *License Server*
 
@@ -144,13 +154,6 @@ Here are details about all configuration properties:
 - "public_base_url": the public base URL, combination of the host and port values on http by default 
 - "database": the URI formatted connection string to the database, `sqlite3://file:lcp.sqlite?cache=shared&mode=rwc` by default
 - "auth_file": mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
-
-A source example for creating a password file is http://www.htaccesstools.com/htpasswd-generator/. 
-The htpasswd file format is e.g.:
-```sh
-	User1:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
-	User2:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKMT
-```
 
 "storage" section: parameters related to the storage of encrypted publications. 
 - "filesystem" section: parameters related to a file system storage.
@@ -299,7 +302,7 @@ lsd_notify_auth:
 
 ```
 
-*All servers*
+*And for all servers*
 
 "localization" section: parameters related to the localization of the messages sent by all three servers.
 - "languages": array of supported localization languages
@@ -308,7 +311,7 @@ lsd_notify_auth:
 
 NOTE: the localization file names (ex: 'en-US.json, de-DE.json') must match the set of supported localization languages.
 
-The following CBC / GCM configurable property has been DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
+NOTE: a CBC / GCM configurable property has been DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
 "aes256_cbc_or_gcm": either "GCM" or "CBC" (which is the default value). This is used only for encrypting publication resources, not the content key, not the user key check, not the LCP license fields.
 
 Execution
@@ -321,6 +324,9 @@ Each server is executed with no parameter:
 - lsdserver
 - frontend
 
+After the frontend server is launched, you can access to the server GUI via its base url, e.g. http://http://127.0.0.1:8991
+
+NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended, as you won't be able to access the modules from e.g. a mobile app. It's much better to use the WiFi IPv4 address to your computer, and access the server from your mobile device via WiFi.  
 
 Contributing
 ============
