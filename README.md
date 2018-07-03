@@ -225,8 +225,10 @@ lsd_notify_auth:
 - "renting_days": default number of days allowed for a loan. 
 - "renew": boolean; if `true`, the renewal of a loan is possible. 
 - "renew_days": default number of additional days allowed after a renewal.
-- "return": boolean; if `true`,  an early return is possible.  
-- "register": boolean; if `true`,  registering a device is possible.
+- "return": boolean; if `true`, an early return is possible.  
+- "register": boolean; if `true`, registering a device is possible.
+- "renew_page_url": URL; if set, the renew feature is implemented as an HTML page, using this ULR. This is mostly useful for testing client applications.
+
 
 "logging" section: parameters for logging results of API method calls on the License Status server:
 - "log_directory": the complete path to the log file.
