@@ -39,6 +39,7 @@ import (
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"runtime"
 	"strings"
+	"time"
 )
 
 const (
@@ -62,6 +63,7 @@ type (
 		Create(value interface{}) *gorm.DB
 		Delete(value interface{}, where ...interface{}) *gorm.DB
 		Where(query interface{}, args ...interface{}) *gorm.DB
+		FirstOrCreate(out interface{}, where ...interface{}) *gorm.DB
 	}
 
 	// a logger struct that can be passed to gorm
@@ -162,6 +164,7 @@ type (
 		Count(deviceLimit int64) (int64, error)
 		List(deviceLimit int64, limit int64, offset int64) (LicensesStatusCollection, error)
 		ListAll() (LicensesStatusCollection, error)
+		ListLatest(timestamp time.Time) (LicensesStatusCollection, error)
 		GetByLicenseId(id string) (*LicenseStatus, error)
 		Update(ls *LicenseStatus) error
 	}
@@ -199,8 +202,8 @@ type (
 		CountFiltered(deviceLimit string) (int64, error)
 		GetFiltered(deviceLimit string, page, pageNum int64) (LicensesViewCollection, error)
 		AddView(licenses *LicenseView) error
-		BulkAdd(licenses LicensesStatusCollection) error
-		PurgeDataBase() error
+		BulkAddOrUpdate(licenses LicensesStatusCollection) error
+		Latest() (time.Time, error)
 		UpdateView(lic *LicenseView) error
 		Delete(id int64) error
 	}
@@ -337,7 +340,6 @@ func (s *dbStore) AutomigrateForLSD() error {
 			return err
 		}
 	}
-
 	return nil
 }
 

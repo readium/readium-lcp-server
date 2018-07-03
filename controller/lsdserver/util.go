@@ -304,24 +304,35 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	// Gob encoding server provider.
 	endpoint := http.NewGobEndpoint(server.Logger())
 	endpoint.AddHandleFunc("LICENSES", func(rw *bufio.ReadWriter) error {
-		var authentication http.Authorization
+		var payload http.AuthorizationAndTimestamp
 		dec := gob.NewDecoder(rw)
-		err := dec.Decode(&authentication)
+		err := dec.Decode(&payload)
 		if err != nil {
 			if err == io.EOF {
 				return fmt.Errorf("Missing mandatory payload.")
 			}
 			return fmt.Errorf("Error decoding result : `" + err.Error() + "`. Username and password are missing?")
 		}
-		if !server.Auth(authentication.User, authentication.Password) {
-			return fmt.Errorf("Error : bad username / password (`" + authentication.User + "`:`" + authentication.Password + "`)")
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+
+		var result model.LicensesStatusCollection
+		if payload.Sync.IsZero() {
+			server.LogInfo("Listing all licenses statuses.")
+			result, err = server.Store().LicenseStatus().ListAll()
+			if err != nil {
+				return fmt.Errorf("Error reading license statuses : " + err.Error())
+			}
+		} else {
+			server.LogInfo("Listing licenses statuses older than %v", payload.Sync)
+			result, err = server.Store().LicenseStatus().ListLatest(payload.Sync)
+			if err != nil {
+				return fmt.Errorf("Error reading license statuses : " + err.Error())
+			}
 		}
 
 		enc := gob.NewEncoder(rw)
-		result, err := server.Store().LicenseStatus().ListAll()
-		if err != nil {
-			return fmt.Errorf("Error reading license statuses : " + err.Error())
-		}
 		err = enc.Encode(result)
 		if err != nil {
 			return fmt.Errorf("Error encoding result : " + err.Error())

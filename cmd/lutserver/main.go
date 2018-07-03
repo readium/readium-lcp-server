@@ -157,28 +157,39 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 
 	_, err = lsdRW.WriteString("LICENSES\n")
 	if err != nil {
-		s.LogError("[LDS] Could not write : %v", err)
+		s.LogError("[LSD] Could not write : %v", err)
 		return
 	}
 
-	enc := gob.NewEncoder(lsdRW)
-	//TODO : add Sync time below - to make smaller payloads
-	err = enc.Encode(http.AuthorizationAndTimestamp{User: s.Config().LsdNotifyAuth.Username, Password: s.Config().LsdNotifyAuth.Password})
+	lastSyncTime, err := s.Store().License().Latest()
 	if err != nil {
-		s.LogError("[LDS] Encode failed for struct: %v", err)
+		s.LogInfo("[LSD] Could not obtain last sync time: %v", err)
+	}
+	if lastSyncTime.IsZero() {
+		s.LogInfo("[LSD] Time is zero.")
+	}
+
+	enc := gob.NewEncoder(lsdRW)
+	err = enc.Encode(http.AuthorizationAndTimestamp{
+		User:     s.Config().LsdNotifyAuth.Username,
+		Password: s.Config().LsdNotifyAuth.Password,
+		Sync:     lastSyncTime,
+	})
+	if err != nil {
+		s.LogError("[LSD] Encode failed for struct: %v", err)
 		return
 	}
 
 	err = lsdRW.Flush()
 	if err != nil {
-		s.LogError("[LDS] Flush failed : %v", err)
+		s.LogError("[LSD] Flush failed : %v", err)
 		return
 	}
 	// Read the reply.
 
 	bodyBytes, err := ioutil.ReadAll(lsdRW.Reader)
 	if err != nil {
-		s.LogError("[LDS] Error reading response body : %v", err)
+		s.LogError("[LSD] Error reading response body : %v", err)
 		return
 	}
 
@@ -190,14 +201,13 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 		dec = gob.NewDecoder(bytes.NewBuffer(bodyBytes))
 		err = dec.Decode(&licenses)
 		if err != nil {
-			s.LogError("[LDS] Error decoding GOB : %v\n%s", err, bodyBytes)
+			s.LogError("[LSD] Error decoding GOB : %v\n%s", err, bodyBytes)
 			return
 		}
 		if len(licenses) == 0 {
 			s.LogInfo("No license statuses : Automation done.")
 			return
 		}
-		//TODO : add Sync time below - to make smaller payloads
 		licRefIds := ""
 		for idx, licenseStatus := range licenses {
 			if idx > 0 {
@@ -213,21 +223,14 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 			s.LogInfo("LCP LICENSE :  %#v", lcpLic)
 		}
 
-		// TODO : once Sync in place, no need to purge database - just Create or Update
-		// clear the db
-		err = s.Store().License().PurgeDataBase()
-		if err != nil {
-			panic(err)
-		}
-
 		// fill the db
-		err = s.Store().License().BulkAdd(licenses)
+		err = s.Store().License().BulkAddOrUpdate(licenses)
 		if err != nil {
 			panic(err)
 		}
 		s.LogInfo("Automation done.")
 	} else if responseErr.Err != "" {
-		s.LogError("[LDS] Replied with Error : %v", responseErr)
+		s.LogError("[LSD] Replied with Error : %v", responseErr)
 		return
 	}
 

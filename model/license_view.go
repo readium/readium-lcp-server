@@ -36,13 +36,14 @@ import (
 type (
 	// License struct defines a license
 	LicenseView struct {
-		ID             int       `json:"-" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		UUID           string    `json:"id" gorm:"size:36"` //uuid - max size 36 - purchase id
-		DeviceCount    *NullInt  `json:"device_count" sql:"NOT NULL"`
-		Status         Status    `json:"status"  sql:"NOT NULL"`
-		Message        string    `json:"message" sql:"NOT NULL"`
-		Purchase       Purchase  `json:"-" gorm:"-"`
-		LicenseUpdated time.Time `json:"updated" gorm:"column:license_updated"`
+		ID             int       `sql:"AUTO_INCREMENT" gorm:"primary_key"`
+		LSDID          int64     `sql:"NOT NULL"`
+		UUID           string    `gorm:"size:36"` //uuid - max size 36 - purchase id
+		DeviceCount    *NullInt  `sql:"NOT NULL"`
+		Status         Status    `sql:"NOT NULL"`
+		Message        string    `sql:"NOT NULL"`
+		Purchase       Purchase  `gorm:"-"`
+		LicenseUpdated time.Time `gorm:"column:license_updated"`
 	}
 
 	LicensesViewCollection []*LicenseView
@@ -91,16 +92,16 @@ func (s licenseStore) AddView(licenses *LicenseView) error {
 
 // AddFromJSON adds a new license from a JSON string
 //
-func (s licenseStore) BulkAdd(licenses LicensesStatusCollection) error {
+func (s licenseStore) BulkAddOrUpdate(licenses LicensesStatusCollection) error {
 	result := Transaction(s.db, func(tx txStore) error {
 		for _, l := range licenses {
 			entity := &LicenseView{
 				UUID:           l.LicenseRef,
 				DeviceCount:    l.DeviceCount,
 				Status:         l.Status,
-				LicenseUpdated: l.LicenseUpdated,
+				LicenseUpdated: l.UpdatedAt,
 			}
-			err := tx.Create(entity).Error
+			err := tx.Debug().FirstOrCreate(entity, LicenseView{LSDID: l.Id}).Error
 			if err != nil {
 				return err
 			}
@@ -111,10 +112,17 @@ func (s licenseStore) BulkAdd(licenses LicensesStatusCollection) error {
 	return result
 }
 
-// PurgeDataBase erases all the content of the license_view table
-//
-func (s licenseStore) PurgeDataBase() error {
-	return s.db.Delete(LicenseView{}).Error
+func (s licenseStore) Latest() (time.Time, error) {
+	rows, err := s.db.Debug().Model(LicenseView{}).Select("MAX(license_updated) as MaxTime").Rows()
+	var maxTime time.Time
+	if err == nil {
+		var timeStr string
+		for rows.Next() {
+			rows.Scan(&timeStr)
+			maxTime, err = time.Parse("2006-01-02 15:04:05.999999-07:00", timeStr)
+		}
+	}
+	return maxTime, err
 }
 
 // Update updates a license

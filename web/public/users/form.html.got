@@ -3,7 +3,7 @@
 <form method="POST" action="/users">
     <div class="mdl-card mdl-shadow--2dp page-content">
         <div class="mdl-card__title">
-            {{if and (defined .user.UUID) (ne .user.UUID "")}}User UUID : {{.user.UUID}}{{end}}
+            <!--{{if and (defined .user.UUID) (ne .user.UUID "")}}User UUID : {{.user.UUID}}{{end}}-->
         </div>
         <div class="mdl-card__supporting-text mdl-card--border">
             <input type="hidden" name="ID" value="{{.user.ID}}">

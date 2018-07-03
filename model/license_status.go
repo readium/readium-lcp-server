@@ -55,6 +55,7 @@ type (
 		CurrentEndLicense  *NullTime                   `json:"-" gorm:"column:rights_end" sql:"DEFAULT NULL"`
 		Links              LicenseLinksCollection      `json:"links,omitempty"`
 		Events             TransactionEventsCollection `json:"events,omitempty"`
+		UpdatedAt          time.Time                   `json:"-"`
 	}
 
 	Status string
@@ -216,6 +217,11 @@ func (i licenseStatusStore) List(deviceLimit int64, page int64, pageNum int64) (
 	var result LicensesStatusCollection
 	//`SELECT status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ? ORDER BY id DESC LIMIT ? OFFSET ?`
 	return result, i.db.Where("device_count >= ?", deviceLimit).Offset(pageNum * page).Limit(page).Order("id DESC").Find(&result).Error
+}
+
+func (i licenseStatusStore) ListLatest(timestamp time.Time) (LicensesStatusCollection, error) {
+	var result LicensesStatusCollection
+	return result, i.db.Where("updated_at > ?", timestamp).Order("id DESC").Find(&result).Error
 }
 
 func (i licenseStatusStore) ListAll() (LicensesStatusCollection, error) {
