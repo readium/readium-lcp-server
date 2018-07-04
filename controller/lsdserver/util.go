@@ -249,9 +249,11 @@ func makeLicenseStatus(license *model.License, registerAvailable bool, rentingDa
 		LicenseRef: license.Id,
 	}
 
-	if license.Rights == nil || !license.Rights.End.Valid {
+	if license.Rights == nil || license.Rights.Start == nil || license.Rights.End == nil {
 		// The publication was purchased (not a loan), so we do not set LSD.PotentialRights.End
-		result.CurrentEndLicense.Valid = false
+		result.CurrentEndLicense = &model.NullTime{
+			Valid: false,
+		}
 	} else {
 		// license.Rights.End exists => this is a loan
 		endFromLicense := license.Rights.End.Time.Add(0)
@@ -336,6 +338,27 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		err = enc.Encode(result)
 		if err != nil {
 			return fmt.Errorf("Error encoding result : " + err.Error())
+		}
+		return nil
+	})
+
+	endpoint.AddHandleFunc("LICENSESDELETED", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLicense
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			return fmt.Errorf("Error decoding result : " + err.Error())
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+		server.LogInfo("Received GOB License : %#v", payload.License)
+		err = server.Store().LicenseStatus().DeleteByLicenseIds(payload.License.Id)
+		if err != nil {
+			server.LogError("Error deleting licenses for ids %q : %v", payload.License.Id, err)
 		}
 		return nil
 	})

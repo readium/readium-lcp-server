@@ -31,6 +31,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -229,8 +230,14 @@ func (i licenseStatusStore) ListAll() (LicensesStatusCollection, error) {
 	return result, i.db.Order("id DESC").Find(&result).Error
 }
 
-//GetByLicenseId gets license status by license id
+// GetByLicenseId gets license status by license id
 func (i licenseStatusStore) GetByLicenseId(licenseFk string) (*LicenseStatus, error) {
 	var result LicenseStatus
 	return &result, i.db.Model(LicenseStatus{}).Where("license_ref = ?", licenseFk).Find(&result).Error
+}
+
+// DeleteByLicenseIds deletes all statuses for a license_ref. licenseFks is comma separated array of ids
+func (i licenseStatusStore) DeleteByLicenseIds(licenseFks string) error {
+	fks := strings.Split(licenseFks, ",")
+	return i.db.Where("license_ref IN (?)", fks).Delete(LicenseStatus{}).Error
 }

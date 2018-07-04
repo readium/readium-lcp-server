@@ -53,6 +53,7 @@ func GetIndex(server http.IServer) (*views.Renderer, error) {
 		}
 	}
 	view := &views.Renderer{}
+	view.AddKey("pageTitle", "Dashboard")
 	view.AddKey("info", info)
 	view.AddKey("bestSellers", bestSellers)
 	view.Template("dashboard/index.html.got")

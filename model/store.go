@@ -158,17 +158,6 @@ type (
 		CheckDeviceStatus(licenseStatusFk int64, deviceId string) (Status, error)
 	}
 
-	LicenseStatusesRepository interface {
-		//Get(id int) (LicenseStatus, error)
-		Add(ls *LicenseStatus) error
-		Count(deviceLimit int64) (int64, error)
-		List(deviceLimit int64, limit int64, offset int64) (LicensesStatusCollection, error)
-		ListAll() (LicensesStatusCollection, error)
-		ListLatest(timestamp time.Time) (LicensesStatusCollection, error)
-		GetByLicenseId(id string) (*LicenseStatus, error)
-		Update(ls *LicenseStatus) error
-	}
-
 	//PurchaseRepository defines possible interactions with DB
 	PurchaseRepository interface {
 		Get(id int64) (*Purchase, error)
@@ -186,9 +175,22 @@ type (
 		LoadPublication(p *Purchase) error
 	}
 
+	LicenseStatusesRepository interface {
+		//Get(id int) (LicenseStatus, error)
+		Add(ls *LicenseStatus) error
+		Count(deviceLimit int64) (int64, error)
+		List(deviceLimit int64, limit int64, offset int64) (LicensesStatusCollection, error)
+		ListAll() (LicensesStatusCollection, error)
+		ListLatest(timestamp time.Time) (LicensesStatusCollection, error)
+		GetByLicenseId(id string) (*LicenseStatus, error)
+		DeleteByLicenseIds(licenseFks string) error
+		Update(ls *LicenseStatus) error
+	}
+
 	LicenseRepository interface {
 		Count() (int64, error)
 		CountForContentId(contentId string) (int64, error)
+		GetAllForContentId(contentID string) (LicensesCollection, error)
 		List(contentId string, page, pageNum int64) (LicensesCollection, error)
 		ListAll(page, pageNum int64) (LicensesCollection, error)
 		UpdateRights(l *License) error
@@ -197,6 +199,7 @@ type (
 		Add(l *License) error
 		Get(id string) (*License, error)
 		GetLicensesById(ids string) (LicensesCollection, error)
+
 		// from license view
 		GetView(id int64) (*LicenseView, error)
 		CountFiltered(deviceLimit string) (int64, error)

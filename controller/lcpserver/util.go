@@ -188,72 +188,6 @@ func buildLicencedPublication(license *model.License, server http.IServer) (*epu
 	return &result, err
 }
 
-// notifyLSDServer informs the License Status Server of the creation of a new license
-// and saves the result of the http request in the DB (using *LicenseRepository)
-//
-func notifyLSDServer(payload *model.License, server http.IServer) error {
-	conn, err := net.Dial("tcp", "localhost:9000")
-	if err != nil {
-		server.LogError("Error Notify LsdServer : %v", err)
-		return err
-	}
-	defer conn.Close()
-	server.LogInfo("Notifying LSD")
-	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
-
-	_, err = rw.WriteString("UPDATELICENSESTATUS\n")
-	if err != nil {
-		server.LogError("Could not write : %v", err)
-		return err
-	}
-
-	notifyAuth := server.Config().LsdNotifyAuth
-	if notifyAuth.Username == "" {
-		server.LogError("Username is empty : can't connect to LSD")
-		return err
-	}
-
-	enc := gob.NewEncoder(rw)
-	err = enc.Encode(http.AuthorizationAndLicense{User: notifyAuth.Username, Password: notifyAuth.Password, License: payload})
-	if err != nil {
-		server.LogError("Encode failed for struct: %v", err)
-		return err
-	}
-
-	err = rw.Flush()
-	if err != nil {
-		server.LogError("Flush failed : %v", err)
-		return err
-	}
-
-	// Read the reply.
-	bodyBytes, err := ioutil.ReadAll(rw.Reader)
-	if err != nil {
-		server.LogError("Error reading LSD reply : %v", err)
-		return err
-	}
-
-	var responseErr http.GobReplyError
-	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
-	err = dec.Decode(&responseErr)
-	if err != nil && err != io.EOF {
-		server.LogError("Error decoding LCP GOB : %v", err)
-		return err
-	}
-	if responseErr.Err != "" {
-		server.LogError("LCP GOB Error : %v", responseErr)
-		return err
-	}
-
-	err = server.Store().License().UpdateLsdStatus(payload.Id, http.StatusCreated)
-	if err != nil {
-		server.LogError("Error updating LSD status : %v", err)
-		return err
-	}
-	server.LogInfo("Notified LSD, status updated for %q", payload.Id)
-	return nil
-}
-
 func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	muxer.NotFoundHandler = server.NotFoundHandler() // handle all other requests 404
 
@@ -343,7 +277,7 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		if err != nil {
 			return fmt.Errorf("Error generating license : %v", err)
 		}
-		server.LogInfo("Replying via GOB with new license having id %d", payload.License.Id)
+		server.LogInfo("Replying via GOB with new license having id %s for user id %s", payload.License.Id, payload.License.User.UUID)
 		enc := gob.NewEncoder(rw)
 		err = enc.Encode(payload.License)
 		if err != nil {
@@ -484,6 +418,11 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 			return fmt.Errorf("Error finding content with id %s for update", payload.ContentId)
 		}
 
+		licenses, foundErr := server.Store().License().GetAllForContentId(payload.ContentId)
+		if foundErr != gorm.ErrRecordNotFound {
+			deleteLicenseStatusesFromLSD(licenses, server)
+		}
+
 		err = server.Store().Content().Delete(content.Id)
 		if err != nil {
 			return fmt.Errorf("Error deleting content location : %v", err)
@@ -526,4 +465,131 @@ func saveLicense(server http.IServer, payload *model.License, contentID string) 
 	// notify the lsd server of the creation of the license.
 	// we can't go async, since the result is updating the license status
 	return notifyLSDServer(payload, server)
+}
+
+func deleteLicenseStatusesFromLSD(licenses model.LicensesCollection, server http.IServer) {
+	conn, err := net.Dial("tcp", "localhost:9000")
+	if err != nil {
+		server.LogError("Error Notify LsdServer : %v", err)
+		return
+	}
+	defer conn.Close()
+	server.LogInfo("Notifying LSD about content deletion (by deleting licens statuses)")
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+	_, err = rw.WriteString("LICENSESDELETED\n")
+	if err != nil {
+		server.LogError("Could not write : %v", err)
+		return
+	}
+
+	notifyAuth := server.Config().LsdNotifyAuth
+	if notifyAuth.Username == "" {
+		server.LogError("Username is empty : can't connect to LSD")
+		return
+	}
+
+	licRefIds := ""
+	for idx, licenseStatus := range licenses {
+		if idx > 0 {
+			licRefIds += ","
+		}
+		licRefIds += licenseStatus.Id
+	}
+
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(http.AuthorizationAndLicense{User: notifyAuth.Username, Password: notifyAuth.Password, License: &model.License{Id: licRefIds}})
+	if err != nil {
+		server.LogError("Encode failed for struct: %v", err)
+		return
+	}
+
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return
+	}
+	// Read the reply.
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LSD reply : %v", err)
+		return
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		server.LogError("Error decoding LCP GOB : %v", err)
+		return
+	}
+	if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return
+	}
+}
+
+// notifyLSDServer informs the License Status Server of the creation of a new license
+// and saves the result of the http request in the DB (using *LicenseRepository)
+//
+func notifyLSDServer(payload *model.License, server http.IServer) error {
+	conn, err := net.Dial("tcp", "localhost:9000")
+	if err != nil {
+		server.LogError("Error Notify LsdServer : %v", err)
+		return err
+	}
+	defer conn.Close()
+	server.LogInfo("Notifying LSD")
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+
+	_, err = rw.WriteString("UPDATELICENSESTATUS\n")
+	if err != nil {
+		server.LogError("Could not write : %v", err)
+		return err
+	}
+
+	notifyAuth := server.Config().LsdNotifyAuth
+	if notifyAuth.Username == "" {
+		server.LogError("Username is empty : can't connect to LSD")
+		return err
+	}
+
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(http.AuthorizationAndLicense{User: notifyAuth.Username, Password: notifyAuth.Password, License: payload})
+	if err != nil {
+		server.LogError("Encode failed for struct: %v", err)
+		return err
+	}
+
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return err
+	}
+
+	// Read the reply.
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LSD reply : %v", err)
+		return err
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		server.LogError("Error decoding LCP GOB : %v", err)
+		return err
+	}
+	if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return err
+	}
+
+	err = server.Store().License().UpdateLsdStatus(payload.Id, http.StatusCreated)
+	if err != nil {
+		server.LogError("Error updating LSD status : %v", err)
+		return err
+	}
+	server.LogInfo("Notified LSD, status updated for %q", payload.Id)
+	return nil
 }

@@ -466,6 +466,11 @@ func (s *licenseStore) CountForContentId(contentID string) (int64, error) {
 	return count, s.db.Model(&License{}).Where("content_fk = ?", contentID).Count(&count).Error
 }
 
+func (s *licenseStore) GetAllForContentId(contentID string) (LicensesCollection, error) {
+	var result LicensesCollection
+	return result, s.db.Where("content_fk = ?", contentID).Order("issued DESC").Find(&result).Error
+}
+
 // List lists licenses for a given ContentId
 // pageNum starting at 0
 //

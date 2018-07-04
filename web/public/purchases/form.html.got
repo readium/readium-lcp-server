@@ -30,6 +30,9 @@
     <div class="mdl-dialog__content dialogContent">
         <div class="mdl-layout mdl-js-layout dialogLayoutContent">
             <div>
+                {{if eq (len .existingUsers) 0}}
+                <span class="mdl-list__item-primary-content">There are no users.</span>
+                {{else}}
                 <ul class="mdl-list">
                     {{range $i,$u := .existingUsers}}
                     <li id="{{$u.ID}}" name="{{$u.Email}}" class="mdl-list__item selectedItem">
@@ -37,6 +40,7 @@
                     </li>
                     {{end}}
                 </ul>
+                {{end}}
             </div>
         </div>
     </div>
@@ -49,6 +53,9 @@
     <div class="mdl-dialog__content dialogContent">
         <div class="mdl-layout mdl-js-layout dialogLayoutContent">
             <div>
+                {{if eq (len .existingPublications) 0}}
+                <span class="mdl-list__item-primary-content">There are no publications.</span>
+                {{else}}
                 <ul class="mdl-list">
                     {{range $i,$p := .existingPublications}}
                     <li id="{{$p.ID}}" name="{{$p.Title}}" class="mdl-list__item selectedItem">
@@ -56,6 +63,7 @@
                     </li>
                     {{end}}
                 </ul>
+                {{end}}
             </div>
         </div>
     </div>
@@ -73,7 +81,7 @@
         <input type="hidden" name="ID" value="{{.purchase.ID}}">
         <input type="hidden" name="UUID" value="{{.purchase.UUID}}">
 
-        <table style="height: 70vh;width: 100%">
+        <table style="height: 100vh;">
             <tr>
                 <td style="text-align: right;">
                     <span>User:</span>
@@ -82,7 +90,7 @@
                     <input type="hidden" id="UserId" name="UserId" {{if defined .purchase.User}}value="{{.purchase.User.ID}}" {{end}}>
                     <input type="text" id="userEmail" {{if defined .purchase.User}}value="{{.purchase.User.Email}}" {{else}}value="Choose user" {{end}}>
                     <button id="usersChooser" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect">
-                        <i class="material-icons">find_in_page</i>
+                        Choose
                     </button>
                 </td>
             </tr>
@@ -94,7 +102,7 @@
                     <input type="hidden" id="PublicationId" name="PublicationId" {{if defined .purchase.Publication}}value="{{.purchase.Publication.ID}}" {{end}}>
                     <input type="text" id="publicationTitle" {{if defined .purchase.Publication}}value="{{.purchase.Publication.Title}}" {{else}}value="Choose publication" {{end}}>
                     <button id="publicationsChooser" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect">
-                        <i class="material-icons">find_in_page</i>
+                        Choose
                     </button>
                 </td>
             </tr>

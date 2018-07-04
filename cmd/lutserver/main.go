@@ -214,10 +214,10 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 				licRefIds += ","
 			}
 			licRefIds += licenseStatus.LicenseRef
-			s.LogInfo("LICENSE STATUS : %#v", licenseStatus)
+			//s.LogInfo("LICENSE STATUS : %#v", licenseStatus)
 		}
 
-		s.LogInfo("Querying : %q", licRefIds)
+		//s.LogInfo("Querying : %q", licRefIds)
 		lcpLicenses := readLCPLicense(licRefIds, s)
 		for _, lcpLic := range lcpLicenses {
 			s.LogInfo("LCP LICENSE :  %#v", lcpLic)

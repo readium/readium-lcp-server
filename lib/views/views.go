@@ -34,6 +34,7 @@ import (
 	"github.com/readium/readium-lcp-server/lib/views/assets"
 	"github.com/readium/readium-lcp-server/lib/views/helpers"
 	"github.com/readium/readium-lcp-server/lib/views/parser"
+	"strings"
 )
 
 func init() {
@@ -76,12 +77,13 @@ func DefaultHelpers() parser.FuncMap {
 			return !Production
 		},
 		// HTML helpers
-		"html":     helpers.HTML,
-		"htmlattr": helpers.HTMLAttribute,
-		"url":      helpers.URL,
-		"sanitize": helpers.Sanitize,
-		"strip":    helpers.Strip,
-		"truncate": helpers.Truncate,
+		"html":      helpers.HTML,
+		"htmlattr":  helpers.HTMLAttribute,
+		"url":       helpers.URL,
+		"sanitize":  helpers.Sanitize,
+		"strip":     helpers.Strip,
+		"truncate":  helpers.Truncate,
+		"hasPrefix": strings.HasPrefix,
 		// XML helpers
 		"xmlpreamble": helpers.XMLPreamble,
 		// Form helpers

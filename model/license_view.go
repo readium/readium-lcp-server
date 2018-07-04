@@ -101,7 +101,7 @@ func (s licenseStore) BulkAddOrUpdate(licenses LicensesStatusCollection) error {
 				Status:         l.Status,
 				LicenseUpdated: l.UpdatedAt,
 			}
-			err := tx.Debug().FirstOrCreate(entity, LicenseView{LSDID: l.Id}).Error
+			err := tx.FirstOrCreate(entity, LicenseView{LSDID: l.Id}).Error
 			if err != nil {
 				return err
 			}
@@ -113,7 +113,7 @@ func (s licenseStore) BulkAddOrUpdate(licenses LicensesStatusCollection) error {
 }
 
 func (s licenseStore) Latest() (time.Time, error) {
-	rows, err := s.db.Debug().Model(LicenseView{}).Select("MAX(license_updated) as MaxTime").Rows()
+	rows, err := s.db.Model(LicenseView{}).Select("MAX(license_updated) as MaxTime").Rows()
 	var maxTime time.Time
 	if err == nil {
 		var timeStr string

@@ -320,6 +320,7 @@ func generateLicenseOnLCP(server http.IServer, fromPurchase *model.Purchase) err
 	newLicense := model.License{
 		Provider:  server.Config().LutServer.ProviderUri,
 		ContentId: fromPurchase.Publication.UUID,
+		UserId:    fromPurchase.User.UUID,
 		User: model.User{
 			Email:     fromPurchase.User.Email,
 			Name:      fromPurchase.User.Name,

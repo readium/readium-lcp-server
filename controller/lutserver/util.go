@@ -469,6 +469,7 @@ func renderError(w http.ResponseWriter, err error) {
 	view.SetWriter(w)
 	view.AddKey("message", err.Error())
 	view.AddKey("title", "Error")
+	view.AddKey("pageTitle", "Error")
 	view.Template("main/error.html.got")
 	view.Render()
 }
@@ -641,10 +642,8 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 				err := renderer.Render()
 				// rendering template caused an error : usefull for debugging
 				if err != nil {
-					renderer.AddKey("title", "Template "+renderer.GetTemplate()+" rendering error.")
-					renderer.AddKey("message", err.Error())
-					renderer.Template("main/error.html.got")
-					renderer.Render()
+					renderError(w, fmt.Errorf("template rendering error : %s", err.Error()))
+					return
 				}
 			} else {
 				if out[1].IsNil() {
@@ -653,13 +652,13 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 				}
 				problem, ok := out[1].Interface().(http.Problem)
 				if !ok {
-					renderError(w, fmt.Errorf("Bad http.Problem"))
+					renderError(w, fmt.Errorf("bad http.Problem"))
 					return
 				}
 				renderError(w, fmt.Errorf("%s", problem.Detail))
+				return
 			}
 		}
-
 	})
 }
 

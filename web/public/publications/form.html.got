@@ -61,20 +61,20 @@
     </div>
 </dialog>
 
-<form method="POST" action="/publications" enctype="multipart/form-data">
-    <div class="mdl-card mdl-shadow--2dp page-content">
-        <div class="mdl-card__title">
+<div class="mdl-card mdl-shadow--2dp page-content">
+    <div class="mdl-card__title">
 
-        </div>
+    </div>
+    <form method="POST" action="/publications" enctype="multipart/form-data">
         <div class="mdl-card__supporting-text mdl-card--border">
             <input type="hidden" id="publicationID" name="ID" value="{{.publication.ID}}">
             <input type="hidden" name="UUID" value="{{.publication.UUID}}">
-            <table style="height: 80vh">
+            <table>
                 <tr>
                     <td>
-                        <span> Name : </span>
+                        <span> Publication Name : </span>
                     </td>
-                    <td colspan="2">
+                    <td colspan="5">
                         <div class="mdl-textfield mdl-js-textfield">
                             <input class="mdl-textfield__input" type="text" id="Title" name="Title" value="{{.publication.Title}}">
                             <label class="mdl-textfield__label" for="Title">Title...</label>
@@ -84,7 +84,7 @@
                 {{if eq .publication.ID 0}}
                 <tr>
                     <td>
-                        <span> File : </span>
+                        <span> Upload or Choose File : </span>
                     </td>
                     <td>
                         <div class="mdl-textfield mdl-js-textfield mdl-textfield--file">
@@ -95,10 +95,10 @@
                             </div>
                         </div>
                     </td>
-                    <td>
+                    <td colspan="3">
                         <div>
                             <button id="repoChooser" type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect">
-                                <i class="material-icons">find_in_page</i>
+                                Choose
                             </button>
                         </div>
                     </td>
@@ -110,8 +110,8 @@
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" type="submit" id="saveButton">Save</button>
             <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel" type="reset">Cancel</button>
         </div>
-    </div>
-</form>
+    </form>
+</div>
 
 
 <div id="toastMessage" class="mdl-js-snackbar mdl-snackbar">
