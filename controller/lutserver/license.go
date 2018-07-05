@@ -109,3 +109,13 @@ func GetLicense(server http.IServer, param ParamId) ([]byte, error) {
 
 	return result.Bytes(), nonErr
 }
+
+func CancelLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
+	view := &views.Renderer{}
+	return view, nil
+}
+
+func RevokeLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
+	view := &views.Renderer{}
+	return view, nil
+}

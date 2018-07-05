@@ -19,37 +19,37 @@
     <div class="mdl-data-tabledynamic__title">
         <h2 class="mdl-data-tabledynamic__title-text">{{if defined .filter}}listing {{.filterTotal}} of {{.total}} for filter `{{.filter}}`{{else}}{{.total}} licenses in the database.{{end}}</h2>
         <div class="mdl-data-tabledynamic__actions">
-            <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect add-row" href="/licenses/0">ADD</a>
-            <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect remove-row">REMOVE</a>
+            <!--<a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect add-row" href="/licenses/0">ADD</a>
+            <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect remove-row">REMOVE</a>-->
         </div>
     </div>
     <div class="mdl-data-tabledynamic__content">
         <table class="mdl-data-table mdl-data-dynamictable mdl-js-data-table mdl-shadow--2dp mdl-cell--6-col mdl-data-table__row--selectable">
             <thead>
             <tr>
-                <th>
-                    <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect mdl-data-table__select" for="checkboxAll">
-                        <input type="checkbox" id="checkboxAll" class="mdl-checkbox__input">
-                    </label>
-                </th>
                 <th class="mdl-data-table__cell--non-numeric">ID</th>
-                <th class="mdl-data-table__cell--non-numeric">UUID</th>
+                <th class="mdl-data-table__cell--non-numeric">Lic. Ref.</th>
+                <th class="mdl-data-table__cell--non-numeric">Updated</th>
                 <th class="mdl-data-table__cell--non-numeric">DeviceCount</th>
                 <th class="mdl-data-table__cell--non-numeric">Status</th>
+                <th class="mdl-data-table__cell--non-numeric"></th>
+                <th class="mdl-data-table__cell--non-numeric"></th>
             </tr>
             </thead>
             <tbody>
             {{ range $i,$m := .licenses }}
-            <tr id="{{$m.Purchase.LicenseUUIDString}}">
-                <td>
-                    <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect mdl-data-table__select">
-                        <input type="checkbox" class="mdl-checkbox__input">
-                    </label>
-                </td>
+            <tr id="{{$m.UUID}}">
                 <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.ID}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.LicenseUpdated}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if $m.DeviceCount.Valid}}{{$m.DeviceCount.Int64}}{{else}}-{{end}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content">
+                    <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect revoke-row" id="revoke">REVOKE</a>
+                </td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content">
+                    <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel-row">CANCEL</a>
+                </td>
             </tr>
             {{end}}
             </tbody>
@@ -81,14 +81,13 @@
     {{end}}
 </div>
 
-
 <dialog class="mdl-dialog">
-    <h4 class="mdl-dialog__title">Delete licenses?</h4>
+    <h4 class="mdl-dialog__title">Cancel/Revoke License?</h4>
     <div class="mdl-dialog__content">
-        <p>Selected licenses will be removed. Are you sure?</p>
+        <p>Selected license will be revoked or cancelled. Are you sure?</p>
     </div>
     <div class="mdl-dialog__actions">
-        <button type="button" class="mdl-button remove">Yes</button>
+        <button type="button" class="mdl-button yes">Yes</button>
         <button type="button" class="mdl-button close">Cancel</button>
     </div>
 </dialog>
@@ -110,92 +109,70 @@
                 }
                 // @formatter:on
             });
-            /**
-             *
-             */
+
             var dialog = document.querySelector('dialog');
             var notificator = document.querySelector('#toastMessage');
-
+            var _tableRow = undefined;
+            var op = "none";
             // remove button of remove dialog clicked
-            dialog.querySelector('.remove').addEventListener('click', function () {
-                var selectedRows = $(".mdl-data-dynamictable tbody").find('tr.is-selected');
-                var ids = "";
-                var first = true;
-                selectedRows.each(function (key, value) {
-                    if (first) {
-                        first = false
-                        ids += value.id
-                    } else {
-                        ids += "," + value.id
-                    }
-                });
-                // call server with all ids
-                $.ajax({
-                    url: '/licenses/' + ids,
-                    type: 'DELETE',
-                    success: function (result) {
-                        dialog.close();
-                        selectedRows.remove();
-                        $(".mdl-data-dynamictable thead tr").removeClass("is-selected");
-                        $(".mdl-data-dynamictable thead tr th label").removeClass("is-checked");
-                        componentHandler.upgradeDom();
-                    },
-                    error: function (rejection) {
-                        console.log("Ajax Error", rejection);
+            dialog.querySelector('.yes').addEventListener('click', function () {
+                switch (op) {
+                    case "revoke":
+                    case "cancel":
+                        $.ajax({
+                            url: '/licenses/' + op + "/" + _tableRow.id,
+                            type: 'GET',
+                            success: function (result) {
+                                dialog.close();
+                                location.reload();
+                            },
+                            error: function (rejection) {
+                                console.log("Ajax Error", rejection);
+                                notificator.MaterialSnackbar.showSnackbar({
+                                    message: "Error : check rejection in console.",
+                                    timeout: 2000,
+                                    actionHandler: function (event) {
+                                    },
+                                    actionText: 'Ok'
+                                });
+                                dialog.close();
+                            },
+                        });
+                        _tableRow = undefined;
+                        op = "none";
+                        break;
+                    default:
                         notificator.MaterialSnackbar.showSnackbar({
-                            message: "Error : check rejection in console.",
+                            message: "Unknown operation : " + op + ".",
                             timeout: 2000,
                             actionHandler: function (event) {
                             },
                             actionText: 'Ok'
                         });
-                        dialog.close();
-                    },
-                });
-            });
-            // remove selected rows clicked - showing modal
-            $(".remove-row").on("click", function () {
-                if ($(".mdl-data-dynamictable tbody").find('tr.is-selected').length != 0) {
-                    dialog.showModal();
-                } else {
-                    notificator.MaterialSnackbar.showSnackbar({
-                        message: 'Nothing selected.',
-                        timeout: 2000,
-                        actionHandler: function (event) {
-                        },
-                        actionText: 'Ok'
-                    });
-                }
-            });
-            // canceled (add dialog or delete dialog)
-            $(document).on("click", ".close", function () {
-                $(this).parents(".mdl-dialog__addContent").remove();
-                dialog.close();
-            });
-            // selects all rows in the entity table
-            $(document).on("click", "#checkboxAll", function () {
-                _isChecked = $(this).parent("label").hasClass("is-checked");
-                if (_isChecked === false) {
-                    $(".mdl-data-dynamictable").find('tr').addClass("is-selected");
-                    $(".mdl-data-dynamictable").find('tr td label').addClass("is-checked");
-                } else {
-                    $(".mdl-data-dynamictable").find('tr').removeClass("is-selected");
-                    $(".mdl-data-dynamictable").find('tr td label').removeClass("is-checked");
-                }
-            });
-            // selects a row in the entity table
-            $(document).on("click", ".mdl-checkbox", function () {
-                var _tableRow = $(this).parents("tr:first");
-                if ($(this).hasClass("is-checked") === false) {
-                    _tableRow.addClass("is-selected");
-                } else {
-                    _tableRow.removeClass("is-selected");
                 }
             });
 
-            // edit the clicked row
+            $(document).on("click", ".revoke-row", function (event) {
+                // preventing clicked row trigger
+                event.stopImmediatePropagation();
+                _tableRow = $(this).parents("tr:first")[0];
+                op = "revoke";
+                dialog.showModal();
+            });
+            $(document).on("click", ".cancel-row", function (event) {
+                // preventing clicked row trigger
+                event.stopImmediatePropagation();
+                _tableRow = $(this).parents("tr:first")[0];
+                op = "cancel";
+                dialog.showModal();
+            });
+
+            $(document).on("click", ".close", function () {
+                dialog.close();
+            });
+            // download license for the clicked row
             $(document).on("click", "td.edit-table-content", function () {
-                if ($(this).parents("tr:first")[0].id == ""){
+                if ($(this).parents("tr:first")[0].id == "") {
                     notificator.MaterialSnackbar.showSnackbar({
                         message: 'Error : Bad UUID.',
                         timeout: 2000,

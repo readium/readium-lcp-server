@@ -703,6 +703,8 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	makeHandler(muxer, server, licenseRoutesPathPrefix, GetFilteredLicenses).Methods("GET")
 	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 	makeHandler(licenseRoutes, server, "/{id}", GetLicense).Methods("GET")
+	makeHandler(licenseRoutes, server, "/cancel/{id}", CancelLicense).Methods("GET")
+	makeHandler(licenseRoutes, server, "/revoke/{id}", RevokeLicense).Methods("GET")
 
 	static := server.Config().LutServer.Directory
 	if static == "" {
