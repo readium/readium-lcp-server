@@ -207,7 +207,7 @@ func (l *License) encryptFields(encrypter crypto.Encrypter, key []byte) error {
 }
 
 // Implementation of Stringer
-/**
+
 func (c LicensesCollection) GoString() string {
 	result := ""
 	for _, e := range c {
@@ -215,7 +215,7 @@ func (c LicensesCollection) GoString() string {
 	}
 	return result
 }
-**/
+
 func (l License) Validate() error {
 	//if l.ContentId == "" {
 	//	return errors.New("content id is invalid")
@@ -224,15 +224,16 @@ func (l License) Validate() error {
 }
 
 // Implementation of Stringer
-/**
 func (l License) GoString() string {
 	result := "ID : " + l.Id + " user ID : " + l.UserId
-	if l.User == nil {
-		result += " User is NIL."
+	if l.Content != nil {
+		result += " publication : " + l.Content.Id + " @ " + l.Content.Location
+	} else {
+		result += " publicationID : " + l.ContentId
 	}
 	return result
 }
-**/
+
 // Implementation of GORM Tabler
 func (l *License) TableName() string {
 	return LCPLicenseTableName
@@ -441,9 +442,10 @@ func (s *licenseStore) Get(id string) (*License, error) {
 	return &result, s.db.Where(License{Id: id}).Find(&result).Error
 }
 
-func (s *licenseStore) GetLicensesById(ids string) (LicensesCollection, error) {
+func (s *licenseStore) GetLicensesById(commaSeparatedIds string) (LicensesCollection, error) {
 	var result LicensesCollection
-	return result, s.db.Where("id IN (?)", ids).Find(&result).Error
+	ids := strings.Split(commaSeparatedIds, ",")
+	return result, s.db.Where("id IN (?)", ids).Preload("Content").Find(&result).Error
 }
 
 // Counts licenses for pagination

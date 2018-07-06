@@ -28,18 +28,7 @@
 package lutserver
 
 import (
-	"bytes"
-	"context"
-	"database/sql"
-	"encoding/hex"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"strconv"
-	"time"
-
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/validator"
@@ -47,10 +36,13 @@ import (
 	"github.com/readium/readium-lcp-server/lib/views/assets"
 	"github.com/readium/readium-lcp-server/model"
 	"io"
+	"io/ioutil"
 	"mime/multipart"
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -89,300 +81,7 @@ type (
 )
 
 func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model.License, error) {
-
-	// FormToFields the mandatory provider URI
-	if server.Config().LutServer.ProviderUri == "" {
-		server.LogError("Missing ProviderURI")
-		return nil, errors.New("Mandatory provider URI missing in the configuration")
-	}
-	// get the hashed passphrase from the purchase
-	userKeyValue, err := hex.DecodeString(purchase.User.Password)
-	if err != nil {
-		server.LogError("Missing User Password [%q] or hex.DecodeString error : %v", purchase.User.Password, err)
-		return nil, err
-	}
-
-	// create a partial license
-	partialLicense := model.License{
-		Provider: server.Config().LutServer.ProviderUri,
-		User: model.User{
-			Email:     purchase.User.Email,
-			Name:      purchase.User.Name,
-			UUID:      purchase.User.UUID,
-			Encrypted: []string{"email", "name"},
-		},
-		Encryption: model.LicenseEncryption{
-			UserKey: model.LicenseUserKey{
-				Key: model.Key{
-					Algorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
-				},
-				Hint:  purchase.User.Hint,
-				Value: string(userKeyValue),
-			},
-		},
-	}
-
-	// In case of a creation of license, add the user rights
-	if purchase.LicenseUUID == nil {
-		// in case of undefined conf values for copy and print rights,
-		// these rights will be FormToFields to zero
-		copyVal := server.Config().LutServer.RightCopy
-		printVal := server.Config().LutServer.RightPrint
-		userRights := model.LicenseUserRights{
-			Copy:  &model.NullInt{NullInt64: sql.NullInt64{Int64: copyVal, Valid: true}},
-			Print: &model.NullInt{NullInt64: sql.NullInt64{Int64: printVal, Valid: true}},
-		}
-
-		// if this is a loan, include start and end dates from the purchase info
-		if purchase.Type == "Loan" {
-			userRights.Start = purchase.StartDate
-			userRights.End = purchase.EndDate
-		}
-
-		partialLicense.Rights = &userRights
-	}
-
-	// encode in json
-	jsonBody, err := json.Marshal(partialLicense)
-	if err != nil {
-		server.LogError("Error encoding json : %v", err)
-		return nil, err
-	}
-
-	// get the url of the lcp server
-	lcpServerConfig := server.Config().LcpServer
-	var lcpURL string
-
-	if purchase.LicenseUUID == nil || !purchase.LicenseUUID.Valid {
-		// if the purchase contains no license id, generate a new license
-		lcpURL = lcpServerConfig.PublicBaseUrl + "/contents/" + purchase.Publication.UUID + "/license"
-	} else {
-		// if the purchase contains a license id, fetch an existing license
-		// note: this will not update the license rights
-		lcpURL = lcpServerConfig.PublicBaseUrl + "/licenses/" + purchase.LicenseUUID.String
-	}
-
-	// add the partial license to the POST request
-	req, err := http.NewRequest("POST", lcpURL, bytes.NewReader(jsonBody))
-	if err != nil {
-		server.LogError("Error POST LCP : %v", err)
-		return nil, err
-	}
-	server.LogInfo("Executing POST on %q", lcpURL)
-	lcpUpdateAuth := server.Config().LcpUpdateAuth
-	if server.Config().LcpUpdateAuth.Username != "" {
-		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
-	}
-	// the body is a partial license in json format
-	req.Header.Add("Content-Type", http.ContentTypeLcpJson)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// making request
-	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
-	// If we got an error, and the context has been canceled, the context's error is probably more useful.
-	if err != nil {
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-		default:
-		}
-	}
-
-	if err != nil {
-		server.LogError("Error POST on LCP Server : %v", err)
-		return nil, err
-	}
-
-	// we have a body, defering close
-	defer resp.Body.Close()
-
-	// if the status code from the request to the lcp server
-	// is neither 201 Created or 200 ok, return an internal error
-	if (purchase.LicenseUUID == nil && resp.StatusCode != 201) ||
-		(purchase.LicenseUUID != nil && resp.StatusCode != 200) {
-		server.LogError("LCP Responded with Error code: %d calling %q", resp.StatusCode, lcpURL)
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			server.LogError("Error reading response : %v", err)
-			return nil, fmt.Errorf("The License Server returned an error, but it's empty.")
-		}
-		return nil, fmt.Errorf("The License Server returned an error : %s", string(bodyBytes))
-	}
-
-	// decode the full license
-	fullLicense := &model.License{}
-	var dec *json.Decoder
-	dec = json.NewDecoder(resp.Body)
-	err = dec.Decode(fullLicense)
-
-	if err != nil {
-		server.LogError("Error decoding json : %v", err)
-		return nil, errors.New("Unable to decode license")
-	}
-
-	// store the license id if it was not already FormToFields
-	if purchase.LicenseUUID == nil {
-		purchase.LicenseUUID = &model.NullString{NullString: sql.NullString{String: fullLicense.Id, Valid: true}}
-		err = updatePurchase(purchase, server)
-		if err != nil {
-			server.LogError("Error updating purchase : %v", err)
-			return fullLicense, err
-		}
-	}
-
-	return fullLicense, nil
-}
-
-// Update modifies a purchase on a renew or return request
-// parameters: a Purchase structure withID,	LicenseUUID, StartDate,	EndDate, Status
-// EndDate may be undefined (nil), in which case the lsd server will choose the renew period
-//
-func updatePurchase(purchase *model.Purchase, server http.IServer) error {
-	// Get the original purchase from the db
-	origPurchase, err := server.Store().Purchase().Get(purchase.ID)
-
-	if err != nil {
-		return fmt.Errorf("Error : reading purchase with id %d", purchase.ID)
-	}
-	if origPurchase.Status != model.StatusOk {
-		return errors.New("Cannot update an invalid purchase")
-	}
-	if purchase.Status == model.StatusToBeRenewed ||
-		purchase.Status == model.StatusToBeReturned {
-
-		if purchase.LicenseUUID == nil {
-			return errors.New("Cannot return or renew a purchase when no license has been delivered")
-		}
-
-		lsdServerConfig := server.Config().LsdServer
-		lsdURL := lsdServerConfig.PublicBaseUrl + "/licenses/" + purchase.LicenseUUID.String
-
-		if purchase.Status == model.StatusToBeRenewed {
-			lsdURL += "/renew"
-
-			if purchase.EndDate != nil {
-				lsdURL += "?end=" + purchase.EndDate.Time.Format(time.RFC3339)
-			}
-
-			// Next status if LSD raises no error
-			purchase.Status = model.StatusOk
-		} else if purchase.Status == model.StatusToBeReturned {
-			lsdURL += "/return"
-
-			// Next status if LSD raises no error
-			purchase.Status = model.StatusOk
-		}
-		// prepare the request for renew or return to the license status server
-		req, err := http.NewRequest("PUT", lsdURL, nil)
-		if err != nil {
-			return err
-		}
-		// FormToFields credentials
-		lsdAuth := server.Config().LsdNotifyAuth
-		if lsdAuth.Username != "" {
-			req.SetBasicAuth(lsdAuth.Username, lsdAuth.Password)
-		}
-		// call the lsd server
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		// making request
-		resp, err := http.DefaultClient.Do(req.WithContext(ctx))
-		// If we got an error, and the context has been canceled, the context's error is probably more useful.
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				err = ctx.Err()
-			default:
-			}
-		}
-
-		if err != nil {
-			server.LogError("Error PUT on LCP Server : %v", err)
-			return err
-		}
-
-		defer resp.Body.Close()
-
-		// get the new end date from the license server
-
-		// FIXME: really needed? heavy...
-		license, err := getPartialLicense(origPurchase, server)
-		if err != nil {
-			return err
-		}
-		purchase.EndDate = license.Rights.End
-	} else {
-		// status is not "to be renewed"
-		purchase.Status = model.StatusOk
-	}
-	err = server.Store().Purchase().Update(purchase)
-	if err != nil {
-		return errors.New("Unable to update the license id")
-	}
-	return nil
-}
-
-func getPartialLicense(purchase *model.Purchase, server http.IServer) (*model.License, error) {
-	if purchase.LicenseUUID == nil {
-		return nil, errors.New("No license has been yet delivered")
-	}
-
-	lcpServerConfig := server.Config().LcpServer
-	lcpURL := lcpServerConfig.PublicBaseUrl + "/licenses/" + purchase.LicenseUUID.String
-	// message to the console
-	//log.Println("GET " + lcpURL)
-	// prepare the request
-	req, err := http.NewRequest("GET", lcpURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	// FormToFields credentials
-	lcpUpdateAuth := server.Config().LcpUpdateAuth
-	if server.Config().LcpUpdateAuth.Username != "" {
-		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
-	}
-	// send the request
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// making request
-	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
-	// If we got an error, and the context has been canceled, the context's error is probably more useful.
-	if err != nil {
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-		default:
-		}
-	}
-
-	if err != nil {
-		server.LogError("Error GET on LCP Server : %v", err)
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-
-	// the call must return 206 (partial content) because there is no input partial license
-	if resp.StatusCode != 206 {
-		// bad status code
-		return nil, errors.New("The License Server returned an error")
-	}
-	// decode the license
-	partialLicense := model.License{}
-	var dec *json.Decoder
-	dec = json.NewDecoder(resp.Body)
-	err = dec.Decode(&partialLicense)
-
-	if err != nil {
-		return nil, errors.New("Unable to decode the license")
-	}
-
-	return &partialLicense, nil
+	return nil, nil
 }
 
 func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, []ParamAndIndex) {
@@ -624,6 +323,18 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 
 		switch value := out[0].Interface().(type) {
 		case []byte:
+			if !out[1].IsNil() {
+				problem, ok := out[1].Interface().(http.Problem)
+				if ok {
+					if problem.Status != 200 {
+						server.LogError("Should download but error has occurred : %#v", problem)
+						renderError(w, fmt.Errorf("%s", problem.Detail))
+						return
+					}
+				} else {
+					server.LogError("Should download but UNKNOWN error has occurred : %#v", out[1])
+				}
+			}
 			// payload is already build. Important : will overwrite headers above.
 			w.Write(value)
 		case io.ReadCloser:

@@ -321,11 +321,11 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 
 		var result model.LicensesStatusCollection
 		if payload.Sync.IsZero() {
-			server.LogInfo("Listing all licenses statuses.")
 			result, err = server.Store().LicenseStatus().ListAll()
 			if err != nil {
 				return fmt.Errorf("Error reading license statuses : " + err.Error())
 			}
+			server.LogInfo("Listing all licenses statuses (%d found).", len(result))
 		} else {
 			server.LogInfo("Listing licenses statuses older than %v", payload.Sync)
 			result, err = server.Store().LicenseStatus().ListLatest(payload.Sync)

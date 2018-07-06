@@ -64,6 +64,7 @@ type (
 		Delete(value interface{}, where ...interface{}) *gorm.DB
 		Where(query interface{}, args ...interface{}) *gorm.DB
 		FirstOrCreate(out interface{}, where ...interface{}) *gorm.DB
+		Find(out interface{}, where ...interface{}) *gorm.DB
 	}
 
 	// a logger struct that can be passed to gorm
@@ -173,6 +174,7 @@ type (
 		BulkDelete(ids []int64) error
 		LoadUser(p *Purchase) error
 		LoadPublication(p *Purchase) error
+		BulkAddOrUpdate(licenses LicensesCollection, statuses map[string]Status) error
 	}
 
 	LicenseStatusesRepository interface {

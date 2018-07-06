@@ -90,8 +90,7 @@ func (s licenseStore) AddView(licenses *LicenseView) error {
 	return s.db.Create(licenses).Error
 }
 
-// AddFromJSON adds a new license from a JSON string
-//
+// BulkAddOrUpdate transforms and saves LSD LicenseStatus into LicenseView
 func (s licenseStore) BulkAddOrUpdate(licenses LicensesStatusCollection) error {
 	result := Transaction(s.db, func(tx txStore) error {
 		for _, l := range licenses {

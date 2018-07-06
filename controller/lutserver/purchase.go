@@ -83,7 +83,7 @@ func GetUserPurchases(server http.IServer, param ParamPaginationAndId) (*views.R
 // GetPurchasedLicense generates a new license from the corresponding purchase id (passed as a section of the URL).
 // It fetches the license from the lcp server and returns it to the caller.
 //
-// TODO : unused (should delete or make view)
+// TODO : unused (should delete)
 func GetPurchasedLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
 	id, err := strconv.Atoi(param.Id)
 	if err != nil {
@@ -100,6 +100,7 @@ func GetPurchasedLicense(server http.IServer, param ParamId) (*views.Renderer, e
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	}
+	panic("Unused. Should be deleted soon")
 	// FIXME: calling the lsd server at this point is too heavy: the max end date should be in the db.
 	// FIXME: call lsdServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID + "/status"
 	fullLicense, err := generateOrGetLicense(purchase, server)

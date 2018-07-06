@@ -57,7 +57,7 @@ func (u *User) TableName() string {
 
 // Implementation of GORM callback
 func (u *User) BeforeSave() error {
-	if u.ID == 0 {
+	if u.ID == 0 && u.UUID == "" {
 		// Create uuid for new user
 		uid, errU := NewUUID()
 		if errU != nil {

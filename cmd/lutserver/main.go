@@ -208,25 +208,31 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 			s.LogInfo("No license statuses : Automation done.")
 			return
 		}
+		// querying licenses from LCP by building the comma separated list of licenseRef ids
 		licRefIds := ""
+		statuses := make(map[string]model.Status)
 		for idx, licenseStatus := range licenses {
 			if idx > 0 {
 				licRefIds += ","
 			}
 			licRefIds += licenseStatus.LicenseRef
-			//s.LogInfo("LICENSE STATUS : %#v", licenseStatus)
+			statuses[licenseStatus.LicenseRef] = licenseStatus.Status
 		}
 
-		//s.LogInfo("Querying : %q", licRefIds)
+		//s.LogInfo("Querying on LCP: %q", licRefIds)
 		lcpLicenses := readLCPLicense(licRefIds, s)
-		for _, lcpLic := range lcpLicenses {
-			s.LogInfo("LCP LICENSE :  %#v", lcpLic)
-		}
-
-		// fill the db
-		err = s.Store().License().BulkAddOrUpdate(licenses)
-		if err != nil {
-			panic(err)
+		if len(lcpLicenses) > 0 {
+			// save purchases, users and publications
+			err = s.Store().Purchase().BulkAddOrUpdate(lcpLicenses, statuses)
+			if err == nil {
+				// save license views in the db
+				err = s.Store().License().BulkAddOrUpdate(licenses)
+				if err != nil {
+					s.LogError("Error insert/update license status: %v", err)
+				}
+			} else {
+				s.LogError("Error insert/update license : %v", err)
+			}
 		}
 		s.LogInfo("Automation done.")
 	} else if responseErr.Err != "" {
@@ -286,7 +292,7 @@ func readLCPLicense(uuids string, s http.IServer) model.LicensesCollection {
 			s.LogError("[LCP] Error decoding GOB : %v\n%s", err, bodyBytes)
 			return nil
 		}
-		s.LogInfo("[LCP] Licenses :\n%v", allLicenses)
+		//s.LogInfo("[LCP] Licenses :\n%v", allLicenses)
 		return allLicenses
 	} else {
 		s.LogError("[LCP] Replied with Error : %v", responseErr)

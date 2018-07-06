@@ -28,11 +28,20 @@
 package lutserver
 
 import (
+	"bufio"
 	"bytes"
-	"encoding/json"
+	"database/sql"
+	"encoding/gob"
+	"encoding/hex"
+	"fmt"
+	"github.com/adrg/errors"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/views"
+	"github.com/readium/readium-lcp-server/model"
+	"io"
+	"io/ioutil"
+	"net"
 )
 
 // GetFilteredLicenses searches licenses activated by more than n devices
@@ -86,28 +95,15 @@ func GetLicense(server http.IServer, param ParamId) ([]byte, error) {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	}
-	// get an existing license from the lcp server
-	fullLicense, err := generateOrGetLicense(purchase, server)
+	server.LogInfo("Downloading license : %q", param.Id)
+	result, err := readLicenseFromLCP(purchase, server)
 	if err != nil {
-		server.LogError("Error generating or getting license : %v", err)
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-
 	}
-
-	// message to the console
-	//server.LogInfo("Get license / id " + param.Id + " / " + purchase.Publication.Title + " / purchase " + strconv.FormatInt(purchase.ID, 10))
-	//server.LogInfo("Full license : %#v", fullLicense)
 	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
 	nonErr.HttpHeaders.Add(http.HdrContentType, http.ContentTypeLcpJson)
 	nonErr.HttpHeaders.Set(http.HdrContentDisposition, "attachment; filename=\"license.lcpl\"")
-	result := new(bytes.Buffer)
-	enc := json.NewEncoder(result)
-	// do not escape characters
-	enc.SetEscapeHTML(false)
-	// send back the license
-	enc.Encode(fullLicense)
-
-	return result.Bytes(), nonErr
+	return result, nonErr
 }
 
 func CancelLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
@@ -118,4 +114,103 @@ func CancelLicense(server http.IServer, param ParamId) (*views.Renderer, error) 
 func RevokeLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
 	view := &views.Renderer{}
 	return view, nil
+}
+
+func readLicenseFromLCP(fromPurchase *model.Purchase, server http.IServer) ([]byte, error) {
+	if server.Config().LcpUpdateAuth.Username == "" {
+		return nil, fmt.Errorf("Username is empty : can't connect to LCP.")
+	}
+	var err error
+	var userKeyValue []byte
+
+	if fromPurchase.User.Password == "" {
+		return nil, errors.New("User has invalid, empty password - it's probably imported.")
+	} else {
+		userKeyValue, err = hex.DecodeString(fromPurchase.User.Password)
+		if err != nil {
+			server.LogError("Missing User Password [%q] or hex.DecodeString error : %v", fromPurchase.User.Password, err)
+			return nil, err
+		}
+	}
+
+	if fromPurchase.User.Hint == "" {
+		return nil, errors.New("User has invalid, empty hint - it's probably imported.")
+	}
+
+	license := &model.License{
+		Id:        fromPurchase.LicenseUUID.String,
+		Provider:  server.Config().LutServer.ProviderUri,
+		ContentId: fromPurchase.Publication.UUID,
+		UserId:    fromPurchase.User.UUID,
+		User: model.User{
+			Email:     fromPurchase.User.Email,
+			Name:      fromPurchase.User.Name,
+			UUID:      fromPurchase.User.UUID,
+			Encrypted: []string{"email", "name"},
+		},
+		Encryption: model.LicenseEncryption{
+			UserKey: model.LicenseUserKey{
+				Key: model.Key{
+					Algorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+				},
+				Hint:  fromPurchase.User.Hint,
+				Value: string(userKeyValue),
+			},
+		},
+		Rights: &model.LicenseUserRights{
+			Copy:  &model.NullInt{NullInt64: sql.NullInt64{Int64: server.Config().LutServer.RightCopy, Valid: true}},
+			Print: &model.NullInt{NullInt64: sql.NullInt64{Int64: server.Config().LutServer.RightPrint, Valid: true}},
+		},
+	}
+	// prepare the payload for import to the lcp server
+	payload := http.AuthorizationAndLicense{
+		License:  license,
+		User:     server.Config().LcpUpdateAuth.Username,
+		Password: server.Config().LcpUpdateAuth.Password,
+	}
+
+	conn, err := net.Dial("tcp", "localhost:10000")
+	if err != nil {
+		server.LogError("Error contacting LcpServer : %v", err)
+		return nil, fmt.Errorf("LCP Server probably not running : %v", err)
+	}
+	defer conn.Close()
+
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+
+	_, err = rw.WriteString("GETLICENSE\n")
+	if err != nil {
+		server.LogError("Could not write : %v", err)
+		return nil, err
+	}
+
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(payload)
+	if err != nil {
+		server.LogError("Encode failed for struct: %v", err)
+		return nil, err
+	}
+
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return nil, err
+	}
+	// Read the reply.
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LCP reply : %v", err)
+		return nil, err
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		return bodyBytes, nil
+	} else if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return nil, fmt.Errorf(responseErr.Err)
+	}
+	return nil, nil
 }

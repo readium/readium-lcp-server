@@ -217,6 +217,36 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 
 	endpoint := http.NewGobEndpoint(server.Logger())
 
+	endpoint.AddHandleFunc("GETLICENSE", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLicense
+
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			return err
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+		server.LogInfo("Delivering license %q as raw bytes", payload.License.Id)
+		licenseRaw, errPrblm := GetLicense(server, payload.License, ParamLicenseId{LicenseID: payload.License.Id})
+		problem, _ := errPrblm.(http.Problem)
+		if problem.Status != 200 {
+			return problem
+		}
+
+		_, errW := rw.Write(licenseRaw)
+		if errW != nil {
+			server.LogError("Error writing raw license : %v", errW)
+			return errW
+		}
+
+		return nil
+	})
+
 	endpoint.AddHandleFunc("GETLICENSES", func(rw *bufio.ReadWriter) error {
 		var payload http.AuthorizationAndLicense
 

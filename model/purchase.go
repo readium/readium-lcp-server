@@ -28,16 +28,10 @@
 package model
 
 import (
+	"database/sql"
 	"fmt"
+	"github.com/jinzhu/gorm"
 	"time"
-)
-
-// Purchase status
-const (
-	StatusToBeRenewed  = "to-be-renewed"
-	StatusToBeReturned = "to-be-returned"
-	StatusError        = "error"
-	StatusOk           = "ok"
 )
 
 type (
@@ -48,7 +42,7 @@ type (
 		ID              int64       `json:"id,omitempty" sql:"AUTO_INCREMENT" gorm:"primary_key"`
 		PublicationId   int64       `json:"-" sql:"NOT NULL"`
 		UserId          int64       `json:"-" sql:"NOT NULL"`
-		UUID            string      `json:"uuid" sql:"NOT NULL" gorm:"size:36"`
+		UUID            string      `json:"uuid" sql:"NOT NULL;UNIQUE_INDEX" gorm:"size:36"`
 		Type            string      `json:"type" sql:"NOT NULL"`
 		Status          Status      `json:"status" sql:"NOT NULL"`
 		TransactionDate time.Time   `json:"transactionDate,omitempty" sql:"DEFAULT:current_timestamp;NOT NULL"`
@@ -102,7 +96,7 @@ func (p *Purchase) BeforeSave() error {
 	if p.Type == "Loan" && p.StartDate == nil {
 		p.StartDate = now
 	}
-	if p.UUID == "" || p.ID == 0 {
+	if p.UUID == "" && p.ID == 0 {
 		// Create uuid
 		uid, errU := NewUUID()
 		if errU != nil {
@@ -111,14 +105,6 @@ func (p *Purchase) BeforeSave() error {
 		p.UUID = uid.String()
 	}
 	return nil
-}
-
-func (s purchaseStore) LoadUser(p *Purchase) error {
-	return s.db.Model(User{}).Where("id = ?", p.UserId).Find(&p.User).Error
-}
-
-func (s purchaseStore) LoadPublication(p *Purchase) error {
-	return s.db.Model(User{}).Where("id = ?", p.PublicationId).Find(&p.Publication).Error
 }
 
 // Get a purchase using its id
@@ -188,6 +174,110 @@ func (s purchaseStore) Update(p *Purchase) error {
 		"type":       p.Type,
 	}).Error
 
+}
+
+func (s purchaseStore) LoadUser(p *Purchase) error {
+	return s.db.Model(User{}).Where("id = ?", p.UserId).Find(&p.User).Error
+}
+
+func (s purchaseStore) LoadPublication(p *Purchase) error {
+	return s.db.Model(User{}).Where("id = ?", p.PublicationId).Find(&p.Publication).Error
+}
+
+func (s purchaseStore) BulkAddOrUpdate(licenses LicensesCollection, statuses map[string]Status) error {
+	// we need to save users and publications prior to saving purchases, becase inside transaction we need commit to get their ids
+	for _, license := range licenses {
+		if license.Content == nil {
+			//ignore invalid licenses (because we can't save publication)
+			continue
+		}
+		// save user if not already exist
+		var userEntity User
+		err := s.db.Find(&userEntity, "uuid = ?", license.UserId).Error
+		if err != nil {
+			if err != gorm.ErrRecordNotFound {
+				return err
+			}
+			// create user
+			userEntity = User{
+				UUID:  license.UserId,
+				Name:  "Do not edit user",
+				Email: license.UserId + "@lcp.user",
+			}
+			err = s.db.Create(&userEntity).Error
+			if err != nil {
+				s.log.Errorf("Error creating user %q : %v", license.UserId, err)
+				return err
+			}
+		}
+
+		// save publication if not already exist
+		var publicationEntity Publication
+		err = s.db.Find(&publicationEntity, "uuid = ?", license.Content.Id).Error
+		if err != nil {
+			if err != gorm.ErrRecordNotFound {
+				return err
+			}
+			publicationEntity = Publication{
+				UUID:  license.Content.Id,
+				Title: license.Content.Location,
+			}
+			err = s.db.Create(&publicationEntity).Error
+			if err != nil {
+				s.log.Errorf("Error creating publication : %v", err)
+				return err
+			}
+		}
+	}
+
+	result := Transaction(s.db.Debug(), func(tx txStore) error {
+		for _, license := range licenses {
+			if license.Content == nil {
+				s.log.Errorf("Invalid content on license with id %q", license.Id)
+				//ignore invalid licenses (because we can't save publication)
+				continue
+			}
+			// get user
+			var userEntity User
+			err := tx.Find(&userEntity, "uuid = ?", license.UserId).Error
+			if err != nil {
+				s.log.Errorf("user not found - should have been saved above.")
+				// return error, gorm.ErrRecordNotFound should never happen since we're creating them above
+				return err
+			}
+
+			// get publication
+			var publicationEntity Publication
+			err = tx.Find(&publicationEntity, "uuid = ?", license.Content.Id).Error
+			if err != nil {
+				s.log.Errorf("publication %q not found - should have been saved above", license.Content.Id)
+				// return error, gorm.ErrRecordNotFound should never happen since we're creating them above
+				return err
+			}
+
+			// save purchase from LCP license
+			entity := &Purchase{
+				LicenseUUID:     &NullString{NullString: sql.NullString{String: license.Id, Valid: true}},
+				UserId:          userEntity.ID,
+				PublicationId:   publicationEntity.ID,
+				Status:          statuses[license.Id],
+				TransactionDate: license.Issued,
+			}
+			if license.Start != nil {
+				entity.StartDate = license.Start
+			}
+			if license.End != nil {
+				entity.EndDate = license.End
+			}
+			err = tx.Create(entity).Error
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	return result
 }
 
 func (s purchaseStore) BulkDelete(ids []int64) error {

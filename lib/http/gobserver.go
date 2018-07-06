@@ -115,7 +115,7 @@ func (e *GobEndpoint) handleMessages(conn net.Conn) {
 		defer func() {
 			if recoverErr := recover(); recoverErr != nil {
 				replyErr := GobReplyError{Err: recoverErr.(error).Error()}
-				e.log.Errorf("Handler panic error : %v\n%s", recoverErr, string(debug.Stack()))
+				e.log.Errorf("Handled panic error : %v\n%s", recoverErr, string(debug.Stack()))
 				enc := gob.NewEncoder(rw)
 				err = enc.Encode(replyErr)
 				if err != nil {
@@ -130,8 +130,14 @@ func (e *GobEndpoint) handleMessages(conn net.Conn) {
 		// Handle command
 		err = handleCommand(rw)
 		if err != nil {
-			replyErr := GobReplyError{Err: err.Error()}
-			e.log.Errorf("Handler returned error : %v", err)
+			e.log.Errorf("Handler has returned error : %#v", err)
+			problem, isProblem := err.(Problem)
+			var replyErr GobReplyError
+			if isProblem {
+				replyErr = GobReplyError{Err: problem.Detail}
+			} else {
+				replyErr = GobReplyError{Err: err.Error()}
+			}
 			enc := gob.NewEncoder(rw)
 			err = enc.Encode(replyErr)
 			if err != nil {
