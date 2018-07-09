@@ -49,7 +49,7 @@ import (
 
 // GetUserPurchases searches all purchases for a client
 //
-// TODO : unused (should delete or make view)
+// TODO : currently unused
 func GetUserPurchases(server http.IServer, param ParamPaginationAndId) (*views.Renderer, error) {
 	userId, err := strconv.ParseInt(param.Id, 10, 64)
 	if err != nil {
@@ -76,47 +76,8 @@ func GetUserPurchases(server http.IServer, param ParamPaginationAndId) (*views.R
 	view.AddKey("total", noOfPurchases)
 	view.AddKey("currentPage", page+1)
 	view.AddKey("perPage", perPage)
-	view.Template("purchases/index.html.got")
+	view.Template("licenses/index.html.got")
 	return view, nil
-}
-
-// GetPurchasedLicense generates a new license from the corresponding purchase id (passed as a section of the URL).
-// It fetches the license from the lcp server and returns it to the caller.
-//
-// TODO : unused (should delete)
-func GetPurchasedLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
-	id, err := strconv.Atoi(param.Id)
-	if err != nil {
-		// id is not a number
-		return nil, http.Problem{Detail: "Publication ID must be an integer", Status: http.StatusBadRequest}
-	}
-	purchase, err := server.Store().Purchase().Get(int64(id))
-	if err != nil {
-		switch err {
-		case gorm.ErrRecordNotFound:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
-
-		default:
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
-	}
-	panic("Unused. Should be deleted soon")
-	// FIXME: calling the lsd server at this point is too heavy: the max end date should be in the db.
-	// FIXME: call lsdServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID + "/status"
-	fullLicense, err := generateOrGetLicense(purchase, server)
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-
-	}
-
-	attachmentName := http.Slugify(purchase.Publication.Title)
-	server.LogInfo("Attachement name : %s\nFull license: %#v", attachmentName, fullLicense)
-	//resp.Header().Set(http.HdrContentType, http.ContentTypeLcpJson)
-	//resp.Header().Set(http.HdrContentDisposition, "attachment; filename=\""+attachmentName+".lcpl\"")
-
-	// message to the console
-	//log.Println("Return license / id " + vars["id"] + " / " + purchase.Publication.Title + " / purchase " + strconv.FormatInt(purchase.ID, 10))
-	return nil, http.Problem{Detail: "/purchases", Status: http.StatusRedirect}
 }
 
 // GetPurchase gets a purchase by its id in the database
@@ -124,6 +85,17 @@ func GetPurchasedLicense(server http.IServer, param ParamId) (*views.Renderer, e
 func GetPurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
 	view := &views.Renderer{}
 	var purchase *model.Purchase
+	existingPublications, err := server.Store().Publication().ListAll()
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+	}
+	view.AddKey("existingPublications", existingPublications)
+
+	existingUsers, err := server.Store().User().ListAll()
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+	}
+	view.AddKey("existingUsers", existingUsers)
 	if param.Id != "0" {
 		id, err := strconv.Atoi(param.Id)
 		if err != nil {
@@ -142,29 +114,18 @@ func GetPurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
 		}
 		view.AddKey("pageTitle", "Edit purchase")
 	} else {
-		existingPublications, err := server.Store().Publication().ListAll()
-		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
-		view.AddKey("existingPublications", existingPublications)
-
-		existingUsers, err := server.Store().User().ListAll()
-		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-		}
-		view.AddKey("existingUsers", existingUsers)
 		// convention - if sID is zero, we're displaying create form
-		purchase = &model.Purchase{Type: "Loan", Status: model.StatusReady}
+		purchase = &model.Purchase{Type: model.LoanType, Status: model.StatusReady}
 		view.AddKey("pageTitle", "Create purchase")
 	}
 	view.AddKey("purchase", purchase)
-	view.Template("purchases/form.html.got")
+	view.Template("licenses/form.html.got")
 	return view, nil
 }
 
 // GetPurchaseByLicenseID gets a purchase by a license id in the database
 //
-// TODO : unused (should delete)
+// TODO : currently unused
 func GetPurchaseByLicenseID(server http.IServer, param ParamPaginationAndId) (*views.Renderer, error) {
 	var err error
 	purchase, err := server.Store().Purchase().GetByLicenseID(param.Id)
@@ -226,7 +187,7 @@ func GetPurchases(server http.IServer, param ParamPagination) (*views.Renderer, 
 	view.AddKey("total", noOfPurchases)
 	view.AddKey("currentPage", page+1)
 	view.AddKey("perPage", perPage)
-	view.Template("purchases/index.html.got")
+	view.Template("licenses/index.html.got")
 	return view, nil
 }
 
@@ -282,8 +243,11 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 		if payload.EndDate.Valid {
 			payload.EndDate.Time = payload.EndDate.Time.UTC().Truncate(time.Second)
 		}
+		if payload.Type != model.LoanType || payload.Type != model.BuyType {
+			return nil, http.Problem{Detail: "Invalid purchase type.", Status: http.StatusBadRequest}
+		}
 
-		// TODO : update a License on LCP (which is going to notify LSD)
+		// TODO : update a License on LCP (which is going to notify LSD) - this means renewal
 		// update the purchase, license id, start and end dates, status
 		if err := server.Store().Purchase().Update(&model.Purchase{
 			ID:        payload.ID,
@@ -302,7 +266,7 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 		}
 	}
 
-	return nil, http.Problem{Detail: "/purchases", Status: http.StatusRedirect}
+	return nil, http.Problem{Detail: "/licenses", Status: http.StatusRedirect}
 }
 
 func generateLicenseOnLCP(server http.IServer, fromPurchase *model.Purchase) error {

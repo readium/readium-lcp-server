@@ -31,11 +31,12 @@ type (
 	PublicationsCollection []*Publication
 	// Publication struct defines a publication
 	Publication struct {
-		ID       int64    `json:"id" sql:"AUTO_INCREMENT" gorm:"primary_key"`
-		UUID     string   `json:"uuid" sql:"NOT NULL;UNIQUE_INDEX" gorm:"size:36"` // uuid - max size 36
-		Title    string   `json:"title,omitempty" sql:"NOT NULL"`
-		Files    []string `json:"-" gorm:"-"`
-		RepoFile string   `gorm:"-"`
+		ID         int64    `json:"id" sql:"AUTO_INCREMENT" gorm:"primary_key"`
+		UUID       string   `json:"uuid" sql:"NOT NULL;UNIQUE_INDEX" gorm:"size:36"` // uuid - max size 36
+		Title      string   `json:"title,omitempty" sql:"NOT NULL"`
+		Files      []string `json:"-" gorm:"-"`
+		RepoFile   string   `gorm:"-"`
+		IsExternal bool
 	}
 )
 

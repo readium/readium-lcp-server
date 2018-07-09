@@ -33,6 +33,7 @@
                     </label>
                 </th>
                 <th class="mdl-data-table__cell--non-numeric">ID</th>
+                <th class="mdl-data-table__cell--non-numeric">External</th>
                 <th class="mdl-data-table__cell--non-numeric">UUID</th>
                 <th class="mdl-data-table__cell--non-numeric">Name</th>
                 <th class="mdl-data-table__cell--non-numeric">Email</th>
@@ -50,6 +51,7 @@
                     </label>
                 </td>
                 <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.ID}}</span></td>
+                <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.IsExternal}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Name}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Email}}</span></td>

@@ -77,7 +77,7 @@
 </div>
 
 <div class="page-content mdl-card mdl-shadow--2dp">
-    <form method="POST" action="/purchases">
+    <form method="POST" action="/licenses">
         <input type="hidden" name="ID" value="{{.purchase.ID}}">
         <input type="hidden" name="UUID" value="{{.purchase.UUID}}">
 
@@ -367,7 +367,7 @@
 
 
             $(".cancel").on("click", function () {
-                window.location.href = "/purchases";
+                window.location.href = "/licenses";
             });
         }); // end of document ready
     })(jQuery); // end of jQuery name space

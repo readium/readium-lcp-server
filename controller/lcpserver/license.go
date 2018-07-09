@@ -46,6 +46,7 @@ import (
 // The input partial license is optional: if absent, a partial license is returned to the caller, with the info stored in the db.
 //
 func GetLicense(server http.IServer, payload *model.License, param ParamLicenseId) ([]byte, error) {
+	// TODO : use this route for download
 	if param.LicenseID == "" {
 		return nil, http.Problem{Detail: "The license id must be set in the url", Status: http.StatusBadRequest}
 	}

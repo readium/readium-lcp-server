@@ -41,8 +41,8 @@
         <nav class="demo-navigation mdl-navigation mdl-color--blue-grey-800">
             <a class="mdl-navigation__link" href="/">Home</a>
             <a class="mdl-navigation__link" href="/publications">Publications</a>
-            <a class="mdl-navigation__link" href="/purchases">Licenses</a>
-            <a class="mdl-navigation__link" href="/licenses">Admin</a>
+            <a class="mdl-navigation__link" href="/licenses">Licenses</a>
+            <a class="mdl-navigation__link" href="/admin">Admin</a>
             <a class="mdl-navigation__link" href="/users">Users</a>
         </nav>
     </div>

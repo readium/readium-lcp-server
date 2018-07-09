@@ -71,12 +71,15 @@ func GetFilteredLicenses(server http.IServer, param ParamPagination) (*views.Ren
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 	}
+	if (page+1)*perPage < noOfLicenses {
+		view.AddKey("hasNextPage", true)
+	}
 	view.AddKey("licenses", licenses)
-	view.AddKey("pageTitle", "Licenses list")
+	view.AddKey("pageTitle", "Licenses admin")
 	view.AddKey("total", noOfLicenses)
-	view.AddKey("currentPage", 1)
-	view.AddKey("perPage", 20)
-	view.Template("licenses/index.html.got")
+	view.AddKey("currentPage", page+1)
+	view.AddKey("perPage", perPage)
+	view.Template("admin/index.html.got")
 	return view, nil
 }
 

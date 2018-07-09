@@ -44,7 +44,7 @@ type (
 		DeviceName      string    `json:"name" sql:"DEFAULT NULL"`
 		Timestamp       time.Time `json:"timestamp" sql:"DEFAULT:current_timestamp;NOT NULL"`
 		Type            Status    `json:"type" gorm:"type:int" sql:"NOT NULL"`
-		DeviceId        string    `json:"id" sql:"NOT NULL"`                 // TODO : is this unique?
+		DeviceId        string    `json:"id" sql:"NOT NULL"`                 // TODO : should be unique?
 		LicenseStatusFk int64     `json:"-" gorm:"associationForeignKey:Id"` // foreign key belongs-to License
 	}
 )

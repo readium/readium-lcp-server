@@ -305,7 +305,7 @@ func (l *License) ValidateEncryption() error {
 	if l.Encryption.UserKey.Value == "" {
 		return fmt.Errorf("Mandatory info missing in the input body : hashed passphrase is missing.")
 	}
-	// TODO : documentation
+	// TODO : seems encryption needs a 16 byte value, however this was never checked in the old version
 	//if len(l.Encryption.UserKey.Value) != 16 {
 	//	return fmt.Errorf("hashed passphrase incorrect length : should be 16")
 	//}

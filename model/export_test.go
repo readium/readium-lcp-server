@@ -51,8 +51,7 @@ func TestMain(m *testing.M) {
 	case "mysql":
 		info = "mysql://root:@tcp(127.0.0.1:3306)/readium?charset=utf8&parseTime=True&loc=Local"
 	case "postgres":
-		// TODO : add postgres init
-		info = ""
+		info = "postgres://host=localhost port=1234 user=postgres dbname=readium password=root sslmode=disable"
 	}
 
 	// Prepare database

@@ -34,6 +34,11 @@ import (
 	"time"
 )
 
+const (
+	LoanType = "Loan"
+	BuyType  = "Buy"
+)
+
 type (
 	PurchaseCollection []*Purchase
 	//Purchase struct defines a user in json and database
@@ -51,6 +56,7 @@ type (
 		EndDate         *NullTime   `json:"endDate,omitempty" sql:"DEFAULT NULL"`
 		Publication     Publication `json:"publication" gorm:"foreignKey:PublicationId"`
 		User            User        `json:"user" gorm:"foreignKey:UserId"`
+		IsExternal      bool
 	}
 )
 
@@ -93,7 +99,7 @@ func (p *Purchase) BeforeSave() error {
 		}
 		p.UserId = p.User.ID
 	}
-	if p.Type == "Loan" && p.StartDate == nil {
+	if p.Type == LoanType && p.StartDate == nil {
 		p.StartDate = now
 	}
 	if p.UUID == "" && p.ID == 0 {
@@ -200,9 +206,10 @@ func (s purchaseStore) BulkAddOrUpdate(licenses LicensesCollection, statuses map
 			}
 			// create user
 			userEntity = User{
-				UUID:  license.UserId,
-				Name:  "Do not edit user",
-				Email: license.UserId + "@lcp.user",
+				UUID:       license.UserId,
+				Name:       "Do not edit user",
+				Email:      license.UserId + "@lcp.user",
+				IsExternal: true,
 			}
 			err = s.db.Create(&userEntity).Error
 			if err != nil {
@@ -219,8 +226,9 @@ func (s purchaseStore) BulkAddOrUpdate(licenses LicensesCollection, statuses map
 				return err
 			}
 			publicationEntity = Publication{
-				UUID:  license.Content.Id,
-				Title: license.Content.Location,
+				UUID:       license.Content.Id,
+				Title:      license.Content.Location,
+				IsExternal: true,
 			}
 			err = s.db.Create(&publicationEntity).Error
 			if err != nil {
@@ -230,7 +238,7 @@ func (s purchaseStore) BulkAddOrUpdate(licenses LicensesCollection, statuses map
 		}
 	}
 
-	result := Transaction(s.db.Debug(), func(tx txStore) error {
+	result := Transaction(s.db, func(tx txStore) error {
 		for _, license := range licenses {
 			if license.Content == nil {
 				s.log.Errorf("Invalid content on license with id %q", license.Id)
@@ -255,19 +263,23 @@ func (s purchaseStore) BulkAddOrUpdate(licenses LicensesCollection, statuses map
 				return err
 			}
 
-			// save purchase from LCP license
+			// save purchase from LCP license - by default it's a buy
 			entity := &Purchase{
 				LicenseUUID:     &NullString{NullString: sql.NullString{String: license.Id, Valid: true}},
 				UserId:          userEntity.ID,
 				PublicationId:   publicationEntity.ID,
 				Status:          statuses[license.Id],
 				TransactionDate: license.Issued,
+				IsExternal:      true,
+				Type:            BuyType,
 			}
 			if license.Start != nil {
 				entity.StartDate = license.Start
 			}
+			// has an end date - so it's a loan
 			if license.End != nil {
 				entity.EndDate = license.End
+				entity.Type = LoanType
 			}
 			err = tx.Create(entity).Error
 			if err != nil {

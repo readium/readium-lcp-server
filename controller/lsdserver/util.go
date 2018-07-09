@@ -387,6 +387,61 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		return nil
 	})
 
+	endpoint.AddHandleFunc("REVOKE", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLicense
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			return fmt.Errorf("Error decoding result : " + err.Error())
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+		server.LogInfo("Received GOB License : %#v", payload.License)
+
+		return nil
+	})
+
+	endpoint.AddHandleFunc("RENEW", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLicense
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			return fmt.Errorf("Error decoding result : " + err.Error())
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+		server.LogInfo("Received GOB License : %#v", payload.License)
+		//licenseStatus := &model.LicenseStatus{}
+		//LendingRenewal(server, ParamKeyAndDevice{})
+		return nil
+	})
+
+	endpoint.AddHandleFunc("CANCEL", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLicense
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			return fmt.Errorf("Error decoding result : " + err.Error())
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+		server.LogInfo("Received GOB License : %#v", payload.License)
+		//licenseStatus := &model.LicenseStatus{}
+		//LendingCancellation(server, licenseStatus, ParamKey{payload.License.Id})
+		return nil
+	})
 	go func() {
 		// Start listening.
 		endpoint.Listen(":9000")

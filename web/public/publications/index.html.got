@@ -36,6 +36,7 @@
                 </th>
                 <th class="mdl-data-table__cell--non-numeric">ID</th>
                 <th class="mdl-data-table__cell--non-numeric">Title</th>
+                <th class="mdl-data-table__cell--non-numeric">External</th>
             </tr>
             </thead>
             <tbody>
@@ -48,6 +49,7 @@
                 </td>
                 <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.ID}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Title}}</span></td>
+                <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.IsExternal}}</span></td>
             </tr>
             {{end}}
             </tbody>

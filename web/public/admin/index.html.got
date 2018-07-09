@@ -1,0 +1,199 @@
+{{if eq .total 0}}
+<div class="page-content mdl-card mdl-shadow--2dp">
+    <div class="mdl-card__title">
+        <h2 class="mdl-card__title-text">There are no licenses in the database.</h2>
+    </div>
+</div>
+{{else}}
+<div class="page-content mdl-data-tabledynamic mdl-shadow--2dp">
+    {{if .noResults}}
+    <div class="mdl-data-tabledynamic__title">
+        <h2 class="mdl-data-tabledynamic__title-text">There are no results for filter `{{.filter}}`.</h2>
+    </div>
+    {{else}}
+    <div class="mdl-data-tabledynamic__title">
+        <h2 class="mdl-data-tabledynamic__title-text">{{if defined .filter}}listing {{.filterTotal}} of {{.total}} for filter `{{.filter}}`{{else}}{{.total}} licenses in the database.{{end}}</h2>
+        <div class="mdl-data-tabledynamic__actions">
+        </div>
+    </div>
+    <div class="mdl-data-tabledynamic__content">
+        <table class="mdl-data-table mdl-data-dynamictable mdl-js-data-table mdl-shadow--2dp mdl-cell--6-col mdl-data-table__row--selectable">
+            <thead>
+            <tr>
+                <th class="mdl-data-table__cell--non-numeric">ID</th>
+                <th class="mdl-data-table__cell--non-numeric">External</th>
+                <th class="mdl-data-table__cell--non-numeric">Lic. Ref.</th>
+                <th class="mdl-data-table__cell--non-numeric">Updated</th>
+                <th class="mdl-data-table__cell--non-numeric">DeviceCount</th>
+                <th class="mdl-data-table__cell--non-numeric">Status</th>
+                <th class="mdl-data-table__cell--non-numeric">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{ range $i,$m := .licenses }}
+            <tr {{if not $m.Purchase.IsExternal}}id="{{$m.UUID}}" {{end}}>
+                <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.ID}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric">{{$m.Purchase.IsExternal}}</td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.LicenseUpdated}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if $m.DeviceCount.Valid}}{{$m.DeviceCount.Int64}}{{else}}-{{end}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric">
+                    <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect revoke-row">REVOKE</a>
+                    <!--<a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect renew-row">RENEW</a>-->
+                    <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect cancel-row">CANCEL</a>
+                </td>
+            </tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+    <div class="mdl-data-tabledynamic__title">
+        <div class="mdl-paging mdl-data-tabledynamic__actions">
+                <span class="mdl-paging__per-page">
+                    <span class="mdl-paging__per-page-label">Results per page:</span>
+                    <span class="mdl-paging__per-page-value">{{.perPage}}</span>
+                    <button id="dropDown" class="mdl-button mdl-js-button mdl-js-ripple-effect mdl-button--icon mdl-paging__per-page-dropdown">
+                        <i class="material-icons">arrow_drop_down</i>
+                    </button>
+                    <ul for="dropDown" class="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect mdl-js-ripple-effect--ignore-events">
+                        <li tabindex="-1" data-value="20" class="mdl-menu__item mdl-js-ripple-effect">20</li>
+                        <li tabindex="-1" data-value="30" class="mdl-menu__item mdl-js-ripple-effect">30</li>
+                        <li tabindex="-1" data-value="40" class="mdl-menu__item mdl-js-ripple-effect">40</li>
+                        <li tabindex="-1" data-value="50" class="mdl-menu__item mdl-js-ripple-effect">50</li>
+                    </ul>
+                </span>
+            {{if gt .currentPage 1}}
+            <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" href="/admin?page={{minus .currentPage 1}}&per_page={{.perPage}}"><i class="material-icons">keyboard_arrow_left</i></a>
+            {{end}}
+            {{if .hasNextPage}}
+            <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" href="/admin?page={{plus .currentPage 1}}&per_page={{.perPage}}"><i class="material-icons">keyboard_arrow_right</i></a>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+</div>
+
+<dialog class="mdl-dialog">
+    <h4 class="mdl-dialog__title">Change License Status?</h4>
+    <div class="mdl-dialog__content">
+        <p>Are you sure?</p>
+    </div>
+    <div class="mdl-dialog__actions">
+        <button type="button" class="mdl-button yes">Yes</button>
+        <button type="button" class="mdl-button close">Cancel</button>
+    </div>
+</dialog>
+
+<div id="toastMessage" class="mdl-js-snackbar mdl-snackbar">
+    <div class="mdl-snackbar__text"></div>
+    <button class="mdl-snackbar__action" type="button"></button>
+</div>
+
+<script>
+    (function ($) {
+        $(function () {
+
+            $(".mdl-menu__item").click(function () {
+                var v = $(this).attr("data-value");
+                // @formatter:off
+                if (v != {{.perPage}}) {
+                    window.location.href = "/admin?page=" + {{.currentPage}} + "&per_page=" + v;
+                }
+                // @formatter:on
+            });
+
+            var dialog = document.querySelector('dialog');
+            var notificator = document.querySelector('#toastMessage');
+            var _tableRow = undefined;
+            var op = "none";
+            // remove button of remove dialog clicked
+            dialog.querySelector('.yes').addEventListener('click', function () {
+                switch (op) {
+                    case "renew":
+                    // currently unused, it's a feature of "editing a purchase". The rest are functional
+                    case "revoke":
+                    case "cancel":
+                        $.ajax({
+                            url: '/admin/' + op + "/" + _tableRow.id,
+                            type: 'GET',
+                            success: function (result) {
+                                dialog.close();
+                                location.reload();
+                            },
+                            error: function (rejection) {
+                                console.log("Ajax Error", rejection);
+                                notificator.MaterialSnackbar.showSnackbar({
+                                    message: "Error : check rejection in console.",
+                                    timeout: 2000,
+                                    actionHandler: function (event) {
+                                    },
+                                    actionText: 'Ok'
+                                });
+                                dialog.close();
+                            },
+                        });
+                        _tableRow = undefined;
+                        op = "none";
+                        break;
+                    default:
+                        notificator.MaterialSnackbar.showSnackbar({
+                            message: "Unknown operation : " + op + ".",
+                            timeout: 2000,
+                            actionHandler: function (event) {
+                            },
+                            actionText: 'Ok'
+                        });
+                }
+            });
+            // currently unused, it's a feature of "editing a purchase"
+            /**
+             $(document).on("click", ".renew-row", function (event) {
+                // preventing clicked row trigger
+                event.stopImmediatePropagation();
+                _tableRow = $(this).parents("tr:first")[0];
+                op = "renew";
+                dialog.showModal();
+            });
+             **/
+            $(document).on("click", ".revoke-row", function (event) {
+                // preventing clicked row trigger
+                event.stopImmediatePropagation();
+                _tableRow = $(this).parents("tr:first")[0];
+                op = "revoke";
+                dialog.showModal();
+            });
+
+            $(document).on("click", ".cancel-row", function (event) {
+                // preventing clicked row trigger
+                event.stopImmediatePropagation();
+                _tableRow = $(this).parents("tr:first")[0];
+                op = "cancel";
+                dialog.showModal();
+            });
+
+            $(document).on("click", ".close", function () {
+                dialog.close();
+            });
+            // download license for the clicked row
+            $(document).on("click", "td.edit-table-content", function () {
+                if ($(this).parents("tr:first")[0].id == "") {
+                    notificator.MaterialSnackbar.showSnackbar({
+                        message: 'Error : can\'t download - purchase is external (user has no password or hint phrase).',
+                        timeout: 2000,
+                        actionHandler: function (event) {
+                        },
+                        actionText: 'Ok'
+                    });
+                    return;
+                }
+                var url = "/admin/" + $(this).parents("tr:first")[0].id;
+                var win = window.open(url, '_blank');
+                win.focus();
+            });
+        }); // end of document ready
+    })(jQuery); // end of jQuery name space
+
+</script>
+
+{{end}}

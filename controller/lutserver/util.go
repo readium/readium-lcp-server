@@ -34,7 +34,6 @@ import (
 	"github.com/readium/readium-lcp-server/lib/validator"
 	"github.com/readium/readium-lcp-server/lib/views"
 	"github.com/readium/readium-lcp-server/lib/views/assets"
-	"github.com/readium/readium-lcp-server/model"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -79,10 +78,6 @@ type (
 		Name string
 	}
 )
-
-func generateOrGetLicense(purchase *model.Purchase, server http.IServer) (*model.License, error) {
-	return nil, nil
-}
 
 func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, []ParamAndIndex) {
 
@@ -399,18 +394,17 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 	//
 	// purchases
 	//
-	purchasesRoutesPathPrefix := "/purchases"
+	purchasesRoutesPathPrefix := "/licenses"
 	makeHandler(muxer, server, purchasesRoutesPathPrefix, GetPurchases).Methods("GET")
 	makeHandler(muxer, server, purchasesRoutesPathPrefix, CreateOrUpdatePurchase).Methods("POST")
 	purchasesRoutes := muxer.PathPrefix(purchasesRoutesPathPrefix).Subrouter().StrictSlash(false)
 	makeHandler(purchasesRoutes, server, "/{id}", GetPurchase).Methods("GET")
-	makeHandler(purchasesRoutes, server, "/{id}/license", GetPurchasedLicense).Methods("GET")
 	makeHandler(purchasesRoutes, server, "/{id}", DeletePurchase).Methods("DELETE")
 	makeHandler(usersRoutes, server, "/{user_id}/purchases", GetUserPurchases).Methods("GET")
 	//
 	// licences
 	//
-	licenseRoutesPathPrefix := "/licenses"
+	licenseRoutesPathPrefix := "/admin"
 	makeHandler(muxer, server, licenseRoutesPathPrefix, GetFilteredLicenses).Methods("GET")
 	licenseRoutes := muxer.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 	makeHandler(licenseRoutes, server, "/{id}", GetLicense).Methods("GET")
@@ -444,7 +438,7 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		w.Header().Set("Content-Type", "text/html")
 		view := views.Renderer{}
 		view.SetWriter(w)
-		view.AddKey("title", "Error 404")
+		view.AddKey("pageTitle", "Error 404")
 		view.AddKey("message", fmt.Errorf("Requested route (%s) is not served by this server.", request.URL.Path))
 		view.Template("main/error.html.got")
 		view.Render()
