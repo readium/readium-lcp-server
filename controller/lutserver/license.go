@@ -110,13 +110,85 @@ func GetLicense(server http.IServer, param ParamId) ([]byte, error) {
 }
 
 func CancelLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
-	view := &views.Renderer{}
-	return view, nil
+	server.LogInfo("Cancelling %q", param.Id)
+	result, err := changeStatusToLSD(server, param.Id, "CANCEL")
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+	}
+	server.LogInfo("%#v", result)
+	return nil, http.Problem{Detail: "/admin", Status: http.StatusRedirect}
 }
 
 func RevokeLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
-	view := &views.Renderer{}
-	return view, nil
+	server.LogInfo("Revoking %q", param.Id)
+	result, err := changeStatusToLSD(server, param.Id, "REVOKE")
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+	}
+	server.LogInfo("%#v", result)
+	return nil, http.Problem{Detail: "/admin", Status: http.StatusRedirect}
+}
+
+func changeStatusToLSD(server http.IServer, id, command string) (*model.LicenseStatus, error) {
+	conn, err := net.Dial("tcp", "localhost:9000")
+	if err != nil {
+		server.LogError("Error contacting LcpServer : %v", err)
+		return nil, fmt.Errorf("LCP Server probably not running : %v", err)
+	}
+	defer conn.Close()
+
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+
+	_, err = rw.WriteString(command + "\n")
+	if err != nil {
+		server.LogError("Could not write : %v", err)
+		return nil, err
+	}
+
+	payload := http.AuthorizationAndLicense{
+		License: &model.License{
+			Id: id,
+		},
+		User:     server.Config().LcpUpdateAuth.Username,
+		Password: server.Config().LcpUpdateAuth.Password,
+	}
+
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(payload)
+	if err != nil {
+		server.LogError("Encode failed for struct: %v", err)
+		return nil, err
+	}
+
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return nil, err
+	}
+	// Read the reply.
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LCP reply : %v", err)
+		return nil, err
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		var result model.LicenseStatus
+		dec = gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+		err = dec.Decode(&result)
+		if err != nil {
+			server.LogError("Error decoding GOB license : %v", err)
+		} else {
+			return &result, nil
+		}
+	} else if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return nil, fmt.Errorf(responseErr.Err)
+	}
+	return nil, err
 }
 
 func readLicenseFromLCP(fromPurchase *model.Purchase, server http.IServer) ([]byte, error) {

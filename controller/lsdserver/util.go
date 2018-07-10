@@ -167,9 +167,7 @@ func makeEvent(status model.Status, deviceName string, deviceID string, licenseS
 func notifyLCPServer(timeEnd time.Time, licenseID string, server http.IServer) (int, error) {
 	// create a minimum license object, limited to the license id plus rights
 	// FIXME: remove the id (here and in the lcpserver license.go)
-	minLicense := &model.License{Id: licenseID, Rights: &model.LicenseUserRights{}}
-	// set the new end date
-	minLicense.Rights.End = &model.NullTime{Valid: true, Time: timeEnd}
+	minLicense := &model.License{Id: licenseID, Rights: &model.LicenseUserRights{End: &model.NullTime{Valid: true, Time: timeEnd}}}
 
 	conn, err := net.Dial("tcp", "localhost:10000")
 	if err != nil {
@@ -177,7 +175,7 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, server http.IServer) (
 		return http.StatusInternalServerError, err
 	}
 	defer conn.Close()
-	server.LogInfo("Notifying LCP")
+	server.LogInfo("Notifying LCP about license update")
 	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 
 	_, err = rw.WriteString("UPDATELICENSE\n")
@@ -387,24 +385,6 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		return nil
 	})
 
-	endpoint.AddHandleFunc("REVOKE", func(rw *bufio.ReadWriter) error {
-		var payload http.AuthorizationAndLicense
-		dec := gob.NewDecoder(rw)
-		err := dec.Decode(&payload)
-		if err != nil {
-			if err == io.EOF {
-				return fmt.Errorf("Missing mandatory payload.")
-			}
-			return fmt.Errorf("Error decoding result : " + err.Error())
-		}
-		if !server.Auth(payload.User, payload.Password) {
-			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
-		}
-		server.LogInfo("Received GOB License : %#v", payload.License)
-
-		return nil
-	})
-
 	endpoint.AddHandleFunc("RENEW", func(rw *bufio.ReadWriter) error {
 		var payload http.AuthorizationAndLicense
 		dec := gob.NewDecoder(rw)
@@ -420,7 +400,7 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		}
 		server.LogInfo("Received GOB License : %#v", payload.License)
 		//licenseStatus := &model.LicenseStatus{}
-		//LendingRenewal(server, ParamKeyAndDevice{})
+		LendingRenewal(server, ParamKeyAndDevice{Key: payload.License.Id, DeviceID: "system", DeviceName: "system", End: payload.License.End.Time.Format(time.RFC3339)}, Headers{AcceptLanguage: "en_US"})
 		return nil
 	})
 
@@ -437,9 +417,54 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		if !server.Auth(payload.User, payload.Password) {
 			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
 		}
-		server.LogInfo("Received GOB License : %#v", payload.License)
-		//licenseStatus := &model.LicenseStatus{}
-		//LendingCancellation(server, licenseStatus, ParamKey{payload.License.Id})
+		//server.LogInfo("Received GOB License : %#v", payload.License)
+		server.LogInfo("Cancelling license with id %q", payload.License.Id)
+		licenseStatus := &model.LicenseStatus{Status: model.StatusCancelled}
+		_, err = LendingCancellation(server, licenseStatus, ParamKey{payload.License.Id})
+		if err != nil {
+			return err
+		}
+		result, err := server.Store().LicenseStatus().GetByLicenseId(payload.License.Id)
+		if err != nil {
+			return err
+		}
+		enc := gob.NewEncoder(rw)
+		err = enc.Encode(result)
+		if err != nil {
+			return fmt.Errorf("Error encoding result : " + err.Error())
+		}
+		return nil
+	})
+
+	endpoint.AddHandleFunc("REVOKE", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLicense
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			return fmt.Errorf("Error decoding result : " + err.Error())
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+		//server.LogInfo("Received GOB License : %#v", payload.License)
+		server.LogInfo("Revoking license with id %q", payload.License.Id)
+		licenseStatus := &model.LicenseStatus{Status: model.StatusRevoked}
+		_, err = LendingCancellation(server, licenseStatus, ParamKey{payload.License.Id})
+		if err != nil {
+			return err
+		}
+		result, err := server.Store().LicenseStatus().GetByLicenseId(payload.License.Id)
+		if err != nil {
+			return err
+		}
+		enc := gob.NewEncoder(rw)
+		err = enc.Encode(result)
+		if err != nil {
+			return fmt.Errorf("Error encoding result : " + err.Error())
+		}
 		return nil
 	})
 	go func() {

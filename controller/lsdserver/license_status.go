@@ -553,10 +553,11 @@ func LendingCancellation(server http.IServer, payload *model.LicenseStatus, para
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
 	// update the license status properties with the new status & expiration item (now)
+	now := time.Now().UTC().Truncate(time.Second)
 	licenseStatus.Status = payload.Status
 	licenseStatus.CurrentEndLicense = currentTime
-	licenseStatus.StatusUpdated = time.Now()
-	licenseStatus.LicenseUpdated = time.Now()
+	licenseStatus.StatusUpdated = now
+	licenseStatus.LicenseUpdated = now
 
 	// update the license status in db
 	err = server.Store().LicenseStatus().Update(licenseStatus)

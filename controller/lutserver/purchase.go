@@ -243,11 +243,23 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 		if payload.EndDate.Valid {
 			payload.EndDate.Time = payload.EndDate.Time.UTC().Truncate(time.Second)
 		}
+
+		if !payload.LicenseUUID.Valid {
+			return nil, http.Problem{Detail: "Invalid license uuid.", Status: http.StatusBadRequest}
+		}
+
 		if payload.Type != model.LoanType || payload.Type != model.BuyType {
 			return nil, http.Problem{Detail: "Invalid purchase type.", Status: http.StatusBadRequest}
 		}
 
-		// TODO : update a License on LCP (which is going to notify LSD) - this means renewal
+		// renew license on LSD only if we have an end time
+		if payload.EndDate.Valid {
+			err := renewOnLSD(server, payload.LicenseUUID.String, payload.EndDate.Time)
+			if err != nil {
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			}
+		}
+
 		// update the purchase, license id, start and end dates, status
 		if err := server.Store().Purchase().Update(&model.Purchase{
 			ID:        payload.ID,
@@ -262,11 +274,68 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 			default:
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
-
 		}
 	}
 
 	return nil, http.Problem{Detail: "/licenses", Status: http.StatusRedirect}
+}
+
+func renewOnLSD(server http.IServer, id string, timeEnd time.Time) error {
+	conn, err := net.Dial("tcp", "localhost:9000")
+	if err != nil {
+		server.LogError("Error contacting LcpServer : %v", err)
+		return fmt.Errorf("LCP Server probably not running : %v", err)
+	}
+	defer conn.Close()
+
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+
+	_, err = rw.WriteString("RENEW\n")
+	if err != nil {
+		server.LogError("Could not write : %v", err)
+		return err
+	}
+
+	payload := http.AuthorizationAndLicense{
+		License: &model.License{
+			Id:     id,
+			Rights: &model.LicenseUserRights{End: &model.NullTime{Valid: true, Time: timeEnd}},
+		},
+		User:     server.Config().LcpUpdateAuth.Username,
+		Password: server.Config().LcpUpdateAuth.Password,
+	}
+
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(payload)
+	if err != nil {
+		server.LogError("Encode failed for struct: %v", err)
+		return err
+	}
+
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return err
+	}
+	// Read the reply.
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LCP reply : %v", err)
+		return err
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		server.LogError("Error decoding LCP GOB : %v", err)
+		return err
+	}
+	if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return fmt.Errorf(responseErr.Err)
+	}
+	return err
 }
 
 func generateLicenseOnLCP(server http.IServer, fromPurchase *model.Purchase) error {
