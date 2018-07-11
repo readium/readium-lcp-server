@@ -223,7 +223,7 @@ func CreateOrUpdatePublication(server http.IServer, pub *model.Publication) (*vi
 }
 
 // DeletePublication removes a publication in the database and LCP
-func DeletePublication(server http.IServer, param ParamId) (*views.Renderer, error) {
+func DeletePublication(server http.IServer, param ParamId) http.Problem {
 	ids := strings.Split(param.Id, ",")
 	var pubIds []int64
 	var deletedTitles []string
@@ -231,17 +231,17 @@ func DeletePublication(server http.IServer, param ParamId) (*views.Renderer, err
 		id, err := strconv.Atoi(sid)
 		if err != nil {
 			// id is not a number
-			return nil, http.Problem{Detail: "Publication ID must be an integer", Status: http.StatusBadRequest}
+			return http.Problem{Detail: "Publication ID must be an integer", Status: http.StatusBadRequest}
 		}
 		publication, err := server.Store().Publication().Get(int64(id))
 		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
+			return http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		}
 
 		// tell LCP to delete content and licenses
 		err = deleteContentFromLCP(publication.UUID, server)
 		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			return http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
 		// everything ok, adding to bulk delete
 		deletedTitles = append(deletedTitles, publication.Title)
@@ -249,7 +249,7 @@ func DeletePublication(server http.IServer, param ParamId) (*views.Renderer, err
 	}
 
 	if err := server.Store().Publication().BulkDelete(pubIds); err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+		return http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 
 	// attempt to delete the epubs file from the master repository
@@ -266,7 +266,7 @@ func DeletePublication(server http.IServer, param ParamId) (*views.Renderer, err
 		}
 	}
 
-	return &views.Renderer{}, http.Problem{Status: http.StatusOK}
+	return http.Problem{Status: http.StatusOK}
 }
 
 func CheckPublicationTitleExists(server http.IServer, param ParamTitleAndId) ([]byte, error) {
@@ -506,7 +506,7 @@ func deleteContentFromLCP(contentUUID string, server http.IServer) error {
 	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
 	err = dec.Decode(&responseErr)
 	if err != nil && err != io.EOF {
-		// nothing to do
+		// nothing to do : reply is not http.GobReplyError
 	} else if responseErr.Err != "" {
 		server.LogError("LCP GOB Error : %v", responseErr)
 		return fmt.Errorf(responseErr.Err)

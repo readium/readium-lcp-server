@@ -549,12 +549,9 @@ func deleteLicenseStatusesFromLSD(licenses model.LicensesCollection, server http
 	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
 	err = dec.Decode(&responseErr)
 	if err != nil && err != io.EOF {
-		server.LogError("Error decoding LCP GOB : %v", err)
-		return
-	}
-	if responseErr.Err != "" {
+		// nothing to do : payload is not http.GobReplyError
+	} else if responseErr.Err != "" {
 		server.LogError("LCP GOB Error : %v", responseErr)
-		return
 	}
 }
 
@@ -607,10 +604,8 @@ func notifyLSDServer(payload *model.License, server http.IServer) error {
 	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
 	err = dec.Decode(&responseErr)
 	if err != nil && err != io.EOF {
-		server.LogError("Error decoding LCP GOB : %v", err)
-		return err
-	}
-	if responseErr.Err != "" {
+		// nothing to do : reply is not http.GobReplyError
+	} else if responseErr.Err != "" {
 		server.LogError("LCP GOB Error : %v", responseErr)
 		return err
 	}

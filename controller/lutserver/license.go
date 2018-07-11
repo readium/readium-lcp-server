@@ -109,24 +109,30 @@ func GetLicense(server http.IServer, param ParamId) ([]byte, error) {
 	return result, nonErr
 }
 
-func CancelLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
+func CancelLicense(server http.IServer, param ParamId) http.Problem {
 	server.LogInfo("Cancelling %q", param.Id)
 	result, err := changeStatusToLSD(server, param.Id, "CANCEL")
 	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+		return http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
-	server.LogInfo("%#v", result)
-	return nil, http.Problem{Detail: "/admin", Status: http.StatusRedirect}
+	err = server.Store().License().BulkAddOrUpdate(model.LicensesStatusCollection{result})
+	if err != nil {
+		return http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+	}
+	return http.Problem{Status: http.StatusRedirect}
 }
 
-func RevokeLicense(server http.IServer, param ParamId) (*views.Renderer, error) {
+func RevokeLicense(server http.IServer, param ParamId) http.Problem {
 	server.LogInfo("Revoking %q", param.Id)
 	result, err := changeStatusToLSD(server, param.Id, "REVOKE")
 	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+		return http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
-	server.LogInfo("%#v", result)
-	return nil, http.Problem{Detail: "/admin", Status: http.StatusRedirect}
+	err = server.Store().License().BulkAddOrUpdate(model.LicensesStatusCollection{result})
+	if err != nil {
+		return http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+	}
+	return http.Problem{Status: http.StatusOK}
 }
 
 func changeStatusToLSD(server http.IServer, id, command string) (*model.LicenseStatus, error) {

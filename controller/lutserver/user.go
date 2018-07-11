@@ -167,25 +167,25 @@ func CreateOrUpdateUser(server http.IServer, user *model.User) (*views.Renderer,
 }
 
 // Delete removes user from the database
-func DeleteUser(server http.IServer, param ParamId) (*views.Renderer, error) {
+func DeleteUser(server http.IServer, param ParamId) http.Problem {
 	ids := strings.Split(param.Id, ",")
 	var userIds []int64
 	for _, id := range ids {
 		uid, err := strconv.Atoi(id)
 		if err != nil {
 			// id is not a number
-			return nil, http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
+			return http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
 		}
 		_, err = server.Store().User().Get(int64(uid))
 		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
+			return http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		}
 		userIds = append(userIds, int64(uid))
 	}
 	if err := server.Store().User().BulkDelete(userIds); err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+		return http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
-	return nil, http.Problem{Status: http.StatusOK}
+	return http.Problem{Status: http.StatusOK}
 }
 
 func CheckEmailExists(server http.IServer, param ParamTitleAndId) ([]byte, error) {

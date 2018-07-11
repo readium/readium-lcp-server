@@ -31,11 +31,11 @@
             </thead>
             <tbody>
             {{ range $i,$m := .licenses }}
-            <tr {{if not $m.Purchase.IsExternal}}id="{{$m.UUID}}" {{end}}>
+            <tr id="{{$m.UUID}}">
                 <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.ID}}</span></td>
-                <td class="mdl-data-table__cell--non-numeric">{{$m.Purchase.IsExternal}}</td>
+                <td class="mdl-data-table__cell--non-numeric">{{$m.Purchase.IsExternal}}{{if $m.Purchase.IsExternal}}(LSD={{$m.LSDID}}){{end}}</td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
-                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.LicenseUpdated}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{utcdate $m.LicenseUpdated}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if $m.DeviceCount.Valid}}{{$m.DeviceCount.Int64}}{{else}}-{{end}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric">
@@ -114,6 +114,16 @@
                     // currently unused, it's a feature of "editing a purchase". The rest are functional
                     case "revoke":
                     case "cancel":
+                        if (_tableRow.id == "") {
+                            notificator.MaterialSnackbar.showSnackbar({
+                                message: "Bad table row",
+                                timeout: 2000,
+                                actionHandler: function (event) {
+                                },
+                                actionText: 'Ok'
+                            });
+                            return;
+                        }
                         $.ajax({
                             url: '/admin/' + op + "/" + _tableRow.id,
                             type: 'GET',
@@ -124,7 +134,7 @@
                             error: function (rejection) {
                                 console.log("Ajax Error", rejection);
                                 notificator.MaterialSnackbar.showSnackbar({
-                                    message: "Error : check rejection in console.",
+                                    message: "Error : " + rejection.responseText,
                                     timeout: 2000,
                                     actionHandler: function (event) {
                                     },

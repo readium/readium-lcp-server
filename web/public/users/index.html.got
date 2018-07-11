@@ -160,7 +160,7 @@
                     error: function (rejection) {
                         console.log("Ajax Error", rejection);
                         notificator.MaterialSnackbar.showSnackbar({
-                            message: "Error : check rejection in console.",
+                            message: "Error : " + rejection.responseText,
                             timeout: 2000,
                             actionHandler: function (event) {
                             },

@@ -192,26 +192,26 @@ func GetPurchases(server http.IServer, param ParamPagination) (*views.Renderer, 
 }
 
 // Delete removes purchase from the database
-func DeletePurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
+func DeletePurchase(server http.IServer, param ParamId) http.Problem {
 	ids := strings.Split(param.Id, ",")
 	var pendingDeleteIds []int64
 	for _, id := range ids {
 		uid, err := strconv.Atoi(id)
 		if err != nil {
 			// id is not a number
-			return nil, http.Problem{Detail: "ID must be an integer", Status: http.StatusBadRequest}
+			return http.Problem{Detail: "ID must be an integer", Status: http.StatusBadRequest}
 		}
 		_, err = server.Store().Purchase().Get(int64(uid))
 		if err != nil {
-			return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
+			return http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		}
 		pendingDeleteIds = append(pendingDeleteIds, int64(uid))
 	}
 	// TODO : delete License from LSD + LCP
 	if err := server.Store().Purchase().BulkDelete(pendingDeleteIds); err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
+		return http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
-	return nil, http.Problem{Status: http.StatusOK}
+	return http.Problem{Status: http.StatusOK}
 }
 
 // CreatePurchase creates a purchase in the database
@@ -328,10 +328,8 @@ func renewOnLSD(server http.IServer, id string, timeEnd time.Time) error {
 	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
 	err = dec.Decode(&responseErr)
 	if err != nil && err != io.EOF {
-		server.LogError("Error decoding LCP GOB : %v", err)
-		return err
-	}
-	if responseErr.Err != "" {
+		// nothing to do : reply is not http.GobReplyError
+	} else if responseErr.Err != "" {
 		server.LogError("LCP GOB Error : %v", responseErr)
 		return fmt.Errorf(responseErr.Err)
 	}

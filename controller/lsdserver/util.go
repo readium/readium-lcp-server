@@ -213,10 +213,9 @@ func notifyLCPServer(timeEnd time.Time, licenseID string, server http.IServer) (
 	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
 	err = dec.Decode(&responseErr)
 	if err != nil && err != io.EOF {
-		server.LogError("Error decoding LCP GOB : %v", err)
-		return http.StatusInternalServerError, err
-	}
-	if responseErr.Err != "" {
+		//server.LogError("Error decoding LCP GOB : %v", err)
+		return http.StatusOK, nil
+	} else if responseErr.Err != "" {
 		server.LogError("LCP GOB Error : %v", responseErr)
 		return http.StatusInternalServerError, fmt.Errorf(responseErr.Err)
 	}
@@ -330,6 +329,7 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 			if err != nil {
 				return fmt.Errorf("Error reading license statuses : " + err.Error())
 			}
+			server.LogInfo("Found %d statuses out of sync.", len(result))
 		}
 
 		enc := gob.NewEncoder(rw)

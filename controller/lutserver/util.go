@@ -137,20 +137,27 @@ func collect(fnValue reflect.Value) (reflect.Type, reflect.Type, []ParamAndIndex
 			}
 		}
 	}
+	firstParamType := functionType.Out(0).String()
 
-	// the function must always return 2 params
-	if functionType.NumOut() != 2 {
-		panic("Handler has " + strconv.Itoa(functionType.NumOut()) + " returns. Must have two : *object or interface{}, and error. (while registering " + callerName + ")")
-	}
-
-	// first param returned must be Renderer (views.Renderer) or []byte (for downloads)
-	if functionType.Out(0).String() != "*views.Renderer" && functionType.Out(0).String() != "[]uint8" {
-		panic("bad handler func : (" + callerName + ") should return *views.Renderer as first param ( you provided -> " + functionType.Out(0).String() + ")")
-	}
-
-	// last param returned must be error
-	if "error" != functionType.Out(1).String() {
-		panic("bad handler func : should return error as second param")
+	// if first param type is http.Problems, the route is made for Ajax calls.
+	if firstParamType == "http.Problem" {
+		// the function must always return 1 params
+		if functionType.NumOut() != 1 {
+			panic("Handler has " + strconv.Itoa(functionType.NumOut()) + " returns. Must have only one error param. (while registering " + callerName + ")")
+		}
+	} else {
+		// the function must always return 2 params
+		if functionType.NumOut() != 2 {
+			panic("Handler has " + strconv.Itoa(functionType.NumOut()) + " returns. Must have two : *object or interface{}, and error. (while registering " + callerName + ")")
+		}
+		// first param returned must be Renderer (views.Renderer) or []byte (for downloads)
+		if firstParamType != "*views.Renderer" && firstParamType != "[]uint8" {
+			panic("bad handler func : (" + callerName + ") should return *views.Renderer as first param ( you provided -> " + functionType.Out(0).String() + ")")
+		}
+		// last param returned must be error
+		if "error" != functionType.Out(1).String() {
+			panic("bad handler func : should return error as second param")
+		}
 	}
 
 	//s.LogInfo("%s registered with %d input parameters and %d output parameters.", callerName, functionType.NumIn(), functionType.NumOut())
@@ -298,6 +305,20 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 		// finally, we're calling the handler with all the params
 		out := fnValue.Call(in)
 
+		// one parameter -> ajax call
+		if len(out) == 1 {
+			problem, ok := out[0].Interface().(http.Problem)
+			if ok {
+				for hdrKey := range problem.HttpHeaders {
+					w.Header().Set(hdrKey, problem.HttpHeaders.Get(hdrKey))
+				}
+				w.WriteHeader(problem.Status)
+				w.Write([]byte(problem.Detail))
+				return
+			}
+			panic("Should never happen - error is first param and shouldn't take more than one")
+		}
+
 		// error is carrying http status and http headers - we're taking it
 		if !out[1].IsNil() {
 			problem, ok := out[1].Interface().(http.Problem)
@@ -351,6 +372,7 @@ func makeHandler(router *mux.Router, server http.IServer, route string, fn inter
 					renderError(w, fmt.Errorf("template rendering error : %s", err.Error()))
 					return
 				}
+				return
 			} else {
 				if out[1].IsNil() {
 					renderError(w, fmt.Errorf("Bad renderer (without error). Should always have one"))

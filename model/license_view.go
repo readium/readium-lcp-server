@@ -94,13 +94,26 @@ func (s licenseStore) AddView(licenses *LicenseView) error {
 func (s licenseStore) BulkAddOrUpdate(licenses LicensesStatusCollection) error {
 	result := Transaction(s.db, func(tx txStore) error {
 		for _, l := range licenses {
-			entity := &LicenseView{
-				UUID:           l.LicenseRef,
-				DeviceCount:    l.DeviceCount,
-				Status:         l.Status,
-				LicenseUpdated: l.UpdatedAt,
+			var entity LicenseView
+			err := s.db.Find(&entity, "lsd_id = ?", l.Id).Error
+			if err == nil {
+				// update
+				err = tx.Model(&entity).Updates(map[string]interface{}{
+					"status":          l.Status,
+					"license_updated": l.UpdatedAt,
+					"device_count":    l.DeviceCount,
+					"uuid":            l.LicenseRef,
+				}).Error
+			} else if err == gorm.ErrRecordNotFound {
+				// create
+				err = tx.Debug().Save(&LicenseView{
+					UUID:           l.LicenseRef,
+					DeviceCount:    l.DeviceCount,
+					Status:         l.Status,
+					LicenseUpdated: l.UpdatedAt,
+					LSDID:          l.Id,
+				}).Error
 			}
-			err := tx.FirstOrCreate(entity, LicenseView{LSDID: l.Id}).Error
 			if err != nil {
 				return err
 			}

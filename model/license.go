@@ -380,17 +380,19 @@ func (l *License) Update(lic *License) {
 	if lic.ContentId != "" {
 		l.ContentId = lic.ContentId
 	}
-	if lic.Rights.Print.Valid {
-		l.Rights.Print = lic.Rights.Print
-	}
-	if lic.Rights.Copy.Valid {
-		l.Rights.Copy = lic.Rights.Copy
-	}
-	if lic.Rights.Start.Valid {
-		l.Rights.Start = lic.Rights.Start
-	}
-	if lic.Rights.End.Valid {
-		l.Rights.End = lic.Rights.End
+	if lic.Rights != nil {
+		if lic.Rights.Print != nil && lic.Rights.Print.Valid {
+			l.Rights.Print = lic.Rights.Print
+		}
+		if lic.Rights.Copy != nil && lic.Rights.Copy.Valid {
+			l.Rights.Copy = lic.Rights.Copy
+		}
+		if lic.Rights.Start != nil && lic.Rights.Start.Valid {
+			l.Rights.Start = lic.Rights.Start
+		}
+		if lic.Rights.End != nil && lic.Rights.End.Valid {
+			l.Rights.End = lic.Rights.End
+		}
 	}
 }
 

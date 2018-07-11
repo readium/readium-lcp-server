@@ -145,7 +145,7 @@ func main() {
 }
 
 func FetchLicenseStatusesFromLSD(s http.IServer) {
-	s.LogInfo("AUTOMATION : Fetch and save all license status documents")
+	s.LogInfo("AUTOMATION : Fetch and save new license status documents")
 	lsdConn, err := net.Dial("tcp", "localhost:9000")
 	if err != nil {
 		s.LogError("Error dialing LSD : %v\nAutomation fails.", err)
@@ -168,7 +168,7 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 	if lastSyncTime.IsZero() {
 		s.LogInfo("[LSD] Time is zero.")
 	}
-
+	s.LogInfo("Last sync time : %v", lastSyncTime)
 	enc := gob.NewEncoder(lsdRW)
 	err = enc.Encode(http.AuthorizationAndTimestamp{
 		User:     s.Config().LsdNotifyAuth.Username,
@@ -219,7 +219,7 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 			statuses[licenseStatus.LicenseRef] = licenseStatus.Status
 		}
 
-		//s.LogInfo("Querying on LCP: %q", licRefIds)
+		s.LogInfo("Querying on LCP: %q", licRefIds)
 		lcpLicenses := readLCPLicense(licRefIds, s)
 		if len(lcpLicenses) > 0 {
 			// save purchases, users and publications
@@ -230,11 +230,12 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 				if err != nil {
 					s.LogError("Error insert/update license status: %v", err)
 				}
+				s.LogInfo("Done.")
 			} else {
 				s.LogError("Error insert/update license : %v", err)
 			}
 		}
-		s.LogInfo("Automation done.")
+		s.LogInfo("%d LCP licenses. Automation done.", len(lcpLicenses))
 	} else if responseErr.Err != "" {
 		s.LogError("[LSD] Replied with Error : %v", responseErr)
 		return

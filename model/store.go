@@ -59,6 +59,7 @@ type (
 	// for transactions
 	txStore interface {
 		Debug() *gorm.DB
+		Model(value interface{}) *gorm.DB
 		Set(name string, value interface{}) *gorm.DB
 		Create(value interface{}) *gorm.DB
 		Delete(value interface{}, where ...interface{}) *gorm.DB
