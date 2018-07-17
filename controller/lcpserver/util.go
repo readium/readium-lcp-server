@@ -461,6 +461,37 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		return nil
 	})
 
+	endpoint.AddHandleFunc("DELETEUSER", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLcpPublication
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			server.LogError("Error decoding payload")
+			return err
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			server.LogError("Error unauthorized")
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+
+		server.LogInfo("Deleting licenses for users with UUID : %s", payload.ContentId)
+
+		licenses, foundErr := server.Store().License().GetAllForUsersWithUUID(payload.ContentId)
+		if foundErr != gorm.ErrRecordNotFound {
+			deleteLicenseStatusesFromLSD(licenses, server)
+		}
+
+		err = server.Store().License().BulkDelete(licenses)
+		if err != nil {
+			return fmt.Errorf("Error deleting content location : %v", err)
+		}
+
+		return nil
+	})
+
 	go func() {
 		// Start listening.
 		endpoint.Listen(":10000")

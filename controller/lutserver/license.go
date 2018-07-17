@@ -103,6 +103,11 @@ func GetLicense(server http.IServer, param ParamId) ([]byte, error) {
 	if err != nil {
 		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 	}
+
+	err = server.Store().Purchase().MarkAsDelivered(param.Id)
+	if err != nil {
+		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+	}
 	nonErr := http.Problem{Status: http.StatusOK, HttpHeaders: make(map[string][]string)}
 	nonErr.HttpHeaders.Add(http.HdrContentType, http.ContentTypeLcpJson)
 	nonErr.HttpHeaders.Set(http.HdrContentDisposition, "attachment; filename=\"license.lcpl\"")

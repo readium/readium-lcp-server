@@ -122,14 +122,19 @@ func (s userStore) Delete(userID int64) error {
 	})
 }
 
-func (s userStore) BulkDelete(userIds []int64) error {
+func (s userStore) BulkDelete(userUUIDs []string) error {
 	return Transaction(s.db, func(tx txStore) error {
-		for _, userID := range userIds {
-			err := tx.Where("user_id = ?", userID).Delete(Purchase{}).Error
+		for _, userID := range userUUIDs {
+			var user User
+			err := tx.Where("uuid = ?", userID).Find(&user).Error
 			if err != nil {
 				return err
 			}
-			err = tx.Where("id = ?", userID).Delete(User{}).Error
+			err = tx.Where("user_id = ?", user.ID).Delete(Purchase{}).Error
+			if err != nil {
+				return err
+			}
+			err = tx.Delete(user).Error
 			if err != nil {
 				return err
 			}

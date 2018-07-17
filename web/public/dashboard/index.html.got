@@ -22,15 +22,23 @@
         <h2 class="mdl-card__title-text">Dashboard</h2>
     </div>
     <div class="mdl-card__supporting-text mdl-grid">
-        PublicationCount :{{ .info.PublicationCount }}
-        UserCount : {{ .info.UserCount}}
-        BuyCount : {{ .info.BuyCount}}
-        LoanCount : {{ .info.LoanCount}}
-        AverageDuration : {{ .info.AverageDuration}}
+        {{ .info.PublicationCount }} Publications
     </div>
     <div class="mdl-card__supporting-text mdl-grid">
-        {{range $i,$b:=.bestSellers}}
-        bestSellers: Title : {{ $b.Title }} .bestSellers.Count {{$b.Count}}
-        {{end}}
+        {{ .info.UserCount}} Users
     </div>
+    <div class="mdl-card__supporting-text mdl-grid">
+        {{ .info.BuyCount}} Buys
+    </div>
+    <div class="mdl-card__supporting-text mdl-grid">
+        {{ .info.LoanCount}} Loans
+    </div>
+    <div class="mdl-card__supporting-text mdl-grid">
+    <h3 class="mdl-card__title-text">Best Sellers :</h2>
+    </div>
+    {{range $i,$b:=.bestSellers}}
+        <div class="mdl-card__supporting-text mdl-grid">
+            {{ $b.Title }} {{$b.Count}} times.
+        </div>
+    {{end}}
 </div>

@@ -32,13 +32,12 @@
                         <input type="checkbox" id="checkboxAll" class="mdl-checkbox__input">
                     </label>
                 </th>
-                <th class="mdl-data-table__cell--non-numeric">ID</th>
-                <th class="mdl-data-table__cell--non-numeric">UUID</th>
-                <th class="mdl-data-table__cell--non-numeric">Transaction Date</th>
-                <th class="mdl-data-table__cell--non-numeric">Type</th>
-                <th class="mdl-data-table__cell--non-numeric">Status</th>
+                <th class="mdl-data-table__cell--non-numeric">License UUID</th>
                 <th class="mdl-data-table__cell--non-numeric">User</th>
                 <th class="mdl-data-table__cell--non-numeric">Publication</th>
+                <th class="mdl-data-table__cell--non-numeric">Status</th>
+                <th class="mdl-data-table__cell--non-numeric">Type</th>
+                <th class="mdl-data-table__cell--non-numeric">Transaction Date</th>
                 <th class="mdl-data-table__cell--non-numeric">Start Date</th>
                 <th class="mdl-data-table__cell--non-numeric">End Date</th>
             </tr>
@@ -51,13 +50,12 @@
                         <input type="checkbox" class="mdl-checkbox__input">
                     </label>
                 </td>
-                <td style="text-align:left;" class="edit-table-content"><span class="mdl-data-table__label">{{$m.ID}}</span></td>
-                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
-                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{utcdate $m.TransactionDate}}</span></td>
-                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Type}}</span></td>
-                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.LicenseUUID.String}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.User.Name}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Publication.Title}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Type}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{utcdate $m.TransactionDate}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if eq $m.Type "Buy"}}-{{else}}{{utcdate $m.StartDate}}{{end}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if eq $m.Type "Buy"}}-{{else}}{{utcdate $m.EndDate}}{{end}}</span></td>
             </tr>
@@ -126,6 +124,17 @@
             var dialog = document.querySelector('dialog');
             var notificator = document.querySelector('#toastMessage');
 
+            // display instructions
+            setTimeout(function () {
+                notificator.MaterialSnackbar.showSnackbar({
+                    message: "Click row to Renew a license.",
+                    timeout: 2000,
+                    actionHandler: function (event) {
+                    },
+                    actionText: 'Ok'
+                });
+            }, 1000);
+
             // remove button of remove dialog clicked
             dialog.querySelector('.remove').addEventListener('click', function () {
                 var selectedRows = $(".mdl-data-dynamictable tbody").find('tr.is-selected');
@@ -153,7 +162,7 @@
                     error: function (rejection) {
                         console.log("Ajax Error", rejection);
                         notificator.MaterialSnackbar.showSnackbar({
-                            message: "Error : "+rejection.responseText,
+                            message: "Error : " + rejection.responseText,
                             timeout: 2000,
                             actionHandler: function (event) {
                             },

@@ -26,6 +26,7 @@
                 <th class="mdl-data-table__cell--non-numeric">Updated</th>
                 <th class="mdl-data-table__cell--non-numeric">DeviceCount</th>
                 <th class="mdl-data-table__cell--non-numeric">Status</th>
+                <th class="mdl-data-table__cell--non-numeric">Delivered</th>
                 <th class="mdl-data-table__cell--non-numeric">Actions</th>
             </tr>
             </thead>
@@ -38,6 +39,7 @@
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{utcdate $m.LicenseUpdated}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if $m.DeviceCount.Valid}}{{$m.DeviceCount.Int64}}{{else}}-{{end}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Status}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Purchase.IsDelivered}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric">
                     <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect revoke-row">REVOKE</a>
                     <!--<a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect renew-row">RENEW</a>-->
@@ -93,6 +95,10 @@
 <script>
     (function ($) {
         $(function () {
+            var dialog = document.querySelector('dialog');
+            var notificator = document.querySelector('#toastMessage');
+            var _tableRow = undefined;
+            var op = "none";
 
             $(".mdl-menu__item").click(function () {
                 var v = $(this).attr("data-value");
@@ -102,11 +108,18 @@
                 }
                 // @formatter:on
             });
+            // display instructions
+            setTimeout(function () {
+                notificator.MaterialSnackbar.showSnackbar({
+                    message: "Click row to download license.",
+                    timeout: 2000,
+                    actionHandler: function (event) {
+                    },
+                    actionText: 'Ok'
+                });
+            }, 1000);
 
-            var dialog = document.querySelector('dialog');
-            var notificator = document.querySelector('#toastMessage');
-            var _tableRow = undefined;
-            var op = "none";
+
             // remove button of remove dialog clicked
             dialog.querySelector('.yes').addEventListener('click', function () {
                 switch (op) {

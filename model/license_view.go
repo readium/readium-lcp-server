@@ -29,7 +29,7 @@ package model
 
 import (
 	"fmt"
-	"original_gorm"
+	"github.com/jinzhu/gorm"
 	"time"
 )
 
@@ -54,26 +54,37 @@ func (l *LicenseView) TableName() string {
 	return LUTLicenseViewTableName
 }
 
+func (s licenseStore) DeleteOrphans() {
+	rawSql := fmt.Sprintf("DELETE FROM %s WHERE NOT EXISTS (SELECT NULL FROM %s WHERE %s.uuid = %s.license_uuid)", LUTLicenseViewTableName, LUTPurchaseTableName, LUTLicenseViewTableName, LUTPurchaseTableName)
+	err := s.db.Exec(rawSql).Error
+	if err != nil {
+		s.log.Errorf("Error cleaning up orphan entries: %v", err)
+	}
+	//s.log.Errorf("Ok : %s", rawSql)
+}
+
 func (s licenseStore) CountFiltered(deviceLimit string) (int64, error) {
 	var result int64
-	return result, s.db.Model(LicenseView{}).Where("device_count >= ?", deviceLimit).Count(&result).Error
+	join := fmt.Sprintf("INNER JOIN %s ON %s.license_uuid = %s.uuid", LUTPurchaseTableName, LUTPurchaseTableName, LUTLicenseViewTableName)
+	return result, s.db.Model(LicenseView{}).Where("device_count >= ?", deviceLimit).Joins(join).Count(&result).Error
 }
 
 // GetFiltered give a license with more than the filtered number
 //
 func (s licenseStore) GetFiltered(deviceLimit string, page, pageNum int64) (LicensesViewCollection, error) {
 	var result LicensesViewCollection
-	err := s.db.Where("device_count >= ?", deviceLimit).Offset(pageNum * page).Limit(page).Order("id DESC").Find(&result).Error
-
-	for _, license := range result {
-		var p Purchase
-		sErr := s.db.Model(Purchase{}).Where("license_uuid = ?", license.UUID).Find(&p).Preload("User").Preload("Publication").Error
-		if sErr != nil && sErr == gorm.ErrRecordNotFound {
-			fmt.Printf("Purchase with UUID %q NOT FOUND.\n", license.UUID)
-		}
-		license.Purchase = p
+	join := fmt.Sprintf("INNER JOIN %s ON %s.license_uuid = %s.uuid", LUTPurchaseTableName, LUTPurchaseTableName, LUTLicenseViewTableName)
+	order := fmt.Sprintf("%s.id DESC, %s.is_external ASC", LUTLicenseViewTableName, LUTPurchaseTableName)
+	err := s.db.Where("device_count >= ?", deviceLimit).Joins(join).Offset(pageNum * page).Limit(page).Order(order).Find(&result).Error
+	if err != nil {
+		return nil, err
 	}
-
+	for _, r := range result {
+		err = s.db.Where("license_uuid = ?", r.UUID).Preload("User").Preload("Publication").Find(&r.Purchase).Error
+		if err != nil {
+			return nil, err
+		}
+	}
 	return result, err
 }
 
@@ -95,8 +106,9 @@ func (s licenseStore) BulkAddOrUpdate(licenses LicensesStatusCollection) error {
 	result := Transaction(s.db, func(tx txStore) error {
 		for _, l := range licenses {
 			var entity LicenseView
-			err := s.db.Find(&entity, "lsd_id = ?", l.Id).Error
-			if err == nil {
+			err := tx.Find(&entity, "lsd_id = ?", l.Id).Error
+			switch err {
+			case nil:
 				// update
 				err = tx.Model(&entity).Updates(map[string]interface{}{
 					"status":          l.Status,
@@ -104,19 +116,27 @@ func (s licenseStore) BulkAddOrUpdate(licenses LicensesStatusCollection) error {
 					"device_count":    l.DeviceCount,
 					"uuid":            l.LicenseRef,
 				}).Error
-			} else if err == gorm.ErrRecordNotFound {
+				if err != nil {
+					s.log.Errorf("err should be nil on update : %v", err)
+					return err
+				}
+			case gorm.ErrRecordNotFound:
 				// create
-				err = tx.Debug().Save(&LicenseView{
+				err = tx.Model(LicenseView{}).Save(&LicenseView{
 					UUID:           l.LicenseRef,
 					DeviceCount:    l.DeviceCount,
 					Status:         l.Status,
 					LicenseUpdated: l.UpdatedAt,
 					LSDID:          l.Id,
 				}).Error
-			}
-			if err != nil {
+				if err != nil {
+					s.log.Errorf("err should be nil on insert: %v", err)
+					return err
+				}
+			default:
 				return err
 			}
+
 		}
 		return nil
 	})

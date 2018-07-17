@@ -57,6 +57,7 @@ type (
 		Publication     Publication `json:"publication" gorm:"foreignKey:PublicationId"`
 		User            User        `json:"user" gorm:"foreignKey:UserId"`
 		IsExternal      bool
+		IsDelivered     bool
 	}
 )
 
@@ -111,6 +112,17 @@ func (p *Purchase) BeforeSave() error {
 		p.UUID = uid.String()
 	}
 	return nil
+}
+
+func (s purchaseStore) MarkAsDelivered(licenseID string) error {
+	var result Purchase
+	err := s.db.Where("license_uuid = ?", licenseID).Find(&result).Error
+	if err != nil {
+		return err
+	}
+	return s.db.Model(&result).Updates(map[string]interface{}{
+		"is_delivered": true,
+	}).Error
 }
 
 // Get a purchase using its id
@@ -179,7 +191,6 @@ func (s purchaseStore) Update(p *Purchase) error {
 		"status":     p.Status,
 		"type":       p.Type,
 	}).Error
-
 }
 
 func (s purchaseStore) LoadUser(p *Purchase) error {
@@ -191,6 +202,7 @@ func (s purchaseStore) LoadPublication(p *Purchase) error {
 }
 
 func (s purchaseStore) BulkAddOrUpdate(licenses LicensesCollection, statuses map[string]Status) error {
+	var purchases PurchaseCollection
 	// we need to save users and publications prior to saving purchases, becase inside transaction we need commit to get their ids
 	for _, license := range licenses {
 		if license.Content == nil {
@@ -200,10 +212,10 @@ func (s purchaseStore) BulkAddOrUpdate(licenses LicensesCollection, statuses map
 		// save user if not already exist
 		var userEntity User
 		err := s.db.Find(&userEntity, "uuid = ?", license.UserId).Error
-		if err != nil {
-			if err != gorm.ErrRecordNotFound {
-				return err
-			}
+		switch err {
+		case nil:
+			// update user (nothing to update)
+		case gorm.ErrRecordNotFound:
 			// create user
 			userEntity = User{
 				UUID:       license.UserId,
@@ -216,15 +228,18 @@ func (s purchaseStore) BulkAddOrUpdate(licenses LicensesCollection, statuses map
 				s.log.Errorf("Error creating user %q : %v", license.UserId, err)
 				return err
 			}
+		default:
+			return err
 		}
 
 		// save publication if not already exist
 		var publicationEntity Publication
 		err = s.db.Find(&publicationEntity, "uuid = ?", license.Content.Id).Error
-		if err != nil {
-			if err != gorm.ErrRecordNotFound {
-				return err
-			}
+		switch err {
+		case nil:
+			// update publication (nothing to update)
+		case gorm.ErrRecordNotFound:
+			// create publication
 			publicationEntity = Publication{
 				UUID:       license.Content.Id,
 				Title:      license.Content.Location,
@@ -235,61 +250,55 @@ func (s purchaseStore) BulkAddOrUpdate(licenses LicensesCollection, statuses map
 				s.log.Errorf("Error creating publication : %v", err)
 				return err
 			}
+		default:
+			return err
 		}
+
+		purchase := &Purchase{
+			LicenseUUID:     &NullString{NullString: sql.NullString{String: license.Id, Valid: true}},
+			UserId:          userEntity.ID,
+			PublicationId:   publicationEntity.ID,
+			Status:          statuses[license.Id],
+			TransactionDate: license.Issued,
+			IsExternal:      true,
+			Type:            BuyType,
+		}
+
+		if license.Start != nil {
+			purchase.StartDate = license.Start
+		}
+		// has an end date - so it's a loan
+		if license.End != nil {
+			purchase.EndDate = license.End
+			purchase.Type = LoanType
+		}
+
+		var existingPurchase Purchase
+		err = s.db.Find(&existingPurchase, "license_uuid = ?", license.Id).Error
+		switch err {
+		case gorm.ErrRecordNotFound:
+			// entry exists - taking id, so we can update
+			purchase.ID = existingPurchase.ID
+		}
+		purchases = append(purchases, purchase)
 	}
-
-	result := Transaction(s.db, func(tx txStore) error {
-		for _, license := range licenses {
-			if license.Content == nil {
-				s.log.Errorf("Invalid content on license with id %q", license.Id)
-				//ignore invalid licenses (because we can't save publication)
-				continue
-			}
-			// get user
-			var userEntity User
-			err := tx.Find(&userEntity, "uuid = ?", license.UserId).Error
-			if err != nil {
-				s.log.Errorf("user not found - should have been saved above.")
-				// return error, gorm.ErrRecordNotFound should never happen since we're creating them above
-				return err
-			}
-
-			// get publication
-			var publicationEntity Publication
-			err = tx.Find(&publicationEntity, "uuid = ?", license.Content.Id).Error
-			if err != nil {
-				s.log.Errorf("publication %q not found - should have been saved above", license.Content.Id)
-				// return error, gorm.ErrRecordNotFound should never happen since we're creating them above
-				return err
-			}
-
-			// save purchase from LCP license - by default it's a buy
-			entity := &Purchase{
-				LicenseUUID:     &NullString{NullString: sql.NullString{String: license.Id, Valid: true}},
-				UserId:          userEntity.ID,
-				PublicationId:   publicationEntity.ID,
-				Status:          statuses[license.Id],
-				TransactionDate: license.Issued,
-				IsExternal:      true,
-				Type:            BuyType,
-			}
-			if license.Start != nil {
-				entity.StartDate = license.Start
-			}
-			// has an end date - so it's a loan
-			if license.End != nil {
-				entity.EndDate = license.End
-				entity.Type = LoanType
-			}
-			err = tx.Create(entity).Error
-			if err != nil {
-				return err
+	return Transaction(s.db, func(tx txStore) error {
+		for _, purchase := range purchases {
+			var err error
+			if purchase.ID <= 0 {
+				err = tx.Create(purchase).Error
+				if err != nil {
+					return err
+				}
+			} else {
+				err = tx.Model(Purchase{}).Save(purchase).Error
+				if err != nil {
+					return err
+				}
 			}
 		}
 		return nil
 	})
-
-	return result
 }
 
 func (s purchaseStore) BulkDelete(ids []int64) error {

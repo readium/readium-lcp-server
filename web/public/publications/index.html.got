@@ -139,11 +139,12 @@
                         $(".mdl-data-dynamictable thead tr").removeClass("is-selected");
                         $(".mdl-data-dynamictable thead tr th label").removeClass("is-checked");
                         componentHandler.upgradeDom();
+                        window.location.href = "/publications";
                     },
                     error: function (rejection) {
                         console.log("Ajax Error", rejection);
                         notificator.MaterialSnackbar.showSnackbar({
-                            message: "Error : "+rejection.responseText,
+                            message: "Error : " + rejection.responseText,
                             timeout: 2000,
                             actionHandler: function (event) {
                             },

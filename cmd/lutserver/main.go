@@ -145,6 +145,7 @@ func main() {
 }
 
 func FetchLicenseStatusesFromLSD(s http.IServer) {
+	s.Store().License().DeleteOrphans()
 	s.LogInfo("AUTOMATION : Fetch and save new license status documents")
 	lsdConn, err := net.Dial("tcp", "localhost:9000")
 	if err != nil {
@@ -219,7 +220,7 @@ func FetchLicenseStatusesFromLSD(s http.IServer) {
 			statuses[licenseStatus.LicenseRef] = licenseStatus.Status
 		}
 
-		s.LogInfo("Querying on LCP: %q", licRefIds)
+		//s.LogInfo("Querying on LCP: %q", licRefIds)
 		lcpLicenses := readLCPLicense(licRefIds, s)
 		if len(lcpLicenses) > 0 {
 			// save purchases, users and publications

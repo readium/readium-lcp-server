@@ -36,7 +36,6 @@ type (
 		UserCount        int64 `json:"userCount"`
 		BuyCount         int64 `json:"buyCount"`
 		LoanCount        int64 `json:"loanCount"`
-		AverageDuration  int64 `json:"averageDuration"`
 	}
 
 	// BestSeller struct defines a best seller
@@ -48,7 +47,8 @@ type (
 
 // GetDashboardInfos a publication for a given ID
 func (s dashboardStore) GetDashboardInfos() (*Dashboard, error) {
-	result := &Dashboard{}
+	result := Dashboard{}
+
 	err := s.db.Model(&User{}).Count(&result.UserCount).Error
 	if err != nil {
 		return nil, err
@@ -59,27 +59,23 @@ func (s dashboardStore) GetDashboardInfos() (*Dashboard, error) {
 		return nil, err
 	}
 
-	err = s.db.Model(&Purchase{}).Where("type = ?", "BUY").Count(&result.BuyCount).Error
+	err = s.db.Model(&Purchase{}).Where("type = ?", BuyType).Count(&result.BuyCount).Error
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.db.Model(&Purchase{}).Where("type = ?", "LOAN").Count(&result.BuyCount).Error
+	err = s.db.Model(&Purchase{}).Where("type = ?", LoanType).Count(&result.LoanCount).Error
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.db.Table(LUTPurchaseTableName).Select("ROUND(AVG(JULIANDAY(end_date) - JULIANDAY(start_date))) AS averageDuration").Where("type = ?", "LOAN").Scan(&result).Error
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return &result, nil
 }
 
 // GetDashboardBestSellers a publication for a given ID
 func (s dashboardStore) GetDashboardBestSellers() ([]BestSeller, error) {
 	bestSellers := make([]BestSeller, 5)
-	selectSQL := fmt.Sprintf("%s.title, COUNT(%s.id)", LUTPublicationTableName, LUTPublicationTableName)
+	selectSQL := fmt.Sprintf("%s.title, COUNT(%s.id) AS count", LUTPublicationTableName, LUTPublicationTableName)
 	joinSQL := fmt.Sprintf("JOIN %s ON %s.publication_id = %s.id", LUTPublicationTableName, LUTPurchaseTableName, LUTPublicationTableName)
 	groupSQL := fmt.Sprintf("%s.id", LUTPublicationTableName)
 	orderSQL := fmt.Sprintf("COUNT(%s.id) DESC", LUTPurchaseTableName)

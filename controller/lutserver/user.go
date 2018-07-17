@@ -30,11 +30,18 @@ package lutserver
 import (
 	"strconv"
 
+	"bufio"
+	"bytes"
+	"encoding/gob"
 	"encoding/hex"
+	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/views"
 	"github.com/readium/readium-lcp-server/model"
+	"io"
+	"io/ioutil"
+	"net"
 	"strings"
 )
 
@@ -169,20 +176,24 @@ func CreateOrUpdateUser(server http.IServer, user *model.User) (*views.Renderer,
 // Delete removes user from the database
 func DeleteUser(server http.IServer, param ParamId) http.Problem {
 	ids := strings.Split(param.Id, ",")
-	var userIds []int64
+	var userUUIDs []string
 	for _, id := range ids {
 		uid, err := strconv.Atoi(id)
 		if err != nil {
 			// id is not a number
 			return http.Problem{Detail: "User ID must be an integer", Status: http.StatusBadRequest}
 		}
-		_, err = server.Store().User().Get(int64(uid))
+		u, err := server.Store().User().Get(int64(uid))
 		if err != nil {
 			return http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
 		}
-		userIds = append(userIds, int64(uid))
+		userUUIDs = append(userUUIDs, u.UUID)
 	}
-	if err := server.Store().User().BulkDelete(userIds); err != nil {
+	err := deleteLicensesForUsersFromLCP(server, userUUIDs)
+	if err != nil {
+		return http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+	}
+	if err := server.Store().User().BulkDelete(userUUIDs); err != nil {
 		return http.Problem{Detail: err.Error(), Status: http.StatusBadRequest}
 	}
 	return http.Problem{Status: http.StatusOK}
@@ -204,4 +215,62 @@ func CheckEmailExists(server http.IServer, param ParamTitleAndId) ([]byte, error
 	// returns StatusBadRequest (frontend deny creation)
 	nonErr.Status = http.StatusBadRequest
 	return nil, nonErr
+}
+
+func deleteLicensesForUsersFromLCP(server http.IServer, userUUIDs []string) error {
+	if server.Config().LcpUpdateAuth.Username == "" {
+		return fmt.Errorf("Username is empty : can't connect to LCP.")
+	}
+
+	// prepare the payload for import to the lcp server
+	lcpPublication := http.AuthorizationAndLcpPublication{
+		ContentId: strings.Join(userUUIDs, ","),
+		User:      server.Config().LcpUpdateAuth.Username,
+		Password:  server.Config().LcpUpdateAuth.Password,
+	}
+
+	conn, err := net.Dial("tcp", "localhost:10000")
+	if err != nil {
+		server.LogError("Error Notify LcpServer : %v", err)
+		return fmt.Errorf("LCP Server probably not running : %v", err)
+	}
+	defer conn.Close()
+	server.LogInfo("Notifying LCP (deleted user -> delete licenses for that user).")
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+
+	_, err = rw.WriteString("DELETEUSER\n")
+	if err != nil {
+		server.LogError("Could not write : %v", err)
+		return err
+	}
+
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(lcpPublication)
+	if err != nil {
+		server.LogError("Encode failed for struct: %v", err)
+		return err
+	}
+
+	err = rw.Flush()
+	if err != nil {
+		server.LogError("Flush failed : %v", err)
+		return err
+	}
+	// Read the reply.
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		server.LogError("Error reading LCP reply : %v", err)
+		return err
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		// nothing to do : reply is not http.GobReplyError
+	} else if responseErr.Err != "" {
+		server.LogError("LCP GOB Error : %v", responseErr)
+		return fmt.Errorf(responseErr.Err)
+	}
+	return nil
 }

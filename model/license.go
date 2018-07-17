@@ -475,10 +475,28 @@ func (s *licenseStore) GetAllForContentId(contentID string) (LicensesCollection,
 	return result, s.db.Where("content_fk = ?", contentID).Order("issued DESC").Find(&result).Error
 }
 
+func (s *licenseStore) GetAllForUsersWithUUID(commaSeparatedUUIDs string) (LicensesCollection, error) {
+	var result LicensesCollection
+	ids := strings.Split(commaSeparatedUUIDs, ",")
+	return result, s.db.Where("user_id = ?", ids).Find(&result).Error
+}
+
 // List lists licenses for a given ContentId
 // pageNum starting at 0
 //
 func (s *licenseStore) List(contentID string, page, pageNum int64) (LicensesCollection, error) {
 	var result LicensesCollection
 	return result, s.db.Where("content_fk = ?", contentID).Offset(pageNum * page).Limit(page).Order("issued DESC").Find(&result).Error
+}
+
+func (s *licenseStore) BulkDelete(licenses LicensesCollection) error {
+	return Transaction(s.db, func(tx txStore) error {
+		for _, license := range licenses {
+			err := tx.Debug().Delete(license).Error
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

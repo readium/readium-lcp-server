@@ -122,7 +122,7 @@ func (s publicationStore) FilterCount(paramLike string) (int64, error) {
 
 func (s publicationStore) Filter(paramLike string, page, pageNum int64) (PublicationsCollection, error) {
 	var result PublicationsCollection
-	return result, s.db.Where("title LIKE ? OR uuid LIKE ?", "%"+paramLike+"%", "%"+paramLike+"%").Offset(pageNum * page).Limit(page).Where(&Publication{}).Order("title DESC").Find(&result).Error
+	return result, s.db.Where("title LIKE ? OR uuid LIKE ?", "%"+paramLike+"%", "%"+paramLike+"%").Offset(pageNum * page).Limit(page).Order("title DESC").Find(&result).Error
 }
 
 // List lists publications within a given range

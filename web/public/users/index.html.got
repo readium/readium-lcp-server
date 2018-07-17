@@ -55,7 +55,7 @@
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.UUID}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Name}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Email}}</span></td>
-                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Password}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{decodeHexPasswd $m.Password}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Hint}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.Encrypted}}</span></td>
             </tr>
@@ -156,6 +156,7 @@
                         $(".mdl-data-dynamictable thead tr").removeClass("is-selected");
                         $(".mdl-data-dynamictable thead tr th label").removeClass("is-checked");
                         componentHandler.upgradeDom();
+                        window.location.href = "/users";
                     },
                     error: function (rejection) {
                         console.log("Ajax Error", rejection);

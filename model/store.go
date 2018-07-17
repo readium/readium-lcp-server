@@ -117,7 +117,7 @@ type (
 		FilterCount(emailLike string) (int64, error)
 		List(page, pageNum int64) (UsersCollection, error)
 		Filter(emailLike string, page, pageNum int64) (UsersCollection, error)
-		BulkDelete(ids []int64) error
+		BulkDelete(ids []string) error
 		ListAll() (UsersCollection, error)
 	}
 
@@ -176,6 +176,7 @@ type (
 		LoadUser(p *Purchase) error
 		LoadPublication(p *Purchase) error
 		BulkAddOrUpdate(licenses LicensesCollection, statuses map[string]Status) error
+		MarkAsDelivered(licenseID string) error
 	}
 
 	LicenseStatusesRepository interface {
@@ -194,6 +195,8 @@ type (
 		Count() (int64, error)
 		CountForContentId(contentId string) (int64, error)
 		GetAllForContentId(contentID string) (LicensesCollection, error)
+		GetAllForUsersWithUUID(commaSeparatedUUIDs string) (LicensesCollection, error)
+		BulkDelete(licenses LicensesCollection) error
 		List(contentId string, page, pageNum int64) (LicensesCollection, error)
 		ListAll(page, pageNum int64) (LicensesCollection, error)
 		UpdateRights(l *License) error
@@ -212,6 +215,7 @@ type (
 		Latest() (time.Time, error)
 		UpdateView(lic *LicenseView) error
 		Delete(id int64) error
+		DeleteOrphans()
 	}
 )
 
