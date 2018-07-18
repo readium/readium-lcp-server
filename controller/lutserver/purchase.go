@@ -85,17 +85,6 @@ func GetUserPurchases(server http.IServer, param ParamPaginationAndId) (*views.R
 func GetPurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
 	view := &views.Renderer{}
 	var purchase *model.Purchase
-	existingPublications, err := server.Store().Publication().ListAll()
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	}
-	view.AddKey("existingPublications", existingPublications)
-
-	existingUsers, err := server.Store().User().ListAll()
-	if err != nil {
-		return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
-	}
-	view.AddKey("existingUsers", existingUsers)
 	if param.Id != "0" {
 		id, err := strconv.Atoi(param.Id)
 		if err != nil {
@@ -112,8 +101,22 @@ func GetPurchase(server http.IServer, param ParamId) (*views.Renderer, error) {
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 			}
 		}
-		view.AddKey("pageTitle", "Edit purchase")
+		if purchase.Type != model.LoanType {
+			return nil, http.Problem{Detail: "License cannot be renewed (it was bought)", Status: http.StatusBadRequest}
+		}
+		view.AddKey("pageTitle", "Renew license")
 	} else {
+		existingPublications, err := server.Store().Publication().ListAll()
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		view.AddKey("existingPublications", existingPublications)
+
+		existingUsers, err := server.Store().User().ListAll()
+		if err != nil {
+			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+		}
+		view.AddKey("existingUsers", existingUsers)
 		// convention - if sID is zero, we're displaying create form
 		purchase = &model.Purchase{Type: model.LoanType, Status: model.StatusReady}
 		view.AddKey("pageTitle", "Create purchase")
@@ -182,6 +185,7 @@ func GetPurchases(server http.IServer, param ParamPagination) (*views.Renderer, 
 			view.AddKey("hasNextPage", true)
 		}
 	}
+	view.AddKey("noResults", noOfPurchases == 0)
 	view.AddKey("purchases", purchases)
 	view.AddKey("pageTitle", "Purchases list")
 	view.AddKey("total", noOfPurchases)
@@ -231,24 +235,30 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 		if err != nil {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
+		licenseStatus, err := getLicenseStatusFromLSD(server, payload.LicenseUUID.String)
+		if err != nil {
+			return nil, http.Problem{Detail: "License was generated, but license status no : " + err.Error(), Status: http.StatusInternalServerError}
+		}
 		err = server.Store().Purchase().Add(payload)
 		if err != nil {
 			return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
 		}
-	default:
-		if payload.StartDate.Valid {
-			payload.StartDate.Time = payload.StartDate.Time.UTC().Truncate(time.Second)
+		if licenseStatus != nil {
+			err = server.Store().License().BulkAddOrUpdate(model.LicensesStatusCollection{licenseStatus})
+			if err != nil {
+				return nil, http.Problem{Detail: err.Error(), Status: http.StatusInternalServerError}
+			}
 		}
-
+	default:
 		if payload.EndDate.Valid {
 			payload.EndDate.Time = payload.EndDate.Time.UTC().Truncate(time.Second)
 		}
 
-		if !payload.LicenseUUID.Valid {
+		if payload.LicenseUUID == nil || !payload.LicenseUUID.Valid {
 			return nil, http.Problem{Detail: "Invalid license uuid.", Status: http.StatusBadRequest}
 		}
 
-		if payload.Type != model.LoanType || payload.Type != model.BuyType {
+		if payload.Type != model.LoanType && payload.Type != model.BuyType {
 			return nil, http.Problem{Detail: "Invalid purchase type.", Status: http.StatusBadRequest}
 		}
 
@@ -261,13 +271,7 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 		}
 
 		// update the purchase, license id, start and end dates, status
-		if err := server.Store().Purchase().Update(&model.Purchase{
-			ID:        payload.ID,
-			StartDate: payload.StartDate,
-			EndDate:   payload.EndDate,
-			Type:      payload.Type,
-			Status:    payload.Status}); err != nil {
-
+		if err := server.Store().Purchase().UpdateEndDate(payload.ID, payload.EndDate.Time); err != nil {
 			switch err {
 			case gorm.ErrRecordNotFound:
 				return nil, http.Problem{Detail: err.Error(), Status: http.StatusNotFound}
@@ -278,6 +282,68 @@ func CreateOrUpdatePurchase(server http.IServer, payload *model.Purchase) (*view
 	}
 
 	return nil, http.Problem{Detail: "/licenses", Status: http.StatusRedirect}
+}
+
+func getLicenseStatusFromLSD(s http.IServer, licenseID string) (*model.LicenseStatus, error) {
+	s.LogInfo("Fetch new license status document ", licenseID)
+	lsdConn, err := net.Dial("tcp", "localhost:9000")
+	if err != nil {
+		s.LogError("Error dialing LSD : %v\nAutomation fails.", err)
+		return nil, err
+	}
+
+	defer lsdConn.Close()
+	lsdRW := bufio.NewReadWriter(bufio.NewReader(lsdConn), bufio.NewWriter(lsdConn))
+
+	_, err = lsdRW.WriteString("LICENSESTATUS\n")
+	if err != nil {
+		s.LogError("[LSD] Could not write : %v", err)
+		return nil, err
+	}
+
+	enc := gob.NewEncoder(lsdRW)
+	err = enc.Encode(http.AuthorizationAndLicense{
+		User:     s.Config().LsdNotifyAuth.Username,
+		Password: s.Config().LsdNotifyAuth.Password,
+		License: &model.License{
+			Id: licenseID,
+		},
+	})
+	if err != nil {
+		s.LogError("[LSD] Encode failed for struct: %v", err)
+		return nil, err
+	}
+
+	err = lsdRW.Flush()
+	if err != nil {
+		s.LogError("[LSD] Flush failed : %v", err)
+		return nil, err
+	}
+	// Read the reply.
+
+	bodyBytes, err := ioutil.ReadAll(lsdRW.Reader)
+	if err != nil {
+		s.LogError("[LSD] Error reading response body : %v", err)
+		return nil, err
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		var license model.LicenseStatus
+		dec = gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+		err = dec.Decode(&license)
+		if err != nil {
+			s.LogError("[LSD] Error decoding GOB : %v\n%s", err, bodyBytes)
+			return nil, err
+		}
+
+	} else if responseErr.Err != "" {
+		s.LogError("[LSD] Replied with Error : %v", responseErr)
+		return nil, err
+	}
+	return nil, nil
 }
 
 func renewOnLSD(server http.IServer, id string, timeEnd time.Time) error {
@@ -298,8 +364,8 @@ func renewOnLSD(server http.IServer, id string, timeEnd time.Time) error {
 
 	payload := http.AuthorizationAndLicense{
 		License: &model.License{
-			Id:     id,
-			Rights: &model.LicenseUserRights{End: &model.NullTime{Valid: true, Time: timeEnd}},
+			Id:  id,
+			End: &model.NullTime{Valid: true, Time: timeEnd},
 		},
 		User:     server.Config().LcpUpdateAuth.Username,
 		Password: server.Config().LcpUpdateAuth.Password,
@@ -333,7 +399,7 @@ func renewOnLSD(server http.IServer, id string, timeEnd time.Time) error {
 		server.LogError("LCP GOB Error : %v", responseErr)
 		return fmt.Errorf(responseErr.Err)
 	}
-	return err
+	return nil
 }
 
 func generateLicenseOnLCP(server http.IServer, fromPurchase *model.Purchase) error {

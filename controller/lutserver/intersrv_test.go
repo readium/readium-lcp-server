@@ -35,6 +35,7 @@ import (
 	"github.com/readium/readium-lcp-server/lib/http"
 	"github.com/readium/readium-lcp-server/lib/logger"
 	"github.com/readium/readium-lcp-server/model"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -272,4 +273,54 @@ func TestInterserver(t *testing.T) {
 		t.Fatalf("Error decoding GOB data: %v\n%s", err, bodyBytes)
 	}
 	t.Logf("Response (%d statuses):\n%v", len(data), data)
+}
+
+func TestInterserver2(t *testing.T) {
+	// Open a connection to the server.
+	rw, cl, err := GOBClient(t, "localhost:9000")
+	if err != nil {
+		t.Fatalf("Client: Failed to open connection  : %v", err)
+	}
+
+	defer cl.Close()
+	t.Log("Placing a license request.")
+	_, err = rw.WriteString("LICENSESTATUS\n")
+	if err != nil {
+		t.Fatalf("Could not write : %v", err)
+	}
+
+	enc := gob.NewEncoder(rw)
+	err = enc.Encode(http.AuthorizationAndLicense{User: "badu", Password: "hello", License: &model.License{Id: "5d14fcd1-f4ec-43e9-b1cf-3b163c2155d8"}})
+	if err != nil {
+		t.Fatalf("Encode failed for struct: %v", err)
+	}
+
+	t.Log("Flushing the command.")
+	err = rw.Flush()
+	if err != nil {
+		t.Fatalf("Flush failed : %v", err)
+	}
+	// Read the reply.
+	t.Log("Read the reply.")
+
+	bodyBytes, err := ioutil.ReadAll(rw.Reader)
+	if err != nil {
+		t.Fatalf("Error reading response body : %v", err)
+	}
+
+	var responseErr http.GobReplyError
+	dec := gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+	err = dec.Decode(&responseErr)
+	if err != nil && err != io.EOF {
+		var license model.LicenseStatus
+		dec = gob.NewDecoder(bytes.NewBuffer(bodyBytes))
+		err = dec.Decode(&license)
+		if err != nil {
+			t.Errorf("[LSD] Error decoding GOB : %v\n%s", err, bodyBytes)
+		}
+		t.Logf("License : %#v", license)
+
+	} else if responseErr.Err != "" {
+		t.Errorf("[LSD] Replied with Error : %v", responseErr)
+	}
 }

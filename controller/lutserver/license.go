@@ -74,6 +74,7 @@ func GetFilteredLicenses(server http.IServer, param ParamPagination) (*views.Ren
 	if (page+1)*perPage < noOfLicenses {
 		view.AddKey("hasNextPage", true)
 	}
+	view.AddKey("noResults", noOfLicenses == 0)
 	view.AddKey("licenses", licenses)
 	view.AddKey("pageTitle", "Licenses admin")
 	view.AddKey("total", noOfLicenses)

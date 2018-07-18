@@ -54,8 +54,8 @@ type (
 		LicenseUUID     *NullString `json:"licenseUuid,omitempty" gorm:"size:36" sql:"DEFAULT NULL"`
 		StartDate       *NullTime   `json:"startDate,omitempty" sql:"DEFAULT NULL"`
 		EndDate         *NullTime   `json:"endDate,omitempty" sql:"DEFAULT NULL"`
-		Publication     Publication `json:"publication" gorm:"foreignKey:PublicationId"`
-		User            User        `json:"user" gorm:"foreignKey:UserId"`
+		Publication     Publication `json:"publication" gorm:"foreignKey:PublicationId;save_associations:false"`
+		User            User        `json:"user" gorm:"foreignKey:UserId;save_associations:false"`
 		IsExternal      bool
 		IsDelivered     bool
 	}
@@ -179,18 +179,13 @@ func (s purchaseStore) Add(p *Purchase) error {
 	return s.db.Create(p).Error
 }
 
-func (s purchaseStore) Update(p *Purchase) error {
+func (s purchaseStore) UpdateEndDate(id int64, date time.Time) error {
 	var result Purchase
-	err := s.db.Where(Purchase{ID: p.ID}).Find(&result).Error
+	err := s.db.Where(Purchase{ID: id}).Find(&result).Error
 	if err != nil {
 		return err
 	}
-	return s.db.Model(&result).Updates(map[string]interface{}{
-		"end_date":   p.StartDate,
-		"start_date": p.EndDate,
-		"status":     p.Status,
-		"type":       p.Type,
-	}).Error
+	return s.db.Model(&result).Updates(map[string]interface{}{"end_date": date}).Error
 }
 
 func (s purchaseStore) LoadUser(p *Purchase) error {
@@ -276,9 +271,10 @@ func (s purchaseStore) BulkAddOrUpdate(licenses LicensesCollection, statuses map
 		var existingPurchase Purchase
 		err = s.db.Find(&existingPurchase, "license_uuid = ?", license.Id).Error
 		switch err {
-		case gorm.ErrRecordNotFound:
+		case nil:
 			// entry exists - taking id, so we can update
 			purchase.ID = existingPurchase.ID
+			purchase.IsExternal = existingPurchase.IsExternal
 		}
 		purchases = append(purchases, purchase)
 	}

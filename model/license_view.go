@@ -63,19 +63,16 @@ func (s licenseStore) DeleteOrphans() {
 	//s.log.Errorf("Ok : %s", rawSql)
 }
 
-func (s licenseStore) CountFiltered(deviceLimit string) (int64, error) {
+func (s licenseStore) CountFiltered(filter string) (int64, error) {
 	var result int64
-	join := fmt.Sprintf("INNER JOIN %s ON %s.license_uuid = %s.uuid", LUTPurchaseTableName, LUTPurchaseTableName, LUTLicenseViewTableName)
-	return result, s.db.Model(LicenseView{}).Where("device_count >= ?", deviceLimit).Joins(join).Count(&result).Error
+	return result, s.db.Debug().Model(LicenseView{}).Where("device_count >= ? OR uuid = ?", filter, filter).Count(&result).Error
 }
 
 // GetFiltered give a license with more than the filtered number
 //
-func (s licenseStore) GetFiltered(deviceLimit string, page, pageNum int64) (LicensesViewCollection, error) {
+func (s licenseStore) GetFiltered(filter string, page, pageNum int64) (LicensesViewCollection, error) {
 	var result LicensesViewCollection
-	join := fmt.Sprintf("INNER JOIN %s ON %s.license_uuid = %s.uuid", LUTPurchaseTableName, LUTPurchaseTableName, LUTLicenseViewTableName)
-	order := fmt.Sprintf("%s.id DESC, %s.is_external ASC", LUTLicenseViewTableName, LUTPurchaseTableName)
-	err := s.db.Where("device_count >= ?", deviceLimit).Joins(join).Offset(pageNum * page).Limit(page).Order(order).Find(&result).Error
+	err := s.db.Where("device_count >= ? OR uuid = ?", filter, filter).Offset(pageNum * page).Limit(page).Order("id DESC").Find(&result).Error
 	if err != nil {
 		return nil, err
 	}

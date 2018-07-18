@@ -171,7 +171,7 @@ type (
 		CountByUser(userID int64) (int64, error)
 		ListByUser(userID int64, page int64, pageNum int64) (PurchaseCollection, error)
 		Add(p *Purchase) error
-		Update(p *Purchase) error
+		UpdateEndDate(id int64, date time.Time) error
 		BulkDelete(ids []int64) error
 		LoadUser(p *Purchase) error
 		LoadPublication(p *Purchase) error
@@ -208,8 +208,8 @@ type (
 
 		// from license view
 		GetView(id int64) (*LicenseView, error)
-		CountFiltered(deviceLimit string) (int64, error)
-		GetFiltered(deviceLimit string, page, pageNum int64) (LicensesViewCollection, error)
+		CountFiltered(filter string) (int64, error)
+		GetFiltered(filter string, page, pageNum int64) (LicensesViewCollection, error)
 		AddView(licenses *LicenseView) error
 		BulkAddOrUpdate(licenses LicensesStatusCollection) error
 		Latest() (time.Time, error)

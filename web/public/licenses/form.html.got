@@ -24,7 +24,7 @@
         cursor: pointer;
     }
 </style>
-
+{{if eq .purchase.ID 0}}
 <dialog class="mdl-dialog dialog" id="usersDialog">
     <h4 class="mdl-dialog__title">Choose user</h4>
     <div class="mdl-dialog__content dialogContent">
@@ -70,7 +70,7 @@
     <div class="mdl-dialog__actions">
     </div>
 </dialog>
-
+{{end}}
 <div id="toastMessage" class="mdl-js-snackbar mdl-snackbar">
     <div class="mdl-snackbar__text"></div>
     <button class="mdl-snackbar__action" type="button"></button>
@@ -80,8 +80,8 @@
     <form method="POST" action="/licenses">
         <input type="hidden" name="ID" value="{{.purchase.ID}}">
         <input type="hidden" name="UUID" value="{{.purchase.UUID}}">
-
         <table style="height: 100vh;">
+            {{if eq .purchase.ID 0}}
             <tr>
                 <td style="text-align: right;">
                     <span>User:</span>
@@ -179,6 +179,10 @@
                     </div>
                 </td>
             </tr>
+            {{else}}
+            <input type="hidden" name="LicenseUUID" value="{{.purchase.LicenseUUID.String}}">
+            <input type="hidden" id="Type" name="Type" value="{{.purchase.Type}}">
+            {{end}}
             <tr id="endDateRow">
                 <td style="text-align: right;">
                     <span> EndDate : </span>
@@ -214,6 +218,10 @@
             var saveButton = document.getElementById('saveButton');
             var startDateEl = document.getElementById("StartDate");
             var endDateEl = document.getElementById("EndDate");
+            // functions below are for creating a purchase.
+            // @formatter:off
+            {{if eq .purchase.ID 0}}
+            // @formatter:on
             var checkLoanAndSetStart = function () {
                 if (buyLoadHidden.value == "Loan") {
                     if (startDateEl.value == "") {
@@ -221,86 +229,7 @@
                     }
                 }
             };
-
             checkLoanAndSetStart();
-
-            saveButton.addEventListener("click", function (event) {
-                var errorMessage = "";
-                if (document.getElementById("PublicationId").value == 0) {
-                    errorMessage = "Choose a publication.";
-                }
-                if (document.getElementById("UserId").value == 0) {
-                    errorMessage = "Choose an user.";
-                }
-                if (document.getElementById("Status").value == "") {
-                    errorMessage = "Choose a status";
-                }
-                if (buyLoadHidden.value == "Loan") {
-                    // checking start date before end date
-                    if (moment(endDateEl.value).isBefore(moment(startDateEl.value))) {
-                        errorMessage = "Start date must be before end date.";
-                    }
-                } else {
-                    // cleaning up start and end - it's a buy
-                    startDateEl.value = "";
-                    endDateEl.value = "";
-                }
-
-                if (errorMessage != "") {
-                    notificator.MaterialSnackbar.showSnackbar({
-                        message: "Error : " + errorMessage,
-                        timeout: 2000,
-                        actionHandler: function (event) {
-                        },
-                        actionText: 'Ok'
-                    });
-                    // And we prevent the form from being sent by canceling the event
-                    event.preventDefault();
-                }
-            }, false);
-
-            var picker = new MaterialDatetimePicker({})
-                .on('submit', function (dat) {
-                    hasOpenedPicker = false;
-                    switch (currentPicking) {
-                        case "start":
-                            startDateEl.value = dat.utc().startOf('day').format();
-                            currentPicking = "";
-                            break;
-                        case "end":
-                            endDateEl.value = dat.utc().startOf('day').format();
-                            currentPicking = "";
-                            break;
-                        default:
-                            console.log("Submitted unknown", dat.format());
-                            currentPicking = "";
-                    }
-                });
-
-            picker.on('close', function () {
-                currentPicking == "";
-            });
-
-            startDdateChooser.addEventListener('click', function () {
-                if (currentPicking != "") {
-                    return;
-                }
-                if (buyLoadHidden.value == "Loan") {
-                    picker.open();
-                    currentPicking = "start";
-                }
-            }, false);
-
-            endDateChooser.addEventListener('click', function () {
-                if (currentPicking != "") {
-                    return;
-                }
-                if (buyLoadHidden.value == "Loan") {
-                    picker.open();
-                    currentPicking = "end";
-                }
-            }, false);
-
 
             document.getElementById("switch-input").onclick = function () {
                 if (buyLoadSwitch.textContent == "Loan") {
@@ -364,6 +293,99 @@
                 }
                 // end check outside
             });
+
+            saveButton.addEventListener("click", function (event) {
+                var errorMessage = "";
+                if (document.getElementById("PublicationId").value == 0) {
+                    errorMessage = "Choose a publication.";
+                }
+                if (document.getElementById("UserId").value == 0) {
+                    errorMessage = "Choose an user.";
+                }
+                if (document.getElementById("Status").value == "") {
+                    errorMessage = "Choose a status";
+                }
+                if (buyLoadHidden.value == "Loan") {
+                    // checking start date before end date
+                    if (moment(endDateEl.value).isBefore(moment(startDateEl.value))) {
+                        errorMessage = "Start date must be before end date.";
+                    }
+                } else {
+                    // cleaning up start and end - it's a buy
+                    startDateEl.value = "";
+                    endDateEl.value = "";
+                }
+
+                if (errorMessage != "") {
+                    notificator.MaterialSnackbar.showSnackbar({
+                        message: "Error : " + errorMessage,
+                        timeout: 2000,
+                        actionHandler: function (event) {
+                        },
+                        actionText: 'Ok'
+                    });
+                    // And we prevent the form from being sent by canceling the event
+                    event.preventDefault();
+                }
+            }, false);
+            startDdateChooser.addEventListener('click', function () {
+                if (currentPicking != "") {
+                    return;
+                }
+                // we're in renew mode
+                if (buyLoadHidden == undefined) {
+                    picker.open();
+                    currentPicking = "start";
+                    return;
+                }
+                if (buyLoadHidden.value == "Loan") {
+                    picker.open();
+                    currentPicking = "start";
+                }
+            }, false);
+            // @formatter:off
+            {{else}}
+            endDateEl.value = moment({{.purchase.EndDate}}).utc().startOf('day').format();
+            {{end}}
+            // @formatter:on
+
+            var picker = new MaterialDatetimePicker({})
+                .on('submit', function (dat) {
+                    hasOpenedPicker = false;
+                    switch (currentPicking) {
+                        case "start":
+                            startDateEl.value = dat.utc().startOf('day').format();
+                            currentPicking = "";
+                            break;
+                        case "end":
+                            endDateEl.value = dat.utc().startOf('day').format();
+                            currentPicking = "";
+                            break;
+                        default:
+                            console.log("Submitted unknown", dat.format());
+                            currentPicking = "";
+                    }
+                });
+
+            picker.on('close', function () {
+                currentPicking == "";
+            });
+
+            endDateChooser.addEventListener('click', function () {
+                if (currentPicking != "") {
+                    return;
+                }
+                // we're in renew mode
+                if (buyLoadHidden == undefined) {
+                    picker.open();
+                    currentPicking = "end";
+                    return;
+                }
+                if (buyLoadHidden.value == "Loan") {
+                    picker.open();
+                    currentPicking = "end";
+                }
+            }, false);
 
 
             $(".cancel").on("click", function () {

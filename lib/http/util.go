@@ -29,6 +29,7 @@ package http
 
 import (
 	"bytes"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/readium/readium-lcp-server/model"
@@ -107,6 +108,25 @@ func FormToFields(deserializeTo reflect.Value, fromForm url.Values) error {
 					field.Set(reflect.ValueOf(iNull))
 				} else {
 					panic("Could not unmarshal text on model.NullTime :" + err.Error())
+				}
+			}
+			if iString, ok := fv.Elem().Interface().(*model.NullString); ok {
+				iString = &model.NullString{sql.NullString{String: "", Valid: true}}
+				err := iString.UnmarshalText([]byte(val))
+				if err == nil {
+					field.Set(reflect.ValueOf(iString))
+				} else {
+					panic("Could not unmarshal text on model.NullString :" + err.Error())
+				}
+			}
+
+			if iInt, ok := fv.Elem().Interface().(*model.NullInt); ok {
+				iInt = &model.NullInt{sql.NullInt64{Int64: 0, Valid: true}}
+				err := iInt.UnmarshalText([]byte(val))
+				if err == nil {
+					field.Set(reflect.ValueOf(iInt))
+				} else {
+					panic("Could not unmarshal text on model.NullString :" + err.Error())
 				}
 			}
 		}

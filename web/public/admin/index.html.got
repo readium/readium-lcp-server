@@ -213,6 +213,7 @@
                 var url = "/admin/" + $(this).parents("tr:first")[0].id;
                 var win = window.open(url, '_blank');
                 win.focus();
+                window.location.href = "/admin";// reloads window to display delivered true
             });
         }); // end of document ready
     })(jQuery); // end of jQuery name space

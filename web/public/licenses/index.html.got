@@ -40,6 +40,7 @@
                 <th class="mdl-data-table__cell--non-numeric">Transaction Date</th>
                 <th class="mdl-data-table__cell--non-numeric">Start Date</th>
                 <th class="mdl-data-table__cell--non-numeric">End Date</th>
+                <th class="mdl-data-table__cell--non-numeric">Is External</th>
             </tr>
             </thead>
             <tbody>
@@ -58,6 +59,7 @@
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{utcdate $m.TransactionDate}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if eq $m.Type "Buy"}}-{{else}}{{utcdate $m.StartDate}}{{end}}</span></td>
                 <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{if eq $m.Type "Buy"}}-{{else}}{{utcdate $m.EndDate}}{{end}}</span></td>
+                <td class="mdl-data-table__cell--non-numeric edit-table-content"><span class="mdl-data-table__label">{{$m.IsExternal}}</span></td>
             </tr>
             {{end}}
             </tbody>

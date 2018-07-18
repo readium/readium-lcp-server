@@ -340,6 +340,32 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		return nil
 	})
 
+	endpoint.AddHandleFunc("LICENSESTATUS", func(rw *bufio.ReadWriter) error {
+		var payload http.AuthorizationAndLicense
+		dec := gob.NewDecoder(rw)
+		err := dec.Decode(&payload)
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("Missing mandatory payload.")
+			}
+			return fmt.Errorf("Error decoding result : " + err.Error())
+		}
+		if !server.Auth(payload.User, payload.Password) {
+			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
+		}
+		result, err := server.Store().LicenseStatus().GetByLicenseId(payload.License.Id)
+		if err != nil {
+			server.LogError("Error deleting licenses for ids %q : %v", payload.License.Id, err)
+			return err
+		}
+		enc := gob.NewEncoder(rw)
+		err = enc.Encode(result)
+		if err != nil {
+			return fmt.Errorf("Error encoding result : " + err.Error())
+		}
+		return nil
+	})
+
 	endpoint.AddHandleFunc("LICENSESDELETED", func(rw *bufio.ReadWriter) error {
 		var payload http.AuthorizationAndLicense
 		dec := gob.NewDecoder(rw)
@@ -357,6 +383,7 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		err = server.Store().LicenseStatus().DeleteByLicenseIds(payload.License.Id)
 		if err != nil {
 			server.LogError("Error deleting licenses for ids %q : %v", payload.License.Id, err)
+			return err
 		}
 		return nil
 	})
@@ -398,7 +425,14 @@ func RegisterRoutes(muxer *mux.Router, server http.IServer) {
 		if !server.Auth(payload.User, payload.Password) {
 			return fmt.Errorf("Error : bad username / password (`" + payload.User + "`:`" + payload.Password + "`)")
 		}
-		server.LogInfo("Received GOB License : %#v", payload.License)
+		if payload.License.Id == "" {
+			return fmt.Errorf("Error : must supply valid license id")
+		}
+		if payload.License.End == nil {
+			return fmt.Errorf("Error : must supply end time.")
+		}
+
+		server.LogInfo("Renewing License : %#v", payload.License)
 		//licenseStatus := &model.LicenseStatus{}
 		LendingRenewal(server, ParamKeyAndDevice{Key: payload.License.Id, DeviceID: "system", DeviceName: "system", End: payload.License.End.Time.Format(time.RFC3339)}, Headers{AcceptLanguage: "en_US"})
 		return nil
