@@ -41,8 +41,9 @@ import (
 )
 
 const (
-	ContentType_LCP_JSON = "application/vnd.readium.lcp.license.v1.0+json"
-	ContentType_LSD_JSON = "application/vnd.readium.license.status.v1.0+json"
+	ContentType_LCP_JSON  = "application/vnd.readium.lcp.license.v1.0+json"
+	ContentType_LSD_JSON  = "application/vnd.readium.license.status.v1.0+json"
+	ContentType_TEXT_HTML = "text/html"
 
 	ContentType_JSON = "application/json"
 

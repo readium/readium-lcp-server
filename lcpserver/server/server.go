@@ -79,8 +79,8 @@ func New(bindAddr string, static string, readonly bool, idx *index.Index, st *st
 		Server: http.Server{
 			Handler:        sr.N,
 			Addr:           bindAddr,
-			WriteTimeout:   15 * time.Second,
-			ReadTimeout:    15 * time.Second,
+			WriteTimeout:   240 * time.Second,
+			ReadTimeout:    5 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
 		readonly: readonly,

@@ -452,6 +452,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// check the suggested end date vs the upper end date (which is already set in our implementation)
+	log.Print("Potential rights end = ", licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339))
 	if suggestedEnd.After(*licenseStatus.PotentialRights.End) {
 		msg := "Attempt to renew with a date greater than potential rights end = " + licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339)
 		problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusForbidden)
@@ -503,6 +504,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	// server log of the renewal event
 	msg = "new end date: " + suggestedEnd.UTC().Format(time.RFC3339)
 	logging.WriteToFile(complianceTestNumber, RENEW_LICENSE, strconv.Itoa(http.StatusOK), msg)
 
@@ -653,6 +655,9 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the license id
 	vars := mux.Vars(r)
 	licenseID := vars["key"]
+
+	log.Println("Cancel or revoke " + licenseID)
+
 	// get the current license status
 	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseID)
 	if err != nil {
@@ -682,6 +687,7 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest), msg)
 		return
 	}
+
 	// cancelling is only possible when the status is ready
 	if newStatus.Status == status.STATUS_CANCELLED && licenseStatus.Status != status.STATUS_READY {
 		msg := "The license is not on ready state, it can't be cancelled"
@@ -696,6 +702,13 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 		logging.WriteToFile(complianceTestNumber, CANCEL_REVOKE_LICENSE, strconv.Itoa(http.StatusBadRequest), msg)
 		return
 	}
+
+	// override the new status, revoked -> cancelled, if the current status is ready
+	if newStatus.Status == status.STATUS_REVOKED && licenseStatus.Status == status.STATUS_READY {
+		newStatus.Status = status.STATUS_CANCELLED
+	}
+	log.Println("New Status: " + newStatus.Status)
+
 	// the new expiration time is now
 	currentTime := time.Now().UTC().Truncate(time.Second)
 
@@ -822,35 +835,42 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 	lsdBaseURL := config.Config.LsdServer.PublicBaseUrl
 	licenseLinkURL := config.Config.LsdServer.LicenseLinkUrl
 	lcpBaseURL := config.Config.LcpServer.PublicBaseUrl
-	//frontendBaseUrl := config.Config.FrontendServer.PublicBaseUrl
 	registerAvailable := config.Config.LicenseStatus.Register
 
 	licenseHasRightsEnd := ls.CurrentEndLicense != nil && !(*ls.CurrentEndLicense).IsZero()
 	returnAvailable := config.Config.LicenseStatus.Return && licenseHasRightsEnd
 	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd
+	renewPageUrl := config.Config.LicenseStatus.RenewPageUrl
 
 	links := new([]licensestatuses.Link)
 
+	// if the link template to the license is set
 	if licenseLinkURL != "" {
 		licenseLinkURLReal := strings.Replace(licenseLinkURL, "{license_id}", ls.LicenseRef, -1)
 		link := licensestatuses.Link{Href: licenseLinkURLReal, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
 		*links = append(*links, link)
+		// default template
 	} else {
 		link := licensestatuses.Link{Href: lcpBaseURL + "/licenses/" + ls.LicenseRef, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
 		*links = append(*links, link)
 	}
-
+	// if register is set
 	if registerAvailable {
 		link := licensestatuses.Link{Href: lsdBaseURL + "/licenses/" + ls.LicenseRef + "/register{?id,name}", Rel: "register", Type: api.ContentType_LSD_JSON, Templated: true}
 		*links = append(*links, link)
 	}
-
+	// if return is set
 	if returnAvailable {
 		link := licensestatuses.Link{Href: lsdBaseURL + "/licenses/" + ls.LicenseRef + "/return{?id,name}", Rel: "return", Type: api.ContentType_LSD_JSON, Templated: true}
 		*links = append(*links, link)
 	}
 
-	if renewAvailable {
+	// if renew is set and HTML renew page is set
+	if renewAvailable && renewPageUrl != "" {
+		link := licensestatuses.Link{Href: renewPageUrl, Rel: "renew", Type: api.ContentType_TEXT_HTML}
+		*links = append(*links, link)
+	} else if renewAvailable {
+		// this is the usual case, i.e. a simple renew link
 		link := licensestatuses.Link{Href: lsdBaseURL + "/licenses/" + ls.LicenseRef + "/renew{?end,id,name}", Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}
 		*links = append(*links, link)
 	}
