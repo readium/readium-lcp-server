@@ -31,7 +31,12 @@ import (
 
 // ErrMandatoryInfoMissing sets an error message returned to the caller
 var ErrMandatoryInfoMissing = errors.New("Mandatory info missing in the input body")
-var ErrBadHexValue = errors.New("Erroneous Hex Value can't be decoded")
+
+// ErrBadHexValue sets an error message returned to the caller
+var ErrBadHexValue = errors.New("Erroneous user_key.hex_value can't be decoded")
+
+// ErrBadValue sets an error message returned to the caller
+var ErrBadValue = errors.New("Erroneous user_key.value, can't be decoded")
 
 // checkGetLicenseInput: if we generate or get a license, check mandatory information in the input body
 // and compute request parameters.
@@ -42,6 +47,9 @@ func checkGetLicenseInput(l *license.License) error {
 		log.Println("User hint is missing")
 		return ErrMandatoryInfoMissing
 	}
+	// Value or HexValue are mandatory
+	// HexValue (hex encoded passphrase hash) takes precedence over Value (kept for backward compatibility)
+	// Value is computed from HexValue if set
 	if l.Encryption.UserKey.HexValue != "" {
 		// compute a byte array from a string
 		value, err := hex.DecodeString(l.Encryption.UserKey.HexValue)
@@ -53,11 +61,19 @@ func checkGetLicenseInput(l *license.License) error {
 		log.Println("User hashed passphrase is missing")
 		return ErrMandatoryInfoMissing
 	}
+	// check the size of Value (32 bytes), to avoid weird errors in the crypto code
+	if len(l.Encryption.UserKey.Value) != 32 {
+		return ErrBadValue
+	}
+	// the hash algorithm is given a default value -> sha256
 	if l.Encryption.UserKey.Algorithm == "" {
 		log.Println("User passphrase hash algorithm is missing, set default value")
-		// the only valid value in LCP basic and 1.0 profiles is sha256
+		// the only valid value (used in LCP basic and 1.0 profiles) is sha256
 		l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 	}
+
+	log.Println("** Passhash Value", l.Encryption.UserKey.Value)
+
 	return nil
 }
 
