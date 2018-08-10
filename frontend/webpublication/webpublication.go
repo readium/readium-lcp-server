@@ -164,12 +164,13 @@ func EncryptEPUB(inputPath string, pub Publication, pubManager PublicationManage
 		return err
 	}
 
-	// prepare the request for import to the lcp server
+	// prepare the import request to the lcp server
 	contentDisposition := slugify.Slugify(pub.Title)
 	lcpPublication := apilcp.LcpPublication{}
 	lcpPublication.ContentId = contentUUID
 	lcpPublication.ContentKey = encryptedEpub.EncryptionKey
-	lcpPublication.Output = outputPath
+	// both the frontend and the lcp server must have access to this repository
+	lcpPublication.Output = path.Join(pubManager.config.Storage.FileSystem.Directory, outputFilename)
 	lcpPublication.ContentDisposition = &contentDisposition
 	lcpPublication.Checksum = &encryptedEpub.Checksum
 	lcpPublication.Size = &encryptedEpub.Size
@@ -198,7 +199,7 @@ func EncryptEPUB(inputPath string, pub Publication, pubManager PublicationManage
 	var lcpClient = &http.Client{
 		Timeout: time.Second * 5,
 	}
-	// sends a request for import to the lcp server
+	// sends the import request to the lcp server
 	resp, err := lcpClient.Do(req)
 	if err != nil {
 		return err
