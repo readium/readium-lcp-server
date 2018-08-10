@@ -35,9 +35,10 @@ type ContentKey struct {
 
 type UserKey struct {
 	Key
-	Hint  string `json:"text_hint,omitempty"`
-	Check []byte `json:"key_check,omitempty"`
-	Value []byte `json:"value,omitempty"` //Used for the license request
+	Hint     string `json:"text_hint,omitempty"`
+	Check    []byte `json:"key_check,omitempty"`
+	Value    []byte `json:"value,omitempty"`     //Used for license generation
+	HexValue string `json:"hex_value,omitempty"` //Used for license generation
 }
 
 type Encryption struct {
@@ -198,6 +199,7 @@ func EncryptLicenseFields(l *License, c index.Content) error {
 
 	// empty the passphrase hash to avoid sending it back to the user
 	l.Encryption.UserKey.Value = nil
+	l.Encryption.UserKey.HexValue = ""
 
 	// encrypt the content key with the user key
 	encrypterContentKey := crypto.NewAESEncrypter_CONTENT_KEY()
