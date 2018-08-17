@@ -253,7 +253,7 @@ lsd:
     public_base_url: "http://127.0.0.1:8990"
     database: "sqlite3://file:/readiumlcp/lcpdb/lsd.sqlite?cache=shared&mode=rwc"
     auth_file: "/Users/laurentlemeur/Work/lcpconfig/htpasswd"
-    license_link_url: "http://127.0.0.1:8991/licenses/{license_id}"
+    license_link_url: "http://127.0.0.1:8991/api/v1/licenses/{license_id}"
 license_status:
     register: true
     renew: true
