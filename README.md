@@ -245,6 +245,8 @@ lsd_notify_auth:
 - "username": mandatory, authentication username
 - "password": mandatory, authentication password
 
+"goofy_mode" property: it is really useful to test client apps for their resilience to errors issued by a License server, e.g. a registration error. This boolean property (true/false) (false by default) will trigger the License Status Server to a mode where errors occure. Currently, only the registration error use case is programmed; other errors will be added later.  
+
 Here is a License Status Server sample config (assuming the License Status Server is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
 ```json
 lsd:
