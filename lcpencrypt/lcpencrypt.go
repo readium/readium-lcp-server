@@ -79,7 +79,7 @@ func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPubl
 		return err
 	}
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
-		return errors.New(fmt.Sprintf("lcp server error %d ", resp.StatusCode))
+		return fmt.Errorf("lcp server error %d", resp.StatusCode)
 	}
 
 	return nil
