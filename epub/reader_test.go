@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package epub
 
@@ -50,7 +50,7 @@ func TestEpubLoading(t *testing.T) {
 	}
 
 	if len(ep.Package) != 1 {
-		t.Error("Expected 1 opf, got %d", len(ep.Package))
+		t.Errorf("Expected 1 opf, got %d", len(ep.Package))
 	}
 
 	expectedCleartext := []string{ContainerFile, "OPS/package.opf", "OPS/images/9780316000000.jpg", "OPS/toc.xhtml"}
