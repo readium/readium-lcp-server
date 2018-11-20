@@ -210,12 +210,6 @@ func EncryptEPUB(inputPath string, pub Publication, pubManager PublicationManage
 		return err
 	}
 
-	// remove the temporary file in the "encrypted repository"
-	err = os.Remove(outputPath)
-	if err != nil {
-		return err
-	}
-
 	// store the new publication in the db
 	// the publication uuid is the lcp db content id.
 	pub.UUID = contentUUID
