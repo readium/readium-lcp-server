@@ -141,6 +141,12 @@ func Read(r *zip.Reader) (Epub, error) {
 	}
 
 	for _, file := range r.File {
+
+		// EPUBs do not require us to keep directory entries and we cannot process them
+		if file.FileInfo().IsDir() {
+			continue
+		}
+
 		if file.Name != EncryptionFile &&
 			file.Name != "mimetype" {
 			rc, err := file.Open()
