@@ -51,7 +51,13 @@ import (
 // notification of newly added content (Publication)
 func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPublication, username string, password string) error {
 	//exchange encryption key with lcp service/content/<id>,
-	//Payload: {content-encryption-key, protected-content-location}
+	//Payload:
+	//  content-id: unique id for the content
+	//  content-encryption-key: encryption key used for the content
+	//  protected-content-location: full path of the encrypted file
+	//  protected-content-length: content length in bytes
+	//  protected-content-sha256: content sha
+	//  protected-content-disposition: encrypted file name
 	//fmt.Printf("lcpsv = %s\n", *lcpsv)
 	var urlBuffer bytes.Buffer
 	urlBuffer.WriteString(lcpService)
@@ -73,7 +79,7 @@ func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPubl
 		return err
 	}
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
-		return errors.New(fmt.Sprintf("lcp server error %d ", resp.StatusCode))
+		return fmt.Errorf("lcp server error %d", resp.StatusCode)
 	}
 
 	return nil
@@ -116,17 +122,20 @@ func showHelpAndExit() {
 }
 
 func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel int) {
-	os.Stderr.WriteString(lcpPublication.ErrorMessage)
-	os.Stderr.WriteString("\n")
+	os.Stdout.WriteString(lcpPublication.ErrorMessage)
+	os.Stdout.WriteString("\n")
 	if err != nil {
-		os.Stderr.WriteString(err.Error())
+		os.Stdout.WriteString(err.Error())
 	}
+	/* kept for future debug
 	jsonBody, err := json.MarshalIndent(lcpPublication, " ", "  ")
 	if err != nil {
-		os.Stderr.WriteString("\nError creating json lcpPublication")
+		os.Stdout.WriteString("Error creating json lcpPublication\n")
 		os.Exit(errorlevel)
 	}
 	os.Stdout.Write(jsonBody)
+	os.Stdout.WriteString("\n")
+	*/
 	os.Exit(errorlevel)
 }
 
@@ -176,7 +185,9 @@ func main() {
 	}
 	var basefilename string
 	addedPublication.ContentId = *contentid
-	if *outputFilename == "" { //output not set -> "content-id.epub" in the working directory
+	// if the output file name not set,
+	// then <content-id>.epub is created in the working directory
+	if *outputFilename == "" {
 		workingDir, _ := os.Getwd()
 		*outputFilename = strings.Join([]string{workingDir, string(os.PathSeparator), *contentid, ".epub"}, "")
 		basefilename = filepath.Base(*inputFilename)
@@ -218,8 +229,8 @@ func main() {
 		addedPublication.Checksum = &cs
 	}
 	output.Close()
-	if err != nil {
-		addedPublication.ErrorMessage = "Error packaging the publication"
+	if err != nil || (stats.Size() == 0) {
+		addedPublication.ErrorMessage = "Error encrypting the publication"
 		exitWithError(addedPublication, err, 30)
 	}
 	addedPublication.ContentKey = encryptionKey
@@ -228,17 +239,20 @@ func main() {
 	if *lcpsv != "" {
 		err = notifyLcpServer(*lcpsv, *contentid, addedPublication, *username, *password)
 		if err != nil {
-			addedPublication.ErrorMessage = "Error notifying the License server"
+			addedPublication.ErrorMessage = "Error notifying the License Server"
 			exitWithError(addedPublication, err, 20)
+		} else {
+			os.Stdout.WriteString("License Server was notified\n")
 		}
 	}
 
-	// write json message to stdout
-	jsonBody, err := json.Marshal(addedPublication)
+	// write a json message to stdout for debug purpose
+	jsonBody, err := json.MarshalIndent(addedPublication, " ", "  ")
 	if err != nil {
 		addedPublication.ErrorMessage = "Error creating json addedPublication"
 		exitWithError(addedPublication, err, 10)
 	}
 	os.Stdout.Write(jsonBody)
+	os.Stdout.WriteString("\nEncryption was successful\n")
 	os.Exit(0)
 }

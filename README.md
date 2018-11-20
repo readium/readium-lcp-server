@@ -179,7 +179,8 @@ Note: It may be practical to put these files in the configuration folder ("lcpco
   - "hint": required; location where a Reading System can redirect a User looking for additional information about the User Passphrase. 
   - "publication": optional, templated URL; 
     location where the Publication associated with the License Document can be downloaded.
-    The publication identifier is inserted via the variable {publication_id}.
+    For testing puroposes only, the license server exposes such content using a REST method described [here](/readium/readium-lcp-server/wiki/License-Server#fetch-an-encrypted-publication).
+    The publication identifier is inserted via the variable {publication_id} (which should soon be renamed {content_id}).
   - "status": optional, templated URL; location of the Status Document associated with a License Document.
     The license identifier is inserted via the variable {license_id}.
 
@@ -207,7 +208,7 @@ license:
     links:
         status: "http://127.0.0.1:8990/licenses/{license_id}/status"     
         hint: "http://127.0.0.1:8991/static/hint.html"
-        publication: "http://127.0.0.1:8991/licenses/{license_id}/publication" 
+        publication: "http://127.0.0.1:8989/contents/{publication_id}" 
 lsd:
     public_base_url:  "http://127.0.0.1:8990"
 lsd_notify_auth: 
@@ -244,6 +245,8 @@ lsd_notify_auth:
 - "username": mandatory, authentication username
 - "password": mandatory, authentication password
 
+"goofy_mode" property: it is really useful to test client apps for their resilience to errors issued by a License server, e.g. a registration error. This boolean property (true/false) (false by default) will trigger the License Status Server to a mode where errors occure. Currently, only the registration error use case is programmed; other errors will be added later.  
+
 Here is a License Status Server sample config (assuming the License Status Server is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
 ```json
 lsd:
@@ -252,7 +255,7 @@ lsd:
     public_base_url: "http://127.0.0.1:8990"
     database: "sqlite3://file:/readiumlcp/lcpdb/lsd.sqlite?cache=shared&mode=rwc"
     auth_file: "/Users/laurentlemeur/Work/lcpconfig/htpasswd"
-    license_link_url: "http://127.0.0.1:8991/licenses/{license_id}"
+    license_link_url: "http://127.0.0.1:8991/api/v1/licenses/{license_id}"
 license_status:
     register: true
     renew: true

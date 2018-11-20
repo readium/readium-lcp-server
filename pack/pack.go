@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package pack
 
@@ -30,6 +30,7 @@ import (
 	"compress/flate"
 	"io"
 	"io/ioutil"
+	"log"
 	"strings"
 
 	"github.com/readium/readium-lcp-server/crypto"
@@ -40,6 +41,7 @@ import (
 func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key crypto.ContentKey, err error) {
 	key, err = encrypter.GenerateKey()
 	if err != nil {
+		log.Println("Error generating a key")
 		return
 	}
 
@@ -54,11 +56,13 @@ func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Mani
 			toCompress := mustCompressBeforeEncryption(*res, ep)
 			err = encryptFile(encrypter, key, ep.Encryption, res, toCompress, ew)
 			if err != nil {
+				log.Println("Error encrypting " + res.Path + ": " + err.Error())
 				return
 			}
 		} else {
 			err = ew.Copy(res)
 			if err != nil {
+				log.Println("Error copying the file")
 				return
 			}
 		}

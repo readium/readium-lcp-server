@@ -8,6 +8,7 @@ package apilcp
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,26 +32,52 @@ import (
 // ErrMandatoryInfoMissing sets an error message returned to the caller
 var ErrMandatoryInfoMissing = errors.New("Mandatory info missing in the input body")
 
-// get license, check mandatory information in the input body
+// ErrBadHexValue sets an error message returned to the caller
+var ErrBadHexValue = errors.New("Erroneous user_key.hex_value can't be decoded")
+
+// ErrBadValue sets an error message returned to the caller
+var ErrBadValue = errors.New("Erroneous user_key.value, can't be decoded")
+
+// checkGetLicenseInput: if we generate or get a license, check mandatory information in the input body
+// and compute request parameters.
 //
 func checkGetLicenseInput(l *license.License) error {
+	// the user hint is mandatory
 	if l.Encryption.UserKey.Hint == "" {
 		log.Println("User hint is missing")
 		return ErrMandatoryInfoMissing
 	}
-	if l.Encryption.UserKey.Value == nil {
+	// Value or HexValue are mandatory
+	// HexValue (hex encoded passphrase hash) takes precedence over Value (kept for backward compatibility)
+	// Value is computed from HexValue if set
+	if l.Encryption.UserKey.HexValue != "" {
+		// compute a byte array from a string
+		value, err := hex.DecodeString(l.Encryption.UserKey.HexValue)
+		if err != nil {
+			return ErrBadHexValue
+		}
+		l.Encryption.UserKey.Value = value
+	} else if l.Encryption.UserKey.Value == nil {
 		log.Println("User hashed passphrase is missing")
 		return ErrMandatoryInfoMissing
 	}
+	// check the size of Value (32 bytes), to avoid weird errors in the crypto code
+	if len(l.Encryption.UserKey.Value) != 32 {
+		return ErrBadValue
+	}
+	// the hash algorithm is given a default value -> sha256
 	if l.Encryption.UserKey.Algorithm == "" {
 		log.Println("User passphrase hash algorithm is missing, set default value")
-		// the only valid value in LCP basic and 10 profiles is sha256
+		// the only valid value (used in LCP basic and 1.0 profiles) is sha256
 		l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 	}
+
+	log.Println("** Passhash Value", l.Encryption.UserKey.Value)
+
 	return nil
 }
 
-// generate license, check mandatory information in the input body
+// checkGenerateLicenseInput: if we generate a license, check mandatory information in the input body
 //
 func checkGenerateLicenseInput(l *license.License) error {
 	if l.Provider == "" {
@@ -61,7 +88,7 @@ func checkGenerateLicenseInput(l *license.License) error {
 		log.Println("User identification is missing")
 		return ErrMandatoryInfoMissing
 	}
-	// check userkey hint, value and algorithm
+	// check user hint, passphrase hash and hash algorithm
 	err := checkGetLicenseInput(l)
 	return err
 }

@@ -58,10 +58,10 @@ type LcpPublication struct {
 	ContentId          string  `json:"content-id"`
 	ContentKey         []byte  `json:"content-encryption-key"`
 	Output             string  `json:"protected-content-location"`
-	Size               *int64  `json:"protected-content-length,omitempty"`
-	Checksum           *string `json:"protected-content-sha256,omitempty"`
-	ContentDisposition *string `json:"protected-content-disposition,omitempty"`
-	ErrorMessage       string  `json:"error"`
+	Size               *int64  `json:"protected-content-length"`
+	Checksum           *string `json:"protected-content-sha256"`
+	ContentDisposition *string `json:"protected-content-disposition"`
+	ErrorMessage       string  `json:"error,omitempty"`
 }
 
 func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
@@ -79,7 +79,7 @@ func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
 	return n, file, err
 }
 
-func cleanupTemp(f *os.File) {
+func cleanupTempFile(f *os.File) {
 	if f == nil {
 		return
 	}
@@ -100,7 +100,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	defer cleanupTemp(f)
+	defer cleanupTempFile(f)
 
 	t := pack.NewTask(vars["name"], f, size)
 	result := s.Source().Post(t)
@@ -119,10 +119,10 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 // AddContent adds content to the storage
 // lcp spec : store data resulting from an external encryption
 // PUT method with PAYLOAD : LcpPublication in json format
-// content_id is also present in the url.
-// if contentID is different , url key overrides the content id in the json payload
-// this method adds the <protected_content_location>  in the store (of encrypted files)
-// and the key in the database in order to create the licenses
+// This method adds the input encrypted file in a store
+// and adds the corresponding decryption key to the database.
+// The content_id is taken from  the url.
+// The input file is then deleted.
 func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	// parse the json payload
 	vars := mux.Vars(r)
@@ -138,60 +138,56 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: "The content id must be set in the url"}, http.StatusBadRequest)
 		return
 	}
-	// open the encrypted file from the path given in the json payload
+	// open the encrypted file, use its full path
 	file, err := os.Open(publication.Output)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	// the input file will be deleted when the function returns
+	defer cleanupTempFile(file)
 
-	// add the file to the storage, named from contentID
+	// add the file to the storage, named by contentID, without file extension
 	_, err = s.Store().Add(contentID, file)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
+
+	// insert a row in the database if the content id does not already exist
+	// udpate the database with a new content key and file location if the content id already exists
 	var c index.Content
-	// insert row in database if key does not exist
 	c, err = s.Index().Get(contentID)
+	// set the encryption key (c.EncryptionKey)
 	c.EncryptionKey = publication.ContentKey
+	// set the encrypted file name (c.Location)
 	if publication.ContentDisposition != nil {
 		c.Location = *publication.ContentDisposition
-	} else {
-		c.Location = ""
-	}
-
-	if publication.Size != nil {
 		c.Length = *publication.Size
-	} else {
-		c.Length = -1
-	}
-
-	if publication.Checksum != nil {
 		c.Sha256 = *publication.Checksum
 	} else {
-		c.Sha256 = ""
+		problem.Error(w, r, problem.Problem{Detail: "The file name must be set by the caller"}, http.StatusBadRequest)
+		return
 	}
-	//todo? check hash & length
+
+	//todo check hash & length?
+
 	code := http.StatusCreated
 	if err == index.NotFound { //insert into database
 		c.Id = contentID
 		err = s.Index().Add(c)
-	} else { //update encryption key for c.Id = publication.ContentId
+	} else { //update the encryption key for c.Id = publication.ContentId
 		err = s.Index().Update(c)
 		code = http.StatusOK
 	}
-	if err != nil { //db not updated
+	if err != nil { //if db not updated
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 
-	// must come *after* w.Header().Add()/Set(), but before w.Write()
+	// set the response http code
 	w.WriteHeader(code)
-
 	return
-	//json.NewEncoder(w).Encode(publication.ContentId)
 
 }
 
