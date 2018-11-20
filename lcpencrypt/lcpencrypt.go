@@ -46,6 +46,7 @@ import (
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/pack"
+	uuid "github.com/satori/go.uuid"
 )
 
 // notification of newly added content (Publication)
@@ -180,8 +181,11 @@ func main() {
 		exitWithError(addedPublication, err, 70)
 	}
 	if *contentid == "" { // contentID not set -> generate a new one
-		sha := sha256.Sum256(buf)
-		*contentid = fmt.Sprintf("%x", sha)
+		uid, err_u := uuid.NewV4()
+		if err_u != nil {
+			exitWithError(addedPublication, err, 65)
+		}
+		*contentid = uid.String()
 	}
 	var basefilename string
 	addedPublication.ContentId = *contentid
