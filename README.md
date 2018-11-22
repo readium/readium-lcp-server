@@ -209,6 +209,7 @@ license:
         status: "http://127.0.0.1:8990/licenses/{license_id}/status"     
         hint: "http://127.0.0.1:8991/static/hint.html"
         publication: "http://127.0.0.1:8989/contents/{publication_id}" 
+
 lsd:
     public_base_url:  "http://127.0.0.1:8990"
 lsd_notify_auth: 
@@ -216,6 +217,8 @@ lsd_notify_auth:
     password: "adm_password"
 
 ```
+
+Note that the 'lsd' and 'lsd_notify_auth' entries must not be present if the configuration file also contains the configuration of the License Status Server. 
 
 *License Status Server*
 
@@ -234,12 +237,7 @@ lsd_notify_auth:
 - "renew_days": default number of additional days allowed after a renewal.
 - "return": boolean; if `true`, an early return is possible.  
 - "register": boolean; if `true`, registering a device is possible.
-- "renew_page_url": URL; if set, the renew feature is implemented as an HTML page, using this ULR. This is mostly useful for testing client applications.
-
-
-"logging" section: parameters for logging results of API method calls on the License Status server:
-- "log_directory": the complete path to the log file.
-- "compliance_tests_mode_on": boolean; if `true`, logging is turned on.
+- "renew_page_url": URL; if set, the renew feature is implemented as an HTML page, using this URL. This is mostly useful for testing client applications.
 
 "lcp_update_auth" section: authentication parameters used by the License Status Server for updating a license via the License Server. The notification endpoint is configured in the "lcp" section.
 - "username": mandatory, authentication username
@@ -248,6 +246,7 @@ lsd_notify_auth:
 "goofy_mode" property: it is really useful to test client apps for their resilience to errors issued by a License server, e.g. a registration error. This boolean property (true/false) (false by default) will trigger the License Status Server to a mode where errors occure. Currently, only the registration error use case is programmed; other errors will be added later.  
 
 Here is a License Status Server sample config (assuming the License Status Server is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
+
 ```json
 lsd:
     host: "127.0.0.1"
@@ -262,15 +261,15 @@ license_status:
     return: true
     renting_days: 60
     renew_days: 7
-logging: 
-    log_directory: "/readiumlcp/lcpfiles/lsdserver.log"
-    compliance_tests_mode_on: false
+
 lcp:
   public_base_url:  "http://127.0.0.1:8989"
 lcp_update_auth: 
     username: "adm_username"
     password: "adm_password"
 ```
+
+Note that the 'lcp' and 'lcp_update_auth' entries must not be present if the configuration file also contains the configuration of the License Server. 
 
 *Frontend Server*
 
@@ -281,7 +280,7 @@ lcp_update_auth:
 - "database": the URI formatted connection string to the database, `sqlite3://file:frontend.sqlite?cache=shared&mode=rwc` by default
 - "master_repository": repository where the uploaded EPUB files are stored before encryption. 
 - "encrypted_repository": repository where the encrypted EPUB files are stored after upload. The LCP server must have access to the path declared here; it will move each encrypted file to its storage folder on notification of encryption from the Frontend Server. 
-- "directory": the directory containing the client app; by default $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage.
+- "directory": the directory containing the client web app; by default $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage.
 - "provider_uri": provider uri, which will be inserted in all licenses produced via this test frontend.
 - "right_print": allowed number of printed pages, which will be inserted in all licenses produced via this test frontend.
 - "right_copy": allowed number of copied characters, which will be inserted in all licenses produced via this test frontend.
@@ -296,10 +295,10 @@ frontend:
     database: "sqlite3://file:/readiumlcp/lcpdb/frontend.sqlite?cache=shared&mode=rwc"
     master_repository: "/readiumlcp/lcpfiles/master"
     encrypted_repository: "/readiumlcp/lcpfiles/encrypted"
-    directory: "/src/github.com/readium/readium-lcp-server/frontend/manage"
-    provider_uri: "https://www.edrlab.org"
+    provider_uri: "https://www.myprovidername.org"
     right_print: 10
     right_copy: 2000
+
 lcp:
   public_base_url:  "http://127.0.0.1:8989"
 lsd:
@@ -312,6 +311,8 @@ lsd_notify_auth:
     password: "adm_password"
 
 ```
+
+Note that the 'lcp', 'lsd', 'lsd_notify_auth' and 'lcp_update_auth' entries must not be present if the configuration file also contains the configuration of the License Server and License Status Server. 
 
 *And for all servers*
 
