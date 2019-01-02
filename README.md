@@ -180,7 +180,7 @@ Note: It may be practical to put these files in the configuration folder ("lcpco
   - "publication": optional, templated URL; 
     location where the encrypted Publication associated with the License Document will be downloaded from the Web.
     The publication identifier is inserted via the variable {publication_id} (which should soon be renamed {content_id}).
-    The license server exposes such content using a REST method described [here](/wiki/License-Server-API#fetch-an-encrypted-publication). As the license server is not directly accessible from the Web, The proxy server which must be set up by the provider will use this access point internally.
+    The license server exposes such content using a REST method described [here](https://github.com/readium/readium-lcp-server/wiki/License-Server-API#fetch-an-encrypted-publication). As the license server is not directly accessible from the Web, The proxy server which must be set up by the provider will use this access point internally.
   - "status": optional, templated URL; location of the Status Document associated with a License Document.
     The license identifier is inserted via the variable {license_id}.
 
