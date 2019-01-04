@@ -170,7 +170,7 @@ func EncryptEPUB(inputPath string, pub Publication, pubManager PublicationManage
 	lcpPublication.ContentId = contentUUID
 	lcpPublication.ContentKey = encryptedEpub.EncryptionKey
 	// both the frontend and the lcp server must have access to this repository
-	lcpPublication.Output = path.Join(pubManager.config.Storage.FileSystem.Directory, outputFilename)
+	lcpPublication.Output = outputPath
 	lcpPublication.ContentDisposition = &contentDisposition
 	lcpPublication.Checksum = &encryptedEpub.Checksum
 	lcpPublication.Size = &encryptedEpub.Size
