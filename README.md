@@ -217,7 +217,6 @@ license:
         hint: "http://127.0.0.1:8991/static/hint.html"
         publication: "http://127.0.0.1:8989/contents/{publication_id}" 
 
-# Do not include if the configuration file is shared with the LSD server
 lsd:
     public_base_url:  "http://127.0.0.1:8990"
 lsd_notify_auth: 
@@ -225,8 +224,6 @@ lsd_notify_auth:
     password: "adm_password"
 
 ```
-
-Note that the `lsd` and `lsd_notify_auth` entries must not be present if the configuration file also contains the configuration of the License Status Server. 
 
 ### License Status Server
 
@@ -270,15 +267,12 @@ license_status:
     renting_days: 60
     renew_days: 7
 
-# Do not include if the configuration file is shared with the LCP server.
 lcp:
   public_base_url:  "http://127.0.0.1:8989"
 lcp_update_auth: 
     username: "adm_username"
     password: "adm_password"
 ```
-
-Note that the `lcp` and `lcp_update_auth` entries must not be present if the configuration file also contains the configuration of the License Server. 
 
 ### Frontend Server
 
@@ -308,7 +302,6 @@ frontend:
     right_print: 10
     right_copy: 2000
 
-# Do not include if the configuration file is shared with both the LCP and LSD servers
 lcp:
   public_base_url:  "http://127.0.0.1:8989"
 lsd:
@@ -320,8 +313,6 @@ lsd_notify_auth:
     username: "adm_username"
     password: "adm_password"
 ```
-
-Note that the `lcp`, `lsd`, `lsd_notify_auth` and `lcp_update_auth` entries must not be present if the configuration file also contains the configuration of the License Server and License Status Server. 
 
 ### And for all servers
 
