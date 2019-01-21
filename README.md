@@ -77,41 +77,32 @@ Assuming a working Go installation, the following will install the three executa
 
 If you want to use the master branch:
 ```sh
-// from the go workspace
+# from the go workspace
 cd $GOPATH
-// get the different packages and their dependencies, install the packages
-go get github.com/readium/readium-lcp-server
+# fetch, build and install the different packages and their dependencies
+go get -v github.com/readium/readium-lcp-server/...
 ```
 
 Alternatively, if you want to use a feature/F branch:
 ```sh
-// from the go workspace
+# from the go workspace
 cd $GOPATH
-// create the project repository
-mkdir -p src/github.com/readium/readium-lcp-server
-// clone the repo, selecting the development branch
+# clone the repo, selecting the feature/F branch
 git clone -b feature/F https://github.com/readium/readium-lcp-server.git src/github.com/readium/readium-lcp-server
-```
-Then fetch, build and install the different modules with:
-```sh
-// move to the project repository
-cd src/github.com/readium/readium-lcp-server
-// get the different packages and their dependencies, then installs the packages (dot / triple dot pattern)
-go get ./...
+# then fetch, build and install the different packages and their dependencies
+go get -v github.com/readium/readium-lcp-server/...
 ````
 
 You may prefer to install only some of the three executables. 
 In such a case, the "go get" command should be called once for each package, e.g. for the lcpserver from the master branch:
 ```sh
 cd $GOPATH
-go get github.com/readium/readium-lcp-server/lcpserver
+go get -v github.com/readium/readium-lcp-server/lcpserver
 ```
 
-To install properly the Frontend Test Server, you must also install several npm packages.
-
-Move to $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
-To install the packages and test your install, type
+To install properly the Frontend Test Server, you must also install several npm packages, using:
 ```sh
+cd $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
 npm install
 npm start
 ````
