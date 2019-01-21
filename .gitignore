@@ -3,7 +3,6 @@ readium-lcp-server
 lcpencrypt/lcpencrypt
 files/
 *.sqlite*
-config.yaml
 lcpserver/manage/config.js
 .vscode/launch.json
 debug
@@ -11,6 +10,7 @@ debug
 *.lib
 *.exe
 *.yaml
+!/test/config.yaml
 **/manage/config.js
 frontend/manage/node_modules/*
 frontend/manage/dist/*
