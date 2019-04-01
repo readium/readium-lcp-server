@@ -233,6 +233,11 @@ func encryptFields(encrypter crypto.Encrypter, l *License, key []byte) error {
 	for _, toEncrypt := range l.User.Encrypted {
 		var out bytes.Buffer
 		field := getField(&l.User, toEncrypt)
+
+		if !field.IsValid() {
+			return fmt.Errorf("The field '%s' is not valid for encrypted. The valid fields are email and name.", toEncrypt)
+		}
+
 		err := encrypter.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
 		if err != nil {
 			return err
