@@ -232,7 +232,7 @@ Note that the `lsd` and `lsd_notify_auth` entries must not be present if the con
 - `database`: the URI formatted connection string to the database, `sqlite3://file:lsd.sqlite?cache=shared&mode=rwc` by default
 - `auth_file`: mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
 
-- `license_link_url`: the url template representing the url from which a license can be fetched from the provider's frontend. This url will be inserted in the 'license' link of every status document.
+- `license_link_url`: mandatory; the url template representing the url from which a license can be fetched from the provider's frontend server. This url will be inserted in the 'license' link of every status document. It must be the url of a server acting as a proxy between the user request and the License Server. Such proxy is mandatory, as the License Server  does not possess user information needed to craft a license from its identifier. If the test frontend server is used as a proxy, the url must be of the form "http://<frontend-server-url>/api/v1/licenses/{license_id}" (note the /api/v1 section).
 
 `license_status` section: parameters related to the interactions implemented by the License Status server, if any:
 - `renting_days`: default number of days allowed for a loan. 
