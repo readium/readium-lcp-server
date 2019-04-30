@@ -169,7 +169,7 @@ func EncryptEPUB(inputPath string, pub Publication, pubManager PublicationManage
 	lcpPublication := apilcp.LcpPublication{}
 	lcpPublication.ContentId = contentUUID
 	lcpPublication.ContentKey = encryptedEpub.EncryptionKey
-	// both the frontend and the lcp server must have access to this repository
+	// both frontend and lcp server must understand this path (warning if using Docker containers)
 	lcpPublication.Output = outputPath
 	lcpPublication.ContentDisposition = &contentDisposition
 	lcpPublication.Checksum = &encryptedEpub.Checksum
