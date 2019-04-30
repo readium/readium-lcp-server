@@ -207,11 +207,10 @@ func addCleartextResources(ep *Epub, p opf.Package) {
 			strings.Contains(item.Properties, "nav") ||
 			item.MediaType == ContentType_NCX {
 
-			ep.addCleartextResource(filepath.Join(p.BasePath, item.Href))
+			ep.addCleartextResource(p.BasePath + "/" + item.Href)
 
 			// debug
-			log.Println("basepath: " + p.BasePath + " href: " + item.Href)
-			log.Println("added to clear: " + filepath.Join(p.BasePath, item.Href))
+			log.Println("added to clear: " + p.BasePath + "/" + item.Href)
 		}
 	}
 }

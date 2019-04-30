@@ -29,7 +29,6 @@ import (
 	"archive/zip"
 	"io"
 	"log"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -74,7 +73,7 @@ func (ep Epub) Cover() (bool, *Resource) {
 			if strings.Contains(it.Properties, "cover-image") ||
 				it.Id == coverImageID {
 
-				path := filepath.Join(p.BasePath, it.Href)
+				path := p.BasePath + "/" + it.Href
 				for _, r := range ep.Resource {
 					if r.Path == path {
 						return true, r
@@ -106,9 +105,7 @@ type Resource struct {
 func (ep Epub) CanEncrypt(file string) bool {
 	i := sort.SearchStrings(ep.cleartextResources, file)
 	response := (i >= len(ep.cleartextResources) || ep.cleartextResources[i] != file)
-	if response {
-		log.Println("I can encrypt " + file)
-	} else {
+	if !response {
 		log.Println("I will NOT encrypt " + file)
 	}
 	return i >= len(ep.cleartextResources) || ep.cleartextResources[i] != file
