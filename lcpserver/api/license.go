@@ -72,8 +72,6 @@ func checkGetLicenseInput(l *license.License) error {
 		l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 	}
 
-	log.Println("** Passhash Value", l.Encryption.UserKey.Value)
-
 	return nil
 }
 
