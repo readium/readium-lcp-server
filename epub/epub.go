@@ -28,6 +28,7 @@ package epub
 import (
 	"archive/zip"
 	"io"
+	"log"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -104,5 +105,11 @@ type Resource struct {
 
 func (ep Epub) CanEncrypt(file string) bool {
 	i := sort.SearchStrings(ep.cleartextResources, file)
+	response := (i >= len(ep.cleartextResources) || ep.cleartextResources[i] != file)
+	if response {
+		log.Println("I can encrypt " + file)
+	} else {
+		log.Println("I will NOT encrypt " + file)
+	}
 	return i >= len(ep.cleartextResources) || ep.cleartextResources[i] != file
 }

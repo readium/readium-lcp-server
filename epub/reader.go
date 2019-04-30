@@ -29,6 +29,7 @@ import (
 	"archive/zip"
 	"encoding/xml"
 	"io"
+	"log"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -70,6 +71,7 @@ func findRootFiles(r io.Reader) ([]rootFile, error) {
 	return roots, nil
 }
 
+/*
 func (ep *Epub) addCleartextResources(names []string) {
 	if ep.cleartextResources == nil {
 		ep.cleartextResources = []string{}
@@ -79,6 +81,7 @@ func (ep *Epub) addCleartextResources(names []string) {
 		ep.cleartextResources = append(ep.cleartextResources, name)
 	}
 }
+*/
 
 func (ep *Epub) addCleartextResource(name string) {
 	if ep.cleartextResources == nil {
@@ -184,8 +187,6 @@ func Read(r *zip.Reader) (Epub, error) {
 	ep.Encryption = encryption
 	sort.Strings(ep.cleartextResources)
 
-	//log.Print(fmt.Sprintf("%v", ep.cleartextResources))
-
 	return ep, nil
 }
 
@@ -207,6 +208,10 @@ func addCleartextResources(ep *Epub, p opf.Package) {
 			item.MediaType == ContentType_NCX {
 
 			ep.addCleartextResource(filepath.Join(p.BasePath, item.Href))
+
+			// debug
+			log.Println("basepath: " + p.BasePath + " href: " + item.Href)
+			log.Println("added to clear: " + filepath.Join(p.BasePath, item.Href))
 		}
 	}
 }
