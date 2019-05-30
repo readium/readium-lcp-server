@@ -60,7 +60,7 @@ func TestFullPadding(t *testing.T) {
 		t.Error(err)
 	}
 	if n != 8 {
-		t.Error("should have read 8 bytes, read %d", n)
+		t.Errorf("should have read 8 bytes, read %d", n)
 	}
 
 	// PaddedReader constructor parameter "insertPadLengthAll" is true,
@@ -124,7 +124,7 @@ func TestFullPadding_Random(t *testing.T) {
 		t.Error(err)
 	}
 	if n != 8 {
-		t.Error("should have read 8 bytes, read %d", n)
+		t.Errorf("should have read 8 bytes, read %d", n)
 	}
 
 	// the PaddedReader constructor parameter "insertPadLengthAll" is false,
@@ -170,7 +170,7 @@ func TestPaddingInMultipleCalls(t *testing.T) {
 	}
 
 	if n != 3 {
-		t.Error("should have read 3 bytes, read %d", n)
+		t.Errorf("should have read 3 bytes, read %d", n)
 	}
 
 	n, err = io.ReadFull(reader, out[:])
@@ -179,7 +179,7 @@ func TestPaddingInMultipleCalls(t *testing.T) {
 	}
 
 	if n != 3 {
-		t.Error("should have read 3 bytes, read %d", n)
+		t.Errorf("should have read 3 bytes, read %d", n)
 	}
 
 }
