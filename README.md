@@ -235,9 +235,9 @@ Note that the `lsd` and `lsd_notify_auth` entries must not be present if the con
 - `license_link_url`: mandatory; the url template representing the url from which a license can be fetched from the provider's frontend server. This url will be inserted in the 'license' link of every status document. It must be the url of a server acting as a proxy between the user request and the License Server. Such proxy is mandatory, as the License Server  does not possess user information needed to craft a license from its identifier. If the test frontend server is used as a proxy, the url must be of the form "http://<frontend-server-url>/api/v1/licenses/{license_id}" (note the /api/v1 section).
 
 `license_status` section: parameters related to the interactions implemented by the License Status server, if any:
-- `renting_days`: default number of days allowed for a loan. 
+- `renting_days`: maximum number of days allowed for a loan, from the date the loan starts. If set to 0 or absent, no loan renewal is possible. 
 - `renew`: boolean; if `true`, the renewal of a loan is possible. 
-- `renew_days`: default number of additional days allowed after a renewal.
+- `renew_days`: default number of additional days allowed during a renewal.
 - `return`: boolean; if `true`, an early return is possible.  
 - `register`: boolean; if `true`, registering a device is possible.
 - `renew_page_url`: URL; if set, the renew feature is implemented as an HTML page, using this URL. This is mostly useful for testing client applications.
