@@ -38,6 +38,58 @@ import (
 	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
+type PackageReader interface {
+	Resources() []Resource
+	NewWriter(io.Writer) (PackageWriter, error)
+}
+
+type EncryptionProfile string
+
+type PackageWriter interface {
+	NewFile(path string, contentType string, storageMethod uint16) (io.WriteCloser, error)
+	MarkAsEncrypted(path string, originalSize int64, profile EncryptionProfile, algorithm string)
+	Close() error
+}
+
+type Resource interface {
+	Path() string
+	Size() int64
+	ContentType() string
+	CompressBeforeEncryption() bool
+	CanBeEncrypted() bool
+	Encrypted() bool
+	CopyTo(PackageWriter) error
+	Open() (io.ReadCloser, error)
+}
+
+func Process(profile EncryptionProfile, encrypter crypto.Encrypter, reader PackageReader, writer PackageWriter) (key crypto.ContentKey, err error) {
+	key, err = encrypter.GenerateKey()
+	if err != nil {
+		log.Println("Error generating a key")
+		return
+	}
+
+	for _, resource := range reader.Resources() {
+		log.Printf("Encrypting %s", resource.Path())
+		if !resource.Encrypted() && resource.CanBeEncrypted() {
+			err = encryptResource(profile, encrypter, key, resource, writer)
+			if err != nil {
+				log.Println("Error encrypting " + resource.Path() + ": " + err.Error())
+				return
+			}
+		} else {
+			err = resource.CopyTo(writer)
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	err = writer.Close()
+
+	return
+}
+
 func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key crypto.ContentKey, err error) {
 	key, err = encrypter.GenerateKey()
 	if err != nil {
@@ -92,6 +144,47 @@ const (
 
 func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 	return ep.CanEncrypt(file.Path)
+}
+
+func encryptResource(profile EncryptionProfile, encrypter crypto.Encrypter, key crypto.ContentKey, resource Resource, packageWriter PackageWriter) error {
+	storageMethod := uint16(Deflate)
+	mustBeCompressedBeforeEncryption := resource.CompressBeforeEncryption()
+
+	if mustBeCompressedBeforeEncryption {
+		storageMethod = NoCompression
+	}
+
+	file, err := packageWriter.NewFile(resource.Path(), resource.ContentType(), storageMethod)
+	if err != nil {
+		return err
+	}
+	resourceReader, err := resource.Open()
+	if err != nil {
+		return err
+	}
+	var reader io.Reader = resourceReader
+
+	if resource.CompressBeforeEncryption() {
+		var buffer bytes.Buffer
+		w, err := flate.NewWriter(&buffer, 9)
+		if err != nil {
+			return err
+		}
+
+		io.Copy(w, resourceReader)
+		resourceReader.Close()
+		w.Close()
+		reader = ioutil.NopCloser(&buffer)
+	}
+
+	err = encrypter.Encrypt(key, reader, file)
+
+	resourceReader.Close()
+	file.Close()
+
+	packageWriter.MarkAsEncrypted(resource.Path(), resource.Size(), profile, encrypter.Signature())
+
+	return err
 }
 
 func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool, w *epub.Writer) error {

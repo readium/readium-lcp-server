@@ -83,10 +83,10 @@ func (p Packager) work() {
 		r := Result{}
 		p.genKey(&r)
 		zr := p.readZip(&r, t.Body, t.Size)
-		epub := p.readEpub(&r, zr)
-		encrypted, key := p.encrypt(&r, epub)
+		ep := p.readEpub(&r, zr)
+		encrypted, key := p.encrypt(&r, ep)
 		p.addToStore(&r, encrypted.File)
-		p.addToIndex(&r, key, t.Name, encrypted.Size, encrypted.Sha256)
+		p.addToIndex(&r, key, t.Name, encrypted.Size, encrypted.Sha256, epub.ContentType_EPUB)
 
 		t.Done(r)
 	}
@@ -166,12 +166,12 @@ func (p Packager) addToStore(r *Result, f *os.File) {
 	os.Remove(f.Name())
 }
 
-func (p Packager) addToIndex(r *Result, key []byte, name string, contentSize int64, contentHash string) {
+func (p Packager) addToIndex(r *Result, key []byte, name string, contentSize int64, contentHash string, contentType string) {
 	if r.Error != nil {
 		return
 	}
 
-	r.Error = p.idx.Add(index.Content{r.Id, key, name, contentSize, contentHash})
+	r.Error = p.idx.Add(index.Content{r.Id, key, name, contentSize, contentHash, contentType})
 }
 
 func NewPackager(store storage.Store, idx index.Index, concurrency int) *Packager {

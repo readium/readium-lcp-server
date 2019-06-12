@@ -39,7 +39,7 @@ export class PublicationFormComponent implements OnInit {
     public uploader:FileUploader;
     public lastFile:any;
     public hasBaseDropZoneOver:boolean = false;
-    public notAnEPUB: boolean = false;
+    public notAPublication: boolean = false;
 
     constructor(
         private fb: FormBuilder,
@@ -62,13 +62,14 @@ export class PublicationFormComponent implements OnInit {
     onItemAdded = function(fileItem: any)
     {
         this.split = fileItem.file.name.split('.');
-        if (this.split[this.split.length-1] === "epub")
+        let extension = this.split[this.split.length-1];
+        if (extension === "epub" || extension === "pdf")
         {
-            this.notAnEPUB = false;
+            this.notAPublication = false;
         }
         else
         {
-            this.notAnEPUB = true;
+            this.notAPublication = true;
         }
         this.uploader.queue = [fileItem];
         let publication : Publication = new Publication();
@@ -123,7 +124,9 @@ export class PublicationFormComponent implements OnInit {
             );
 
         } else {
-            this.fileName = this.form.value['title'] + '.epub';
+            let split = this.lastFile.file.name.split('.');
+            let ext = split[split.length - 1];
+            this.fileName = this.form.value['title'] + '.' + ext;
             if (this.form.value["type"] === "UPLOAD") {
                 this.lastFile.file.name = this.fileName;
             }

@@ -16,15 +16,18 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"fmt"
 
+	"github.com/readium-dm/rlcps/epub"
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/lcpencrypt/encrypt"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
+	"github.com/readium/readium-lcp-server/pack"
 	"github.com/satori/go.uuid"
 
 	"github.com/Machiel/slugify"
@@ -139,9 +142,13 @@ func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
 	return -1, ErrNotFound
 }
 
-// EncryptEPUB encrypts an EPUB File and sends the content to the LCP server
+func BuildWebPubPackage(pub Publication, inputPath string, outputPath string) error {
+	return pack.BuildWebPubPackageFromPDF(pub.Title, inputPath, outputPath)
+}
+
+// EncryptPublication encrypts a Publication File and sends the content to the LCP server
 //
-func EncryptEPUB(inputPath string, pub Publication, pubManager PublicationManager) error {
+func EncryptPublication(inputPath string, pub Publication, pubManager PublicationManager) error {
 	// generate a new uuid; this will be the content id in the lcp server
 	uid, err_u := uuid.NewV4()
 	if err_u != nil {
@@ -153,12 +160,35 @@ func EncryptEPUB(inputPath string, pub Publication, pubManager PublicationManage
 	outputFilename := contentUUID + ".tmp"
 	outputPath := path.Join(pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
 
+	log.Printf("Input path is %s", inputPath)
+	log.Printf("Output file will be stored at %s", outputPath)
+
+	var err error
+	var encryptedPub encrypt.EncryptionArtifact
+	var contentType string
 	// encrypt the master file found at inputPath, write in the temp file, in the "encrypted repository"
-	encryptedEpub, err := encrypt.EncryptEpub(inputPath, outputPath)
+	if strings.HasSuffix(inputPath, ".epub") {
+		contentType = epub.ContentType_EPUB
+		encryptedPub, err = encrypt.EncryptEpub(inputPath, outputPath)
+	} else if strings.HasSuffix(inputPath, ".pdf") {
+		contentType = "application/pdf+lcp"
+		clearWebPubPath := outputPath + ".webpub"
+		err = BuildWebPubPackage(pub, inputPath, clearWebPubPath)
+		if err != nil {
+			log.Printf("Error building webpub package: %s", err)
+			return err
+		}
+		log.Printf("Web publication package is at %s", clearWebPubPath)
+		encryptedPub, err = encrypt.EncryptWebPubPackage(pack.EncryptionProfile(pubManager.config.Profile), clearWebPubPath, outputPath)
+		// Remove the intermediate file
+		os.Remove(clearWebPubPath)
+	} else {
+		return errors.New("Could not match the filename")
+	}
 
 	if err != nil {
 		// unable to encrypt the master file
-		if _, err := os.Stat(inputPath); err == nil {
+		if _, statErr := os.Stat(inputPath); statErr == nil {
 			os.Remove(inputPath)
 		}
 		return err
@@ -168,12 +198,13 @@ func EncryptEPUB(inputPath string, pub Publication, pubManager PublicationManage
 	contentDisposition := slugify.Slugify(pub.Title)
 	lcpPublication := apilcp.LcpPublication{}
 	lcpPublication.ContentId = contentUUID
-	lcpPublication.ContentKey = encryptedEpub.EncryptionKey
+	lcpPublication.ContentKey = encryptedPub.EncryptionKey
 	// both frontend and lcp server must understand this path (warning if using Docker containers)
 	lcpPublication.Output = outputPath
 	lcpPublication.ContentDisposition = &contentDisposition
-	lcpPublication.Checksum = &encryptedEpub.Checksum
-	lcpPublication.Size = &encryptedEpub.Size
+	lcpPublication.Checksum = &encryptedPub.Checksum
+	lcpPublication.Size = &encryptedPub.Size
+	lcpPublication.ContentType = contentType
 
 	// json encode the payload
 	jsonBody, err := json.Marshal(lcpPublication)
@@ -240,9 +271,7 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 		return err
 	}
 	// encrypt the EPUB File and send the content to the LCP server
-	err := EncryptEPUB(inputPath, pub, pubManager)
-
-	return err
+	return EncryptPublication(inputPath, pub, pubManager)
 }
 
 // UploadEPUB creates a new EPUB file, namd after a file form parameter.
@@ -252,7 +281,9 @@ func (pubManager PublicationManager) UploadEPUB(r *http.Request, w http.Response
 
 	file, header, err := r.FormFile("file")
 
-	tmpfile, err := ioutil.TempFile("", "example")
+	ext := filepath.Ext(header.Filename)
+
+	tmpfile, err := ioutil.TempFile("", "inputpub.*"+ext)
 
 	if err != nil {
 		fmt.Fprintln(w, err)
@@ -267,7 +298,7 @@ func (pubManager PublicationManager) UploadEPUB(r *http.Request, w http.Response
 		log.Fatal(err)
 	}
 	// encrypt the EPUB File and send the content to the LCP server
-	if err := EncryptEPUB(tmpfile.Name(), pub, pubManager); err != nil {
+	if err := EncryptPublication(tmpfile.Name(), pub, pubManager); err != nil {
 		log.Fatal(err)
 	}
 

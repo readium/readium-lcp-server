@@ -26,13 +26,13 @@
     <label for="publication-filename">Unprotected publication</label>
     <div *ngIf="form.value['type'] == 'UPLOAD'">
       <div ng2FileDrop
-                      [ngClass]="{'nv-file-over': hasBaseDropZoneOver, 'nv-bad-file':notAnEPUB}"
+                      [ngClass]="{'nv-file-over': hasBaseDropZoneOver, 'nv-bad-file':notAPublication}"
                       (fileOver)="fileOverBase($event)"
                       [uploader]="uploader"
                       class="drop-zone">
-          <div *ngIf="lastFile&&!notAnEPUB">{{lastFile.file.name}}</div>
-          <div *ngIf="!lastFile&&!notAnEPUB">Drop your EPUB file here</div>
-          <div *ngIf="notAnEPUB&&lastFile">The file must be a .epub</div>
+          <div *ngIf="lastFile&&!notAPublication">{{lastFile.file.name}}</div>
+          <div *ngIf="!lastFile&&!notAPublicaiton">Drop your EPUB or PDF file here</div>
+          <div *ngIf="notAPublication&&lastFile">The file must be a .epub or a .pdf</div>
       </div>
     </div>
     <div *ngIf="form.value['type'] != 'UPLOAD'">

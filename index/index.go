@@ -48,6 +48,7 @@ type Content struct {
 	Location      string `json:"location"`
 	Length        int64  `json:"length"` //not exported in license spec?
 	Sha256        string `json:"sha256"` //not exported in license spec?
+	Type          string `json:"type"`
 }
 
 type dbIndex struct {
@@ -62,7 +63,7 @@ func (i dbIndex) Get(id string) (Content, error) {
 	defer records.Close()
 	if records.Next() {
 		var c Content
-		err = records.Scan(&c.Id, &c.EncryptionKey, &c.Location, &c.Length, &c.Sha256)
+		err = records.Scan(&c.Id, &c.EncryptionKey, &c.Location, &c.Length, &c.Sha256, &c.Type)
 		return c, err
 	}
 
@@ -70,22 +71,22 @@ func (i dbIndex) Get(id string) (Content, error) {
 }
 
 func (i dbIndex) Add(c Content) error {
-	add, err := i.db.Prepare("INSERT INTO content (id,encryption_key,location,length,sha256) VALUES (?, ?, ?, ?, ?)")
+	add, err := i.db.Prepare("INSERT INTO content (id,encryption_key,location,length,sha256,type) VALUES (?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(c.Id, c.EncryptionKey, c.Location, c.Length, c.Sha256)
+	_, err = add.Exec(c.Id, c.EncryptionKey, c.Location, c.Length, c.Sha256, c.Type)
 	return err
 }
 
 func (i dbIndex) Update(c Content) error {
-	add, err := i.db.Prepare("UPDATE content SET encryption_key=? , location=?, length=?,sha256=? WHERE id=?")
+	add, err := i.db.Prepare("UPDATE content SET encryption_key=? , location=?, length=?, sha256=?, type=? WHERE id=?")
 	if err != nil {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(c.EncryptionKey, c.Location, c.Length, c.Sha256, c.Id)
+	_, err = add.Exec(c.EncryptionKey, c.Location, c.Length, c.Sha256, c.Id, c.Type)
 	return err
 }
 
@@ -98,7 +99,7 @@ func (i dbIndex) List() func() (Content, error) {
 		var c Content
 		var err error
 		if rows.Next() {
-			err = rows.Scan(&c.Id, &c.EncryptionKey, &c.Location, &c.Length, &c.Sha256)
+			err = rows.Scan(&c.Id, &c.EncryptionKey, &c.Location, &c.Length, &c.Sha256, &c.Type)
 		} else {
 			rows.Close()
 			err = NotFound
@@ -114,13 +115,14 @@ func Open(db *sql.DB) (i Index, err error) {
 		if err != nil {
 			return
 		}
+		db.Exec("ALTER TABLE content ADD COLUMN \"type\" varchar(255) NOT NULL DEFAULT 'application/epub+zip'")
 	}
 
-	get, err := db.Prepare("SELECT id,encryption_key,location,length,sha256 FROM content WHERE id = ? LIMIT 1")
+	get, err := db.Prepare("SELECT id,encryption_key,location,length,sha256,type FROM content WHERE id = ? LIMIT 1")
 	if err != nil {
 		return
 	}
-	list, err := db.Prepare("SELECT id,encryption_key,location,length,sha256 FROM content")
+	list, err := db.Prepare("SELECT id,encryption_key,location,length,sha256,type FROM content")
 	if err != nil {
 		return
 	}
@@ -133,4 +135,5 @@ const tableDef = "CREATE TABLE IF NOT EXISTS content (" +
 	"encryption_key varchar(64) NOT NULL," +
 	"location text NOT NULL," +
 	"length bigint," +
-	"sha256 varchar(64))"
+	"sha256 varchar(64)," +
+	"\"type\" varchar(256) NOT NULL default 'application/epub+zip')"
