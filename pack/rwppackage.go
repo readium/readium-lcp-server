@@ -8,7 +8,7 @@ import (
 	"os"
 	"text/template"
 
-	rwpm "github.com/readium/r2-streamer-go/models"
+	"github.com/readium/readium-lcp-server/rwpm"
 )
 
 type RWPPackageReader struct {
