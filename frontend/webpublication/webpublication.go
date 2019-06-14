@@ -160,9 +160,6 @@ func EncryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	outputFilename := contentUUID + ".tmp"
 	outputPath := path.Join(pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
 
-	log.Printf("Input path is %s", inputPath)
-	log.Printf("Output file will be stored at %s", outputPath)
-
 	var err error
 	var encryptedPub encrypt.EncryptionArtifact
 	var contentType string
@@ -178,7 +175,6 @@ func EncryptPublication(inputPath string, pub Publication, pubManager Publicatio
 			log.Printf("Error building webpub package: %s", err)
 			return err
 		}
-		log.Printf("Web publication package is at %s", clearWebPubPath)
 		encryptedPub, err = encrypt.EncryptWebPubPackage(pack.EncryptionProfile(pubManager.config.Profile), clearWebPubPath, outputPath)
 		// Remove the intermediate file
 		os.Remove(clearWebPubPath)

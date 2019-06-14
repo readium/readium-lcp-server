@@ -166,9 +166,6 @@ func SetDefaultLinks() []Link {
 // l.ContentId must have been set before the call
 //
 func SetLicenseLinks(l *License, c index.Content) error {
-
-	fmt.Printf("Content: %#v\n", c)
-
 	// set the links
 	l.Links = SetDefaultLinks()
 
