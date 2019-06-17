@@ -22,9 +22,9 @@ import (
 
 	"fmt"
 
-	"github.com/readium-dm/rlcps/epub"
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
+	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/lcpencrypt/encrypt"
 	"github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/pack"
