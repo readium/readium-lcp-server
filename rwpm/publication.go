@@ -10,7 +10,7 @@ import (
 type Publication struct {
 	Context      []string `json:"@context,omitempty"`
 	Metadata     Metadata `json:"metadata"`
-	Links        []Link   `json:"links,omitempty:"`
+	Links        []Link   `json:"links,omitempty"`
 	ReadingOrder []Link   `json:"readingOrder,omitempty"`
 	Resources    []Link   `json:"resources,omitempty"` //Replaces the manifest but less redundant
 	TOC          []Link   `json:"toc,omitempty"`
