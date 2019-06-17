@@ -219,7 +219,6 @@ func buildLicensedPublication(lic *license.License, s Server) (buf bytes.Buffer,
 	}
 
 	licenseBytes = bytes.TrimRight(licenseBytes, "\n")
-	zipWriter.Close()
 
 	location := epub.LicenseFile
 	if isWebPub(zr) {
@@ -236,7 +235,7 @@ func buildLicensedPublication(lic *license.License, s Server) (buf bytes.Buffer,
 		return
 	}
 
-	return
+	return buf, zipWriter.Close()
 }
 
 // GetLicense returns an existing license,
