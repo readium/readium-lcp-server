@@ -252,7 +252,7 @@ func main() {
 	} else if strings.HasSuffix(*inputFilename, ".pdf") {
 		addedPublication.ContentType = "application/pdf+lcp"
 		packagePath := *outputFilename + ".webpub"
-		err := pack.BuildWebPubPackageFromPDF(*inputFilename, *inputFilename, packagePath)
+		err := pack.BuildWebPubPackageFromPDF(filepath.Base(*inputFilename), *inputFilename, packagePath)
 		if err != nil {
 			addedPublication.ErrorMessage = "Error building Web Publication package from PDF"
 			exitWithError(addedPublication, err, 50)
