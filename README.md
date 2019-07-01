@@ -8,17 +8,21 @@ Detailed documentation can be found in the [Wiki pages](../../wiki) of the proje
 Prerequisites
 =============
 
-No binaries are currently pre-built, so you need to get a working Golang installation. Please refer to the official documentation for
-installation procedures at https://golang.org/.
+No binaries are currently pre-built, so you need to get a working Golang installation. Please refer to the official documentation for installation procedures at https://golang.org/.
 
-The servers require the setup of an SQL Database. A SQLite db is used by default (it should be fine for small to medium installations), and if the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. 
+The servers require the setup of an SQL Database. A SQLite db is used by default (it works fine on existing installations; its limitation is being part of a distributed platform), and if the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. 
 
-A MySQL db creation script is provided as well, in the "dbmodel" folder; we expect other drivers (PostgresQL ...) to be provided by the community. Such script should be run be launching the servers.
+A MySQL db creation script is provided as well, in the "dbmodel" folder, but there is still some work to do to adapt the internal requests to MySQL (help welcome). Such script should be run before launching the servers for the first time. We expect other drivers (PostgresQL ...) to be provided by the community. A major revision of the software features an ORM, but it is still unsufficiently tested to be moved to the master branch. 
 
-If you wish to use external licenses, where a client gets a simple json file that contains instructions on how to fetch the encrypted EPUB file,
-a publicly accessible folder must be made available for the server to store the file.
+You platform must be able to handle 
 
-You must obtain a X.509 certificate through EDRLab in order for your licenses to be accepted by Readium LCP compliant Reading Systems.
+1/ the license server, active in your intranet, not accessible from the Web, only accessible from you frontend server via its REST API. 
+
+2/ the license status server, accessible from the Web via its REST API.
+
+3/ a large storage volume for encrypted publications, accessible in read mode from the Web via HTTP URLs (publications are encrypted once, every license generated for such publication is pointing at the same encrypted file.
+
+You must obtain a X.509 certificate and confidential crypto information through EDRLab in order for your licenses to be accepted by Readium LCP compliant Reading Systems.
 
 Executables
 ===========
@@ -63,7 +67,7 @@ Private functionalities (authentication needed):
 
 ## [frontend]
 
-A Frontend Test server, which offers a GUI and API for having a complete experience.
+A Frontend Test server, which mimics your own frontend platform (e.g. bookselling website), with a GUI and its own REST API. Its sole goal is to help you test the License and License status servers. 
 
 Public functionalities (accessible from the web):
 * Fetch a license from its id
