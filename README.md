@@ -14,7 +14,7 @@ The servers require the setup of an SQL Database. A SQLite db is used by default
 
 A MySQL db creation script is provided as well, in the "dbmodel" folder, but there is still some work to do to adapt the internal requests to MySQL (help welcome). Such script should be run before launching the servers for the first time. We expect other drivers (PostgresQL ...) to be provided by the community. A major revision of the software features an ORM, but it is still unsufficiently tested to be moved to the master branch. 
 
-You platform must be able to handle 
+Your platform must be able to handle 
 
 1/ the license server, active in your intranet, not accessible from the Web, only accessible from you frontend server via its REST API. 
 
