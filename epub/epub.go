@@ -52,7 +52,12 @@ func (ep Epub) Cover() (bool, *Resource) {
 			if strings.Contains(it.Properties, "cover-image") ||
 				it.Id == coverImageID {
 
-				path := p.BasePath + "/" + it.Href
+				// To be found later, resources in the EPUB root folder
+				// must not be prefixed by "./"
+				path := it.Href
+				if p.BasePath != "." {
+					path = p.BasePath + "/" + it.Href
+				}
 				for _, r := range ep.Resource {
 					if r.Path == path {
 						return true, r
