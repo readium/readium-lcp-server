@@ -81,41 +81,32 @@ Assuming a working Go installation, the following will install the three executa
 
 If you want to use the master branch:
 ```sh
-// from the go workspace
+# from the go workspace
 cd $GOPATH
-// get the different packages and their dependencies, install the packages
-go get github.com/readium/readium-lcp-server
+# fetch, build and install the different packages and their dependencies
+go get -v github.com/readium/readium-lcp-server/...
 ```
 
 Alternatively, if you want to use a feature/F branch:
 ```sh
-// from the go workspace
+# from the go workspace
 cd $GOPATH
-// create the project repository
-mkdir -p src/github.com/readium/readium-lcp-server
-// clone the repo, selecting the development branch
+# clone the repo, selecting the feature/F branch
 git clone -b feature/F https://github.com/readium/readium-lcp-server.git src/github.com/readium/readium-lcp-server
-```
-Then fetch, build and install the different modules with:
-```sh
-// move to the project repository
-cd src/github.com/readium/readium-lcp-server
-// get the different packages and their dependencies, then installs the packages (dot / triple dot pattern)
-go get ./...
+# then fetch, build and install the different packages and their dependencies
+go get -v github.com/readium/readium-lcp-server/...
 ````
 
 You may prefer to install only some of the three executables. 
 In such a case, the "go get" command should be called once for each package, e.g. for the lcpserver from the master branch:
 ```sh
 cd $GOPATH
-go get github.com/readium/readium-lcp-server/lcpserver
+go get -v github.com/readium/readium-lcp-server/lcpserver
 ```
 
-To install properly the Frontend Test Server, you must also install several npm packages.
-
-Move to $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
-To install the packages and test your install, type
+To install properly the Frontend Test Server, you must also install several npm packages, using:
 ```sh
+cd $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
 npm install
 npm start
 ````
@@ -129,15 +120,15 @@ The server is controlled by a yaml configuration file (e.g. "config.yaml").
 
 The License Server, License Status Server and Frontend test server will search their configuration file in the bin directory by default; but the path to this file can be changed using the environment variable:
 
-* READIUM_LCPSERVER_CONFIG for the LCP server
-* READIUM_LSDSERVER_CONFIG for the LSD server
-* READIUM_FRONTEND_CONFIG for the frontend test server
+* `READIUM_LCPSERVER_CONFIG` for the LCP server
+* `READIUM_LSDSERVER_CONFIG` for the LSD server
+* `READIUM_FRONTEND_CONFIG` for the frontend test server
 
-The value of the three global variables will be on the form /<path>/lcpconfig.yaml.
+The value of the three global variables must be of the form /path/to/lcpconfig.yaml.
 
 The three servers may share the same configuration file (if they are both executed on the same server) or they may have their own configuration file. 
 
-The LCP and LSD servers also require authenticated API requests for some of their functionalities. A password file name .htpasswd must therefore be created to handle such authentication data, for each module. Like the configuration file, the .htpasswd file may be shared between the two modules.
+The LCP and LSD servers also require authenticated API requests for some of their functionalities. A password file named `htpasswd` must therefore be created to handle such authentication data, for each module. Like the configuration file, the htpasswd file may be shared between the two modules.
 
 A source example for creating a password file is http://www.htaccesstools.com/htpasswd-generator/. 
 The htpasswd file format is e.g.:
@@ -146,9 +137,22 @@ The htpasswd file format is e.g.:
 	User2:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKMT
 ```
 
-Here are details about the configuration properties:
+## Quick-start configuration
 
-*License Server*
+A quick-start configuration meant only for test purposes is available in `test/config.yaml`. This file includes a default configuration for the the LCP, LSD and frontend servers.
+
+1. Create a LCP_HOME folder, eg. `/usr/local/var/lcp`
+2. Create the sub-folders `db`, `files`, `files/encrypted` and `files/master` in LCP_HOME
+3. Copy the folder `test/cert` and the newly generated `htpasswd` files to LCP_HOME
+4. Copy the `test/config.yaml` file into `$GOPATH/bin`, or setup the `READIUM_*_CONFIG` env variables
+5. Replace any occurrence of `<LCP_HOME>` in config.yaml by the absolute path to the LCP_HOME folder
+
+
+## Individual server configurations
+
+Here are the details about the configuration properties of each server. In the samples, replace `<LCP_HOME>` with the absolute path to the folder containing encrypted files, database and certificates.
+
+### License Server
 
 `profile`: value of the LCP profile; values are:
 - `basic` (default value, as described in the Readium LCP specification, used for tests only);
@@ -203,14 +207,14 @@ lcp:
     host: "127.0.0.1"
     port: 8989
     public_base_url: "http://127.0.0.1:8989"
-    database: "sqlite3://file:/readiumlcp/lcpdb/lcp.sqlite?cache=shared&mode=rwc"
-    auth_file: "/readiumlcp/lcpconfig/htpasswd"
+    database: "sqlite3://file:<LCP_HOME>/db/lcp.sqlite?cache=shared&mode=rwc"
+    auth_file: "<LCP_HOME>/htpasswd"
 storage:
     filesystem:
-        directory: "/readiumlcp/lcpfiles/storage"
+        directory: "<LCP_HOME>/files/storage"
 certificate:
-    cert: "/readiumlcp/lcpconfig/cert.pem"
-    private_key: "/readiumlcp/lcpconfig/privkey.pem"
+    cert: "<LCP_HOME>/cert/cert.pem"
+    private_key: "<LCP_HOME>/cert/privkey.pem"
 license:
     links:
         status: "http://127.0.0.1:8990/licenses/{license_id}/status"     
@@ -225,9 +229,7 @@ lsd_notify_auth:
 
 ```
 
-Note that the `lsd` and `lsd_notify_auth` entries must not be present if the configuration file also contains the configuration of the License Status Server. 
-
-*License Status Server*
+### License Status Server
 
 `lsd` section: parameters associated with the License Status Server. 
 - `host`: the public server hostname, `hostname` by default
@@ -259,8 +261,8 @@ lsd:
     host: "127.0.0.1"
     port: 8990
     public_base_url: "http://127.0.0.1:8990"
-    database: "sqlite3://file:/readiumlcp/lcpdb/lsd.sqlite?cache=shared&mode=rwc"
-    auth_file: "/Users/laurentlemeur/Work/lcpconfig/htpasswd"
+    database: "sqlite3://file:<LCP_HOME>/db/lsd.sqlite?cache=shared&mode=rwc"
+    auth_file: "<LCP_HOME>/htpasswd"
     license_link_url: "http://127.0.0.1:8991/api/v1/licenses/{license_id}"
 license_status:
     register: true
@@ -276,9 +278,7 @@ lcp_update_auth:
     password: "adm_password"
 ```
 
-Note that the `lcp` and `lcp_update_auth` entries must not be present if the configuration file also contains the configuration of the License Server. 
-
-*Frontend Server*
+### Frontend Server
 
 `frontend` section: parameters associated with the Frontend Test Server. 
 - `host`: the public server hostname, `hostname` by default
@@ -299,9 +299,9 @@ Here is a Frontend Test Server sample config:
 frontend:
     host: "127.0.0.1"
     port: 8991
-    database: "sqlite3://file:/readiumlcp/lcpdb/frontend.sqlite?cache=shared&mode=rwc"
-    master_repository: "/readiumlcp/lcpfiles/master"
-    encrypted_repository: "/readiumlcp/lcpfiles/encrypted"
+    database: "sqlite3://file:<LCP_HOME>/db/frontend.sqlite?cache=shared&mode=rwc"
+    master_repository: "<LCP_HOME>/files/master"
+    encrypted_repository: "<LCP_HOME>/files/encrypted"
     provider_uri: "https://www.myprovidername.org"
     right_print: 10
     right_copy: 2000
@@ -316,12 +316,9 @@ lcp_update_auth:
 lsd_notify_auth: 
     username: "adm_username"
     password: "adm_password"
-
 ```
 
-Note that the `lcp`, `lsd`, `lsd_notify_auth` and `lcp_update_auth` entries must not be present if the configuration file also contains the configuration of the License Server and License Status Server. 
-
-*And for all servers*
+### And for all servers
 
 `localization` section: parameters related to the localization of the messages sent by all three servers.
 - `languages`: array of supported localization languages
@@ -336,14 +333,14 @@ NOTE: a CBC / GCM configurable property has been DISABLED, see https://github.co
 Execution
 ==========
 each server must be launched in a different context (i.e. a different shell for local use), from 
- $GOPATH/src/github.com/readium/readium-lcp-server
+ `$GOPATH/bin`
 
 Each server is executed with no parameter:
-- lcpserver
-- lsdserver
-- frontend
+- `./lcpserver`
+- `./lsdserver`
+- `./frontend`
 
-After the frontend server is launched, you can access to the server GUI via its base url, e.g. http://http://127.0.0.1:8991
+After the frontend server is launched, you can access to the server GUI via its base url, e.g. http://127.0.0.1:8991
 
 NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended, as you won't be able to access the modules from e.g. a mobile app. It's much better to use the WiFi IPv4 address to your computer, and access the server from your mobile device via WiFi.  
 
