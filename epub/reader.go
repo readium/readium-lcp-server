@@ -173,13 +173,8 @@ func addCleartextResources(ep *Epub, p opf.Package) {
 			item.Id == coverImageID ||
 			strings.Contains(item.Properties, "nav") ||
 			item.MediaType == ContentType_NCX {
-			// re-construct a path, avoids insertion of backslash as separator on Windows.
-			// To be found at a later stage, resources in the EPUB root folder
-			// must not be prefixed by "./"
-			path := item.Href
-			if p.BasePath != "." {
-				path = p.BasePath + "/" + item.Href
-			}
+			// re-construct a path, avoid insertion of backslashes as separator on Windows
+			path := filepath.ToSlash(filepath.Join(p.BasePath, item.Href))
 			ep.addCleartextResource(path)
 		}
 	}
@@ -191,7 +186,7 @@ func findResourceInPackages(r *Resource, packages []opf.Package) (opf.Item, bool
 		if err != nil {
 			return opf.Item{}, false
 		}
-
+		// avoid insertion of backslashes as separator on Windows
 		relative = filepath.ToSlash(relative)
 
 		if item, ok := p.Manifest.ItemWithPath(relative); ok {
