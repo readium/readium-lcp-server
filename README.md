@@ -79,6 +79,8 @@ Install
 
 Assuming a working Go installation, the following will install the three executables that constitute a complete Readium LCP Server.
 
+On Linux and MacOS:
+
 If you want to use the master branch:
 ```sh
 # from the go workspace
@@ -112,6 +114,13 @@ npm start
 ````
 
 If this gives no error, your install is ready; type Ctrl-C to move out of the test mode. In case of errors, read Readme.md in the "manage" directory to get more details.
+
+On Windows:
+
+In the previous instructions, replace: 
+
+* $GOPATH with %GOPATH%
+* forward slashes with backward slashes in paths.
 
 Configuration
 ==============
