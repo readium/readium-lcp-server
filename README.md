@@ -120,7 +120,7 @@ On Windows:
 In the previous instructions, replace: 
 
 * $GOPATH with %GOPATH%
-* forward slashes with backward slashes in paths.
+* forward slashes with backslashes in paths.
 
 Configuration
 ==============
