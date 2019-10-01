@@ -28,6 +28,7 @@ package xmlenc
 import (
 	"encoding/xml"
 	"io"
+	"net/url"
 )
 
 type Manifest struct {
@@ -37,7 +38,12 @@ type Manifest struct {
 }
 
 func (m Manifest) DataForFile(path string) (Data, bool) {
-	uri := URI(path)
+	fileUri, err := url.Parse(path)
+	if err != nil {
+		return Data{}, false
+	}
+
+	uri := URI(fileUri.EscapedPath())
 	for _, datum := range m.Data {
 		if datum.CipherData.CipherReference.URI == uri {
 			return datum, true
