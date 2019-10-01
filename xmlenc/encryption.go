@@ -21,13 +21,15 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package xmlenc
 
 import (
 	"encoding/xml"
 	"io"
+
+	"golang.org/x/net/html/charset"
 )
 
 type Manifest struct {
@@ -36,6 +38,7 @@ type Manifest struct {
 	XMLName struct{} `xml:"urn:oasis:names:tc:opendocument:xmlns:container encryption"`
 }
 
+// DataForFile returns the EncryptedData item corresponding to a given path
 func (m Manifest) DataForFile(path string) (Data, bool) {
 	uri := URI(path)
 	for _, datum := range m.Data {
@@ -47,6 +50,7 @@ func (m Manifest) DataForFile(path string) (Data, bool) {
 	return Data{}, false
 }
 
+// Write writes the encryption XML structure
 func (m Manifest) Write(w io.Writer) error {
 	w.Write([]byte(xml.Header))
 	enc := xml.NewEncoder(w)
@@ -54,12 +58,15 @@ func (m Manifest) Write(w io.Writer) error {
 	return enc.Encode(m)
 }
 
+// Read parses the encryption XML structure
 func Read(r io.Reader) (Manifest, error) {
-	var manifest Manifest
+	var m Manifest
 	dec := xml.NewDecoder(r)
-	err := dec.Decode(&manifest)
+	// deal with non utf-8 xml files
+	dec.CharsetReader = charset.NewReaderLabel
+	err := dec.Decode(&m)
 
-	return manifest, err
+	return m, err
 }
 
 //<sequence>
