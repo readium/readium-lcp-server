@@ -85,8 +85,8 @@ func (p Packager) work() {
 		zr := p.readZip(&r, t.Body, t.Size)
 		epub := p.readEpub(&r, zr)
 		encrypted, key := p.encrypt(&r, epub)
-		p.addToStore(&r, encrypted.File)
-		p.addToIndex(&r, key, t.Name, encrypted.Size, encrypted.Sha256)
+		p.addToStore(&r, encrypted)
+		p.addToIndex(&r, key, t.Name, encrypted)
 
 		t.Done(r)
 	}
@@ -155,23 +155,23 @@ func (p Packager) encrypt(r *Result, ep epub.Epub) (*EncryptedFileInfo, []byte) 
 	return &encryptedFileInfo, key
 }
 
-func (p Packager) addToStore(r *Result, f *os.File) {
+func (p Packager) addToStore(r *Result, info *EncryptedFileInfo) {
 	if r.Error != nil {
 		return
 	}
 
-	_, r.Error = p.store.Add(r.Id, f)
+	_, r.Error = p.store.Add(r.Id, info.File)
 
-	f.Close()
-	os.Remove(f.Name())
+	info.File.Close()
+	os.Remove(info.File.Name())
 }
 
-func (p Packager) addToIndex(r *Result, key []byte, name string, contentSize int64, contentHash string) {
+func (p Packager) addToIndex(r *Result, key []byte, name string, info *EncryptedFileInfo) {
 	if r.Error != nil {
 		return
 	}
 
-	r.Error = p.idx.Add(index.Content{r.Id, key, name, contentSize, contentHash})
+	r.Error = p.idx.Add(index.Content{r.Id, key, name, info.Size, info.Sha256})
 }
 
 func NewPackager(store storage.Store, idx index.Index, concurrency int) *Packager {
