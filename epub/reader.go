@@ -8,6 +8,7 @@ package epub
 import (
 	"archive/zip"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"path/filepath"
 	"sort"
@@ -15,8 +16,10 @@ import (
 
 	"github.com/readium/readium-lcp-server/epub/opf"
 	"github.com/readium/readium-lcp-server/xmlenc"
+	"golang.org/x/net/html/charset"
 )
 
+// root element of the opf
 const (
 	RootFileElement = "rootfile"
 )
@@ -26,8 +29,11 @@ type rootFile struct {
 	MediaType string `xml:"media-type,attr"`
 }
 
+// findRootFiles looks for the epub root files
 func findRootFiles(r io.Reader) ([]rootFile, error) {
 	xd := xml.NewDecoder(r)
+	// deal with non utf-8 xml files
+	xd.CharsetReader = charset.NewReaderLabel
 	var roots []rootFile
 	for x, err := xd.Token(); x != nil && err == nil; x, err = xd.Token() {
 		if err != nil {
@@ -58,6 +64,9 @@ func (ep *Epub) addCleartextResource(name string) {
 	ep.cleartextResources = append(ep.cleartextResources, name)
 }
 
+// Read reads the opf file in the zip passed as a parameter,
+// selects resources which must no be encrypted
+// and returns an EPUB object
 func Read(r *zip.Reader) (Epub, error) {
 	var ep Epub
 	container, err := findFileInZip(r, ContainerFile)
@@ -89,11 +98,12 @@ func Read(r *zip.Reader) (Epub, error) {
 		defer packageFile.Close()
 
 		packages[i], err = opf.Parse(packageFile)
-		packages[i].BasePath = filepath.Dir(rootFile.FullPath)
-		addCleartextResources(&ep, packages[i])
 		if err != nil {
+			fmt.Println("Error parsing the opf file")
 			return ep, err
 		}
+		packages[i].BasePath = filepath.Dir(rootFile.FullPath)
+		addCleartextResources(&ep, packages[i])
 	}
 
 	var resources []*Resource
@@ -157,8 +167,9 @@ func Read(r *zip.Reader) (Epub, error) {
 	return ep, nil
 }
 
+// addCleartextResources searches for resources which must no be encrypted
+// i.e. cover, nav and NCX
 func addCleartextResources(ep *Epub, p opf.Package) {
-
 	var coverImageID string
 	coverImageID = "cover-image"
 	for _, meta := range p.Metadata.Metas {
@@ -180,6 +191,8 @@ func addCleartextResources(ep *Epub, p opf.Package) {
 	}
 }
 
+// findResourceInPackages returns an opf item which corresponds to
+// the path of the resource given as parameter
 func findResourceInPackages(r *Resource, packages []opf.Package) (opf.Item, bool) {
 	for _, p := range packages {
 		relative, err := filepath.Rel(p.BasePath, r.Path)
