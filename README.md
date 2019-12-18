@@ -176,10 +176,16 @@ Here are the details about the configuration properties of each server. In the s
 
 Note: It may be practical to put the authentication file in the configuration folder ("lcpconfig" in the samples below). 
 
-`storage` section: parameters related to the storage of encrypted publications. 
-- `filesystem` section: parameters related to a file system storage.
+`storage` section: parameters related to the storage of encrypted publications.
+- `mode` : optional. If value is "s3", `bucket` and `region` is required, otherwise `filesystem` is required.
+- `filesystem` section: parameters related to a file system storage. Only used if 
   - `directory`: absolute path to the directory in which the encrypted publications are stored. 
   This storage must be accessible from the Web via a simple URL, specified via the `license/publication` parameter.
+- `bucket`: optional/required if `mode` is "s3": value of the s3 bucket
+- `region`: optional/required if `mode` is "s3": value of the AWS region 
+- `access_id`: optional/required if `mode` is "s3" and static aws credentials: value of the AWS AccessKeyID
+- `secret`: optional/required if `mode` is "s3" and static aws credentials: value of the AWS SecretAccessKey
+- `token`: optional/required if `mode` is "s3" and static aws credentials: value of the AWS SessionToken
 
 `certificate` section:	parameters related to the signature of licenses: 	
 - `cert`: the provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature. A test certificate is provided in the test/cert directory of the project (`cert-edrlab-test.pem`). 
