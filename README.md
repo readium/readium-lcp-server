@@ -115,9 +115,11 @@ npm start
 
 If this gives no error, your install is ready; type Ctrl-C to move out of the test mode. In case of errors, read Readme.md in the "manage" directory to get more details.
 
-On Windows:
+On Windows 10:
 
-In the previous instructions, replace: 
+You must first install a GCC compiler in order to compile the SQLite module and to move later to "production mode". [TDM-GCC](http://tdm-gcc.tdragon.net/download) gives great results. 
+
+Also, in the previous instructions, replace: 
 
 * $GOPATH with %GOPATH%
 * forward slashes with backslashes in paths.
@@ -139,7 +141,7 @@ The three servers may share the same configuration file (if they are both execut
 
 The LCP and LSD servers also require authenticated API requests for some of their functionalities. A password file named `htpasswd` must therefore be created to handle such authentication data, for each module. Like the configuration file, the htpasswd file may be shared between the two modules.
 
-A source example for creating a password file is http://www.htaccesstools.com/htpasswd-generator/. 
+An example of password file generator is found [here](http://www.htaccesstools.com/htpasswd-generator/). 
 The htpasswd file format is e.g.:
 ```sh
 	User1:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
