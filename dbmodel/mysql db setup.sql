@@ -4,7 +4,8 @@ CREATE TABLE `content` (
     `encryption_key` varbinary(64) NOT NULL,
     `location` text NOT NULL,
     `length` bigint(20),
-    `sha256` varchar(64)
+    `sha256` varchar(64),
+    `type` varchar(255) NOT NULL DEFAULT 'application/epub+zip'
 );
 
 CREATE TABLE `license` (
