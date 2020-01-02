@@ -1,45 +1,38 @@
 <form [formGroup]="form" >
-  <div class="form-group">
-    <label for="publication-title">Title</label>
-    <input
-        id="publication-title" class="form-control" placeholder="Enter a title"
-        [formControl]="form.controls['title']">
-  </div>
   <div *ngIf="!publication" class="form-group">
 
-    <label>File Origin</label>
+    <label>Origin of the file</label>
     <div class="form-check">
       <label class="form-check-label">
         <input type="radio" class="form-check-input" checked="form.value['type'] == 'UPLOAD'"
           value="UPLOAD" [formControl]="form.controls['type']">
-        Upload
+        Drag & drop 
       </label>
     </div>
     <div class="form-check">
       <label class="form-check-label">
         <input type="radio" class="form-check-input"
           value="FOLDER" [formControl]="form.controls['type']" >
-        Choose in the folder
+        Pick from the master repository
       </label>
     </div>
-
-    <label for="publication-filename">Unprotected publication</label>
+    <br/>
+    <label for="publication-filename">EPUB or PDF publication</label>
     <div *ngIf="form.value['type'] == 'UPLOAD'">
       <div ng2FileDrop
                       [ngClass]="{'nv-file-over': hasBaseDropZoneOver, 'nv-bad-file':notAPublication}"
                       (fileOver)="fileOverBase($event)"
                       [uploader]="uploader"
                       class="drop-zone">
-          <div *ngIf="lastFile&&!notAPublication">{{lastFile.file.name}}</div>
-          <div *ngIf="!lastFile&&!notAPublication">Drop your EPUB or PDF file here</div>
-          <div *ngIf="notAPublication&&lastFile">The file must be a .epub or a .pdf</div>
+          <div *ngIf="droppedItem&&!notAPublication">{{droppedItem.file.name}}</div>
+          <div *ngIf="!droppedItem&&!notAPublication">Drop an EPUB or PDF file here</div>
+          <div *ngIf="droppedItem&&notAPublication">The file must have a .epu or .pdf extension.</div>
       </div>
     </div>
     <div *ngIf="form.value['type'] != 'UPLOAD'">
       <select
         id="publication-filename" class="form-control"
-        [formControl]="form.controls['filename']"
-      >
+        [formControl]="form.controls['filename']">
         <option value="">Select a publication</option>
         <option *ngFor="let file of masterFiles">
           {{file.name}}
@@ -47,16 +40,22 @@
       </select>
     </div>
   </div>
-  <button type="sumbit" (click)="onSubmit(true)"[disabled]="(((!uploader.getNotUploadedItems().length && !this.form.value['filename']) || !this.form.value['title'] || (!this.form.value['filename'] && notAnEPUB)) && !hideFilename) || (hideFilename && !this.form.value['title'])" class="btn btn-primary">{{submitButtonLabel}}</button>
+  <div class="form-group">
+    <label for="publication-title">Title of the publication</label>
+    <input
+        id="publication-title" class="form-control" placeholder="Enter a title"
+        [formControl]="form.controls['title']">
+  </div>
+  <button type="submit" (click)="onSubmit(true)"[disabled]="(((!uploader.getNotUploadedItems().length && !this.form.value['filename']) || !this.form.value['title'] || (!this.form.value['filename'] && notAPublication)) && !hideFilename) || (hideFilename && !this.form.value['title'])" class="btn btn-primary">{{submitButtonLabel}}</button>
   <button type="button" (click)="onCancel()" class="btn btn-secondary">Cancel</button>
 </form>
 
 <div id="snackbar">
-  <div *ngIf="uploadConfimation">
-    <p>A publication with this name already exist. Would you replace it with this new file ?</p>
+  <div *ngIf="uploadConfirmation">
+    <p>A publication with this name already exists. Shall we replace it with this new file?</p>
     <button (click)="hideSnackBar();onSubmit(false)">Yes</button><button (click)="hideSnackBar()">No</button>
   </div>
-  <div *ngIf="!uploadConfimation">
+  <div *ngIf="!uploadConfirmation">
     {{errorMessage}}
   </div>
 </div>

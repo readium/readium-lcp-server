@@ -30,14 +30,13 @@ export class PublicationFormComponent implements OnInit {
     form: FormGroup;
 
     snackMessage: string = "";
-    newPublication: boolean = true;
-    uploadConfimation: boolean;
+    uploadConfirmation: boolean;
     errorMessage: string = "";
 
     fileName: string;
 
     public uploader:FileUploader;
-    public lastFile:any;
+    public droppedItem:any;
     public hasBaseDropZoneOver:boolean = false;
     public notAPublication: boolean = false;
 
@@ -59,6 +58,7 @@ export class PublicationFormComponent implements OnInit {
         );
     }
 
+    // onItemAdded is executed when a file is added to the opload component
     onItemAdded = function(fileItem: any)
     {
         this.split = fileItem.file.name.split('.');
@@ -72,10 +72,7 @@ export class PublicationFormComponent implements OnInit {
             this.notAPublication = true;
         }
         this.uploader.queue = [fileItem];
-        let publication : Publication = new Publication();
-        publication.title = this.form.value['title']
-        publication.masterFilename = this.fileName;
-        this.lastFile = fileItem;
+        this.droppedItem = fileItem;
     }
 
     ngOnInit(): void {
@@ -84,8 +81,9 @@ export class PublicationFormComponent implements OnInit {
 
         // Events declarations
         this.uploader.onAfterAddingFile = (fileItem: any) => {this.onItemAdded(fileItem); fileItem.withCredentials = false; }
-        this.uploader.onCompleteAll = () => {this.AllUploaded()}
+        this.uploader.onCompleteAll = () => {this.gotoList()}
 
+        // case = import of a new publication
         if (this.publication == null) {
             this.submitButtonLabel = "Add";
             this.form = this.fb.group({
@@ -93,6 +91,7 @@ export class PublicationFormComponent implements OnInit {
                 "filename": ["", Validators.required],
                 "type": ["UPLOAD", Validators.nullValidator]
             });
+        // case = edition of an existing publication
         } else {
             this.hideFilename = true
             this.submitButtonLabel = "Save";
@@ -110,11 +109,14 @@ export class PublicationFormComponent implements OnInit {
         this.gotoList();
     }
 
+    // onSubmit imports a publication into the frontend server, 
+    // or updates information on an existing publication.
+    // confirm indicates if the user must provide a confirmation in case a publication
+    // already exists with the same title.  
     onSubmit(confirm: boolean) {
+        // case = edition of an existing publication
         if (this.publication) {
-            // Update publication
             this.publication.title = this.form.value['title'];
-
             this.publicationService.update(
                 this.publication
             ).then(
@@ -122,64 +124,57 @@ export class PublicationFormComponent implements OnInit {
                     this.gotoList();
                 }
             );
-
+        // case = import of a new publication
         } else {
-            let split = this.lastFile.file.name.split('.');
-            let ext = split[split.length - 1];
-            this.fileName = this.form.value['title'] + '.' + ext;
-            if (this.form.value["type"] === "UPLOAD") {
-                this.lastFile.file.name = this.fileName;
-            }
-            this.newPublication = true;
+            // if the import into the frontend server needs confirmation (in case of a detected duplicate) 
             if (confirm) {
+                // check the title chosen for the publication
                 this.publicationService.checkByName(this.form.value['title']).then(
                     result => {
+                        // if there is no duplicate
                         if (result === 0) {
+                            // upload the publication
                             if (this.form.value["type"] === "UPLOAD") {
                                 let options = {url: this.baseUrl + "/PublicationUpload?title=" + this.form.value['title']};
                                 this.uploader.setOptions(options);
-                                this.uploader.uploadItem(this.lastFile);
+                                this.uploader.uploadItem(this.droppedItem);
+                            // or request the import of a publication into the frontend server
                             } else {
                                 let publication = new Publication();
                                 publication.title = this.form.value['title'];
                                 publication.masterFilename = this.form.value['filename'];
-
                                 this.publicationService.addPublication(publication)
                                 .then( error => {
                                     console.log(error);
-                                        this.uploadConfimation = false;
+                                        this.uploadConfirmation = false;
                                         if (error === 200) {
                                             this.gotoList();
                                         } else if (error === 400) {
-                                            this.errorMessage = "The file must be a real epub file."
+                                            this.errorMessage = "The file must be a proper EPUB or PDF file."
                                             this.showSnackBar(false);
                                         }
                                     }
                                 );
                             }
                         } else {
-                            this.uploadConfimation = true;
+                            this.uploadConfirmation = true;
                             this.showSnackBar(true);
                         }
                     }
                 );
+            // if the import into the frontend server doesn't need confirmation
             } else {
-                this.newPublication = false;
+                // just treat the case of an update of the file via upload
                 if (this.form.value["type"] === "UPLOAD") {
                     let options = {url: this.baseUrl + "/PublicationUpload?title=" + this.form.value['title']};
                     this.uploader.setOptions(options);
-                    this.uploader.uploadItem(this.lastFile);
-                } else {
-                    this.AllUploaded();
+                    this.uploader.uploadItem(this.droppedItem);
                 }
+                // the case where a new master file is selected for an existing title is not treated here
+                // I could be useful, still ... 
                 this.gotoList();
             }
         }
-    }
-
-    // When all the files are uploaded, create the publication
-    AllUploaded(): void {
-        this.gotoList();
     }
 
     showSnackBar(stay: boolean) {
