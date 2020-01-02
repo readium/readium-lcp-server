@@ -3,7 +3,7 @@
 <div *ngIf="publication">
   <ol class="breadcrumb">
     <li class="breadcrumb-item"><a routerLink="/publications">Publications</a></li>
-    <li class="breadcrumb-item active">{{publication.title}}</li>
+    <li class="breadcrumb-item active">Edit {{publication.title}}</li>
   </ol>
 
   <lcp-publication-form [publication]="publication"></lcp-publication-form>
