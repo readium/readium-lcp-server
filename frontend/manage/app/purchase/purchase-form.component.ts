@@ -77,10 +77,8 @@ export class PurchaseFormComponent implements OnInit{
             this.form.get('type').valueChanges.subscribe(
                 value => {
                     if(value == "LOAN") {
-                        console.log("LOAN - REQUIRED");
                         this.form.get('end_date').setValidators(Validators.required);
                     } else {
-                        console.log("BUY - NOT REQUIRED");
                         this.form.get('end_date').clearValidators();
                     }
                     this.form.updateValueAndValidity();
@@ -100,10 +98,8 @@ export class PurchaseFormComponent implements OnInit{
             this.form.get('renew_type').valueChanges.subscribe(
                 value => {
                     if(value == "NO_END_DATE") {
-                        console.log("NO_END_DATE - REQUIRED");
                         this.form.get('end_date').clearValidators();
                     } else {
-                        console.log("END_DATE - NOT REQUIRED");
                         this.form.get('end_date').setValidators(Validators.required);
                     }
                     this.form.updateValueAndValidity();
@@ -124,7 +120,6 @@ export class PurchaseFormComponent implements OnInit{
 
     onSubmit() {
         this.bindForm();
-        console.log(this.purchase);
         if (this.edit) {
             this.purchaseService.update(
                 this.purchase
