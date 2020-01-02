@@ -1,27 +1,6 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright (c) 2020 Readium Foundation
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package webrepository
 
@@ -51,13 +30,13 @@ type RepositoryFile struct {
 	Path string
 }
 
-// Contains all repository definitions
+// RepositoryManager contains all repository definitions
 type RepositoryManager struct {
 	MasterRepositoryPath    string
 	EncryptedRepositoryPath string
 }
 
-// Returns a specific repository file
+// GetMasterFile returns a specific repository file
 func (repManager RepositoryManager) GetMasterFile(name string) (RepositoryFile, error) {
 	var filePath = path.Join(repManager.MasterRepositoryPath, name)
 
@@ -72,7 +51,7 @@ func (repManager RepositoryManager) GetMasterFile(name string) (RepositoryFile, 
 	return RepositoryFile{}, ErrNotFound
 }
 
-// Returns all repository files
+// GetMasterFiles returns all repository files
 func (repManager RepositoryManager) GetMasterFiles() func() (RepositoryFile, error) {
 	files, err := ioutil.ReadDir(repManager.MasterRepositoryPath)
 	var fileIndex int
@@ -84,13 +63,13 @@ func (repManager RepositoryManager) GetMasterFiles() func() (RepositoryFile, err
 	return func() (RepositoryFile, error) {
 		var repFile RepositoryFile
 
-		// Filter on epub
+		// Filter on epub and pdf
 		for fileIndex < len(files) {
 			file := files[fileIndex]
 			fileExt := filepath.Ext(file.Name())
 			fileIndex++
 
-			if fileExt == ".epub" {
+			if fileExt == ".epub" || fileExt == ".pdf" {
 				repFile.Name = file.Name()
 				return repFile, err
 			}
@@ -100,7 +79,7 @@ func (repManager RepositoryManager) GetMasterFiles() func() (RepositoryFile, err
 	}
 }
 
-// Open returns a WebPublication interface (db interaction)
+// Init returns a WebPublication interface (db interaction)
 func Init(config config.FrontendServerInfo) (i WebRepository, err error) {
 	i = RepositoryManager{config.MasterRepository, config.EncryptedRepository}
 	return

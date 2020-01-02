@@ -4,7 +4,8 @@ CREATE TABLE content (
   encryption_key varchar(64) NOT NULL,
   location text NOT NULL, 
   length bigint,
-  sha256 varchar(64)
+  sha256 varchar(64),
+  "type" varchar(255) NOT NULL DEFAULT 'application/epub+zip'
 );
 
 CREATE TABLE license (
@@ -62,7 +63,7 @@ CREATE TABLE purchase (
   publication_id integer NOT NULL,
   user_id integer NOT NULL,
   license_uuid varchar(255) NULL,
-  type varchar(32) NOT NULL,
+  "type" varchar(32) NOT NULL,
   transaction_date datetime,
   start_date datetime,
   end_date datetime,
@@ -71,7 +72,7 @@ CREATE TABLE purchase (
   FOREIGN KEY (user_id) REFERENCES "user"(id)
 );
   
-CREATE INDEX idx_purchase ON purchase (license_uuid)
+CREATE INDEX idx_purchase ON purchase (license_uuid);
 
 CREATE TABLE "user" (
   id integer NOT NULL PRIMARY KEY,

@@ -19,7 +19,6 @@ import (
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/crypto"
-	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/sign"
 )
@@ -167,7 +166,6 @@ func SetDefaultLinks() []Link {
 // l.ContentId must have been set before the call
 //
 func SetLicenseLinks(l *License, c index.Content) error {
-
 	// set the links
 	l.Links = SetDefaultLinks()
 
@@ -175,7 +173,7 @@ func SetLicenseLinks(l *License, c index.Content) error {
 		// publication link
 		if l.Links[i].Rel == "publication" {
 			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{publication_id}", l.ContentId, 1)
-			l.Links[i].Type = epub.ContentType_EPUB
+			l.Links[i].Type = c.Type
 			l.Links[i].Size = c.Length
 			l.Links[i].Title = c.Location
 			l.Links[i].Checksum = c.Sha256

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
@@ -151,44 +152,90 @@ func buildLicense(lic *license.License, s Server) error {
 	return nil
 }
 
+func copyZipFile(out *zip.Writer, in *zip.Reader) error {
+	for _, file := range in.File {
+		newFile, err := out.CreateHeader(&file.FileHeader)
+		if err != nil {
+			return err
+		}
+
+		r, err := file.Open()
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(newFile, r)
+		r.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func isWebPub(in *zip.Reader) bool {
+	for _, f := range in.File {
+		if f.Name == "manifest.json" {
+			return true
+		}
+	}
+
+	return false
+}
+
 // build a licensed publication, common to get and generate licensed publication
 //
-func buildLicencedPublication(lic *license.License, s Server) (ep epub.Epub, err error) {
+func buildLicensedPublication(lic *license.License, s Server) (buf bytes.Buffer, err error) {
 	// get the epub content info from the bd
 	epubFile, err := s.Store().Get(lic.ContentId)
 	if err != nil {
 		return
 	}
 	// get the epub content
-	epubContent, err1 := epubFile.Contents()
+	contents, err1 := epubFile.Contents()
 	if err1 != nil {
-		return ep, err1
+		return buf, err1
 	}
-	var b bytes.Buffer
-	// copy the epub content to a buffer
-	io.Copy(&b, epubContent)
+
+	b, err := ioutil.ReadAll(contents)
+	if err != nil {
+		return buf, err
+	}
 	// create a zip reader
-	zr, err2 := zip.NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
-	if err2 != nil {
-		return ep, err2
+	zr, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
+	if err != nil {
+		return buf, err
 	}
-	ep, err3 := epub.Read(zr)
-	if err3 != nil {
-		return ep, err3
-	}
-	// add the license to publication
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	// do not escape characters
-	enc.SetEscapeHTML(false)
-	enc.Encode(lic)
+
+	zipWriter := zip.NewWriter(&buf)
+	err = copyZipFile(zipWriter, zr)
+
+	// Encode the license to JSON, removing the trailing newline
 	// write the buffer in the zip, and suppress the trailing newline
-	// FIXME: check that the newline is not present anymore
-	// FIXME/ try to optimize with buf.ReadBytes(byte('\n')) instead of creating a new buffer.
-	var buf2 bytes.Buffer
-	buf2.Write(bytes.TrimRight(buf.Bytes(), "\n"))
-	ep.Add(epub.LicenseFile, &buf2, uint64(buf2.Len()))
-	return
+	licenseBytes, err := json.Marshal(lic)
+	if err != nil {
+		return buf, err
+	}
+
+	licenseBytes = bytes.TrimRight(licenseBytes, "\n")
+
+	location := epub.LicenseFile
+	if isWebPub(zr) {
+		location = "license.lcpl"
+	}
+
+	licenseWriter, err := zipWriter.Create(location)
+	if err != nil {
+		return buf, err
+	}
+
+	_, err = licenseWriter.Write(licenseBytes)
+	if err != nil {
+		return
+	}
+
+	return buf, zipWriter.Close()
 }
 
 // GetLicense returns an existing license,
@@ -372,9 +419,8 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
-	// build a licenced publication
-	var ep epub.Epub
-	ep, err = buildLicencedPublication(&licOut, s)
+	// build a licensed publication
+	buf, err := buildLicensedPublication(&licOut, s)
 	if err == storage.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: licOut.ContentId}, http.StatusNotFound)
 		return
@@ -399,7 +445,7 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusCreated)
 	// return the full licensed publication to the caller
-	ep.Write(w)
+	io.Copy(w, &buf)
 }
 
 // GenerateLicensedPublication generates and returns a licensed publication
@@ -446,8 +492,7 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 	go notifyLsdServer(lic, s)
 
 	// build a licenced publication
-	var ep epub.Epub
-	ep, err = buildLicencedPublication(&lic, s)
+	buf, err := buildLicensedPublication(&lic, s)
 	if err == storage.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: lic.ContentId}, http.StatusNotFound)
 		return
@@ -473,7 +518,7 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusCreated)
 	// return the full licensed publication to the caller
-	ep.Write(w)
+	io.Copy(w, &buf)
 }
 
 // UpdateLicense updates an existing license.

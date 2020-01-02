@@ -37,7 +37,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
@@ -61,6 +60,7 @@ type LcpPublication struct {
 	Size               *int64  `json:"protected-content-length"`
 	Checksum           *string `json:"protected-content-sha256"`
 	ContentDisposition *string `json:"protected-content-disposition"`
+	ContentType        string  `json:"protected-content-type,omitempty"`
 	ErrorMessage       string  `json:"error,omitempty"`
 }
 
@@ -165,6 +165,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		c.Location = *publication.ContentDisposition
 		c.Length = *publication.Size
 		c.Sha256 = *publication.Checksum
+		c.Type = publication.ContentType
 	} else {
 		problem.Error(w, r, problem.Problem{Detail: "The file name must be set by the caller"}, http.StatusBadRequest)
 		return
@@ -246,7 +247,7 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	// set headers
 	w.Header().Set("Content-Disposition", "attachment; filename="+content.Location)
-	w.Header().Set("Content-Type", epub.ContentType_EPUB)
+	w.Header().Set("Content-Type", content.Type)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", content.Length))
 
 	// returns the content of the file to the caller

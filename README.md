@@ -3,18 +3,28 @@ Readium LCP Server
 
 Documentation
 ============
+As a retailer, public library or specialized e-distributor, you are distributing EPUB and PDF files and you want them protected against oversharing by the Readium LCP DRM. Your distribution platform already handles publications, users and the purchases / loans and you can develop a REST interface between this platform and a License server. If you are in this situation, the open-source codebase is what you need. 
+
+Using the Readium LCP Server you can:
+* Encrypt your entire catalog of EPUB and PDF files and make these files ready for download from any LCP compliant user agents;
+* Generate LCP licenses on the fly from your distribution platform, which will deliver them to the proper users and user agents;
+* Let users request a loan extension or make an early loan return;
+* Cancel a license in case a user has declared he wasn't able to user it (usually because he does not use an LCP compliant reading application);
+* Revoke a license in case a user has overshared it. 
+ 
 Detailed documentation can be found in the [Wiki pages](../../wiki) of the project.
 
 Prerequisites
 =============
 
-No binaries are currently pre-built, so you need to get a working Golang installation. Please refer to the official documentation for installation procedures at https://golang.org/.
+No binaries are currently pre-built, so you need to get a working Golang installation. 
+Please refer to the official documentation for installation procedures at https://golang.org/.
 
 The servers require the setup of an SQL Database. A SQLite db is used by default (it works fine on existing installations; its limitation is being part of a distributed platform), and if the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. 
 
 A MySQL db creation script is provided as well, in the "dbmodel" folder, but there is still some work to do to adapt the internal requests to MySQL (help welcome). Such script should be run before launching the servers for the first time. We expect other drivers (PostgresQL ...) to be provided by the community. A major revision of the software features an ORM, but it is still unsufficiently tested to be moved to the master branch. 
 
-Your platform must be able to handle 
+Your platform must be able to handle:
 
 1/ the license server, active in your intranet, not accessible from the Web, only accessible from you frontend server via its REST API. 
 
@@ -24,16 +34,19 @@ Your platform must be able to handle
 
 You must obtain a X.509 certificate and confidential crypto information through EDRLab in order for your licenses to be accepted by Readium LCP compliant Reading Systems.
 
+A folder publicly accessible from the Web must be made available for the server to store encrypted files.
+
 Executables
 ===========
 The server software is composed of three independant parts:
 
 ## [lcpencrypt]  
 
-A command line utility for EPUB content encryption. This utility can be included in any processing pipeline. 
+A command line utility for content encryption. This utility can be included in any processing pipeline. 
 
-* takes one unprotected EPUB 3 file as input and generates an encrypted file as output.
-* notifies the License server of the generation of an encrypted file.
+lcpencrypt:
+* Takes an unprotected publication as input and generates an encrypted file as output.
+* Notifies the License server of the generation of the encrypted file.
 
 ## [lcpserver]
 
@@ -46,7 +59,6 @@ Private functionalities (authentication needed):
 * Update the rights associated with a license
 * Get a set of licenses
 * Get a license
-
 
 ## [lsdserver]
 
@@ -67,7 +79,7 @@ Private functionalities (authentication needed):
 
 ## [frontend]
 
-A Frontend Test server, which mimics your own frontend platform (e.g. bookselling website), with a GUI and its own REST API. Its sole goal is to help you test the License and License status servers. 
+A Test Frontend server, which mimics your own frontend platform (e.g. bookselling website), with a GUI and its own REST API. Its sole goal is to help you test the License and License status servers. 
 
 Public functionalities (accessible from the web):
 * Fetch a license from its id
@@ -106,7 +118,10 @@ cd $GOPATH
 go get -v github.com/readium/readium-lcp-server/lcpserver
 ```
 
-To install properly the Frontend Test Server, you must also install several npm packages, using:
+To install properly the Test Frontend Server, you must also install several npm packages.
+
+Move to $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
+To install the packages and test your install, type
 ```sh
 cd $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
 npm install
@@ -297,7 +312,7 @@ lcp_update_auth:
 
 ### Frontend Server
 
-`frontend` section: parameters associated with the Frontend Test Server. 
+`frontend` section: parameters associated with the Test Frontend Server. 
 - `host`: the public server hostname, `hostname` by default
 - `port`: the listening port, `8991` by default
 - `public_base_url`: the public base URL, combination of the host and port values on http by default 
@@ -309,9 +324,9 @@ lcp_update_auth:
 - `right_print`: allowed number of printed pages, which will be inserted in all licenses produced via this test frontend.
 - `right_copy`: allowed number of copied characters, which will be inserted in all licenses produced via this test frontend.
 
-The config file of a Frontend Test Server must define a `lcp` `public_base_url`, `lsd` `public_base_url`, `lcp_update_auth` `username` and `password`, and `lsd_notify_auth` `username` and `password`.
+The config file of a Test Frontend Server must define a `lcp` `public_base_url`, `lsd` `public_base_url`, `lcp_update_auth` `username` and `password`, and `lsd_notify_auth` `username` and `password`.
 
-Here is a Frontend Test Server sample config:
+Here is a Test Frontend Server sample config:
 ```json
 frontend:
     host: "127.0.0.1"
