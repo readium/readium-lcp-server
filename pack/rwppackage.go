@@ -16,6 +16,7 @@ type RWPPackageReader struct {
 	zipArchive *zip.Reader
 }
 
+// NewWriter returns a new PackageWriter writing a RWP to the output file
 func (reader *RWPPackageReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 	zipWriter := zip.NewWriter(writer)
 
