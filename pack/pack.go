@@ -1,5 +1,4 @@
-// Copyright 2017 European Digital Reading Lab. All rights reserved.
-// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Copyright 2020 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -42,6 +41,8 @@ type Resource interface {
 	Open() (io.ReadCloser, error)
 }
 
+// Process encrypts when necessary the resources of a package.
+// It generates an output package and closes it.
 func Process(profile EncryptionProfile, encrypter crypto.Encrypter, reader PackageReader, writer PackageWriter) (key crypto.ContentKey, err error) {
 	key, err = encrypter.GenerateKey()
 	if err != nil {
@@ -50,14 +51,15 @@ func Process(profile EncryptionProfile, encrypter crypto.Encrypter, reader Packa
 	}
 
 	for _, resource := range reader.Resources() {
-		log.Printf("Encrypting %s", resource.Path())
 		if !resource.Encrypted() && resource.CanBeEncrypted() {
+			log.Printf("Encrypting %s", resource.Path())
 			err = encryptResource(profile, encrypter, key, resource, writer)
 			if err != nil {
 				log.Println("Error encrypting " + resource.Path() + ": " + err.Error())
 				return
 			}
 		} else {
+			log.Printf("Copying %s", resource.Path())
 			err = resource.CopyTo(writer)
 			if err != nil {
 				return
@@ -70,8 +72,7 @@ func Process(profile EncryptionProfile, encrypter crypto.Encrypter, reader Packa
 	return
 }
 
-// Do: loop through all resources on the input file, encrypt each when necessary
-// and move it to the output file
+// Do encrypts when necessary the resources of an EPUB package.
 func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key crypto.ContentKey, err error) {
 	key, err = encrypter.GenerateKey()
 	if err != nil {
