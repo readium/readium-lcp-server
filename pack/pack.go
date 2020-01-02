@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"log"
 	"strings"
+	"net/url"
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
@@ -176,7 +177,12 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 	data.KeyInfo = &xmlenc.KeyInfo{}
 	data.KeyInfo.RetrievalMethod.URI = "license.lcpl#/encryption/content_key"
 	data.KeyInfo.RetrievalMethod.Type = "http://readium.org/2014/01/lcp#EncryptedContentKey"
-	data.CipherData.CipherReference.URI = xmlenc.URI(file.Path)
+
+	uri, err := url.Parse(file.Path)
+	if err != nil {
+		return err
+	}
+	data.CipherData.CipherReference.URI = xmlenc.URI(uri.EscapedPath())
 
 	method := NoCompression
 	if compress {

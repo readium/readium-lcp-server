@@ -171,7 +171,6 @@ func (p Packager) addToIndex(r *Result, key []byte, name string, info *Encrypted
 	if r.Error != nil {
 		return
 	}
-
 	r.Error = p.idx.Add(index.Content{Id: r.Id, EncryptionKey: key, Location: name, Length: info.Size, Sha256: info.Sha256, Type: contentType})
 }
 

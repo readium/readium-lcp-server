@@ -40,6 +40,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/readium/readium-lcp-server/crypto"
@@ -126,7 +127,7 @@ func showHelpAndExit() {
 }
 
 func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel int) {
-	os.Stdout.WriteString(lcpPublication.ErrorMessage)
+	os.Stdout.WriteString(lcpPublication.ErrorMessage + "; level " + strconv.Itoa(errorlevel))
 	os.Stdout.WriteString("\n")
 	if err != nil {
 		os.Stdout.WriteString(err.Error())

@@ -312,6 +312,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// update a license via a call to the lcp Server
+	// the event date is sent to the lcp server, covers the case where the lsd server clock is badly sync'd with the lcp server clock
 	httpStatusCode, errorr := updateLicense(event.Timestamp, licenseID)
 	if errorr != nil {
 		problem.Error(w, r, problem.Problem{Detail: errorr.Error()}, http.StatusInternalServerError)
@@ -329,6 +330,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// update the license status
 	licenseStatus.Updated.Status = &event.Timestamp
+	// update the license updated timestamp with the event date
 	licenseStatus.Updated.License = &event.Timestamp
 
 	err = s.LicenseStatuses().Update(*licenseStatus)

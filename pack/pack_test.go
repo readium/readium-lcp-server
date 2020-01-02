@@ -132,3 +132,52 @@ func TestPacking(t *testing.T) {
 		}
 	}
 }
+
+func TestPackingWithSpace(t *testing.T) {
+	z, err := zip.OpenReader("../test/samples/sample-with-space.epub")
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	input, _ := epub.Read(&z.Reader)
+
+	// keep a raw html file for future use
+	htmlEncodedFilePath := "OPS/chapter%20136.xhtml"
+	fontFilePath := "OPS/fonts/MinionPro Regular.otf"
+
+	_, alreadyEncrypted := input.Encryption.DataForFile(fontFilePath);
+	if alreadyEncrypted == false {
+		t.Errorf("Cannot find already encrypted item %s in encryption.xml file", fontFilePath)
+	}
+
+	buf := new(bytes.Buffer)
+	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
+	encryption, key, err := Do(encrypter, input, buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if encryption == nil {
+		t.Fatal("Expected an xmlenc file")
+	}
+
+	if len(encryption.Data) == 0 {
+		t.Error("Expected some encrypted data")
+	}
+
+	if key == nil {
+		t.Error("expected a key")
+	}
+
+	var foundEncodedSpace = false;
+	for _, item := range encryption.Data {
+		if item.CipherData.CipherReference.URI == xmlenc.URI(htmlEncodedFilePath) {
+            foundEncodedSpace = true
+			break
+		}
+	}
+	if foundEncodedSpace == false {
+		t.Errorf("Cannot find %s encoded file name in encryption.xml file", htmlEncodedFilePath)
+	}
+
+}

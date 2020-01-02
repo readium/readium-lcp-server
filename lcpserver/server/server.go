@@ -108,7 +108,6 @@ func New(bindAddr string, static string, readonly bool, idx *index.Index, st *st
 	s.handlePrivateFunc(contentRoutes, "/{content_id}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")
 
 	if !readonly {
-		s.handleFunc(contentRoutes, "/{name}", apilcp.StoreContent).Methods("POST")
 		// put content to the storage
 		s.handlePrivateFunc(contentRoutes, "/{content_id}", apilcp.AddContent, basicAuth).Methods("PUT")
 		// generate a license for given content

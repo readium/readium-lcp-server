@@ -8,17 +8,21 @@ Detailed documentation can be found in the [Wiki pages](../../wiki) of the proje
 Prerequisites
 =============
 
-No binaries are currently pre-built, so you need to get a working Golang installation. Please refer to the official documentation for
-installation procedures at https://golang.org/.
+No binaries are currently pre-built, so you need to get a working Golang installation. Please refer to the official documentation for installation procedures at https://golang.org/.
 
-The servers require the setup of an SQL Database. A SQLite db is used by default (it should be fine for small to medium installations), and if the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. 
+The servers require the setup of an SQL Database. A SQLite db is used by default (it works fine on existing installations; its limitation is being part of a distributed platform), and if the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. 
 
-A MySQL db creation script is provided as well, in the "dbmodel" folder; we expect other drivers (PostgresQL ...) to be provided by the community. Such script should be run be launching the servers.
+A MySQL db creation script is provided as well, in the "dbmodel" folder, but there is still some work to do to adapt the internal requests to MySQL (help welcome). Such script should be run before launching the servers for the first time. We expect other drivers (PostgresQL ...) to be provided by the community. A major revision of the software features an ORM, but it is still unsufficiently tested to be moved to the master branch. 
 
-If you wish to use external licenses, where a client gets a simple json file that contains instructions on how to fetch the encrypted EPUB file,
-a publicly accessible folder must be made available for the server to store the file.
+Your platform must be able to handle 
 
-You must obtain a X.509 certificate through EDRLab in order for your licenses to be accepted by Readium LCP compliant Reading Systems.
+1/ the license server, active in your intranet, not accessible from the Web, only accessible from you frontend server via its REST API. 
+
+2/ the license status server, accessible from the Web via its REST API.
+
+3/ a large storage volume for encrypted publications, accessible in read mode from the Web via HTTP URLs (publications are encrypted once, every license generated for such publication is pointing at the same encrypted file.
+
+You must obtain a X.509 certificate and confidential crypto information through EDRLab in order for your licenses to be accepted by Readium LCP compliant Reading Systems.
 
 Executables
 ===========
@@ -63,7 +67,7 @@ Private functionalities (authentication needed):
 
 ## [frontend]
 
-A Frontend Test server, which offers a GUI and API for having a complete experience.
+A Frontend Test server, which mimics your own frontend platform (e.g. bookselling website), with a GUI and its own REST API. Its sole goal is to help you test the License and License status servers. 
 
 Public functionalities (accessible from the web):
 * Fetch a license from its id
@@ -75,48 +79,50 @@ Install
 
 Assuming a working Go installation, the following will install the three executables that constitute a complete Readium LCP Server.
 
+On Linux and MacOS:
+
 If you want to use the master branch:
 ```sh
-// from the go workspace
+# from the go workspace
 cd $GOPATH
-// get the different packages and their dependencies, install the packages
-go get github.com/readium/readium-lcp-server
+# fetch, build and install the different packages and their dependencies
+go get -v github.com/readium/readium-lcp-server/...
 ```
 
 Alternatively, if you want to use a feature/F branch:
 ```sh
-// from the go workspace
+# from the go workspace
 cd $GOPATH
-// create the project repository
-mkdir -p src/github.com/readium/readium-lcp-server
-// clone the repo, selecting the development branch
+# clone the repo, selecting the feature/F branch
 git clone -b feature/F https://github.com/readium/readium-lcp-server.git src/github.com/readium/readium-lcp-server
-```
-Then fetch, build and install the different modules with:
-```sh
-// move to the project repository
-cd src/github.com/readium/readium-lcp-server
-// get the different packages and their dependencies, then installs the packages (dot / triple dot pattern)
-go get ./...
+# then fetch, build and install the different packages and their dependencies
+go get -v github.com/readium/readium-lcp-server/...
 ````
 
 You may prefer to install only some of the three executables. 
 In such a case, the "go get" command should be called once for each package, e.g. for the lcpserver from the master branch:
 ```sh
 cd $GOPATH
-go get github.com/readium/readium-lcp-server/lcpserver
+go get -v github.com/readium/readium-lcp-server/lcpserver
 ```
 
-To install properly the Frontend Test Server, you must also install several npm packages.
-
-Move to $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
-To install the packages and test your install, type
+To install properly the Frontend Test Server, you must also install several npm packages, using:
 ```sh
+cd $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
 npm install
 npm start
 ````
 
 If this gives no error, your install is ready; type Ctrl-C to move out of the test mode. In case of errors, read Readme.md in the "manage" directory to get more details.
+
+On Windows 10:
+
+You must first install a GCC compiler in order to compile the SQLite module and to move later to "production mode". [TDM-GCC](http://tdm-gcc.tdragon.net/download) gives great results. 
+
+Also, in the previous instructions, replace: 
+
+* $GOPATH with %GOPATH%
+* forward slashes with backslashes in paths.
 
 Configuration
 ==============
@@ -125,26 +131,39 @@ The server is controlled by a yaml configuration file (e.g. "config.yaml").
 
 The License Server, License Status Server and Frontend test server will search their configuration file in the bin directory by default; but the path to this file can be changed using the environment variable:
 
-* READIUM_LCPSERVER_CONFIG for the LCP server
-* READIUM_LSDSERVER_CONFIG for the LSD server
-* READIUM_FRONTEND_CONFIG for the frontend test server
+* `READIUM_LCPSERVER_CONFIG` for the LCP server
+* `READIUM_LSDSERVER_CONFIG` for the LSD server
+* `READIUM_FRONTEND_CONFIG` for the frontend test server
 
-The value of the three global variables will be on the form /<path>/lcpconfig.yaml.
+The value of the three global variables must be of the form /path/to/lcpconfig.yaml.
 
 The three servers may share the same configuration file (if they are both executed on the same server) or they may have their own configuration file. 
 
-The LCP and LSD servers also require authenticated API requests for some of their functionalities. A password file name .htpasswd must therefore be created to handle such authentication data, for each module. Like the configuration file, the .htpasswd file may be shared between the two modules.
+The LCP and LSD servers also require authenticated API requests for some of their functionalities. A password file named `htpasswd` must therefore be created to handle such authentication data, for each module. Like the configuration file, the htpasswd file may be shared between the two modules.
 
-A source example for creating a password file is http://www.htaccesstools.com/htpasswd-generator/. 
+An example of password file generator is found [here](http://www.htaccesstools.com/htpasswd-generator/). 
 The htpasswd file format is e.g.:
 ```sh
 	User1:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
 	User2:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKMT
 ```
 
-Here are details about the configuration properties:
+## Quick-start configuration
 
-*License Server*
+A quick-start configuration meant only for test purposes is available in `test/config.yaml`. This file includes a default configuration for the the LCP, LSD and frontend servers.
+
+1. Create a LCP_HOME folder, eg. `/usr/local/var/lcp`
+2. Create the sub-folders `db`, `files`, `files/encrypted` and `files/master` in LCP_HOME
+3. Copy the folder `test/cert` and the newly generated `htpasswd` files to LCP_HOME
+4. Copy the `test/config.yaml` file into `$GOPATH/bin`, or setup the `READIUM_*_CONFIG` env variables
+5. Replace any occurrence of `<LCP_HOME>` in config.yaml by the absolute path to the LCP_HOME folder
+
+
+## Individual server configurations
+
+Here are the details about the configuration properties of each server. In the samples, replace `<LCP_HOME>` with the absolute path to the folder containing encrypted files, database and certificates.
+
+### License Server
 
 `profile`: value of the LCP profile; values are:
 - `basic` (default value, as described in the Readium LCP specification, used for tests only);
@@ -159,10 +178,16 @@ Here are details about the configuration properties:
 
 Note: It may be practical to put the authentication file in the configuration folder ("lcpconfig" in the samples below). 
 
-`storage` section: parameters related to the storage of encrypted publications. 
-- `filesystem` section: parameters related to a file system storage.
+`storage` section: parameters related to the storage of encrypted publications.
+- `mode` : optional. If its value is "s3", `bucket` and `region` are required, otherwise `filesystem` is required.
+- `filesystem`: subsection, not used if `mode` is "s3": parameters related to a file system storage.   
   - `directory`: absolute path to the directory in which the encrypted publications are stored. 
   This storage must be accessible from the Web via a simple URL, specified via the `license/publication` parameter.
+- `bucket`: only used if `mode` is "s3": value of the s3 bucket.
+- `region`: only used if `mode` is "s3": value of the AWS region.
+- `access_id`: only used if `mode` is "s3" and aws credentials are static: value of the AWS AccessKeyID.
+- `secret`: only used if `mode` is "s3" and aws credentials are static: value of the AWS SecretAccessKey.
+- `token`: only used if `mode` is "s3" and aws credentials are static: value of the AWS SessionToken.
 
 `certificate` section:	parameters related to the signature of licenses: 	
 - `cert`: the provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature. A test certificate is provided in the test/cert directory of the project (`cert-edrlab-test.pem`). 
@@ -171,7 +196,7 @@ Note: It may be practical to put the authentication file in the configuration fo
 Note: It may be practical to put these files in the configuration folder ("lcpconfig" in the samples below). 
 
 `license` section: parameters related to static information to be included in all licenses generated by the License Server:
-- `links`: links that will be included in all licenses. `hint` and `publication` links are required in a Readium LCP license.
+- `links`: subsection: links that will be included in all licenses. `hint` and `publication` links are required in a Readium LCP license.
   If no such link exists in the partial license passed from the frontend when a new license his requested, 
   these link values will be inserted in the partial license.  
   If no value is present in the configuration file and no value is inserted in the partial license, 
@@ -199,14 +224,14 @@ lcp:
     host: "127.0.0.1"
     port: 8989
     public_base_url: "http://127.0.0.1:8989"
-    database: "sqlite3://file:/readiumlcp/lcpdb/lcp.sqlite?cache=shared&mode=rwc"
-    auth_file: "/readiumlcp/lcpconfig/htpasswd"
+    database: "sqlite3://file:<LCP_HOME>/db/lcp.sqlite?cache=shared&mode=rwc"
+    auth_file: "<LCP_HOME>/htpasswd"
 storage:
     filesystem:
-        directory: "/readiumlcp/lcpfiles/storage"
+        directory: "<LCP_HOME>/files/storage"
 certificate:
-    cert: "/readiumlcp/lcpconfig/cert.pem"
-    private_key: "/readiumlcp/lcpconfig/privkey.pem"
+    cert: "<LCP_HOME>/cert/cert.pem"
+    private_key: "<LCP_HOME>/cert/privkey.pem"
 license:
     links:
         status: "http://127.0.0.1:8990/licenses/{license_id}/status"     
@@ -221,9 +246,7 @@ lsd_notify_auth:
 
 ```
 
-Note that the `lsd` and `lsd_notify_auth` entries must not be present if the configuration file also contains the configuration of the License Status Server. 
-
-*License Status Server*
+### License Status Server
 
 `lsd` section: parameters associated with the License Status Server. 
 - `host`: the public server hostname, `hostname` by default
@@ -255,8 +278,8 @@ lsd:
     host: "127.0.0.1"
     port: 8990
     public_base_url: "http://127.0.0.1:8990"
-    database: "sqlite3://file:/readiumlcp/lcpdb/lsd.sqlite?cache=shared&mode=rwc"
-    auth_file: "/Users/laurentlemeur/Work/lcpconfig/htpasswd"
+    database: "sqlite3://file:<LCP_HOME>/db/lsd.sqlite?cache=shared&mode=rwc"
+    auth_file: "<LCP_HOME>/htpasswd"
     license_link_url: "http://127.0.0.1:8991/api/v1/licenses/{license_id}"
 license_status:
     register: true
@@ -272,9 +295,7 @@ lcp_update_auth:
     password: "adm_password"
 ```
 
-Note that the `lcp` and `lcp_update_auth` entries must not be present if the configuration file also contains the configuration of the License Server. 
-
-*Frontend Server*
+### Frontend Server
 
 `frontend` section: parameters associated with the Frontend Test Server. 
 - `host`: the public server hostname, `hostname` by default
@@ -295,9 +316,9 @@ Here is a Frontend Test Server sample config:
 frontend:
     host: "127.0.0.1"
     port: 8991
-    database: "sqlite3://file:/readiumlcp/lcpdb/frontend.sqlite?cache=shared&mode=rwc"
-    master_repository: "/readiumlcp/lcpfiles/master"
-    encrypted_repository: "/readiumlcp/lcpfiles/encrypted"
+    database: "sqlite3://file:<LCP_HOME>/db/frontend.sqlite?cache=shared&mode=rwc"
+    master_repository: "<LCP_HOME>/files/master"
+    encrypted_repository: "<LCP_HOME>/files/encrypted"
     provider_uri: "https://www.myprovidername.org"
     right_print: 10
     right_copy: 2000
@@ -312,12 +333,9 @@ lcp_update_auth:
 lsd_notify_auth: 
     username: "adm_username"
     password: "adm_password"
-
 ```
 
-Note that the `lcp`, `lsd`, `lsd_notify_auth` and `lcp_update_auth` entries must not be present if the configuration file also contains the configuration of the License Server and License Status Server. 
-
-*And for all servers*
+### And for all servers
 
 `localization` section: parameters related to the localization of the messages sent by all three servers.
 - `languages`: array of supported localization languages
@@ -332,14 +350,14 @@ NOTE: a CBC / GCM configurable property has been DISABLED, see https://github.co
 Execution
 ==========
 each server must be launched in a different context (i.e. a different shell for local use), from 
- $GOPATH/src/github.com/readium/readium-lcp-server
+ `$GOPATH/bin`
 
 Each server is executed with no parameter:
-- lcpserver
-- lsdserver
-- frontend
+- `./lcpserver`
+- `./lsdserver`
+- `./frontend`
 
-After the frontend server is launched, you can access to the server GUI via its base url, e.g. http://http://127.0.0.1:8991
+After the frontend server is launched, you can access to the server GUI via its base url, e.g. http://127.0.0.1:8991
 
 NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended, as you won't be able to access the modules from e.g. a mobile app. It's much better to use the WiFi IPv4 address to your computer, and access the server from your mobile device via WiFi.  
 
