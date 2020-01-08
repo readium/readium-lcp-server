@@ -30,12 +30,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/abbot/go-http-auth"
+	auth "github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/index"
-	"github.com/readium/readium-lcp-server/lcpserver/api"
+	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
 	"github.com/readium/readium-lcp-server/storage"
@@ -71,9 +71,9 @@ func (s *Server) Source() *pack.ManualSource {
 	return &s.source
 }
 
-func New(bindAddr string, static string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager, basicAuth *auth.BasicAuth) *Server {
+func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager, basicAuth *auth.BasicAuth) *Server {
 
-	sr := api.CreateServerRouter(static)
+	sr := api.CreateServerRouter("")
 
 	s := &Server{
 		Server: http.Server{
