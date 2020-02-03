@@ -38,7 +38,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/frontend/api"
+	staticapi "github.com/readium/readium-lcp-server/frontend/api"
 	"github.com/readium/readium-lcp-server/frontend/webdashboard"
 	"github.com/readium/readium-lcp-server/frontend/weblicense"
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
@@ -120,7 +120,7 @@ func New(
 	//
 	s.handleFunc(sr.R, publicationsRoutesPathPrefix, staticapi.CreatePublication).Methods("POST")
 	//
-	s.handleFunc(sr.R, "/PublicationUpload", staticapi.UploadEPUB).Methods("POST")
+	s.handleFunc(sr.R, "/publicationUpload", staticapi.UploadPublication).Methods("POST")
 	//
 	s.handleFunc(publicationsRoutes, "/check-by-title", staticapi.CheckPublicationByTitle).Methods("GET")
 	//

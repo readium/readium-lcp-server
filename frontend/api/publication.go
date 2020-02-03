@@ -175,11 +175,11 @@ func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-//UploadEPUB creates a new EPUB file
-func UploadEPUB(w http.ResponseWriter, r *http.Request, s IServer) {
+// UploadPublication creates a new publication via a POST request
+func UploadPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	var pub webpublication.Publication
 	pub.Title = r.URL.Query()["title"][0]
-	s.PublicationAPI().UploadEPUB(r, w, pub)
+	s.PublicationAPI().Upload(r, w, pub)
 }
 
 // UpdatePublication updates an identified publication (id) in the database

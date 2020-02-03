@@ -26,9 +26,9 @@ import (
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/lcpencrypt/encrypt"
-	"github.com/readium/readium-lcp-server/lcpserver/api"
+	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/pack"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/Machiel/slugify"
 )
@@ -52,7 +52,7 @@ type WebPublication interface {
 	Update(publication Publication) error
 	Delete(id int64) error
 	List(page int, pageNum int) func() (Publication, error)
-	UploadEPUB(*http.Request, http.ResponseWriter, Publication)
+	Upload(*http.Request, http.ResponseWriter, Publication)
 	CheckByTitle(title string) (int64, error)
 }
 
@@ -266,14 +266,15 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 		// the master file does not exist
 		return err
 	}
-	// encrypt the EPUB File and send the content to the LCP server
+	// encrypt the publication and send the content to the LCP server
 	return EncryptPublication(inputPath, pub, pubManager)
 }
 
-// UploadEPUB creates a new EPUB file, namd after a file form parameter.
-// a temp file is created then deleted.
+// Upload creates a new publication, named after a POST form parameter.
+// Encrypts a master File and sends the content to the LCP server.
+// A temp file is created then deleted.
 //
-func (pubManager PublicationManager) UploadEPUB(r *http.Request, w http.ResponseWriter, pub Publication) {
+func (pubManager PublicationManager) Upload(r *http.Request, w http.ResponseWriter, pub Publication) {
 
 	file, header, err := r.FormFile("file")
 
@@ -293,7 +294,7 @@ func (pubManager PublicationManager) UploadEPUB(r *http.Request, w http.Response
 	if err := tmpfile.Close(); err != nil {
 		log.Fatal(err)
 	}
-	// encrypt the EPUB File and send the content to the LCP server
+	// encrypt the publication and send the content to the LCP server
 	if err := EncryptPublication(tmpfile.Name(), pub, pubManager); err != nil {
 		log.Fatal(err)
 	}
