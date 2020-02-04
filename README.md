@@ -20,6 +20,8 @@ Prerequisites
 No binaries are currently pre-built, so you need to get a working Golang installation. 
 Please refer to the official documentation for installation procedures at https://golang.org/.
 
+Install go 1.13 or higher; go 1.9 is not supported anymore by some modules. 
+
 The servers require the setup of an SQL Database. A SQLite db is used by default (it works fine on existing installations; its limitation is being part of a distributed platform), and if the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. 
 
 A MySQL db creation script is provided as well, in the "dbmodel" folder, but there is still some work to do to adapt the internal requests to MySQL (help welcome). Such script should be run before launching the servers for the first time. We expect other drivers (PostgresQL ...) to be provided by the community. A major revision of the software features an ORM, but it is still unsufficiently tested to be moved to the master branch. 
