@@ -76,7 +76,7 @@ export class PublicationFormComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        this.uploader = new FileUploader({url: this.baseUrl + "/PublicationUpload"});        
+        this.uploader = new FileUploader({url: this.baseUrl + "/publicationUpload"});        
         this.refreshMasterFiles();
 
         // Events declarations
@@ -135,7 +135,7 @@ export class PublicationFormComponent implements OnInit {
                         if (result === 0) {
                             // upload the publication
                             if (this.form.value["type"] === "UPLOAD") {
-                                let options = {url: this.baseUrl + "/PublicationUpload?title=" + this.form.value['title']};
+                                let options = {url: this.baseUrl + "/publicationUpload?title=" + this.form.value['title']};
                                 this.uploader.setOptions(options);
                                 this.uploader.uploadItem(this.droppedItem);
                             // or request the import of a publication into the frontend server
@@ -166,7 +166,7 @@ export class PublicationFormComponent implements OnInit {
             } else {
                 // just treat the case of an update of the file via upload
                 if (this.form.value["type"] === "UPLOAD") {
-                    let options = {url: this.baseUrl + "/PublicationUpload?title=" + this.form.value['title']};
+                    let options = {url: this.baseUrl + "/publicationUpload?title=" + this.form.value['title']};
                     this.uploader.setOptions(options);
                     this.uploader.uploadItem(this.droppedItem);
                 }
