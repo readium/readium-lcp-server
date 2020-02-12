@@ -10,7 +10,7 @@
     "build-css:w": "node-sass -w -r assets/sass -o dist/css",
     "prestart": "npm run clean && npm run build-css && npm run copy-templates",
     "start": "tsc && concurrently \"cpx 'app/**/*.html' dist/app --watch\" \"node-sass -w -r assets/sass -o dist/css\" \"tsc -w\" \"lite-server --config=bs-config.js\" ",
-    "build": "npm run tsc && cpx 'app/**/*.html' dist/app && node-sass  -r assets/sass -o dist/css",
+    "build": "tsc && cpx 'app/**/*.html' dist/app && node-sass  -r assets/sass -o dist/css",
     "pree2e": "npm run clean && webdriver-manager update",
     "e2e": "tsc && concurrently \"http-server -s\" \"protractor protractor.config.js\" --kill-others --success first",
     "pretest": "npm run clean",
