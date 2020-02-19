@@ -148,9 +148,9 @@ The server is controlled by a yaml configuration file (e.g. "config.yaml").
 
 The License Server, License Status Server and Frontend test server will search their configuration file in the bin directory by default; but the path to this file can be changed using the environment variable:
 
-* `READIUM_LCPSERVER_CONFIG` for the LCP server
-* `READIUM_LSDSERVER_CONFIG` for the LSD server
-* `READIUM_FRONTEND_CONFIG` for the frontend test server
+* `READIUM_LCPSERVER_CONFIG` for the License server
+* `READIUM_LSDSERVER_CONFIG` for the License Status server
+* `READIUM_FRONTEND_CONFIG` for the Frontend test server
 
 The value of the three global variables must be of the form /path/to/lcpconfig.yaml.
 
