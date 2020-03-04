@@ -29,9 +29,11 @@ import (
 	"bytes"
 	"database/sql"
 	"testing"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/sign"
 )
 
@@ -55,6 +57,8 @@ func TestStoreInit(t *testing.T) {
 }
 
 func TestStoreAdd(t *testing.T) {
+	config.Config.LcpServer.Database = "sqlite" // FIXME
+
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +69,9 @@ func TestStoreAdd(t *testing.T) {
 	}
 
 	l := License{}
-	Initialize(&l)
+	contentID := "1234-1234-1234-1234"
+	Initialize(contentID, &l)
+	setRights(&l)
 	err = st.Add(l)
 	if err != nil {
 		t.Fatal(err)
@@ -80,5 +86,23 @@ func TestStoreAdd(t *testing.T) {
 	js2, err2 := sign.Canon(l2)
 	if err != nil || err2 != nil || !bytes.Equal(js1, js2) {
 		t.Error("Difference between Add and Get")
+	}
+}
+
+// a rights object is needed before adding a record to the db
+// this is copied from lcpserver/api/license.go
+// probably this was done in this package and then refactored out, but the test is now broken because of this.
+func setRights(lic *License) {
+
+	if lic.Rights == nil {
+		lic.Rights = new(UserRights)
+	}
+	if lic.Rights.Start != nil {
+		start := lic.Rights.Start.UTC().Truncate(time.Second)
+		lic.Rights.Start = &start
+	}
+	if lic.Rights.End != nil {
+		end := lic.Rights.End.UTC().Truncate(time.Second)
+		lic.Rights.End = &end
 	}
 }
