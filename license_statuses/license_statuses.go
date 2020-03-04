@@ -39,7 +39,7 @@ import (
 var NotFound = errors.New("License Status not found")
 
 type LicenseStatuses interface {
-	//Get(id int) (LicenseStatus, error)
+	getById(id int) (*LicenseStatus, error)
 	Add(ls LicenseStatus) error
 	List(deviceLimit int64, limit int64, offset int64) func() (LicenseStatus, error)
 	GetByLicenseId(id string) (*LicenseStatus, error)
@@ -55,26 +55,43 @@ type dbLicenseStatuses struct {
 	update         *sql.Stmt
 }
 
-// //Get gets license status by id
-// func (i dbLicenseStatuses) Get(id int) (LicenseStatus, error) {
-// 	var statusDB int64
+//Get gets license status by id
+//
+// Removed in 94722fcb4a0a38bd5f765e67b0538f2042192ac4 but breaks the test,
+// so putting it back as unexported.
+func (i dbLicenseStatuses) getById(id int) (*LicenseStatus, error) {
+	var statusDB int64
+	ls := LicenseStatus{}
 
-// 	records, err := i.get.Query(id)
-// 	defer records.Close()
+	var potentialRightsEnd *time.Time
+	var licenseUpdate *time.Time
+	var statusUpdate *time.Time
 
-// 	if records.Next() {
-// 		ls := LicenseStatus{}
-// 		err = records.Scan(&ls.Id, &statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, ls.PotentialRights.End, &ls.LicenseRef)
+	row := i.get.QueryRow(id)
+	err := row.Scan(&ls.Id, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef, &ls.CurrentEndLicense)
 
-// 		if err == nil {
-// 			status.GetStatus(statusDB, &ls.Status)
-// 		}
+	if err == nil {
+		status.GetStatus(statusDB, &ls.Status)
 
-// 		return ls, err
-// 	}
+		ls.Updated = new(Updated)
 
-// 	return LicenseStatus{}, NotFound
-// }
+		if (potentialRightsEnd != nil) && (!(*potentialRightsEnd).IsZero()) {
+			ls.PotentialRights = new(PotentialRights)
+			ls.PotentialRights.End = potentialRightsEnd
+		}
+
+		if licenseUpdate != nil || statusUpdate != nil {
+			ls.Updated.Status = statusUpdate
+			ls.Updated.License = licenseUpdate
+		}
+	} else {
+		if err == sql.ErrNoRows {
+			return nil, NotFound
+		}
+	}
+
+	return &ls, err
+}
 
 //Add adds license status to database
 func (i dbLicenseStatuses) Add(ls LicenseStatus) error {

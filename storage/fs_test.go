@@ -58,13 +58,15 @@ func TestFileSystemStorage(t *testing.T) {
 		t.Errorf("expected item key to be test, got %s", item.Key())
 	}
 
-	fileInfo, err := store.Info("test")
-	if fileInfo.Name() != "test" {
-		t.Errorf("expected item file name to be test, got %s", fileInfo.Name())
-	}
-	if fileInfo.Size() != 8 {
-		t.Errorf("expected item file size to be 8, got %d", fileInfo.Size())
-	}
+	// Commented out because store.Info no longer exists.
+	//
+	// fileInfo, err := store.Info("test")
+	// if fileInfo.Name() != "test" {
+	// 	t.Errorf("expected item file name to be test, got %s", fileInfo.Name())
+	// }
+	// if fileInfo.Size() != 8 {
+	// 	t.Errorf("expected item file size to be 8, got %d", fileInfo.Size())
+	// }
 
 	if item.PublicURL() != "http://localhost/assets/test" {
 		t.Errorf("expected item url to be http://localhost/assets/test, got %s", item.PublicURL())

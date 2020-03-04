@@ -11,10 +11,14 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/readium/readium-lcp-server/config"
 )
 
 //TestHistoryCreation opens database and tries to add(get) license status to(from) table 'licensestatus'
 func TestHistoryCreation(t *testing.T) {
+	config.Config.LsdServer.Database = "sqlite" // FIXME
+
 	db, err := sql.Open("sqlite3", ":memory:")
 	lst, err := Open(db)
 	if err != nil {
@@ -25,12 +29,13 @@ func TestHistoryCreation(t *testing.T) {
 
 	timestamp := time.Now().UTC().Truncate(time.Second)
 
-	ls := LicenseStatus{PotentialRights: &PotentialRights{End: &timestamp}, LicenseRef: "licenseref", Status: "active", Updated: &Updated{License: &timestamp, Status: &timestamp}, DeviceCount: 2}
+	count := 2
+	ls := LicenseStatus{PotentialRights: &PotentialRights{End: &timestamp}, LicenseRef: "licenseref", Status: "active", Updated: &Updated{License: &timestamp, Status: &timestamp}, DeviceCount: &count}
 	err = lst.Add(ls)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = lst.Get(1)
+	_, err = lst.getById(1)
 	if err != nil {
 		t.Error(err)
 	}

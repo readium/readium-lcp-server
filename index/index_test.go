@@ -21,7 +21,7 @@
 // LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package index
 
@@ -30,9 +30,13 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/readium/readium-lcp-server/config"
 )
 
 func TestIndexCreation(t *testing.T) {
+	config.Config.LcpServer.Database = "sqlite" // FIXME
+
 	db, err := sql.Open("sqlite3", ":memory:")
 	idx, err := Open(db)
 	if err != nil {
@@ -41,7 +45,7 @@ func TestIndexCreation(t *testing.T) {
 		t.FailNow()
 	}
 
-	c := Content{"test", []byte("1234"), "test.epub"}
+	c := Content{Id: "test", EncryptionKey: []byte("1234"), Location: "test.epub"}
 	err = idx.Add(c)
 	if err != nil {
 		t.Error(err)
