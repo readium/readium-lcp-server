@@ -1,5 +1,5 @@
 CREATE TABLE `publication` (
-    `id` int(11) NOT NULL PRIMARY KEY,
+    `id` int(11) PRIMARY KEY AUTO_INCREMENT,
     `uuid` varchar(255) NOT NULL,	/* == content id */
     `title` varchar(255) NOT NULL,
     `status` varchar(255) NOT NULL
@@ -8,7 +8,7 @@ CREATE TABLE `publication` (
 CREATE INDEX uuid_index ON publication (`uuid`);
 
 CREATE TABLE `user` (
-    `id` int(11) NOT NULL PRIMARY KEY,
+    `id` int(11) PRIMARY KEY AUTO_INCREMENT,
     `uuid` varchar(255) NOT NULL,
     `name` varchar(64) NOT NULL,
     `email` varchar(64) NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE `user` (
 );
 
 CREATE TABLE `purchase` (
-    `id` int(11) PRIMARY KEY NOT NULL,
+    `id` int(11) PRIMARY KEY AUTO_INCREMENT,
     `uuid` varchar(255) NOT NULL,
     `publication_id` int(11) NOT NULL,
     `user_id` int(11) NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE `purchase` (
 CREATE INDEX `idx_purchase` ON `purchase` (`license_uuid`);
 
 CREATE TABLE `license_view` (
-    `id` int(11) NOT NULL PRIMARY KEY,
+    `id` int(11) PRIMARY KEY AUTO_INCREMENT,
     `uuid` varchar(255) NOT NULL,
     `device_count` int(11) NOT NULL,
     `status` varchar(255) NOT NULL,
