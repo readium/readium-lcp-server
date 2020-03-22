@@ -48,8 +48,13 @@ func GetPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	purchases := make([]webpurchase.Purchase, 0)
 	fn := s.PurchaseAPI().List(pagination.PerPage, pagination.Page)
 
-	for it, err := fn(); err == nil; it, err = fn() {
-		purchases = append(purchases, it)
+	var purchase webpurchase.Purchase
+	for purchase, err = fn(); err == nil && purchase.ID != 0; purchase, err = fn() {
+		purchases = append(purchases, purchase)
+	}
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
 	}
 
 	PrepareListHeaderResponse(len(purchases), "/api/v1/purchases", pagination, w)
@@ -85,8 +90,14 @@ func GetUserPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	purchases := make([]webpurchase.Purchase, 0)
 	fn := s.PurchaseAPI().ListByUser(userId, pagination.PerPage, pagination.Page)
-	for it, err := fn(); err == nil; it, err = fn() {
-		purchases = append(purchases, it)
+
+	var purchase webpurchase.Purchase
+	for purchase, err = fn(); err == nil && purchase.ID != 0; purchase, err = fn() {
+		purchases = append(purchases, purchase)
+	}
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
 	}
 
 	PrepareListHeaderResponse(len(purchases), "/api/v1/users/"+vars["user_id"]+"/purchases", pagination, w)
