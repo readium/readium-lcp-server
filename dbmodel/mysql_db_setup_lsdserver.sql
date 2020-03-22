@@ -21,4 +21,4 @@ CREATE TABLE `event` (
     FOREIGN KEY(`license_status_fk`) REFERENCES `license_status` (`id`)
 );
 
-CREATE INDEX `license_status_fk_index` on `event` (`license_status_fk`);￿
+CREATE INDEX `license_status_fk_index` on `event` (`license_status_fk`);
