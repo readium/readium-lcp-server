@@ -55,7 +55,6 @@ type Dashboard struct {
 	UserCount        int64 `json:"userCount"`
 	BuyCount         int64 `json:"buyCount"`
 	LoanCount        int64 `json:"loanCount"`
-	AverageDuration  int64 `json:"averageDuration"`
 }
 
 // BestSeller struct defines a best seller
@@ -123,18 +122,6 @@ func (dashManager DashboardManager) GetDashboardInfos() (Dashboard, error) {
 		records.Close()
 	}
 
-	dbGet, err = dashManager.db.Prepare(`SELECT ROUND(AVG(julianday(end_date) - julianday(start_date))) FROM purchase WHERE type="LOAN"`)
-	if err != nil {
-		return Dashboard{}, err
-	}
-	defer dbGet.Close()
-
-	records, err = dbGet.Query()
-	if records.Next() {
-		err = records.Scan(&dash.AverageDuration)
-		records.Close()
-	}
-
 	return dash, nil
 }
 
@@ -142,7 +129,7 @@ func (dashManager DashboardManager) GetDashboardInfos() (Dashboard, error) {
 func (dashManager DashboardManager) GetDashboardBestSellers() ([5]BestSeller, error) {
 	dbList, err := dashManager.db.Prepare(
 		`SELECT pub.title, count(pub.id)
-  		FROM [purchase] pur JOIN publication pub 
+  		FROM purchase pur JOIN publication pub 
     	ON pur.publication_id = pub.id
  		GROUP BY pub.id
  		ORDER BY  Count(pur.id) DESC limit 5`)
