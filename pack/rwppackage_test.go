@@ -1,3 +1,7 @@
+// Copyright 2020 Readium Foundation. All rights reserved.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
+
 package pack
 
 import (
@@ -5,14 +9,16 @@ import (
 	"bytes"
 	"io/ioutil"
 	"testing"
+
+	"github.com/readium/readium-lcp-server/rwpm"
 )
 
 func TestOpenRWPPackage(t *testing.T) {
-	if _, err := OpenPackagedRWP("path-does-not-exist.lcpdf"); err == nil {
+	if _, err := OpenRWPP("path-does-not-exist.lcpdf"); err == nil {
 		t.Errorf("Expected to receive an error on missing file, got %s", err)
 	}
 
-	reader, err := OpenPackagedRWP("./samples/basic.lcpdf")
+	reader, err := OpenRWPP("./samples/basic.lcpdf")
 	if err != nil {
 		t.Fatalf("Expected to be able to open basic.lcpdf, got %s", err)
 	}
@@ -28,7 +34,7 @@ func TestOpenRWPPackage(t *testing.T) {
 }
 
 func TestWriteRWPPackage(t *testing.T) {
-	reader, err := OpenPackagedRWP("./samples/basic.lcpdf")
+	reader, err := OpenRWPP("./samples/basic.lcpdf")
 	if err != nil {
 		t.Fatalf("Expected to be able to open basic.lcpdf, got %s", err)
 	}
@@ -64,7 +70,7 @@ func TestWriteRWPPackage(t *testing.T) {
 		t.Fatalf("Could not reopen written archive, %s", err)
 	}
 
-	reader, err = NewPackagedRWPReader(zr)
+	reader, err = NewRWPPReader(zr)
 	if err != nil {
 		t.Fatalf("Could not read archive, %s", err)
 	}
@@ -95,5 +101,19 @@ func TestWriteRWPPackage(t *testing.T) {
 	if !bytes.Equal(data, []byte("test")) {
 		t.Errorf("Bytes were not equal")
 	}
+}
+
+func TestRWPM(t *testing.T) {
+	var manifest rwpm.Publication
+
+	manifest.Metadata.Identifier = "id1"
+	manifest.Metadata.Title.Set("fr", "title")
+	manifest.Metadata.Description = "description"
+	manifest.Metadata.Published = "2020-03-05T10:00:00Z"
+	manifest.Metadata.Duration = 120
+	manifest.Metadata.Author.AddName("Laurent")
+	manifest.Metadata.Language.Add("fr")
+	manifest.Metadata.ReadingProgression = "ltr"
+	manifest.Metadata.Subject.Add(rwpm.Subject{Name: "software", Scheme: "iptc", Code: "04003000"})
 
 }
