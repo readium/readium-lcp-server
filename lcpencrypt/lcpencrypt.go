@@ -1,27 +1,6 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2020 Readium Foundation. All rights reserved.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package main
 
@@ -34,6 +13,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -53,6 +33,7 @@ import (
 
 // notification of newly added content (Publication)
 func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPublication, username string, password string) error {
+
 	//exchange encryption key with lcp service/content/<id>,
 	//Payload:
 	//  content-id: unique id for the content
@@ -89,16 +70,17 @@ func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPubl
 	return nil
 }
 
-// reads and returns the content of
-// a file on the local filesystem
-// or via a GET if the scheme is http:// or https://
-func getInputFile(inputFilename string) ([]byte, error) {
-	url, err := url.Parse(inputFilename)
+// getBufferFromInputResource reads and returns in a buffer
+// the content of a file on the local filesystem
+// or the content of a remote resource if the scheme is http:// or https://
+func getBufferFromInputResource(inputPath string) ([]byte, error) {
+
+	url, err := url.Parse(inputPath)
 	if err != nil {
 		return nil, errors.New("Error parsing input file")
 	}
 	if url.Scheme == "http" || url.Scheme == "https" {
-		res, err := http.Get(inputFilename)
+		res, err := http.Get(inputPath)
 		if err != nil {
 			return nil, err
 		}
@@ -108,14 +90,15 @@ func getInputFile(inputFilename string) ([]byte, error) {
 		return nil, errors.New("ftp not supported yet")
 
 	} else {
-		return ioutil.ReadFile(inputFilename)
+		return ioutil.ReadFile(inputPath)
 	}
 }
 
 func showHelpAndExit() {
+
 	log.Println("lcpencrypt protects an epub/pdf file for usage in an lcp environment")
-	log.Println("-input        source epub/pdf file locator (file system or http GET)")
-	log.Println("[-profile]    encryption profile to use")
+	log.Println("-input        source epub/pdf/lpf file locator (file system or http GET)")
+	log.Println("[-profile]    encryption profile")
 	log.Println("[-contentid]  optional content identifier, if omitted a new one will be generated")
 	log.Println("[-output]     optional target location for protected content (file system or http PUT)")
 	log.Println("[-lcpsv]      optional http endpoint for the License server")
@@ -127,6 +110,7 @@ func showHelpAndExit() {
 }
 
 func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel int) {
+
 	os.Stdout.WriteString(lcpPublication.ErrorMessage + "; level " + strconv.Itoa(errorlevel))
 	os.Stdout.WriteString("\n")
 	if err != nil {
@@ -144,72 +128,229 @@ func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel i
 	os.Exit(errorlevel)
 }
 
-func getChecksum(filename string) string {
+func getChecksum(file *os.File) string {
+
 	hasher := sha256.New()
-	s, err := ioutil.ReadFile(filename)
-	hasher.Write(s)
-	if err != nil {
+	//s, err := ioutil.ReadFile(filename) // filename as string
+	//hasher.Write(s)
+	// Note: this alternative code should save memory (no s buffer); found in lcpencrypt.go
+	file.Seek(0, 0)
+	if _, err := io.Copy(hasher, file); err != nil {
 		return ""
 	}
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func OutputExtension(sourceExt string) string {
-	if sourceExt == ".pdf" {
-		return ".lcpdf"
-	} else {
-		return ".epub"
+func outputExtension(sourceExt string) string {
+
+	var targetExt string
+	switch sourceExt {
+	case ".epub":
+		targetExt = ".epub"
+	case ".pdf":
+		targetExt = ".lcpdf"
+	case ".lpf":
+		// short term solution. We'll need to inspect the manifest and check conformsTo,
+		// to be certain this is an audiobook (vs another profile of Web Publication)
+		targetExt = ".audiobook"
 	}
+	return targetExt
+}
+
+// buildEncryptedRWPP builds an encrypted Readium package out of an un-encrypted one
+// FIXME: it cannot be used for EPUB as long as Do() and Process() are not merged
+func buildEncryptedRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile pack.EncryptionProfile) error {
+
+	// create a reader on the un-encrypted readium package
+	reader, err := pack.OpenRWPP(inputPath)
+	if err != nil {
+		pub.ErrorMessage = "Error opening the temp package"
+		return err
+	}
+	// create the encrypted package file
+	outputFile, err := os.Create(pub.Output)
+	if err != nil {
+		pub.ErrorMessage = "Error creating the output package"
+		return err
+	}
+	defer outputFile.Close()
+	// create a writer on the encrypted package
+	writer, err := reader.NewWriter(outputFile)
+	if err != nil {
+		pub.ErrorMessage = "Error opening the output package"
+		return err
+	}
+	// encrypt resources from the input package, return the encryption key
+	encryptionKey, err := pack.Process(lcpProfile, encrypter, reader, writer)
+	if err != nil {
+		pub.ErrorMessage = "Error encrypting the publication"
+		return err
+	}
+	pub.ContentKey = encryptionKey
+	// calculate the output file size and checksum
+	stats, err := outputFile.Stat()
+	if err == nil && (stats.Size() > 0) {
+		filesize := stats.Size()
+		pub.Size = &filesize
+		cs := getChecksum(outputFile)
+		pub.Checksum = &cs
+	}
+	if stats.Size() == 0 {
+		pub.ErrorMessage = "Empty output file"
+		return err
+	}
+	return nil
+}
+
+// processEPUB encrypts resources in an EPUB
+func processEPUB(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter) error {
+
+	pub.ContentType = epub.ContentType_EPUB
+
+	// read the content of the input resource, *keep it in memory*
+	buf, err := getBufferFromInputResource(inputPath)
+	if err != nil {
+		pub.ErrorMessage = "Error opening input file, for more information type 'lcpencrypt -help' "
+		return err
+	}
+	// create a zip reader from the zipped data in the buffer
+	zr, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
+	if err != nil {
+		pub.ErrorMessage = "Error opening the zip file"
+		return err
+	}
+	// generate an EPUB object
+	epub, err := epub.Read(zr)
+	if err != nil {
+		pub.ErrorMessage = "Error reading the epub content"
+		return err
+	}
+	// create the output file
+	outputFile, err := os.Create(pub.Output)
+	if err != nil {
+		pub.ErrorMessage = "Error writing output file"
+		return err
+	}
+	// will close the output file
+	defer outputFile.Close()
+	// encrypt the content of the publication,
+	// write them into the output file
+	_, encryptionKey, err := pack.Do(encrypter, epub, outputFile)
+	if err != nil {
+		pub.ErrorMessage = "Error encrypting the EPUB content"
+		return err
+	}
+	pub.ContentKey = encryptionKey
+	// calculate the output file size and checksum
+	stats, err := outputFile.Stat()
+	if err == nil && (stats.Size() > 0) {
+		filesize := stats.Size()
+		pub.Size = &filesize
+		cs := getChecksum(outputFile)
+		pub.Checksum = &cs
+	}
+	if stats.Size() == 0 {
+		pub.ErrorMessage = "Empty output file"
+		return err
+	}
+	return nil
+}
+
+// processPDF wraps an encrypted PDF file inside a Readium package
+func processPDF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile pack.EncryptionProfile) error {
+
+	pub.ContentType = "application/pdf+lcp"
+
+	// generate a temp Readium Package (rwpp) which embeds the PDF file; its title is the PDF file name
+	tmpPackagePath := pub.Output + ".tmp"
+	err := pack.BuildRWPPFromPDF(filepath.Base(inputPath), inputPath, tmpPackagePath)
+	if err != nil {
+		pub.ErrorMessage = "Error building Web Publication package from PDF"
+		return err
+	}
+	defer os.Remove(tmpPackagePath)
+
+	// build an encrypted package
+	err = buildEncryptedRWPP(pub, tmpPackagePath, encrypter, lcpProfile)
+	return err
+}
+
+// processLPF transforms a W3C LPF file into a Readium Package and encrypts its resources
+func processLPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile pack.EncryptionProfile, outputExt string) error {
+
+	switch outputExt {
+	case ".audiobook":
+		pub.ContentType = "application/audiobook+lcp"
+	case ".divina":
+		pub.ContentType = "application/divina+lcp"
+	}
+
+	// generate a tmp Readium Package (rwpp) out of W3C Package (lpf)
+	tmpPackagePath := pub.Output + ".webpub"
+	err := pack.BuildRWPPFromLPF(inputPath, tmpPackagePath)
+	if err != nil {
+		pub.ErrorMessage = "Error building RWPP from LPF"
+		return err
+	}
+	// debug: keep the temp file
+	//defer os.Remove(tmpPackagePath)
+
+	// build an encrypted package
+	err = buildEncryptedRWPP(pub, tmpPackagePath, encrypter, lcpProfile)
+	return err
 }
 
 func main() {
 	var err error
-	var addedPublication apilcp.LcpPublication
-	var inputFilename = flag.String("input", "", "source epub/pdf file locator (file system or http GET)")
+	var pub apilcp.LcpPublication
+	var inputPath = flag.String("input", "", "source epub/pdf/lpf file locator (file system or http GET)")
 	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new one is generated")
 	var outputFilename = flag.String("output", "", "optional target location for the encrypted content (file system or http PUT)")
 	var lcpsv = flag.String("lcpsv", "", "optional http endpoint of the License server (adds content)")
 	var username = flag.String("login", "", "login (License server)")
 	var password = flag.String("password", "", "password (License server)")
-	var profile = flag.String("profile", "basic", "LCP Profile to use for encryption")
+	var profile = flag.String("profile", "basic", "LCP Profile to use for encryption: 'basic' or 'v1'")
 
 	var help = flag.Bool("help", false, "shows information")
 
 	if !flag.Parsed() {
 		flag.Parse()
 	}
-	if *help {
+	if *help || *inputPath == "" {
 		showHelpAndExit()
 	}
 
 	if *lcpsv != "" && (*username == "" || *password == "") {
-		addedPublication.ErrorMessage = "incorrect parameters, lcpsv needs login and password, for more information type 'lcpencrypt -help' "
-		exitWithError(addedPublication, nil, 80)
+		pub.ErrorMessage = "incorrect parameters, lcpsv needs a login and password, for more information type 'lcpencrypt -help' "
+		exitWithError(pub, nil, 10)
 	}
 
 	if *contentid == "" { // contentID not set -> generate a new one
-		uid, err_u := uuid.NewV4()
-		if err_u != nil {
-			exitWithError(addedPublication, err, 65)
+		uid, err := uuid.NewV4()
+		if err != nil {
+			exitWithError(pub, err, 20)
 		}
 		*contentid = uid.String()
 	}
-	var basefilename string
-	addedPublication.ContentId = *contentid
+	pub.ContentId = *contentid
+
 	// if the output file name not set,
 	// then <content-id>.epub|lcpdf is created in the working directory
+	inputExt := filepath.Ext(*inputPath)
+	var basefilename string
+	var outputExt string
 	if *outputFilename == "" {
 		workingDir, _ := os.Getwd()
-		ext := filepath.Ext(*inputFilename)
-		outputExt := OutputExtension(ext)
+		outputExt = outputExtension(inputExt)
 		*outputFilename = strings.Join([]string{workingDir, string(os.PathSeparator), *contentid, outputExt}, "")
-		basefilename = filepath.Base(*inputFilename)
+		basefilename = filepath.Base(*inputPath)
 	} else {
+		outputExt = filepath.Ext(*outputFilename)
 		basefilename = filepath.Base(*outputFilename)
 	}
-	addedPublication.ContentDisposition = &basefilename
-	// the output path must be accessible from the license server
-	addedPublication.Output = *outputFilename
+	pub.ContentDisposition = &basefilename
+	// reminder: the output path must be accessible from the license server
+	pub.Output = *outputFilename
 
 	var lcpProfile pack.EncryptionProfile
 	if *profile == "v1" {
@@ -218,106 +359,42 @@ func main() {
 		lcpProfile = pack.EncryptionProfile(license.BASIC_PROFILE)
 	}
 
-	var output *os.File
-	var encryptionKey crypto.ContentKey
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
-	if strings.HasSuffix(*inputFilename, ".epub") {
-		addedPublication.ContentType = epub.ContentType_EPUB
-		// read the input file content in memory
-		buf, err := getInputFile(*inputFilename)
-		if err != nil {
-			addedPublication.ErrorMessage = "Error opening input file, for more information type 'lcpencrypt -help' "
-			exitWithError(addedPublication, err, 70)
-		}
-		// read the epub content from the zipped buffer
-		zr, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
-		if err != nil {
-			addedPublication.ErrorMessage = "Error opening the epub file"
-			exitWithError(addedPublication, err, 60)
-		}
-		ep, err := epub.Read(zr)
-		if err != nil {
-			addedPublication.ErrorMessage = "Error reading the epub content"
-			exitWithError(addedPublication, err, 50)
-		}
 
-		// create an output file
-		output, err = os.Create(*outputFilename)
+	// select the encryption process
+	if inputExt == ".epub" {
+		err := processEPUB(&pub, *inputPath, encrypter)
 		if err != nil {
-			addedPublication.ErrorMessage = "Error writing output file"
-			exitWithError(addedPublication, err, 40)
+			exitWithError(pub, err, 30)
 		}
-
-		// pack / encrypt the epub content, fill the output file
-		_, encryptionKey, err = pack.Do(encrypter, ep, output)
-	} else if strings.HasSuffix(*inputFilename, ".pdf") {
-		addedPublication.ContentType = "application/pdf+lcp"
-		packagePath := *outputFilename + ".webpub"
-		err := pack.BuildWebPubPackageFromPDF(filepath.Base(*inputFilename), *inputFilename, packagePath)
+	} else if inputExt == ".pdf" {
+		err := processPDF(&pub, *inputPath, encrypter, lcpProfile)
 		if err != nil {
-			addedPublication.ErrorMessage = "Error building Web Publication package from PDF"
-			exitWithError(addedPublication, err, 50)
+			exitWithError(pub, err, 40)
 		}
-
-		// create an output file
-		output, err = os.Create(*outputFilename)
+	} else if inputExt == ".lpf" {
+		err := processLPF(&pub, *inputPath, encrypter, lcpProfile, outputExt)
 		if err != nil {
-			addedPublication.ErrorMessage = "Error writing output file"
-			exitWithError(addedPublication, err, 40)
+			exitWithError(pub, err, 50)
 		}
-
-		reader, err := pack.OpenPackagedRWP(packagePath)
-		if err != nil {
-			addedPublication.ErrorMessage = "Error opening packaged web publication"
-			exitWithError(addedPublication, err, 40)
-		}
-
-		writer, err := reader.NewWriter(output)
-		if err != nil {
-			addedPublication.ErrorMessage = "Error opening output"
-			exitWithError(addedPublication, err, 40)
-		}
-
-		encryptionKey, err = pack.Process(lcpProfile, encrypter, reader, writer)
-		if err != nil {
-			addedPublication.ErrorMessage = "Error encrypting"
-			exitWithError(addedPublication, err, 40)
-		}
-
-		// Remove the temporary package file
-		os.Remove(packagePath)
 	}
-
-	stats, err := output.Stat()
-	if err == nil && (stats.Size() > 0) {
-		filesize := stats.Size()
-		cs := getChecksum(*outputFilename)
-		addedPublication.Size = &filesize
-		addedPublication.Checksum = &cs
-	}
-	output.Close()
-	if err != nil || (stats.Size() == 0) {
-		addedPublication.ErrorMessage = "Error encrypting the publication"
-		exitWithError(addedPublication, err, 30)
-	}
-	addedPublication.ContentKey = encryptionKey
 
 	// notify the LCP Server
 	if *lcpsv != "" {
-		err = notifyLcpServer(*lcpsv, *contentid, addedPublication, *username, *password)
+		err = notifyLcpServer(*lcpsv, *contentid, pub, *username, *password)
 		if err != nil {
-			addedPublication.ErrorMessage = "Error notifying the License Server"
-			exitWithError(addedPublication, err, 20)
+			pub.ErrorMessage = "Error notifying the License Server"
+			exitWithError(pub, err, 60)
 		} else {
 			os.Stdout.WriteString("License Server was notified\n")
 		}
 	}
 
 	// write a json message to stdout for debug purpose
-	jsonBody, err := json.MarshalIndent(addedPublication, " ", "  ")
+	jsonBody, err := json.MarshalIndent(pub, " ", "  ")
 	if err != nil {
-		addedPublication.ErrorMessage = "Error creating json addedPublication"
-		exitWithError(addedPublication, err, 10)
+		pub.ErrorMessage = "Error creating json pub"
+		exitWithError(pub, err, 70)
 	}
 	os.Stdout.Write(jsonBody)
 	os.Stdout.WriteString("\nEncryption was successful\n")
