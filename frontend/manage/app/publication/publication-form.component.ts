@@ -63,7 +63,7 @@ export class PublicationFormComponent implements OnInit {
     {
         this.split = fileItem.file.name.split('.');
         let extension = this.split[this.split.length-1];
-        if (extension === "epub" || extension === "pdf")
+        if (extension === "epub" || extension === "pdf" || extension === "lpf")
         {
             this.notAPublication = false;
         }
@@ -150,7 +150,7 @@ export class PublicationFormComponent implements OnInit {
                                         if (error === 200) {
                                             this.gotoList();
                                         } else if (error === 400) {
-                                            this.errorMessage = "The file must be a proper EPUB or PDF file."
+                                            this.errorMessage = "The file must be a proper EPUB, PDF or LPF file."
                                             this.showSnackBar(false);
                                         }
                                     }
