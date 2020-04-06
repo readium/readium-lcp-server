@@ -64,7 +64,7 @@ func (publication *Publication) NavDoc() (Link, error) {
 }
 
 // SearchLinkByRel returns the link which has a specific relation
-func (publication *Publication) SearchLinkByRel(rel string) (Link, error) {
+func (publication *Publication) searchLinkByRel(rel string) (Link, error) {
 	for _, resource := range publication.Resources {
 		for _, resRel := range resource.Rel {
 			if resRel == rel {
