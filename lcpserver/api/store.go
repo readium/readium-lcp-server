@@ -44,6 +44,7 @@ import (
 	"github.com/readium/readium-lcp-server/storage"
 )
 
+// Server groups functions used by the lcp server
 type Server interface {
 	Store() storage.Store
 	Index() index.Index
@@ -90,8 +91,8 @@ func cleanupTempFile(f *os.File) {
 // StoreContent stores content in the storage
 // the content name is given in the url (name)
 // a temporary file is created, then deleted after the content has been stored
-//
 func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
+
 	vars := mux.Vars(r)
 
 	size, f, err := writeRequestFileToTemp(r.Body)
@@ -124,6 +125,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 // The content_id is taken from  the url.
 // The input file is then deleted.
 func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
+
 	// parse the json payload
 	vars := mux.Vars(r)
 	decoder := json.NewDecoder(r.Body)
@@ -193,8 +195,8 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 // ListContents lists the content in the storage index
-//
 func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
+
 	fn := s.Index().List()
 	contents := make([]index.Content, 0)
 
@@ -214,8 +216,8 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 
 // GetContent fetches and returns an encrypted content file
 // selected by it content id (uuid)
-//
 func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
+
 	// get the content id from the calling url
 	vars := mux.Vars(r)
 	contentID := vars["content_id"]
