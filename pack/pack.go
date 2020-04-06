@@ -10,8 +10,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"strings"
 	"net/url"
+	"strings"
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
@@ -42,25 +42,26 @@ type Resource interface {
 	Open() (io.ReadCloser, error)
 }
 
-// Process encrypts when necessary the resources of a package.
-// It generates an output package and closes it.
+// Process copies resources from the source to the destination package, after encryption if needed.
 func Process(profile EncryptionProfile, encrypter crypto.Encrypter, reader PackageReader, writer PackageWriter) (key crypto.ContentKey, err error) {
+
+	// generate an encryption key
 	key, err = encrypter.GenerateKey()
 	if err != nil {
-		log.Println("Error generating a key")
+		log.Println("Error generating an encryption key")
 		return
 	}
 
+	// loop through the resources of the source package, encrypt them if needed, copy them into the dest package
+	// Note: the current design choice is to leave ancillaty resources (in "resources") non-encrypted
 	for _, resource := range reader.Resources() {
 		if !resource.Encrypted() && resource.CanBeEncrypted() {
-			log.Printf("Encrypting %s", resource.Path())
 			err = encryptResource(profile, encrypter, key, resource, writer)
 			if err != nil {
 				log.Println("Error encrypting " + resource.Path() + ": " + err.Error())
 				return
 			}
 		} else {
-			log.Printf("Copying %s", resource.Path())
 			err = resource.CopyTo(writer)
 			if err != nil {
 				return
@@ -73,8 +74,13 @@ func Process(profile EncryptionProfile, encrypter crypto.Encrypter, reader Packa
 	return
 }
 
-// Do encrypts when necessary the resources of an EPUB package.
+// Do encrypts when necessary the resources of an EPUB package
+// Note: It calls encryptFile
+// It is currently called only for EPUB files
+// FIXME: try to merge Process() and Do()
 func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key crypto.ContentKey, err error) {
+
+	// generate an encryption key
 	key, err = encrypter.GenerateKey()
 	if err != nil {
 		log.Println("Error generating a key")
@@ -109,9 +115,11 @@ func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Mani
 	return ep.Encryption, key, ew.Close()
 }
 
-// We don't want to compress files that might already be compressed, such
-// as multimedia files
+// mustCompressBeforeEncryption checks is a resource must be compressed before encryption.
+// We don't want to compress files if that might cause streaming issues.
+// The test is applied on the resource media-type; image, video and audio are stored without compression.
 func mustCompressBeforeEncryption(file epub.Resource, ep epub.Epub) bool {
+
 	mimetype := file.ContentType
 
 	if mimetype == "" {
@@ -121,20 +129,27 @@ func mustCompressBeforeEncryption(file epub.Resource, ep epub.Epub) bool {
 	return !strings.HasPrefix(mimetype, "image") && !strings.HasPrefix(mimetype, "video") && !strings.HasPrefix(mimetype, "audio")
 }
 
+// NoCompression means Store
 const (
 	NoCompression = 0
 	Deflate       = 8
 )
 
+// canEncrypt checks if a resource should be encrypted
 func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 	return ep.CanEncrypt(file.Path)
 }
 
+// encryptResource encrypts a resource in a Readium Package
 func encryptResource(profile EncryptionProfile, encrypter crypto.Encrypter, key crypto.ContentKey, resource Resource, packageWriter PackageWriter) error {
+
 	storageMethod := uint16(Deflate)
+
+	// FIXME: this is currently always set to false
 	mustBeCompressedBeforeEncryption := resource.CompressBeforeEncryption()
 
 	if mustBeCompressedBeforeEncryption {
+		// no further compression when zipping if the resource has already been deflated
 		storageMethod = NoCompression
 	}
 
@@ -148,16 +163,16 @@ func encryptResource(profile EncryptionProfile, encrypter crypto.Encrypter, key 
 	}
 	var reader io.Reader = resourceReader
 
-	if resource.CompressBeforeEncryption() {
+	if mustBeCompressedBeforeEncryption {
 		var buffer bytes.Buffer
-		w, err := flate.NewWriter(&buffer, 9)
+		deflateWriter, err := flate.NewWriter(&buffer, 9)
 		if err != nil {
 			return err
 		}
 
-		io.Copy(w, resourceReader)
+		io.Copy(deflateWriter, resourceReader)
 		resourceReader.Close()
-		w.Close()
+		deflateWriter.Close()
 		reader = ioutil.NopCloser(&buffer)
 	}
 
@@ -171,7 +186,9 @@ func encryptResource(profile EncryptionProfile, encrypter crypto.Encrypter, key 
 	return err
 }
 
+// encryptFile encrypts a file in an EPUB package
 func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool, w *epub.Writer) error {
+
 	data := xmlenc.Data{}
 	data.Method.Algorithm = xmlenc.URI(encrypter.Signature())
 	data.KeyInfo = &xmlenc.KeyInfo{}
@@ -204,13 +221,12 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 
 	if compress {
 		var buf bytes.Buffer
-		w, err := flate.NewWriter(&buf, 9)
+		deflateWriter, err := flate.NewWriter(&buf, 9)
 		if err != nil {
 			return err
 		}
-
-		io.Copy(w, file.Contents)
-		w.Close()
+		io.Copy(deflateWriter, file.Contents)
+		deflateWriter.Close()
 		file.ContentsSize = uint64(buf.Len())
 
 		input = ioutil.NopCloser(&buf)
@@ -223,7 +239,9 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 	return encrypter.Encrypt(key, input, fw)
 }
 
+// findFile finds a file in an EPUB object
 func findFile(name string, ep epub.Epub) (*epub.Resource, bool) {
+
 	for _, res := range ep.Resource {
 		if res.Path == name {
 			return res, true
