@@ -44,7 +44,7 @@ func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 			return
 		}
 	} else {
-		perPage = 30
+		perPage = 100
 	}
 
 	if page > 0 {
