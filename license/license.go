@@ -72,9 +72,6 @@ type UserRights struct {
 	End   *time.Time `json:"end,omitempty"`
 }
 
-const BASIC_PROFILE = "http://readium.org/lcp/basic-profile"
-const V1_PROFILE = "http://readium.org/lcp/profile-1.0"
-
 var DefaultLinks map[string]string
 
 type License struct {
@@ -100,9 +97,47 @@ type LicenseReport struct {
 	ContentId string      `json:"-"`
 }
 
-// source: http://play.golang.org/p/4FkNSiUDMg
+// EncryptionProfile is an enum of possible encryption profiles
+type EncryptionProfile int
+
+// Declare typed constants for Encryption Profile
+const (
+	BasicProfile EncryptionProfile = iota
+	V1Profile
+)
+
+func (profile EncryptionProfile) String() string {
+
+	var profileURL string
+	switch profile {
+	case BasicProfile:
+		profileURL = "http://readium.org/lcp/basic-profile"
+	case V1Profile:
+		profileURL = "http://readium.org/lcp/profile-1.0"
+	default:
+		profileURL = "unknown-profile"
+	}
+
+	return profileURL
+}
+
+// SetLicenseProfile sets the license profile from config
+func SetLicenseProfile(l *License) {
+
+	// possible profiles are basic and 1.0
+	var ep EncryptionProfile
+	if config.Config.Profile == "1.0" {
+		ep = V1Profile
+	} else {
+		ep = BasicProfile
+	}
+	l.Encryption.Profile = ep.String()
+}
+
 // newUUID generates a random UUID according to RFC 4122
+// source: http://play.golang.org/p/4FkNSiUDMg
 func newUUID() (string, error) {
+
 	uuid := make([]byte, 16)
 	n, err := io.ReadFull(rand.Reader, uuid)
 	if n != len(uuid) || err != nil {
@@ -116,8 +151,8 @@ func newUUID() (string, error) {
 }
 
 // Initialize sets a license id and issued date, contentID,
-//
 func Initialize(contentID string, l *License) {
+
 	// random license id
 	uuid, _ := newUUID()
 	l.Id = uuid
@@ -127,21 +162,10 @@ func Initialize(contentID string, l *License) {
 	l.ContentId = contentID
 }
 
-// SetLicenseProfile sets the license profile from config
-//
-func SetLicenseProfile(l *License) {
-	// possible profiles are basic and 1.0
-	if config.Config.Profile == "1.0" {
-		l.Encryption.Profile = V1_PROFILE
-	} else {
-		l.Encryption.Profile = BASIC_PROFILE
-	}
-}
-
 // CreateDefaultLinks inits the global var DefaultLinks from config data
 // ... DefaultLinks used in several places.
-//
 func CreateDefaultLinks() {
+
 	configLinks := config.Config.License.Links
 
 	DefaultLinks = make(map[string]string)
@@ -152,8 +176,8 @@ func CreateDefaultLinks() {
 }
 
 // SetDefaultLinks sets a Link array from config links
-//
 func SetDefaultLinks() []Link {
+
 	links := new([]Link)
 	for key := range DefaultLinks {
 		link := Link{Href: DefaultLinks[key], Rel: key}
@@ -164,8 +188,8 @@ func SetDefaultLinks() []Link {
 
 // SetLicenseLinks sets publication and status links
 // l.ContentId must have been set before the call
-//
 func SetLicenseLinks(l *License, c index.Content) error {
+
 	// set the links
 	l.Links = SetDefaultLinks()
 
@@ -189,7 +213,6 @@ func SetLicenseLinks(l *License, c index.Content) error {
 }
 
 // EncryptLicenseFields sets the content key, encrypted user info and key check
-//
 func EncryptLicenseFields(l *License, c index.Content) error {
 
 	// generate the user key
@@ -247,8 +270,8 @@ func getField(u *UserInfo, field string) reflect.Value {
 
 // buildKeyCheck
 // encrypt the license id with the key used for encrypting content
-//
 func buildKeyCheck(licenseID string, encrypter crypto.Encrypter, key []byte) ([]byte, error) {
+
 	var out bytes.Buffer
 	err := encrypter.Encrypt(key, bytes.NewBufferString(licenseID), &out)
 	if err != nil {
@@ -258,8 +281,8 @@ func buildKeyCheck(licenseID string, encrypter crypto.Encrypter, key []byte) ([]
 }
 
 // SignLicense signs a license using the server certificate
-//
 func SignLicense(l *License, cert *tls.Certificate) error {
+
 	sig, err := sign.NewSigner(cert)
 	if err != nil {
 		return err

@@ -15,6 +15,7 @@ import (
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
+	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
@@ -23,11 +24,9 @@ type PackageReader interface {
 	NewWriter(io.Writer) (PackageWriter, error)
 }
 
-type EncryptionProfile string
-
 type PackageWriter interface {
 	NewFile(path string, contentType string, storageMethod uint16) (io.WriteCloser, error)
-	MarkAsEncrypted(path string, originalSize int64, profile EncryptionProfile, algorithm string)
+	MarkAsEncrypted(path string, originalSize int64, profile license.EncryptionProfile, algorithm string)
 	Close() error
 }
 
@@ -43,7 +42,7 @@ type Resource interface {
 }
 
 // Process copies resources from the source to the destination package, after encryption if needed.
-func Process(profile EncryptionProfile, encrypter crypto.Encrypter, reader PackageReader, writer PackageWriter) (key crypto.ContentKey, err error) {
+func Process(profile license.EncryptionProfile, encrypter crypto.Encrypter, reader PackageReader, writer PackageWriter) (key crypto.ContentKey, err error) {
 
 	// generate an encryption key
 	key, err = encrypter.GenerateKey()
@@ -53,7 +52,6 @@ func Process(profile EncryptionProfile, encrypter crypto.Encrypter, reader Packa
 	}
 
 	// loop through the resources of the source package, encrypt them if needed, copy them into the dest package
-	// Note: the current design choice is to leave ancillaty resources (in "resources") non-encrypted
 	for _, resource := range reader.Resources() {
 		if !resource.Encrypted() && resource.CanBeEncrypted() {
 			err = encryptResource(profile, encrypter, key, resource, writer)
@@ -141,7 +139,7 @@ func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 }
 
 // encryptResource encrypts a resource in a Readium Package
-func encryptResource(profile EncryptionProfile, encrypter crypto.Encrypter, key crypto.ContentKey, resource Resource, packageWriter PackageWriter) error {
+func encryptResource(profile license.EncryptionProfile, encrypter crypto.Encrypter, key crypto.ContentKey, resource Resource, packageWriter PackageWriter) error {
 
 	storageMethod := uint16(Deflate)
 

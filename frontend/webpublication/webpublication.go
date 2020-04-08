@@ -26,6 +26,7 @@ import (
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/lcpencrypt/encrypt"
 	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
+	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
 	uuid "github.com/satori/go.uuid"
 
@@ -150,6 +151,14 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	}
 	contentUUID := uid.String()
 
+	// set the encryption profile from the config file
+	var lcpProfile license.EncryptionProfile
+	if pubManager.config.Profile == "1.0" {
+		lcpProfile = license.V1Profile
+	} else {
+		lcpProfile = license.BasicProfile
+	}
+
 	// create a temp file in the frontend "encrypted repository"
 	outputFilename := contentUUID + ".tmp"
 	outputPath := path.Join(pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
@@ -173,7 +182,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 			return err
 		}
 		defer os.Remove(clearWebPubPath)
-		encryptedPub, err = encrypt.EncryptWebPubPackage(pack.EncryptionProfile(pubManager.config.Profile), clearWebPubPath, outputPath)
+		encryptedPub, err = encrypt.EncryptWebPubPackage(lcpProfile, clearWebPubPath, outputPath)
 
 		// process LPF files
 	} else if strings.HasSuffix(inputPath, ".lpf") {
@@ -186,7 +195,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 			return err
 		}
 		defer os.Remove(clearWebPubPath)
-		encryptedPub, err = encrypt.EncryptWebPubPackage(pack.EncryptionProfile(pubManager.config.Profile), clearWebPubPath, outputPath)
+		encryptedPub, err = encrypt.EncryptWebPubPackage(lcpProfile, clearWebPubPath, outputPath)
 
 		// unknown file
 	} else {
