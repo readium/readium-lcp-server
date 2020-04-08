@@ -404,7 +404,7 @@ func (pubManager PublicationManager) Delete(id int64) error {
 // Parameters: page = number of items per page; pageNum = page offset (0 for the first page)
 func (pubManager PublicationManager) List(page int, pageNum int) func() (Publication, error) {
 
-	dbList, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY title desc LIMIT ? OFFSET ?")
+	dbList, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc LIMIT ? OFFSET ?")
 	if err != nil {
 		return func() (Publication, error) { return Publication{}, err }
 	}
