@@ -16,6 +16,7 @@ import (
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
+	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
 )
 
@@ -38,7 +39,7 @@ func encryptionError(message string) (EncryptionArtifact, error) {
 
 // EncryptWebPubPackage generates an encrypted output RWPP out of the input RWPP
 // It is called from the test frontend server
-func EncryptWebPubPackage(profile pack.EncryptionProfile, inputPath string, outputPath string) (EncryptionArtifact, error) {
+func EncryptWebPubPackage(profile license.EncryptionProfile, inputPath string, outputPath string) (EncryptionArtifact, error) {
 
 	// create an AES encrypter for publication resources
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()

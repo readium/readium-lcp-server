@@ -159,7 +159,7 @@ func outputExtension(sourceExt string) string {
 
 // buildEncryptedRWPP builds an encrypted Readium package out of an un-encrypted one
 // FIXME: it cannot be used for EPUB as long as Do() and Process() are not merged
-func buildEncryptedRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile pack.EncryptionProfile) error {
+func buildEncryptedRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile) error {
 
 	// create a reader on the un-encrypted readium package
 	reader, err := pack.OpenRWPP(inputPath)
@@ -257,7 +257,7 @@ func processEPUB(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.
 }
 
 // processPDF wraps an encrypted PDF file inside a Readium package
-func processPDF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile pack.EncryptionProfile) error {
+func processPDF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile) error {
 
 	pub.ContentType = "application/pdf+lcp"
 
@@ -276,7 +276,7 @@ func processPDF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.E
 }
 
 // processLPF transforms a W3C LPF file into a Readium Package and encrypts its resources
-func processLPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile pack.EncryptionProfile, outputExt string) error {
+func processLPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile, outputExt string) error {
 
 	switch outputExt {
 	case ".audiobook":
@@ -292,8 +292,8 @@ func processLPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.E
 		pub.ErrorMessage = "Error building RWPP from LPF"
 		return err
 	}
-	// debug: keep the temp file
-	//defer os.Remove(tmpPackagePath)
+	// will remove the temp file
+	defer os.Remove(tmpPackagePath)
 
 	// build an encrypted package
 	err = buildEncryptedRWPP(pub, tmpPackagePath, encrypter, lcpProfile)
@@ -352,11 +352,11 @@ func main() {
 	// reminder: the output path must be accessible from the license server
 	pub.Output = *outputFilename
 
-	var lcpProfile pack.EncryptionProfile
+	var lcpProfile license.EncryptionProfile
 	if *profile == "v1" {
-		lcpProfile = pack.EncryptionProfile(license.V1_PROFILE)
-	} else {
-		lcpProfile = pack.EncryptionProfile(license.BASIC_PROFILE)
+		lcpProfile = license.V1Profile
+	} else { // covers missing parameter
+		lcpProfile = license.BasicProfile
 	}
 
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()

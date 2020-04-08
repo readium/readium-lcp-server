@@ -12,6 +12,7 @@ import (
 	"os"
 	"text/template"
 
+	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/rwpm"
 )
 
@@ -74,6 +75,8 @@ func (reader *RWPPReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 
 // Resources returns a list of all resources which should be encrypted
 // FIXME: the name of this function isn't great.
+// Note: the current design choice is to leave ancillaty resources (in "resources") non-encrypted
+// FIXME: also encrypt "resources" and "alternates"
 func (reader *RWPPReader) Resources() []Resource {
 	// index files by name to avoid multiple linear searches
 	files := map[string]*zip.File{}
@@ -133,6 +136,7 @@ func (resource *rwpResource) CopyTo(packageWriter PackageWriter) error {
 	return wCloseError
 }
 
+// Close closes a NopWriteCloser
 func (nc *NopWriteCloser) Close() error {
 	return nil
 }
@@ -154,7 +158,8 @@ func (writer *RWPPWriter) NewFile(path string, contentType string, storageMethod
 }
 
 // MarkAsEncrypted marks a resource as encrypted (with an lcp profile and algorithm), in the manifest
-func (writer *RWPPWriter) MarkAsEncrypted(path string, originalSize int64, profile EncryptionProfile, algorithm string) {
+// FIXME: currently only looks into the reading order. Add "resources" and "alternates"
+func (writer *RWPPWriter) MarkAsEncrypted(path string, originalSize int64, profile license.EncryptionProfile, algorithm string) {
 
 	for i, resource := range writer.manifest.ReadingOrder {
 		if path == resource.Href {
@@ -164,7 +169,7 @@ func (writer *RWPPWriter) MarkAsEncrypted(path string, originalSize int64, profi
 
 			writer.manifest.ReadingOrder[i].Properties.Encrypted = &rwpm.Encrypted{
 				Scheme:    "http://readium.org/2014/01/lcp",
-				Profile:   string(profile),
+				Profile:   profile.String(),
 				Algorithm: algorithm,
 			}
 
@@ -185,6 +190,7 @@ func (writer *RWPPWriter) writeManifest() error {
 	return encoder.Encode(writer.manifest)
 }
 
+// Close closes a Readium Package Writer
 func (writer *RWPPWriter) Close() error {
 	err := writer.writeManifest()
 	if err != nil {
@@ -194,7 +200,7 @@ func (writer *RWPPWriter) Close() error {
 	return writer.zipWriter.Close()
 }
 
-// NewRWPPReader
+// NewRWPPReader creates a new Readium Package reader
 func NewRWPPReader(zipReader *zip.Reader) (*RWPPReader, error) {
 
 	// find and parse the manifest
