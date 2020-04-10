@@ -63,20 +63,24 @@ func getMediaType(ext string) (mt string) {
 		mt = "audio/aac"
 	case ".opus":
 		mt = "audio/ogg"
+	case ".wav":
+		mt = "audio/wav"
 	case ".jpeg":
+		mt = "image/jpeg"
+	case ".jpg":
 		mt = "image/jpeg"
 	case ".png":
 		mt = "image/png"
 	case ".gif":
 		mt = "image/gif"
 	case ".webp":
-		mt = "image/wepb"
+		mt = "image/webp"
 	case ".json":
 		mt = "application/json"
 	case ".html":
-		mt = "test/html"
+		mt = "text/html"
 	case ".css":
-		mt = "test/css"
+		mt = "text/css"
 	case ".js":
 		mt = "application/javascript"
 	case ".epub":
