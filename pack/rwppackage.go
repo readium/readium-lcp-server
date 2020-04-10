@@ -16,16 +16,19 @@ import (
 	"github.com/readium/readium-lcp-server/rwpm"
 )
 
+// RWPPReader is a Readium Package reader
 type RWPPReader struct {
 	manifest   rwpm.Publication
 	zipArchive *zip.Reader
 }
 
+// RWPPWriter is a REadium Package writer
 type RWPPWriter struct {
 	manifest  rwpm.Publication
 	zipWriter *zip.Writer
 }
 
+// NopWriteCloser object
 type NopWriteCloser struct {
 	io.Writer
 }
@@ -41,8 +44,8 @@ func (reader *RWPPReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 	}
 
 	// copy immediately the W3C manifest if it exists in the source package
-	if w3cmanFile, ok := files[W3C_MANIFEST_NAME]; ok {
-		fw, err := zipWriter.Create(W3C_MANIFEST_NAME)
+	if w3cmanFile, ok := files[W3CManifestName]; ok {
+		fw, err := zipWriter.Create(W3CManifestName)
 		if err != nil {
 			return nil, err
 		}
@@ -178,10 +181,11 @@ func (writer *RWPPWriter) MarkAsEncrypted(path string, originalSize int64, profi
 	}
 }
 
-const MANIFEST_LOCATION = "manifest.json"
+// ManifestLocation is the path if the Readium manifest in a package
+const ManifestLocation = "manifest.json"
 
 func (writer *RWPPWriter) writeManifest() error {
-	w, err := writer.zipWriter.Create(MANIFEST_LOCATION)
+	w, err := writer.zipWriter.Create(ManifestLocation)
 	if err != nil {
 		return err
 	}
@@ -207,7 +211,7 @@ func NewRWPPReader(zipReader *zip.Reader) (*RWPPReader, error) {
 	var manifest rwpm.Publication
 	var found bool
 	for _, file := range zipReader.File {
-		if file.Name == MANIFEST_LOCATION {
+		if file.Name == ManifestLocation {
 			found = true
 
 			fileReader, err := file.Open()
@@ -291,7 +295,7 @@ func BuildRWPPFromPDF(title string, inputPath string, outputPath string) error {
 	}
 	`
 
-	manifestWriter, err := zipWriter.Create(MANIFEST_LOCATION)
+	manifestWriter, err := zipWriter.Create(ManifestLocation)
 	if err != nil {
 		return err
 	}

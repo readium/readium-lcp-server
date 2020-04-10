@@ -4,31 +4,32 @@
 
 package rwpm
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // W3CPublication = W3C manifest
 type W3CPublication struct {
-	ConformsTo  string
-	ID          string
-	URL         string
-	Name        W3CMultiLanguage
-	Publisher   Contributors
-	Artist      Contributors
-	Author      Contributors
-	Colorist    Contributors
-	Contributor Contributors
-	Creator     Contributors
-	Editor      Contributors
-	Illustrator Contributors
-	Inker       Contributors
-	Letterer    Contributors
-	Penciler    Contributors
-	ReadBy      Contributors
-	Translator  Contributors
-	InLanguage  MultiString
-	// FIXME: mapping to date or date-time
-	DatePublished      string
-	DateModified       string
+	ConformsTo         string
+	ID                 string
+	URL                string
+	Name               W3CMultiLanguage
+	Publisher          Contributors
+	Artist             Contributors
+	Author             Contributors
+	Colorist           Contributors
+	Contributor        Contributors
+	Creator            Contributors
+	Editor             Contributors
+	Illustrator        Contributors
+	Inker              Contributors
+	Letterer           Contributors
+	Penciler           Contributors
+	ReadBy             Contributors
+	Translator         Contributors
+	InLanguage         MultiString
+	DatePublished      DateOrDatetime
+	DateModified       DateOrDatetime
 	ReadingProgression string
 	Duration           string
 	Description        string    `json:"dcterms:description,omitempty"`
@@ -50,7 +51,7 @@ type W3CLink struct {
 	Alternate      []W3CLink
 }
 
-// W3CMultiLanguage object
+// W3CMultiLanguage struct
 type W3CMultiLanguage []W3CLocalized
 
 // W3CLocalized represents a single value of a W3CMultiLanguage property

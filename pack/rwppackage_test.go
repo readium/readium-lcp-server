@@ -9,7 +9,9 @@ import (
 	"bytes"
 	"io/ioutil"
 	"testing"
+	"time"
 
+	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/rwpm"
 )
 
@@ -57,7 +59,7 @@ func TestWriteRWPPackage(t *testing.T) {
 		t.Fatalf("Could not close file, %s", err)
 	}
 
-	writer.MarkAsEncrypted("test.pdf", 4, "http://readium.org/lcp/basic-profile", "http://www.w3.org/2001/04/xmlenc#aes256-cbc")
+	writer.MarkAsEncrypted("test.pdf", 4, license.BasicProfile, "http://www.w3.org/2001/04/xmlenc#aes256-cbc")
 
 	err = writer.Close()
 	if err != nil {
@@ -109,7 +111,7 @@ func TestRWPM(t *testing.T) {
 	manifest.Metadata.Identifier = "id1"
 	manifest.Metadata.Title.Set("fr", "title")
 	manifest.Metadata.Description = "description"
-	manifest.Metadata.Published = "2020-03-05T10:00:00Z"
+	manifest.Metadata.Published = rwpm.Date(time.Date(2020, 03, 05, 10, 00, 00, 0, time.UTC))
 	manifest.Metadata.Duration = 120
 	manifest.Metadata.Author.AddName("Laurent")
 	manifest.Metadata.Language.Add("fr")

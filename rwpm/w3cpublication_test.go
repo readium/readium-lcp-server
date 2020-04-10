@@ -33,7 +33,7 @@ func TestW3CMultiLanguage(t *testing.T) {
 		t.Errorf("Expected string equality, got %#v", string(jstring))
 	}
 
-	// case= the property has multiple localized values
+	// case = the property has multiple localized values
 	const multiple = `{"ml":[{"language":"fr","value":"nom","direction":"ltr"},{"language":"en","value":"name","direction":"ltr"}]}`
 	if err := json.Unmarshal([]byte(multiple), &obj); err != nil {
 		t.Fatal(err)
@@ -49,5 +49,4 @@ func TestW3CMultiLanguage(t *testing.T) {
 	if string(jstring) != multiple {
 		t.Errorf("Expected string equality, got %#v", string(jstring))
 	}
-
 }
