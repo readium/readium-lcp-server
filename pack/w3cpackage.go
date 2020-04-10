@@ -14,13 +14,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/readium/readium-lcp-server/rwpm"
 	"github.com/rickb777/date/period"
 )
 
-const W3C_MANIFEST_NAME = "publication.json"
-const RWP_MANIFEST_NAME = "manifest.json"
+// W3CManifestName is the name of the W3C manifest in a LPF package
+const W3CManifestName = "publication.json"
+
+// RWPManifestName is the name of the Readium Manifest in a package
+const RWPManifestName = "manifest.json"
 
 // displayW3CMan displays a serialized W3C Manifest (debug purposes only)
 func displayW3CMan(w3cman rwpm.W3CPublication) error {
@@ -114,8 +118,11 @@ func generateRWPManifest(w3cman rwpm.W3CPublication) (manifest rwpm.Publication)
 
 	manifest.Context = []string{"https://readium.org/webpub-manifest/context.jsonld"}
 
-	// FIXME: process the type
-	manifest.Metadata.Type = "https://schema.org/Audiobook"
+	if w3cman.ConformsTo == "https://www.w3/org/TR/audiobooks/" {
+		manifest.Metadata.Type = "https://schema.org/Audiobook"
+	} else {
+		manifest.Metadata.Type = "https://schema.org/CreativeWork"
+	}
 
 	var identifier string
 	if w3cman.ID != "" {
@@ -130,9 +137,10 @@ func generateRWPManifest(w3cman rwpm.W3CPublication) (manifest rwpm.Publication)
 	manifest.Metadata.Description = w3cman.Description
 	manifest.Metadata.Subject = w3cman.Subject
 	manifest.Metadata.Language = w3cman.InLanguage
-	// FIXME:  W3C: date or datetime, Readium: published date; modified datetime
-	manifest.Metadata.Published = w3cman.DatePublished
-	manifest.Metadata.Modified = w3cman.DateModified
+	// W3C manifest: published and modified are date-or-datetime,
+	// Readium manifest: published is a date; modified is a datetime
+	manifest.Metadata.Published = rwpm.Date(time.Time(w3cman.DatePublished))
+	manifest.Metadata.Modified = time.Time(w3cman.DateModified)
 	manifest.Metadata.Duration, _ = isoDurationToSc(w3cman.Duration)
 	manifest.Metadata.ReadingProgression = w3cman.ReadingProgression
 
@@ -172,7 +180,7 @@ func BuildRWPPFromLPF(lpfPath string, rwppPath string) error {
 	var w3cManifest rwpm.W3CPublication
 	found := false
 	for _, file := range lpfFile.File {
-		if file.Name == W3C_MANIFEST_NAME {
+		if file.Name == W3CManifestName {
 			m, err := file.Open()
 			if err != nil {
 				return err
@@ -213,7 +221,7 @@ func BuildRWPPFromLPF(lpfPath string, rwppPath string) error {
 	defer zipWriter.Close()
 
 	// Add the Readium manifest to the rwpp
-	man, err := zipWriter.Create(RWP_MANIFEST_NAME)
+	man, err := zipWriter.Create(RWPManifestName)
 	if err != nil {
 		return err
 	}

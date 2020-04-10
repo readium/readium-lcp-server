@@ -6,6 +6,8 @@ package rwpm
 
 import (
 	"encoding/json"
+	"strings"
+	"time"
 )
 
 // Metadata for the default context in WebPub
@@ -18,9 +20,8 @@ type Metadata struct {
 	Description        string        `json:"description,omitempty"`
 	Language           MultiString   `json:"language,omitempty"`
 	ReadingProgression string        `json:"readingProgression,omitempty"`
-	// FIXME: mapping to date or date-time
-	Modified  string `json:"modified,omitempty"`
-	Published string `json:"published,omitempty"`
+	Modified           time.Time     `json:"modified,omitempty"`
+	Published          Date          `json:"published,omitempty"`
 	// contributors
 	Publisher   Contributors `json:"publisher,omitempty"`
 	Artist      Contributors `json:"artist,omitempty"`
@@ -46,30 +47,71 @@ type Metadata struct {
 	OtherMetadata []Meta `json:"-"` //Extension point for other metadata
 }
 
+// DateOrDatetime struct
+type DateOrDatetime time.Time
+
+// UnmarshalJSON unmarshalls DateOrDatetime
+func (d *DateOrDatetime) UnmarshalJSON(b []byte) error {
+
+	s := strings.Trim(string(b), "\"")
+	// process a date
+	if len(s) == 11 && strings.Index(s, "Z") == 10 { // a date may end with a 'Z'
+		s = strings.TrimRight(s, "Z")
+	}
+	if len(s) == 10 {
+		s = s + "T00:00:00Z"
+	}
+
+	// process a date-time, RFC 3999 compliant
+	date, err := time.Parse(time.RFC3339, s)
+	*d = DateOrDatetime(date)
+	return err
+}
+
+// MarshalJSON marshalls DateOrDatetime
+func (d DateOrDatetime) MarshalJSON() ([]byte, error) {
+
+	return json.Marshal(time.Time(d))
+}
+
+// Date struct
+type Date time.Time
+
+// UnmarshalJSON unmarshalls Date
+func (d *Date) UnmarshalJSON(b []byte) error {
+
+	// trim the quotes around the value
+	s := string(b[1 : len(b)-1])
+	// process a date
+	if len(s) == 11 && strings.Index(s, "Z") == 10 { // a date may end with a 'Z'
+		s = strings.TrimRight(s, "Z")
+	}
+	if len(s) == 10 {
+		s = s + "T00:00:00Z"
+	}
+
+	// process a date-time, RFC 3999 compliant
+	date, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return err
+	}
+	*d = Date(date)
+	return nil
+}
+
+// MarshalJSON marshalls Date
+func (d Date) MarshalJSON() ([]byte, error) {
+
+	date := time.Time(d)
+	return []byte(date.Format("\"2006-01-02\"")), nil
+}
+
 // Meta is a generic structure for other metadata
 type Meta struct {
 	Property string
 	Value    interface{}
 	Children []Meta
 }
-
-// Contributors is an array of contributors
-type Contributors []Contributor
-
-// Contributor construct used internally for all contributors
-type Contributor struct {
-	Name       MultiLanguage `json:"name,omitempty"`
-	SortAs     string        `json:"sortAs,omitempty"`
-	Identifier string        `json:"identifier,omitempty"`
-	Role       string        `json:"role,omitempty"`
-}
-
-// MultiLanguage stores one or more values indexed by language.
-type MultiLanguage map[string]string
-
-// MultiString stores one or more strings
-// Used for properties which take a string || an array of strings
-type MultiString []string
 
 // Properties object used to link properties
 // Used also in Rendition for fxl
@@ -104,6 +146,12 @@ type Subject struct {
 	Code   string `json:"code,omitempty"`
 }
 
+// Add adds a value to a subject array
+func (s *Subjects) Add(value Subject) {
+
+	*s = append(*s, value)
+}
+
 // BelongsTo is a list of collections/series that a publication belongs to
 type BelongsTo struct {
 	Series     []Collection `json:"series,omitempty"`
@@ -117,6 +165,9 @@ type Collection struct {
 	Identifier string  `json:"identifier,omitempty"`
 	Position   float32 `json:"position,omitempty"`
 }
+
+// Contributors is an array of contributors
+type Contributors []Contributor
 
 // UnmarshalJSON unmarshals contributors
 func (c *Contributors) UnmarshalJSON(b []byte) error {
@@ -190,6 +241,14 @@ func (c Contributors) Name() string {
 	return ""
 }
 
+// Contributor construct used internally for all contributors
+type Contributor struct {
+	Name       MultiLanguage `json:"name,omitempty"`
+	SortAs     string        `json:"sortAs,omitempty"`
+	Identifier string        `json:"identifier,omitempty"`
+	Role       string        `json:"role,omitempty"`
+}
+
 // UnmarshalJSON unmarshals Contributor
 func (c *Contributor) UnmarshalJSON(b []byte) error {
 
@@ -224,6 +283,9 @@ func (c Contributor) MarshalJSON() ([]byte, error) {
 	ctorAlias := Alias{c.Name, c.SortAs, c.Identifier, c.Role}
 	return json.Marshal(ctorAlias)
 }
+
+// MultiLanguage stores one or more values indexed by language.
+type MultiLanguage map[string]string
 
 // UnmarshalJSON unmarshalls Multilanguge
 // The "und" (undefined)language corresponds to a literal value
@@ -261,7 +323,7 @@ func (m MultiLanguage) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m["und"])
 }
 
-// Text returns the "und" language value or the single value found in thge map
+// Text returns the "und" language value or the single value found in the map
 func (m MultiLanguage) Text() string {
 
 	if m["und"] != "" {
@@ -291,6 +353,10 @@ func (m *MultiLanguage) Set(language string, value string) {
 	}
 	(*m)[language] = value
 }
+
+// MultiString stores one or more strings
+// Used for properties which take a string || an array of strings
+type MultiString []string
 
 // UnmarshalJSON unmarshals MultiString
 func (m *MultiString) UnmarshalJSON(b []byte) error {
@@ -324,14 +390,8 @@ func (m MultiString) MarshalJSON() ([]byte, error) {
 	return json.Marshal(mstring)
 }
 
-// Add adds a value to the multstring array
+// Add adds a value to a multistring array
 func (m *MultiString) Add(value string) {
 
 	*m = append(*m, value)
-}
-
-// Add adds a value to the multstring array
-func (s *Subjects) Add(value Subject) {
-
-	*s = append(*s, value)
 }

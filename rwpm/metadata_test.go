@@ -3,6 +3,7 @@ package rwpm
 import (
 	"encoding/json"
 	"testing"
+	"time"
 )
 
 type multiStringStruct struct {
@@ -89,6 +90,77 @@ func TestMultiLanguage(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(jstring) != multiple {
+		t.Errorf("Expected string equality, got %#v", string(jstring))
+	}
+
+}
+
+type DateOrDatetimeStruct struct {
+	Dt DateOrDatetime `json:"dt"`
+}
+
+func TestDateOrDatetime(t *testing.T) {
+	var obj DateOrDatetimeStruct
+
+	// case = the property is a date
+	const date = `{"dt":"2020-04-01"}`
+	if err := json.Unmarshal([]byte(date), &obj); err != nil {
+		t.Fatal(err)
+	} else {
+		tm := time.Time(obj.Dt)
+		if tm.Format(time.RFC3339) != "2020-04-01T00:00:00Z" {
+			t.Errorf("Expected '2020-04-01T00:00:00Z', got %#v", tm.Format(time.RFC3339))
+		}
+	}
+	jstring, err := json.Marshal(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(jstring) != `{"dt":"2020-04-01T00:00:00Z"}` {
+		t.Errorf("Expected string equality, got %#v", string(jstring))
+	}
+
+	// case = the property is a date-time
+	const datetime = `{"dt":"2020-04-01T01:02:03+02:00"}`
+	if err := json.Unmarshal([]byte(datetime), &obj); err != nil {
+		t.Fatal(err)
+	} else {
+		tm := time.Time(obj.Dt)
+		if tm.Format(time.RFC3339) != "2020-04-01T01:02:03+02:00" {
+			t.Errorf("Expected '2020-04-01T01:02:03+02:00', got %#v", tm.Format(time.RFC3339))
+		}
+	}
+	jstring, err = json.Marshal(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(jstring) != `{"dt":"2020-04-01T01:02:03+02:00"}` {
+		t.Errorf("Expected string equality, got %#v", string(jstring))
+	}
+}
+
+type DateStruct struct {
+	Dt Date `json:"dt"`
+}
+
+func TestDate(t *testing.T) {
+
+	var obj DateStruct
+
+	const date = `{"dt":"2020-04-01"}`
+	if err := json.Unmarshal([]byte(date), &obj); err != nil {
+		t.Fatal(err)
+	} else {
+		tm := time.Time(obj.Dt)
+		if tm.Format(time.RFC3339) != "2020-04-01T00:00:00Z" {
+			t.Errorf("Expected '2020-04-01T00:00:00Z', got %#v", tm.Format(time.RFC3339))
+		}
+	}
+	jstring, err := json.Marshal(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(jstring) != `{"dt":"2020-04-01"}` {
 		t.Errorf("Expected string equality, got %#v", string(jstring))
 	}
 
