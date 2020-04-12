@@ -22,7 +22,7 @@ type RWPPReader struct {
 	zipArchive *zip.Reader
 }
 
-// RWPPWriter is a REadium Package writer
+// RWPPWriter is a Readium Package writer
 type RWPPWriter struct {
 	manifest  rwpm.Publication
 	zipWriter *zip.Writer
@@ -68,7 +68,6 @@ func (reader *RWPPReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 	}
 
 	manifest := reader.manifest
-	manifest.ReadingOrder = nil
 
 	return &RWPPWriter{
 		zipWriter: zipWriter,
@@ -144,7 +143,7 @@ func (nc *NopWriteCloser) Close() error {
 	return nil
 }
 
-// NewFile creates a header for the input file and adds it (with its media type) to the reading order
+// NewFile creates a header in the zip archive and adds an entry to the reading order
 func (writer *RWPPWriter) NewFile(path string, contentType string, storageMethod uint16) (io.WriteCloser, error) {
 
 	w, err := writer.zipWriter.CreateHeader(&zip.FileHeader{
@@ -152,24 +151,19 @@ func (writer *RWPPWriter) NewFile(path string, contentType string, storageMethod
 		Method: storageMethod,
 	})
 
-	writer.manifest.ReadingOrder = append(writer.manifest.ReadingOrder, rwpm.Link{
-		Href: path,
-		Type: contentType,
-	})
-
 	return &NopWriteCloser{w}, err
 }
 
 // MarkAsEncrypted marks a resource as encrypted (with an lcp profile and algorithm), in the manifest
-// FIXME: currently only looks into the reading order. Add "resources" and "alternates"
+// FIXME: currently only looks into the reading order. Add "alternates", think about adding "resources"
 func (writer *RWPPWriter) MarkAsEncrypted(path string, originalSize int64, profile license.EncryptionProfile, algorithm string) {
 
 	for i, resource := range writer.manifest.ReadingOrder {
 		if path == resource.Href {
+			// add encryption properties
 			if resource.Properties == nil {
 				writer.manifest.ReadingOrder[i].Properties = new(rwpm.Properties)
 			}
-
 			writer.manifest.ReadingOrder[i].Properties.Encrypted = &rwpm.Encrypted{
 				Scheme:    "http://readium.org/2014/01/lcp",
 				Profile:   profile.String(),
