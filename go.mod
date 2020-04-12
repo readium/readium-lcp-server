@@ -13,6 +13,7 @@ require (
 	github.com/lib/pq v1.3.0
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/nicksnyder/go-i18n v1.10.1
+	github.com/rickb777/date v1.12.4
 	github.com/rs/cors v1.7.0
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	github.com/technoweenie/grohl v0.0.0-20140924204239-f4613feb389e
