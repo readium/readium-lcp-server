@@ -1,5 +1,4 @@
-// Copyright 2017 European Digital Reading Lab. All rights reserved.
-// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Copyright 2020 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -59,7 +58,7 @@ type Link struct {
 }
 
 type UserInfo struct {
-	Id        string   `json:"id"`
+	ID        string   `json:"id"`
 	Email     string   `json:"email,omitempty"`
 	Name      string   `json:"name,omitempty"`
 	Encrypted []string `json:"encrypted,omitempty"`
@@ -76,7 +75,7 @@ var DefaultLinks map[string]string
 
 type License struct {
 	Provider   string          `json:"provider"`
-	Id         string          `json:"id"`
+	ID         string          `json:"id"`
 	Issued     time.Time       `json:"issued"`
 	Updated    *time.Time      `json:"updated,omitempty"`
 	Encryption Encryption      `json:"encryption"`
@@ -84,17 +83,17 @@ type License struct {
 	User       UserInfo        `json:"user"`
 	Rights     *UserRights     `json:"rights,omitempty"`
 	Signature  *sign.Signature `json:"signature,omitempty"`
-	ContentId  string          `json:"-"`
+	ContentID  string          `json:"-"`
 }
 
 type LicenseReport struct {
 	Provider  string      `json:"provider"`
-	Id        string      `json:"id"`
+	ID        string      `json:"id"`
 	Issued    time.Time   `json:"issued"`
 	Updated   *time.Time  `json:"updated,omitempty"`
 	User      UserInfo    `json:"user,omitempty"`
 	Rights    *UserRights `json:"rights"`
-	ContentId string      `json:"-"`
+	ContentID string      `json:"-"`
 }
 
 // EncryptionProfile is an enum of possible encryption profiles
@@ -155,11 +154,11 @@ func Initialize(contentID string, l *License) {
 
 	// random license id
 	uuid, _ := newUUID()
-	l.Id = uuid
+	l.ID = uuid
 	// issued datetime is now
 	l.Issued = time.Now().UTC().Truncate(time.Second)
 	// set the content id
-	l.ContentId = contentID
+	l.ContentID = contentID
 }
 
 // CreateDefaultLinks inits the global var DefaultLinks from config data
@@ -187,7 +186,7 @@ func SetDefaultLinks() []Link {
 }
 
 // SetLicenseLinks sets publication and status links
-// l.ContentId must have been set before the call
+// l.ContentID must have been set before the call
 func SetLicenseLinks(l *License, c index.Content) error {
 
 	// set the links
@@ -196,7 +195,7 @@ func SetLicenseLinks(l *License, c index.Content) error {
 	for i := 0; i < len(l.Links); i++ {
 		// publication link
 		if l.Links[i].Rel == "publication" {
-			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{publication_id}", l.ContentId, 1)
+			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{publication_id}", l.ContentID, 1)
 			l.Links[i].Type = c.Type
 			l.Links[i].Size = c.Length
 			l.Links[i].Title = c.Location
@@ -204,7 +203,7 @@ func SetLicenseLinks(l *License, c index.Content) error {
 		}
 		// status link
 		if l.Links[i].Rel == "status" {
-			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{license_id}", l.Id, 1)
+			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{license_id}", l.ID, 1)
 			l.Links[i].Type = api.ContentType_LSD_JSON
 		}
 	}
@@ -236,7 +235,7 @@ func EncryptLicenseFields(l *License, c index.Content) error {
 
 	// build the key check
 	encrypterUserKeyCheck := crypto.NewAESEncrypter_USER_KEY_CHECK()
-	l.Encryption.UserKey.Check, err = buildKeyCheck(l.Id, encrypterUserKeyCheck, encryptionKey[:])
+	l.Encryption.UserKey.Check, err = buildKeyCheck(l.ID, encrypterUserKeyCheck, encryptionKey[:])
 	if err != nil {
 		return err
 	}

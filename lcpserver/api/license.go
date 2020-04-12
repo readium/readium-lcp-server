@@ -82,7 +82,7 @@ func checkGenerateLicenseInput(l *license.License) error {
 		log.Println("License provider is missing")
 		return ErrMandatoryInfoMissing
 	}
-	if l.User.Id == "" {
+	if l.User.ID == "" {
 		log.Println("User identification is missing")
 		return ErrMandatoryInfoMissing
 	}
@@ -126,9 +126,9 @@ func buildLicense(lic *license.License, s Server) error {
 	license.SetLicenseProfile(lic)
 
 	// get content info from the db
-	content, err := s.Index().Get(lic.ContentId)
+	content, err := s.Index().Get(lic.ContentID)
 	if err != nil {
-		log.Println("No content with id", lic.ContentId)
+		log.Println("No content with id", lic.ContentID)
 		return err
 	}
 
@@ -190,7 +190,7 @@ func isWebPub(in *zip.Reader) bool {
 func buildLicensedPublication(lic *license.License, s Server) (buf bytes.Buffer, err error) {
 
 	// get content info from the bd
-	item, err := s.Store().Get(lic.ContentId)
+	item, err := s.Store().Get(lic.ContentID)
 	if err != nil {
 		return
 	}
@@ -255,7 +255,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	var licOut license.License
 	licOut, e := s.Licenses().Get(licenseID)
 	// process license not found etc.
-	if e == license.NotFound {
+	if e == license.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusNotFound)
 		return
 	} else if e != nil {
@@ -404,7 +404,7 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 	// initialize the license from the info stored in the db.
 	licOut, e := s.Licenses().Get(licenseID)
 	// process license not found etc.
-	if e == license.NotFound {
+	if e == license.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusNotFound)
 		return
 	} else if e != nil {
@@ -422,17 +422,17 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 	// build a licensed publication
 	buf, err := buildLicensedPublication(&licOut, s)
 	if err == storage.ErrNotFound {
-		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: licOut.ContentId}, http.StatusNotFound)
+		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: licOut.ContentID}, http.StatusNotFound)
 		return
 	} else if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: licOut.ContentId}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: licOut.ContentID}, http.StatusInternalServerError)
 		return
 	}
 	// get the content location to fill an http header
 	// FIXME: redundant as the content location has been set in a link (publication)
-	content, err1 := s.Index().Get(licOut.ContentId)
+	content, err1 := s.Index().Get(licOut.ContentID)
 	if err1 != nil {
-		problem.Error(w, r, problem.Problem{Detail: err1.Error(), Instance: licOut.ContentId}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Detail: err1.Error(), Instance: licOut.ContentID}, http.StatusInternalServerError)
 		return
 	}
 	location := content.Location
@@ -441,7 +441,7 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Add("Content-Type", epub.ContentType_EPUB)
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, location))
 	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
-	w.Header().Add("X-Lcp-License", licOut.Id)
+	w.Header().Add("X-Lcp-License", licOut.ID)
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusCreated)
 	// return the full licensed publication to the caller
@@ -494,18 +494,18 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 	// build a licenced publication
 	buf, err := buildLicensedPublication(&lic, s)
 	if err == storage.ErrNotFound {
-		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: lic.ContentId}, http.StatusNotFound)
+		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: lic.ContentID}, http.StatusNotFound)
 		return
 	} else if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: lic.ContentId}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: lic.ContentID}, http.StatusInternalServerError)
 		return
 	}
 
 	// get the content location to fill an http header
 	// FIXME: redundant as the content location has been set in a link (publication)
-	content, err1 := s.Index().Get(lic.ContentId)
+	content, err1 := s.Index().Get(lic.ContentID)
 	if err1 != nil {
-		problem.Error(w, r, problem.Problem{Detail: err1.Error(), Instance: lic.ContentId}, http.StatusInternalServerError)
+		problem.Error(w, r, problem.Problem{Detail: err1.Error(), Instance: lic.ContentID}, http.StatusInternalServerError)
 		return
 	}
 	location := content.Location
@@ -514,7 +514,7 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 	w.Header().Add("Content-Type", epub.ContentType_EPUB)
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, location))
 	// FIXME: check the use of X-Lcp-License by the caller (frontend?)
-	w.Header().Add("X-Lcp-License", lic.Id)
+	w.Header().Add("X-Lcp-License", lic.ID)
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusCreated)
 	// return the full licensed publication to the caller
@@ -546,7 +546,7 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	var licOut license.License
 	licOut, e := s.Licenses().Get(licenseID)
 	// process license not found etc.
-	if e == license.NotFound {
+	if e == license.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusNotFound)
 		return
 	} else if e != nil {
@@ -554,17 +554,17 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	// update licOut using information found in licIn
-	if licIn.User.Id != "" {
-		log.Println("new user id: ", licIn.User.Id)
-		licOut.User.Id = licIn.User.Id
+	if licIn.User.ID != "" {
+		log.Println("new user id: ", licIn.User.ID)
+		licOut.User.ID = licIn.User.ID
 	}
 	if licIn.Provider != "" {
 		log.Println("new provider: ", licIn.Provider)
 		licOut.Provider = licIn.Provider
 	}
-	if licIn.ContentId != "" {
-		log.Println("new content id: ", licIn.ContentId)
-		licOut.ContentId = licIn.ContentId
+	if licIn.ContentID != "" {
+		log.Println("new content id: ", licIn.ContentID)
+		licOut.ContentID = licIn.ContentID
 	}
 	if licIn.Rights.Print != nil {
 		log.Println("new right, print: ", *licIn.Rights.Print)
@@ -597,7 +597,7 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 
 	var page int64
-	var per_page int64
+	var perPage int64
 	var err error
 	if r.FormValue("page") != "" {
 		page, err = strconv.ParseInt((r).FormValue("page"), 10, 32)
@@ -609,13 +609,13 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 		page = 1
 	}
 	if r.FormValue("per_page") != "" {
-		per_page, err = strconv.ParseInt((r).FormValue("per_page"), 10, 32)
+		perPage, err = strconv.ParseInt((r).FormValue("per_page"), 10, 32)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 	} else {
-		per_page = 30
+		perPage = 30
 	}
 	if page > 0 { //pagenum starting at 0 in code, but user interface starting at 1
 		page--
@@ -626,7 +626,7 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	licenses := make([]license.LicenseReport, 0)
 	//log.Println("ListAll(" + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
-	fn := s.Licenses().ListAll(int(per_page), int(page))
+	fn := s.Licenses().ListAll(int(perPage), int(page))
 	for it, err := fn(); err == nil; it, err = fn() {
 		licenses = append(licenses, it)
 	}
@@ -659,13 +659,13 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 	vars := mux.Vars(r)
 	var page int64
-	var per_page int64
+	var perPage int64
 	var err error
 	contentID := vars["content_id"]
 
 	//check if the license exists
 	_, err = s.Index().Get(contentID)
-	if err == index.NotFound {
+	if err == index.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		return
 	} //other errors pass, but will probably reoccur
@@ -680,13 +680,13 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	if r.FormValue("per_page") != "" {
-		per_page, err = strconv.ParseInt((r).FormValue("per_page"), 10, 32)
+		perPage, err = strconv.ParseInt((r).FormValue("per_page"), 10, 32)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
 	} else {
-		per_page = 30
+		perPage = 30
 	}
 	if page > 0 {
 		page-- //pagenum starting at 0 in code, but user interface starting at 1
@@ -697,7 +697,7 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	licenses := make([]license.LicenseReport, 0)
 	//log.Println("List(" + contentId + "," + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
-	fn := s.Licenses().List(contentID, int(per_page), int(page))
+	fn := s.Licenses().List(contentID, int(perPage), int(page))
 	for it, err := fn(); err == nil; it, err = fn() {
 		licenses = append(licenses, it)
 	}
@@ -769,13 +769,13 @@ func notifyLsdServer(l license.License, s Server) {
 
 		response, err := lsdClient.Do(req)
 		if err != nil {
-			log.Println("Error Notify LsdServer of new License (" + l.Id + "):" + err.Error())
-			_ = s.Licenses().UpdateLsdStatus(l.Id, -1)
+			log.Println("Error Notify LsdServer of new License (" + l.ID + "):" + err.Error())
+			_ = s.Licenses().UpdateLsdStatus(l.ID, -1)
 		} else {
 			defer req.Body.Close()
-			_ = s.Licenses().UpdateLsdStatus(l.Id, int32(response.StatusCode))
+			_ = s.Licenses().UpdateLsdStatus(l.ID, int32(response.StatusCode))
 			// message to the console
-			log.Println("Notify Lsd Server of a new License with id " + l.Id + " = " + strconv.Itoa(response.StatusCode))
+			log.Println("Notify Lsd Server of a new License with id " + l.ID + " = " + strconv.Itoa(response.StatusCode))
 		}
 	}
 }

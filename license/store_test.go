@@ -77,7 +77,7 @@ func TestStoreAdd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	l2, err := st.Get(l.Id)
+	l2, err := st.Get(l.ID)
 	if err != nil {
 		t.Error(err)
 	}

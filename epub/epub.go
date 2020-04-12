@@ -50,7 +50,7 @@ func (ep Epub) Cover() (bool, *Resource) {
 		for _, it := range p.Manifest.Items {
 
 			if strings.Contains(it.Properties, "cover-image") ||
-				it.Id == coverImageID {
+				it.ID == coverImageID {
 
 				// To be found later, resources in the EPUB root folder
 				// must not be prefixed by "./"
