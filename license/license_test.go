@@ -39,12 +39,14 @@ func TestLicense(t *testing.T) {
 		t.Error("Should have an id")
 	}
 
+	SetLicenseProfile(&l)
+
 	profile := BASIC_PROFILE
 	if config.Config.Profile == "1.0" {
 		profile = V1_PROFILE
 	}
 
 	if l.Encryption.Profile != profile {
-		t.Error("Expected %s, got %s", profile, l.Encryption.Profile)
+		t.Errorf("Expected %s, got %s", profile, l.Encryption.Profile)
 	}
 }
