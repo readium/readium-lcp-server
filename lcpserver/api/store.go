@@ -7,10 +7,12 @@ package apilcp
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/gorilla/mux"
@@ -120,7 +122,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	// open the encrypted file, use its full path
-	file, err := os.Open(publication.Output)
+	file, err := getAndOpenFile(publication.Output)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
@@ -236,4 +238,67 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 	return
 
+}
+
+// getAndOpenFile opens a file from a path, or downloads then opens it if its location is a URL
+func getAndOpenFile(filePathOrURL string) (*os.File, error) {
+
+	HTTPOrHTTPS, err := isHTTPOrHTTPS(filePathOrURL)
+	if err != nil {
+		return nil, err
+	}
+
+	if HTTPOrHTTPS {
+		return downloadAndOpenFile(filePathOrURL)
+	}
+
+	return os.Open(filePathOrURL)
+}
+
+func downloadAndOpenFile(url string) (*os.File, error) {
+	file, _ := ioutil.TempFile("", "")
+	fileName := file.Name()
+
+	err := downloadFile(url, fileName)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return os.Open(fileName)
+}
+
+func isHTTPOrHTTPS(filePathOrURL string) (bool, error) {
+	url, err := url.Parse(filePathOrURL)
+	if err != nil {
+		return false, errors.New("Error parsing input file")
+	}
+
+	return url.Scheme == "http" || url.Scheme == "https", nil
+}
+
+func downloadFile(url string, targetFilePath string) error {
+	out, err := os.Create(targetFilePath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("HTTP response: %d %s when downloading %s", resp.StatusCode, resp.Status, url)
+	}
+
+	defer resp.Body.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
