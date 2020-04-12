@@ -39,7 +39,7 @@ import (
 var ErrNotFound = errors.New("License Status not found")
 
 type LicenseStatuses interface {
-	//Get(id int) (LicenseStatus, error)
+	getById(id int) (*LicenseStatus, error)
 	Add(ls LicenseStatus) error
 	List(deviceLimit int64, limit int64, offset int64) func() (LicenseStatus, error)
 	GetByLicenseId(id string) (*LicenseStatus, error)
@@ -55,7 +55,46 @@ type dbLicenseStatuses struct {
 	update         *sql.Stmt
 }
 
-// Add adds a license status to the database
+//Get gets license status by id
+//
+// Removed in 94722fcb4a0a38bd5f765e67b0538f2042192ac4 but breaks the test,
+// so putting it back as unexported.
+// FIXME: check if could be useful; delete if not, be careful about tests
+func (i dbLicenseStatuses) getById(id int) (*LicenseStatus, error) {
+	var statusDB int64
+	ls := LicenseStatus{}
+
+	var potentialRightsEnd *time.Time
+	var licenseUpdate *time.Time
+	var statusUpdate *time.Time
+
+	row := i.get.QueryRow(id)
+	err := row.Scan(&ls.Id, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef, &ls.CurrentEndLicense)
+
+	if err == nil {
+		status.GetStatus(statusDB, &ls.Status)
+
+		ls.Updated = new(Updated)
+
+		if (potentialRightsEnd != nil) && (!(*potentialRightsEnd).IsZero()) {
+			ls.PotentialRights = new(PotentialRights)
+			ls.PotentialRights.End = potentialRightsEnd
+		}
+
+		if licenseUpdate != nil || statusUpdate != nil {
+			ls.Updated.Status = statusUpdate
+			ls.Updated.License = licenseUpdate
+		}
+	} else {
+		if err == sql.ErrNoRows {
+			return nil, NotFound
+		}
+	}
+
+	return &ls, err
+}
+
+//Add adds license status to database
 func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
 	add, err := i.db.Prepare("INSERT INTO license_status (status, license_updated, status_updated, device_count, potential_rights_end, license_ref,  rights_end) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {

@@ -12,11 +12,14 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/status"
 )
 
 //TestTransactionCreation opens database and tries to add an event to table 'event'
 func TestTransactionCreation(t *testing.T) {
+	config.Config.LsdServer.Database = "sqlite" // FIXME
+
 	db, err := sql.Open("sqlite3", ":memory:")
 	trns, err := Open(db)
 	if err != nil {
