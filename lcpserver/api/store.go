@@ -121,7 +121,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: "The content id must be set in the url"}, http.StatusBadRequest)
 		return
 	}
-
+	// open the encrypted file, use its full path
 	file, err := getAndOpenFile(publication.Output)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
@@ -240,18 +240,19 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 }
 
-func getAndOpenFile(filePathOrUrl string) (*os.File, error) {
-	httpOrHttps, err := isHttpOrHttps(filePathOrUrl)
+// getAndOpenFile opens a file from a path, or downloads then opens it if its location is a URL
+func getAndOpenFile(filePathOrURL string) (*os.File, error) {
 
+	HTTPOrHTTPS, err := isHTTPOrHTTPS(filePathOrURL)
 	if err != nil {
 		return nil, err
 	}
 
-	if httpOrHttps {
-		return downloadAndOpenFile(filePathOrUrl)
+	if HTTPOrHTTPS {
+		return downloadAndOpenFile(filePathOrURL)
 	}
 
-	return os.Open(filePathOrUrl)
+	return os.Open(filePathOrURL)
 }
 
 func downloadAndOpenFile(url string) (*os.File, error) {
@@ -267,8 +268,8 @@ func downloadAndOpenFile(url string) (*os.File, error) {
 	return os.Open(fileName)
 }
 
-func isHttpOrHttps(filePathOrUrl string) (bool, error) {
-	url, err := url.Parse(filePathOrUrl)
+func isHTTPOrHTTPS(filePathOrURL string) (bool, error) {
+	url, err := url.Parse(filePathOrURL)
 	if err != nil {
 		return false, errors.New("Error parsing input file")
 	}
@@ -289,7 +290,7 @@ func downloadFile(url string, targetFilePath string) error {
 	}
 
 	if resp.StatusCode >= 300 {
-		return errors.New(fmt.Sprintf("HTTP response: %d %s when downloading %s", resp.StatusCode, resp.Status, url))
+		return fmt.Errorf("HTTP response: %d %s when downloading %s", resp.StatusCode, resp.Status, url)
 	}
 
 	defer resp.Body.Close()
