@@ -15,11 +15,11 @@ import (
 	"github.com/readium/readium-lcp-server/config"
 )
 
-var NotFound = errors.New("License not found")
+var ErrNotFound = errors.New("License not found")
 
 type Store interface {
 	//List() func() (License, error)
-	List(ContentId string, page int, pageNum int) func() (LicenseReport, error)
+	List(ContentID string, page int, pageNum int) func() (LicenseReport, error)
 	ListAll(page int, pageNum int) func() (LicenseReport, error)
 	UpdateRights(l License) error
 	Update(l License) error
@@ -48,8 +48,8 @@ func (s *sqlStore) ListAll(page int, pageNum int) func() (LicenseReport, error) 
 		l.User = UserInfo{}
 		l.Rights = new(UserRights)
 		if listLicenses.Next() {
-			err := listLicenses.Scan(&l.Id, &l.User.Id, &l.Provider, &l.Issued, &l.Updated,
-				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End, &l.ContentId)
+			err := listLicenses.Scan(&l.ID, &l.User.ID, &l.Provider, &l.Issued, &l.Updated,
+				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End, &l.ContentID)
 
 			if err != nil {
 				return l, err
@@ -57,13 +57,13 @@ func (s *sqlStore) ListAll(page int, pageNum int) func() (LicenseReport, error) 
 
 		} else {
 			listLicenses.Close()
-			err = NotFound
+			err = ErrNotFound
 		}
 		return l, err
 	}
 }
 
-// List lists licenses for a given ContentId
+// List lists licenses for a given ContentID
 // pageNum starting at 0
 //
 func (s *sqlStore) List(contentID string, page int, pageNum int) func() (LicenseReport, error) {
@@ -80,14 +80,14 @@ func (s *sqlStore) List(contentID string, page int, pageNum int) func() (License
 		l.Rights = new(UserRights)
 		if listLicenses.Next() {
 
-			err := listLicenses.Scan(&l.Id, &l.User.Id, &l.Provider, &l.Issued, &l.Updated,
-				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End, &l.ContentId)
+			err := listLicenses.Scan(&l.ID, &l.User.ID, &l.Provider, &l.Issued, &l.Updated,
+				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End, &l.ContentID)
 			if err != nil {
 				return l, err
 			}
 		} else {
 			listLicenses.Close()
-			err = NotFound
+			err = ErrNotFound
 		}
 		return l, err
 	}
@@ -97,11 +97,11 @@ func (s *sqlStore) List(contentID string, page int, pageNum int) func() (License
 //
 func (s *sqlStore) UpdateRights(l License) error {
 	result, err := s.db.Exec("UPDATE license SET rights_print=?, rights_copy=?, rights_start=?, rights_end=?,updated=?  WHERE id=?",
-		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End, time.Now().UTC().Truncate(time.Second), l.Id)
+		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End, time.Now().UTC().Truncate(time.Second), l.ID)
 
 	if err == nil {
 		if r, _ := result.RowsAffected(); r == 0 {
-			return NotFound
+			return ErrNotFound
 		}
 	}
 	return err
@@ -113,9 +113,9 @@ func (s *sqlStore) Add(l License) error {
 	_, err := s.db.Exec(`INSERT INTO license (id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end, content_fk) 
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?,  ?, ?)`,
-		l.Id, l.User.Id, l.Provider, l.Issued, nil,
+		l.ID, l.User.ID, l.Provider, l.Issued, nil,
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End,
-		l.ContentId)
+		l.ContentID)
 	return err
 }
 
@@ -125,11 +125,11 @@ func (s *sqlStore) Update(l License) error {
 	_, err := s.db.Exec(`UPDATE license SET user_id=?,provider=?,updated=?,
 				rights_print=?,	rights_copy=?,	rights_start=?,	rights_end=?, content_fk =?
 				WHERE id=?`,
-		l.User.Id, l.Provider,
+		l.User.ID, l.Provider,
 		time.Now().UTC().Truncate(time.Second),
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End,
-		l.ContentId,
-		l.Id)
+		l.ContentID,
+		l.ID)
 
 	return err
 }
@@ -156,13 +156,13 @@ func (s *sqlStore) Get(id string) (License, error) {
 	rights_start, rights_end, content_fk FROM license
 	where id = ?`, id)
 
-	err := row.Scan(&l.Id, &l.User.Id, &l.Provider, &l.Issued, &l.Updated,
+	err := row.Scan(&l.ID, &l.User.ID, &l.Provider, &l.Issued, &l.Updated,
 		&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End,
-		&l.ContentId)
+		&l.ContentID)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return l, NotFound
+			return l, ErrNotFound
 		} else {
 			return l, err
 		}

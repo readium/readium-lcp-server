@@ -332,7 +332,7 @@ func main() {
 		}
 		*contentid = uid.String()
 	}
-	pub.ContentId = *contentid
+	pub.ContentID = *contentid
 
 	// if the output file name not set,
 	// then <content-id>.epub|lcpdf is created in the working directory

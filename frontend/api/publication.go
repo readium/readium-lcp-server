@@ -57,7 +57,6 @@ func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 
 	pubs := make([]webpublication.Publication, 0)
-	//log.Println("ListAll(" + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
 	fn := s.PublicationAPI().List(int(perPage), int(page))
 	for it, err := fn(); err == nil; it, err = fn() {
 		pubs = append(pubs, it)

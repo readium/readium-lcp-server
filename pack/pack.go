@@ -19,17 +19,20 @@ import (
 	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
+// PackageReader is an interface
 type PackageReader interface {
 	Resources() []Resource
 	NewWriter(io.Writer) (PackageWriter, error)
 }
 
+// PackageWriter is an interface
 type PackageWriter interface {
 	NewFile(path string, contentType string, storageMethod uint16) (io.WriteCloser, error)
 	MarkAsEncrypted(path string, originalSize int64, profile license.EncryptionProfile, algorithm string)
 	Close() error
 }
 
+// Resource is an interface
 type Resource interface {
 	Path() string
 	Size() int64

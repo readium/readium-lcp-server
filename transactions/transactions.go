@@ -1,5 +1,4 @@
-// Copyright 2017 European Digital Reading Lab. All rights reserved.
-// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Copyright 2020 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -27,7 +26,7 @@ type Transactions interface {
 }
 
 type RegisteredDevicesList struct {
-	Id      string   `json:"id"`
+	ID      string   `json:"id"`
 	Devices []Device `json:"devices"`
 }
 
@@ -38,7 +37,7 @@ type Device struct {
 }
 
 type Event struct {
-	Id              int       `json:"-"`
+	ID              int       `json:"-"`
 	DeviceName      string    `json:"name"`
 	Timestamp       time.Time `json:"timestamp"`
 	Type            string    `json:"type"`
@@ -64,7 +63,7 @@ func (i dbTransactions) Get(id int) (Event, error) {
 	defer records.Close()
 	if records.Next() {
 		var e Event
-		err = records.Scan(&e.Id, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
+		err = records.Scan(&e.ID, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
 		if err == nil {
 			e.Type = status.EventTypes[typeInt]
 		}
@@ -102,7 +101,7 @@ func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event,
 		var typeInt int
 
 		if rows.Next() {
-			err = rows.Scan(&e.Id, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
+			err = rows.Scan(&e.ID, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
 			if err == nil {
 				e.Type = status.EventTypes[typeInt]
 			}

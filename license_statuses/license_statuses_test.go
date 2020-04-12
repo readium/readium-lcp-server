@@ -1,5 +1,4 @@
-// Copyright 2017 European Digital Reading Lab. All rights reserved.
-// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Copyright 2020 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -35,7 +34,7 @@ func TestHistoryCreation(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = lst.getById(1)
+	_, err = lst.getByID(1)
 	if err != nil {
 		t.Error(err)
 	}

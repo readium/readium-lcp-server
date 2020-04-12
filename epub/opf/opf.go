@@ -41,7 +41,7 @@ type Manifest struct {
 
 // Item is the manifest item structure
 type Item struct {
-	Id         string `xml:"id,attr"`
+	ID         string `xml:"id,attr"`
 	Href       string `xml:"href,attr"`
 	MediaType  string `xml:"media-type,attr"`
 	Properties string `xml:"properties,attr"`

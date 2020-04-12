@@ -181,7 +181,7 @@ func addCleartextResources(ep *Epub, p opf.Package) {
 	// Look for cover, nav and NCX items
 	for _, item := range p.Manifest.Items {
 		if strings.Contains(item.Properties, "cover-image") ||
-			item.Id == coverImageID ||
+			item.ID == coverImageID ||
 			strings.Contains(item.Properties, "nav") ||
 			item.MediaType == ContentType_NCX {
 			// re-construct a path, avoid insertion of backslashes as separator on Windows

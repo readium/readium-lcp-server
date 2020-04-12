@@ -213,7 +213,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	// prepare the import request to the lcp server
 	contentDisposition := slugify.Slugify(pub.Title)
 	lcpPublication := apilcp.LcpPublication{}
-	lcpPublication.ContentId = contentUUID
+	lcpPublication.ContentID = contentUUID
 	lcpPublication.ContentKey = encryptedPub.EncryptionKey
 	// both frontend and lcp server must understand this path (warning if using Docker containers)
 	lcpPublication.Output = outputPath
