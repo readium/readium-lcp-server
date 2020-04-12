@@ -1,5 +1,4 @@
-// Copyright 2017 European Digital Reading Lab. All rights reserved.
-// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Copyright 2017 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -40,9 +39,9 @@ var ErrBadHexValue = errors.New("Erroneous user_key.hex_value can't be decoded")
 var ErrBadValue = errors.New("Erroneous user_key.value, can't be decoded")
 
 // checkGetLicenseInput: if we generate or get a license, check mandatory information in the input body
-// and compute request parameters.
-//
+// and compute request parameters
 func checkGetLicenseInput(l *license.License) error {
+
 	// the user hint is mandatory
 	if l.Encryption.UserKey.Hint == "" {
 		log.Println("User hint is missing")
@@ -77,8 +76,8 @@ func checkGetLicenseInput(l *license.License) error {
 }
 
 // checkGenerateLicenseInput: if we generate a license, check mandatory information in the input body
-//
 func checkGenerateLicenseInput(l *license.License) error {
+
 	if l.Provider == "" {
 		log.Println("License provider is missing")
 		return ErrMandatoryInfoMissing
@@ -93,8 +92,8 @@ func checkGenerateLicenseInput(l *license.License) error {
 }
 
 // get license, copy useful data from licIn to LicOut
-//
 func copyInputToLicense(licIn *license.License, licOut *license.License) {
+
 	// copy the hashed passphrase, user hint and algorithm
 	licOut.Encryption.UserKey = licIn.Encryption.UserKey
 	// copy optional user information
@@ -104,8 +103,8 @@ func copyInputToLicense(licIn *license.License, licOut *license.License) {
 }
 
 // normalize the start and end date, UTC, no milliseconds
-//
 func setRights(lic *license.License) {
+
 	// a rights object is needed before adding a record to the db
 	if lic.Rights == nil {
 		lic.Rights = new(license.UserRights)
@@ -121,7 +120,6 @@ func setRights(lic *license.License) {
 }
 
 // build a license, common to get and generate license, get and generate licensed publication
-//
 func buildLicense(lic *license.License, s Server) error {
 
 	// set the LCP profile
@@ -152,7 +150,9 @@ func buildLicense(lic *license.License, s Server) error {
 	return nil
 }
 
-func copyZipFile(out *zip.Writer, in *zip.Reader) error {
+// copyZipFiles copies every file from one zip archive to another
+func copyZipFiles(out *zip.Writer, in *zip.Reader) error {
+
 	for _, file := range in.File {
 		newFile, err := out.CreateHeader(&file.FileHeader)
 		if err != nil {
@@ -174,7 +174,9 @@ func copyZipFile(out *zip.Writer, in *zip.Reader) error {
 	return nil
 }
 
+// isWebPub checks the presence of a REadium manifest is a zip package
 func isWebPub(in *zip.Reader) bool {
+
 	for _, f := range in.File {
 		if f.Name == "manifest.json" {
 			return true
@@ -184,20 +186,19 @@ func isWebPub(in *zip.Reader) bool {
 	return false
 }
 
-// build a licensed publication, common to get and generate licensed publication
-//
+// buildLicensedPublication builds a licensed publication, common to get and generate licensed publication
 func buildLicensedPublication(lic *license.License, s Server) (buf bytes.Buffer, err error) {
-	// get the epub content info from the bd
-	epubFile, err := s.Store().Get(lic.ContentId)
+
+	// get content info from the bd
+	item, err := s.Store().Get(lic.ContentId)
 	if err != nil {
 		return
 	}
-	// get the epub content
-	contents, err1 := epubFile.Contents()
-	if err1 != nil {
-		return buf, err1
+	// read the content into a buffer
+	contents, err := item.Contents()
+	if err != nil {
+		return buf, err
 	}
-
 	b, err := ioutil.ReadAll(contents)
 	if err != nil {
 		return buf, err
@@ -209,10 +210,10 @@ func buildLicensedPublication(lic *license.License, s Server) (buf bytes.Buffer,
 	}
 
 	zipWriter := zip.NewWriter(&buf)
-	err = copyZipFile(zipWriter, zr)
+	err = copyZipFiles(zipWriter, zr)
 
-	// Encode the license to JSON, removing the trailing newline
-	// write the buffer in the zip, and suppress the trailing newline
+	// Encode the license to JSON, remove the trailing newline
+	// write the buffer in the zip
 	licenseBytes, err := json.Marshal(lic)
 	if err != nil {
 		return buf, err
@@ -242,7 +243,6 @@ func buildLicensedPublication(lic *license.License, s Server) (buf bytes.Buffer,
 // selected by a license id and a partial license both given as input.
 // The input partial license is optional: if absent, a partial license
 // is returned to the caller, with the info stored in the db.
-//
 func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 	vars := mux.Vars(r)
@@ -320,8 +320,8 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 // GenerateLicense generates and returns a new license,
 // for a given content identified by its id
 // plus a partial license given as input
-//
 func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
+
 	vars := mux.Vars(r)
 	// get the content id from the request URL
 	contentID := vars["content_id"]
@@ -381,8 +381,8 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 // GetLicensedPublication returns a licensed publication
 // for a given license identified by its id
 // plus a partial license given as input
-//
 func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
+
 	vars := mux.Vars(r)
 	licenseID := vars["license_id"]
 
@@ -451,8 +451,8 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 // GenerateLicensedPublication generates and returns a licensed publication
 // for a given content identified by its id
 // plus a partial license given as input
-//
 func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
+
 	vars := mux.Vars(r)
 	contentID := vars["content_id"]
 
@@ -528,8 +528,8 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 // return: an http status code (200, 400 or 404)
 // Usually called from the License Status Server after a renew, return or cancel/revoke action
 // -> updates the end date.
-//
 func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
+
 	vars := mux.Vars(r)
 	// get the license id from the request URL
 	licenseID := vars["license_id"]
@@ -594,8 +594,8 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 // parameters:
 // 	page: page number
 //	per_page: number of items par page
-//
 func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
+
 	var page int64
 	var per_page int64
 	var err error
@@ -655,8 +655,8 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 //	content_id: content identifier
 // 	page: page number (default 1)
 //	per_page: number of items par page (default 30)
-//
 func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
+
 	vars := mux.Vars(r)
 	var page int64
 	var per_page int64
@@ -722,8 +722,8 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 // DecodeJSONLicense decodes a license formatted in json and returns a license object
-//
 func DecodeJSONLicense(r *http.Request, lic *license.License) error {
+
 	var dec *json.Decoder
 
 	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_FORM_URL_ENCODED {
@@ -743,8 +743,8 @@ func DecodeJSONLicense(r *http.Request, lic *license.License) error {
 
 // notifyLsdServer informs the License Status Server of the creation of a new license
 // and saves the result of the http request in the DB (using *Store)
-//
 func notifyLsdServer(l license.License, s Server) {
+
 	if config.Config.LsdServer.PublicBaseUrl != "" {
 		var lsdClient = &http.Client{
 			Timeout: time.Second * 10,
@@ -782,7 +782,6 @@ func notifyLsdServer(l license.License, s Server) {
 
 // utility: log a license for debug purposes
 // ex: logLicense("build licence:", licOut)
-
 func logLicense(msg string, l *license.License) {
 	log.Println(msg)
 	jsonBody, errj := json.Marshal(*l)

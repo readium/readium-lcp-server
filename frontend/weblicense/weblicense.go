@@ -233,7 +233,7 @@ func (licManager LicenseManager) Delete(id int64) error {
 	// delete a license
 	dbDelete, err := licManager.db.Prepare("DELETE FROM license_view WHERE id = ?")
 	if err != nil {
-		log.Println("Error creating license_view table")
+		log.Println("Error deleting license_view table")
 		return err
 	}
 	defer dbDelete.Close()

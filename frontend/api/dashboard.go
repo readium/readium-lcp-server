@@ -41,7 +41,6 @@ func GetDashboardInfos(w http.ResponseWriter, r *http.Request, s IServer) {
 		if err = enc.Encode(pub); err == nil {
 			// send json of correctly encoded user info
 			w.Header().Set("Content-Type", api.ContentType_JSON)
-			w.WriteHeader(http.StatusOK)
 			return
 		}
 
@@ -68,7 +67,6 @@ func GetDashboardBestSellers(w http.ResponseWriter, r *http.Request, s IServer) 
 		if err = enc.Encode(pub); err == nil {
 			// send json of correctly encoded user info
 			w.Header().Set("Content-Type", api.ContentType_JSON)
-			w.WriteHeader(http.StatusOK)
 			return
 		}
 

@@ -31,16 +31,16 @@ var ErrNotFound = errors.New("Purchase not found")
 //ErrNoChange is thrown when an update action does not change any rows (not found)
 var ErrNoChange = errors.New("No lines were updated")
 
-const purchaseManagerQuery = `SELECT
+const purchaseManagerQuery = `select
 p.id, p.uuid,
 p.type, p.transaction_date,
 p.license_uuid,
 p.start_date, p.end_date, p.status,
 u.id, u.uuid, u.name, u.email, u.password, u.hint,
 pu.id, pu.uuid, pu.title, pu.status
-FROM purchase p
-left join user u on (p.user_id=u.id)
-left join publication pu on (p.publication_id=pu.id)`
+from purchase p
+join user u on (p.user_id=u.id)
+join publication pu on (p.publication_id=pu.id)`
 
 //WebPurchase defines possible interactions with DB
 type WebPurchase interface {
@@ -101,7 +101,6 @@ func convertRecordsToPurchases(records *sql.Rows) func() (Purchase, error) {
 			}
 		} else {
 			records.Close()
-			err = ErrNotFound
 		}
 
 		return purchase, err
@@ -424,22 +423,21 @@ func (pManager PurchaseManager) GetByLicenseID(licenseID string) (Purchase, erro
 	return Purchase{}, ErrNotFound
 }
 
-// List purchases, with pagination
+// List all purchases, with pagination
 //
 func (pManager PurchaseManager) List(page int, pageNum int) func() (Purchase, error) {
-	dbListByUserQuery := purchaseManagerQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
-	dbListByUser, err := pManager.db.Prepare(dbListByUserQuery)
-
+	dbListQuery := purchaseManagerQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
+	dbList, err := pManager.db.Prepare(dbListQuery)
 	if err != nil {
 		return func() (Purchase, error) { return Purchase{}, err }
 	}
-	defer dbListByUser.Close()
+	defer dbList.Close()
 
-	records, err := dbListByUser.Query(page, pageNum*page)
+	records, err := dbList.Query(page, pageNum*page)
 	return convertRecordsToPurchases(records)
 }
 
-// ListByUser: list the purchases of a given user, with pagination
+// ListByUser lists the purchases of a given user, with pagination
 //
 func (pManager PurchaseManager) ListByUser(userID int64, page int, pageNum int) func() (Purchase, error) {
 	dbListByUserQuery := purchaseManagerQuery + ` WHERE u.id = ?
@@ -551,12 +549,15 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 		if err != nil {
 			return err
 		}
-		// FIXME: what is the use of the resp.Body.Close?
 		defer resp.Body.Close()
 
-		// get the new end date from the license server
+		// if the renew/return request was refused by the License Status server
+		if resp.StatusCode != 200 {
+			return ErrNoChange
+		}
 
-		// FIXME: really needed? heavy...
+		// get the new end date from the license server
+		// FIXME: is there a lighter solution to get the new end date?
 		license, err := pManager.GetPartialLicense(origPurchase)
 		if err != nil {
 			return err

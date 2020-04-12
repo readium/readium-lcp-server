@@ -538,7 +538,7 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 	// Get request parameters. If not defined, set default values
 	rDevices := r.FormValue("devices")
 	if rDevices == "" {
-		rDevices = "1"
+		rDevices = "0"
 	}
 
 	rPage := r.FormValue("page")
@@ -569,7 +569,7 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	if (page < 1) || (perPage < 1) || (devicesLimit < 1) {
+	if (page < 1) || (perPage < 1) || (devicesLimit < 0) {
 		problem.Error(w, r, problem.Problem{Detail: "Devices, page, per_page must be positive number"}, http.StatusBadRequest)
 		return
 	}
@@ -579,8 +579,12 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 	licenseStatuses := make([]licensestatuses.LicenseStatus, 0)
 
 	fn := s.LicenseStatuses().List(devicesLimit, perPage, page*perPage)
-	for it, err := fn(); err == nil; it, err = fn() {
+	for it, err := fn(); err == nil && it.Id != 0; it, err = fn() {
 		licenseStatuses = append(licenseStatuses, it)
+	}
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
 	}
 
 	devices := strconv.Itoa(int(devicesLimit))

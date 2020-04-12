@@ -124,6 +124,7 @@ type Localization struct {
 	DefaultLanguage string   `yaml:"default_language"`
 }
 
+// Config is a global variable which contains the server configuration
 var Config Configuration
 
 func ReadConfig(configFileName string) {

@@ -83,9 +83,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	_, err = db.Exec("PRAGMA journal_mode = WAL")
-	if err != nil {
-		panic(err)
+	if driver == "sqlite3" {
+		_, err = db.Exec("PRAGMA journal_mode = WAL")
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	repoManager, err := webrepository.Init(config.Config.FrontendServer)

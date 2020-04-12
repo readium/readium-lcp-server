@@ -1,7 +1,12 @@
-BEGIN TRANSACTION;
- 
-ALTER TABLE license RENAME TO temp_license;
- 
+CREATE TABLE content (
+  id varchar(255) PRIMARY KEY NOT NULL,
+  encryption_key varchar(64) NOT NULL,
+  location text NOT NULL, 
+  length bigint,
+  sha256 varchar(64),
+  "type" varchar(255) NOT NULL DEFAULT 'application/epub+zip'
+);
+
 CREATE TABLE license (
   id varchar(255) PRIMARY KEY NOT NULL,
   user_id varchar(255) NOT NULL,
@@ -16,13 +21,3 @@ CREATE TABLE license (
   lsd_status integer default 0,
   FOREIGN KEY(content_fk) REFERENCES content(id)
 );
-
-INSERT INTO license 
-SELECT
- id, user_id, provider, issued, updated, rights_print, rights_copy, rights_start, rights_end, content_fk, lsd_status
-FROM
- temp_license;
- 
-DROP TABLE temp_license;
- 
-COMMIT;
