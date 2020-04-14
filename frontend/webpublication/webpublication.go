@@ -12,14 +12,12 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
-
-	"fmt"
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
@@ -52,7 +50,7 @@ type WebPublication interface {
 	Update(publication Publication) error
 	Delete(id int64) error
 	List(page int, pageNum int) func() (Publication, error)
-	Upload(*http.Request, http.ResponseWriter, Publication)
+	Upload(multipart.File, string, Publication) error
 	CheckByTitle(title string) (int64, error)
 }
 
@@ -186,12 +184,11 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 
 		// process LPF files
 	} else if strings.HasSuffix(inputPath, ".lpf") {
-		// FIXME: short term solution
+		// FIXME: short term solution; should be extended to other profiles
 		contentType = "application/audiobook+lcp"
 		clearWebPubPath := outputPath + ".webpub"
 		err = pack.BuildRWPPFromLPF(inputPath, clearWebPubPath)
 		if err != nil {
-			log.Printf("Error building webpub package: %s", err)
 			return err
 		}
 		defer os.Remove(clearWebPubPath)
@@ -199,7 +196,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 
 		// unknown file
 	} else {
-		return errors.New("Could not match the filename")
+		return errors.New("Could not match the file extension: " + inputPath)
 	}
 
 	if err != nil {
@@ -291,35 +288,31 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 }
 
 // Upload creates a new publication, named after a POST form parameter.
-// Encrypts a master File and sends the content to the LCP server.
-// A temp file is created then deleted.
-func (pubManager PublicationManager) Upload(r *http.Request, w http.ResponseWriter, pub Publication) {
+// The file is processed, encrypted and sent to the LCP server.
+func (pubManager PublicationManager) Upload(file multipart.File, extension string, pub Publication) error {
 
-	file, header, err := r.FormFile("file")
-
-	ext := filepath.Ext(header.Filename)
-
-	tmpfile, err := ioutil.TempFile("", "inputpub.*"+ext)
-
+	// create a temp file
+	tmpfile, err := ioutil.TempFile("", "uploaded-*"+extension)
 	if err != nil {
-		fmt.Fprintln(w, err)
-		return
+		return err
 	}
-
 	defer os.Remove(tmpfile.Name())
 
+	// copy the request payload to the temp file
 	_, err = io.Copy(tmpfile, file)
 
+	// close the temp file
 	if err := tmpfile.Close(); err != nil {
-		log.Fatal(err)
-	}
-	// encrypt the publication and send the content to the LCP server
-	if err := encryptPublication(tmpfile.Name(), pub, pubManager); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	fmt.Fprintf(w, "File uploaded successfully : ")
-	fmt.Fprintf(w, header.Filename)
+	// process and encrypt the publication, send the content to the LCP server
+	err = encryptPublication(tmpfile.Name(), pub, pubManager)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Update updates a publication
@@ -344,12 +337,7 @@ func (pubManager PublicationManager) Update(pub Publication) error {
 // Delete deletes a publication, selected by its numeric id
 func (pubManager PublicationManager) Delete(id int64) error {
 
-	var (
-		title string
-	)
-
-	fmt.Print("Delete:")
-	fmt.Println(id)
+	var title string
 
 	dbGetMasterFile, err := pubManager.db.Prepare("SELECT title FROM publication WHERE id = ?")
 	if err != nil {
