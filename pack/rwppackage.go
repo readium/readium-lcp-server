@@ -151,6 +151,8 @@ func (writer *RWPPWriter) NewFile(path string, contentType string, storageMethod
 		Method: storageMethod,
 	})
 
+	writer.manifest.ReadingOrder = append(writer.manifest.ReadingOrder, rwpm.Link{Href: path, Type: contentType})
+
 	return &NopWriteCloser{w}, err
 }
 
