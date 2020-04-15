@@ -117,7 +117,9 @@ func mapLinks(w3clinks []rwpm.W3CLink) (rwpmLinks []rwpm.Link) {
 		}
 		rwpml.Rel = w3cl.Rel
 		// a multilingual name is lost during mapping
-		rwpml.Title = w3cl.Name.Text()
+		if w3cl.Name != nil {
+			rwpml.Title = w3cl.Name.Text()
+		}
 		rwpml.Duration, _ = isoDurationToSc(w3cl.Duration)
 
 		rwpml.Alternate = mapLinks(w3cl.Alternate)
