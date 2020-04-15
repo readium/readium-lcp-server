@@ -207,7 +207,7 @@ func (m W3CMultiLanguage) MarshalJSON() ([]byte, error) {
 	return json.Marshal(locs)
 }
 
-// Text returns the "und" language value or the single value found in the map
+// Text returns the "und" language value or the first value found in the map
 func (m W3CMultiLanguage) Text() string {
 
 	for _, ml := range m {
@@ -215,10 +215,7 @@ func (m W3CMultiLanguage) Text() string {
 			return ml.Value
 		}
 	}
-	if len(m) == 1 {
-		return m.Text()
-	}
-	return ""
+	return m[0].Value
 }
 
 // UnmarshalJSON unmarshalls W3CLocalized
