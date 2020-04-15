@@ -263,3 +263,66 @@ func TestContributors(t *testing.T) {
 	}
 
 }
+
+type subjectStruct struct {
+	Sbj Subjects `json:"dcterms:subject"`
+}
+
+func TestW3CSubjects(t *testing.T) {
+	var obj subjectStruct
+
+	// literal value
+	const singleText = `{"dcterms:subject":"single"}`
+	if err := json.Unmarshal([]byte(singleText), &obj); err != nil {
+		t.Fatal(err)
+	} else {
+		if len(obj.Sbj) != 1 || obj.Sbj[0].Name != "single" {
+			t.Errorf("Expected one subject named single, got %#v", obj.Sbj)
+		}
+	}
+	// check  MarshalJSON
+	jstring, err := json.Marshal(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(jstring) != singleText {
+		t.Errorf("Expected string equality, got %#v", string(jstring))
+	}
+
+	// array of literal values
+	const arrayOfText = `{"dcterms:subject":["single","double"]}`
+	if err := json.Unmarshal([]byte(arrayOfText), &obj); err != nil {
+		t.Fatal(err)
+	} else {
+		if len(obj.Sbj) != 2 || obj.Sbj[0].Name != "single" || obj.Sbj[1].Name != "double" {
+			t.Errorf("Expected 2 subjects named single and double, got %#v", obj.Sbj)
+		}
+	}
+	// check MarshalJSON
+	jstring, err = json.Marshal(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(jstring) != arrayOfText {
+		t.Errorf("Expected string equality, got %#v", string(jstring))
+	}
+
+	// struct value
+	const singleObject = `{"dcterms:subject":{"name":"music","scheme":"art","code":"01"}}`
+	if err := json.Unmarshal([]byte(singleObject), &obj); err != nil {
+		t.Fatal(err)
+	} else {
+		if len(obj.Sbj) != 1 || obj.Sbj[0].Name != "music" || obj.Sbj[0].Scheme != "art" || obj.Sbj[0].Code != "01" || obj.Sbj[0].SortAs != "" {
+			t.Errorf("Expected 1 subject named music, got %#v", obj.Sbj)
+		}
+	}
+	// check MarshalJSON
+	jstring, err = json.Marshal(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(jstring) != singleObject {
+		t.Errorf("Expected string equality, got %#v", string(jstring))
+	}
+
+}
