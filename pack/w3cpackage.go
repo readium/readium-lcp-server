@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,10 +30,10 @@ func displayW3CMan(w3cman rwpm.W3CPublication) error {
 
 	json, err := json.MarshalIndent(w3cman, "", " ")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	fmt.Println(string(json))
-	return err
+	return nil
 }
 
 // mapXlanglProperty maps a multilingual property (e.g. name)
@@ -45,6 +44,19 @@ func mapXlanglProperty(w3clp rwpm.W3CMultiLanguage) (ml rwpm.MultiLanguage) {
 	ml = make(map[string]string)
 	for _, p := range w3clp {
 		ml[p.Language] = p.Value
+	}
+	return
+}
+
+// mapContributor maps a Contributors property (e.g. author)
+// from a W3C manifest to a Readium manifest.
+// Note: ID is mapped to Identifier
+func mapContributor(w3cctors rwpm.W3CContributors) (ctors rwpm.Contributors) {
+
+	ctors = make(rwpm.Contributors, len(w3cctors))
+	for i, c := range w3cctors {
+		ctors[i].Name = mapXlanglProperty(c.Name)
+		ctors[i].Identifier = c.ID
 	}
 	return
 }
@@ -148,18 +160,18 @@ func generateRWPManifest(w3cman rwpm.W3CPublication) (manifest rwpm.Publication)
 	manifest.Metadata.Duration, _ = isoDurationToSc(w3cman.Duration)
 	manifest.Metadata.ReadingProgression = w3cman.ReadingProgression
 
-	manifest.Metadata.Publisher = w3cman.Publisher
-	manifest.Metadata.Artist = w3cman.Artist
-	manifest.Metadata.Author = w3cman.Author
-	manifest.Metadata.Colorist = w3cman.Colorist
-	manifest.Metadata.Contributor = w3cman.Contributor
-	manifest.Metadata.Editor = w3cman.Editor
-	manifest.Metadata.Illustrator = w3cman.Illustrator
-	manifest.Metadata.Inker = w3cman.Inker
-	manifest.Metadata.Letterer = w3cman.Letterer
-	manifest.Metadata.Penciler = w3cman.Penciler
-	manifest.Metadata.Narrator = w3cman.ReadBy
-	manifest.Metadata.Translator = w3cman.Translator
+	manifest.Metadata.Publisher = mapContributor(w3cman.Publisher)
+	manifest.Metadata.Artist = mapContributor(w3cman.Artist)
+	manifest.Metadata.Author = mapContributor(w3cman.Author)
+	manifest.Metadata.Colorist = mapContributor(w3cman.Colorist)
+	manifest.Metadata.Contributor = mapContributor(w3cman.Contributor)
+	manifest.Metadata.Editor = mapContributor(w3cman.Editor)
+	manifest.Metadata.Illustrator = mapContributor(w3cman.Illustrator)
+	manifest.Metadata.Inker = mapContributor(w3cman.Inker)
+	manifest.Metadata.Letterer = mapContributor(w3cman.Letterer)
+	manifest.Metadata.Penciler = mapContributor(w3cman.Penciler)
+	manifest.Metadata.Narrator = mapContributor(w3cman.ReadBy)
+	manifest.Metadata.Translator = mapContributor(w3cman.Translator)
 
 	manifest.Links = mapLinks(w3cman.Links)
 	manifest.ReadingOrder = mapLinks(w3cman.ReadingOrder)
