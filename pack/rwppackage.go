@@ -111,6 +111,7 @@ func (resource *rwpResource) CompressBeforeEncryption() bool { return false }
 func (resource *rwpResource) CanBeEncrypted() bool           { return true }
 
 func (resource *rwpResource) CopyTo(packageWriter PackageWriter) error {
+
 	wc, err := packageWriter.NewFile(resource.Path(), resource.contentType, resource.file.Method)
 	if err != nil {
 		return err
@@ -143,7 +144,11 @@ func (nc *NopWriteCloser) Close() error {
 	return nil
 }
 
-// NewFile creates a header in the zip archive and adds an entry to the reading order
+// NewFile creates a header in the zip archive and adds an entry to the reading order if missing.
+// This function is called in two main cases:
+// - one is the creation of a Readium Package for a PDF file (no existing entry in the manifest)
+// - another in the encryption of an existing Readium Package (there is already an entry in the manifest)
+// FIXME: the PackageWriter interface is obscure; let's make it better.
 func (writer *RWPPWriter) NewFile(path string, contentType string, storageMethod uint16) (io.WriteCloser, error) {
 
 	w, err := writer.zipWriter.CreateHeader(&zip.FileHeader{
@@ -151,7 +156,17 @@ func (writer *RWPPWriter) NewFile(path string, contentType string, storageMethod
 		Method: storageMethod,
 	})
 
-	writer.manifest.ReadingOrder = append(writer.manifest.ReadingOrder, rwpm.Link{Href: path, Type: contentType})
+	// add an entry to the reading order if missing
+	found := false
+	for _, resource := range writer.manifest.ReadingOrder {
+		if path == resource.Href {
+			found = true
+			break
+		}
+	}
+	if !found {
+		writer.manifest.ReadingOrder = append(writer.manifest.ReadingOrder, rwpm.Link{Href: path, Type: contentType})
+	}
 
 	return &NopWriteCloser{w}, err
 }
