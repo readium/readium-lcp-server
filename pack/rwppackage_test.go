@@ -78,19 +78,19 @@ func TestWriteRWPPackage(t *testing.T) {
 	}
 
 	resources := reader.Resources()
-	if l := len(resources); l != 1 {
-		t.Fatalf("Expected to get %d resources, got %d", 1, l)
+	if l := len(resources); l != 2 {
+		t.Fatalf("Expected to get %d resources, got %d", 2, l)
 	}
 
-	if path := resources[0].Path(); path != "test.pdf" {
+	if path := resources[1].Path(); path != "test.pdf" {
 		t.Errorf("Expected resource to be named test.pdf, got %s", path)
 	}
 
-	if !resources[0].Encrypted() {
+	if !resources[1].Encrypted() {
 		t.Errorf("Expected resource to be encrypted")
 	}
 
-	rc, err := resources[0].Open()
+	rc, err := resources[1].Open()
 	if err != nil {
 		t.Fatalf("Could not open file: %s", err)
 	}
