@@ -146,10 +146,93 @@ type Subject struct {
 	Code   string `json:"code,omitempty"`
 }
 
-// Add adds a value to a subject array
-func (s *Subjects) Add(value Subject) {
+// UnmarshalJSON unmarshals Subjects
+func (s *Subjects) UnmarshalJSON(b []byte) error {
 
-	*s = append(*s, value)
+	var sbjs []Subject
+	sbjs = make([]Subject, 1)
+	var sbj Subject
+
+	// literal value
+	var literal string
+	var err error
+	if err = json.Unmarshal(b, &literal); err == nil {
+		sbjs[0].Name = literal
+
+		// object value
+	} else if err = json.Unmarshal(b, &sbj); err == nil {
+		sbjs[0] = sbj
+
+		// array value
+	} else {
+		err = json.Unmarshal(b, &sbjs)
+	}
+	if err == nil {
+		*s = sbjs
+		return nil
+	}
+	return err
+}
+
+// MarshalJSON marshals Subjects
+func (s Subjects) MarshalJSON() ([]byte, error) {
+
+	// literal value
+	if len(s) == 1 && s[0].Name != "" &&
+		s[0].SortAs == "" && s[0].Scheme == "" && s[0].Code == "" {
+		return json.Marshal(s[0].Name)
+	}
+
+	// object value
+	if len(s) == 1 {
+		sbj := s[0]
+		return json.Marshal(sbj)
+	}
+
+	// array value
+	var sbjs []Subject
+	sbjs = s
+	return json.Marshal(sbjs)
+}
+
+// Add adds a value to a subject array
+func (s *Subjects) Add(item Subject) {
+
+	*s = append(*s, item)
+}
+
+// UnmarshalJSON unmarshals Subject
+func (s *Subject) UnmarshalJSON(b []byte) error {
+
+	var literal string
+	var err error
+	if err = json.Unmarshal(b, &literal); err == nil {
+		s.Name = literal
+		s.SortAs = ""
+		s.Scheme = ""
+		s.Code = ""
+		return nil
+	}
+	type Alias Subject
+	var sbjAlias Alias
+	err = json.Unmarshal(b, &sbjAlias)
+	if err != nil {
+		return err
+	}
+	*s = Subject(sbjAlias)
+	return nil
+}
+
+// MarshalJSON marshals Subject
+func (s Subject) MarshalJSON() ([]byte, error) {
+
+	// literal value
+	if s.Name != "" && s.SortAs == "" && s.Scheme == "" && s.Code == "" {
+		return json.Marshal(s.Name)
+	}
+	type Alias Subject
+	sbjAlias := Alias{s.Name, s.SortAs, s.Scheme, s.Code}
+	return json.Marshal(sbjAlias)
 }
 
 // BelongsTo is a list of collections/series that a publication belongs to
@@ -287,7 +370,7 @@ func (c Contributor) MarshalJSON() ([]byte, error) {
 // MultiLanguage stores one or more values indexed by language.
 type MultiLanguage map[string]string
 
-// UnmarshalJSON unmarshalls Multilanguge
+// UnmarshalJSON unmarshalls Multilanguage
 // The "und" (undefined)language corresponds to a literal value
 func (m *MultiLanguage) UnmarshalJSON(b []byte) error {
 
@@ -364,8 +447,12 @@ func (m *MultiString) UnmarshalJSON(b []byte) error {
 	var mstring []string
 	var literal string
 	var err error
+
+	// literal value
 	if err = json.Unmarshal(b, &literal); err == nil {
 		mstring = append(mstring, literal)
+
+		// string array
 	} else {
 		err = json.Unmarshal(b, &mstring)
 	}
@@ -394,4 +481,10 @@ func (m MultiString) MarshalJSON() ([]byte, error) {
 func (m *MultiString) Add(value string) {
 
 	*m = append(*m, value)
+}
+
+// Text returns the concatenation of all string values
+func (m MultiString) Text() string {
+
+	return strings.Join([]string(m), ", ")
 }
