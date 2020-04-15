@@ -2,7 +2,7 @@
   "conformsTo": "https://www.w3/org/TR/audiobooks/",
   "id": "id1",
   "name": "audiotest",
-  "publisher": "Standford",
+  "publisher": "Stanford",
   "author": ["Alpha", {"name":"Beta","identifier":"b"}, {"name":{"fr":"Gamma"},"sortAs":"g"}, {"name":{"fr":"Zeta","en":"Taze"}}],
   "readBy": "Music",
   "inLanguage": ["fr","en"],

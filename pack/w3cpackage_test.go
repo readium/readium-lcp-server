@@ -39,7 +39,7 @@ func TestMapW3CPublication(t *testing.T) {
 	if meta.Title.Text() != "audiotest" {
 		t.Fatalf("W3C Name badly mapped")
 	}
-	if meta.Publisher.Name() != "Standford" {
+	if meta.Publisher.Name() != "Stanford" {
 		t.Fatalf("W3C Publisher badly mapped")
 	}
 	if meta.Author.Name() != "" {
@@ -52,8 +52,8 @@ func TestMapW3CPublication(t *testing.T) {
 			i++
 		}
 	}
-	if i != 3 {
-		t.Fatalf("W3C InLanguage badly mapped 2")
+	if i != 2 {
+		t.Fatalf("W3C Author badly mapped, expected 2 got %d", i)
 	}
 	if meta.Language[0] != "fr" || meta.Language[1] != "en" {
 		t.Fatalf("W3C InLanguage badly mapped")
