@@ -19,9 +19,9 @@ import (
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/lcpserver/api"
+	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/license_statuses"
+	licensestatuses "github.com/readium/readium-lcp-server/license_statuses"
 	"github.com/readium/readium-lcp-server/localization"
 	"github.com/readium/readium-lcp-server/logging"
 	"github.com/readium/readium-lcp-server/problem"
@@ -856,7 +856,7 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 		*links = append(*links, link)
 		// default template
 	} else {
-		link := licensestatuses.Link{Href: lcpBaseURL + "/licenses/" + ls.LicenseRef, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
+		link := licensestatuses.Link{Href: lcpBaseURL + "/api/v1/licenses/" + ls.LicenseRef, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
 		*links = append(*links, link)
 	}
 	// if register is set
