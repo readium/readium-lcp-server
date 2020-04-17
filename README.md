@@ -194,7 +194,7 @@ Here are the details about the configuration properties of each server. In the s
 `lcp` section: parameters associated with the License Server.
 - `host`: the public server hostname, `hostname` by default
 - `port`: the listening port, `8989` by default
-- `public_base_url`: the public base URL, combination of the host and port values on http by default 
+- `public_base_url`: the public base URL, used by the license status server and the frontend test server to communicate with this server; combination of the host and port values on http by default, which is sufficient as the license server should not be visible from the Web.  
 - `database`: the URI formatted connection string to the database, `sqlite3://file:lcp.sqlite?cache=shared&mode=rwc` by default
 - `auth_file`: mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
 
@@ -203,7 +203,7 @@ Note: It may be practical to put the authentication file in the configuration fo
 `storage` section: parameters related to the storage of encrypted publications.
 - `mode` : optional. If its value is "s3", `bucket` and `region` are required, otherwise `filesystem` is required.
 - `filesystem`: subsection, not used if `mode` is "s3": parameters related to a file system storage.   
-  - `directory`: absolute path to the directory in which the encrypted publications are stored. 
+  - `directory`: absolute path to the directory in which the encrypted publications are stored. In production, this directory must be accessible from the Web via the URL defined in `license/links/publication` (see below) 
   This storage must be accessible from the Web via a simple URL, specified via the `license/publication` parameter.
 - `bucket`: only used if `mode` is "s3": value of the s3 bucket.
 - `region`: only used if `mode` is "s3": value of the AWS region.
@@ -229,8 +229,9 @@ Note: It may be practical to put these files in the configuration folder ("lcpco
     location where the encrypted Publication associated with the License Document will be downloaded from the Web. 
     This access point corresponds to the directory where encrypted publications are stored by the License Server (see `storage/filesystem/directory`).
     To expose this storage directory on the Web, the provider may decide to install a reverse-proxy, use a Web drive, use a CDN etc. This is a deployment choice which has nothing to do with this open-source projet.  
-    During initial tests (before the License Server is hidden from the Web), this URL may simply be the one described described [here](https://github.com/readium/readium-lcp-server/wiki/License-Server-API#fetch-an-encrypted-publication). 
-    Note that the file name of the stored encrypted publications is simply their publication identifier. This publication identifier is inserted in the URL via the variable {publication_id}.
+    During initial tests (before the License Server is hidden from the Web), this URL may simply be the one described described [here](https://github.com/readium/readium-lcp-server/wiki/LCP-License-Server-API#fetch-an-encrypted-publication). 
+    The publication (alias content) identifier is inserted in the URL via the variable {publication_id}.
+    Note that this is working because the file name of the stored encrypted publications is simply their publication identifier. 
   - `status`: optional, templated URL; location of the Status Document associated with a License Document.
     The license identifier is inserted via the variable {license_id}.
 
@@ -273,7 +274,7 @@ lsd_notify_auth:
 `lsd` section: parameters associated with the License Status Server. 
 - `host`: the public server hostname, `hostname` by default
 - `port`: the listening port, `8990` by default
-- `public_base_url`: the public base URL, combination of the host and port values on http by default 
+- `public_base_url`: the public base URL, used by the license server and the frontend test server to communicate with this server; combination of the host and port values on http by default; as this server is exposed on the Web in production, a domain name should be present in the URL.
 - `database`: the URI formatted connection string to the database, `sqlite3://file:lsd.sqlite?cache=shared&mode=rwc` by default
 - `auth_file`: mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
 
@@ -322,10 +323,10 @@ lcp_update_auth:
 `frontend` section: parameters associated with the Test Frontend Server. 
 - `host`: the public server hostname, `hostname` by default
 - `port`: the listening port, `8991` by default
-- `public_base_url`: the public base URL, combination of the host and port values on http by default 
+- `public_base_url`: the public base URL, used to access the frontend UI; combination of the host and port values on http by default 
 - `database`: the URI formatted connection string to the database, `sqlite3://file:frontend.sqlite?cache=shared&mode=rwc` by default
 - `master_repository`: repository where the uploaded EPUB files are stored before encryption. 
-- `encrypted_repository`: repository where the encrypted EPUB files are stored after upload. The LCP server must have access to the path declared here; it will move each encrypted file to its storage folder on notification of encryption from the Frontend Server. 
+- `encrypted_repository`: repository where the encrypted EPUB files are stored after upload. The LCP server must have access to the path declared here, as it will move each encrypted file to its final storage folder on notification of encryption from the Frontend Server. 
 - `directory`: the directory containing the client web app; by default $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage.
 - `provider_uri`: provider uri, which will be inserted in all licenses produced via this test frontend.
 - `right_print`: allowed number of printed pages, which will be inserted in all licenses produced via this test frontend.
