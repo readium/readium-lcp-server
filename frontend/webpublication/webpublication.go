@@ -180,7 +180,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 			return err
 		}
 		defer os.Remove(clearWebPubPath)
-		encryptedPub, err = encrypt.EncryptWebPubPackage(lcpProfile, clearWebPubPath, outputPath)
+		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, clearWebPubPath, outputPath)
 
 		// process LPF files
 	} else if strings.HasSuffix(inputPath, ".lpf") {
@@ -192,7 +192,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 			return err
 		}
 		defer os.Remove(clearWebPubPath)
-		encryptedPub, err = encrypt.EncryptWebPubPackage(lcpProfile, clearWebPubPath, outputPath)
+		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, clearWebPubPath, outputPath)
 
 		// unknown file
 	} else {
