@@ -37,9 +37,9 @@ func encryptionError(message string) (EncryptionArtifact, error) {
 	return EncryptionArtifact{}, errors.New(message)
 }
 
-// EncryptWebPubPackage generates an encrypted output RWPP out of the input RWPP
+// EncryptPackage generates an encrypted output RWPP out of the input RWPP
 // It is called from the test frontend server
-func EncryptWebPubPackage(profile license.EncryptionProfile, inputPath string, outputPath string) (EncryptionArtifact, error) {
+func EncryptPackage(profile license.EncryptionProfile, inputPath string, outputPath string) (EncryptionArtifact, error) {
 
 	// create an AES encrypter for publication resources
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
