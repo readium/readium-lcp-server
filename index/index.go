@@ -89,7 +89,7 @@ func (i dbIndex) Update(c Content) error {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(c.EncryptionKey, c.Location, c.Length, c.Sha256, c.ID, c.Type)
+	_, err = add.Exec(c.EncryptionKey, c.Location, c.Length, c.Sha256, c.Type, c.ID)
 	return err
 }
 
