@@ -299,10 +299,12 @@ func (pubManager PublicationManager) Upload(file multipart.File, extension strin
 	defer os.Remove(tmpfile.Name())
 
 	// copy the request payload to the temp file
-	_, err = io.Copy(tmpfile, file)
+	if _, err = io.Copy(tmpfile, file); err != nil {
+		return err
+	}
 
 	// close the temp file
-	if err := tmpfile.Close(); err != nil {
+	if err = tmpfile.Close(); err != nil {
 		return err
 	}
 
