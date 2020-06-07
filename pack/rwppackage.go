@@ -269,9 +269,13 @@ func BuildRWPPFromPDF(title string, inputPath string, outputPath string) error {
 	}
 	defer f.Close()
 
-	// copy the content of the pdf input file into the zip output, as 'publication.pdf'
+	// copy the content of the pdf input file into the zip output, as 'publication.pdf'.
+	// the pdf content is stored uncompressed (and will stay uncompressed once encrypted).
 	zipWriter := zip.NewWriter(f)
-	writer, err := zipWriter.Create("publication.pdf")
+	writer, err := zipWriter.CreateHeader(&zip.FileHeader{
+		Name:   "publication.pdf",
+		Method: zip.Store,
+	})
 	if err != nil {
 		return err
 	}

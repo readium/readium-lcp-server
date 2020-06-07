@@ -117,8 +117,8 @@ func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Mani
 }
 
 // mustCompressBeforeEncryption checks is a resource must be compressed before encryption.
-// We don't want to compress files if that might cause streaming issues.
-// The test is applied on the resource media-type; image, video and audio are stored without compression.
+// We don't want to compress files if that might cause streaming (byte range requests) issues.
+// The test is applied on the resource media-type; image, video, audio, pdf are stored without compression.
 func mustCompressBeforeEncryption(file epub.Resource, ep epub.Epub) bool {
 
 	mimetype := file.ContentType
@@ -127,7 +127,7 @@ func mustCompressBeforeEncryption(file epub.Resource, ep epub.Epub) bool {
 		return true
 	}
 
-	return !strings.HasPrefix(mimetype, "image") && !strings.HasPrefix(mimetype, "video") && !strings.HasPrefix(mimetype, "audio")
+	return !strings.HasPrefix(mimetype, "image") && !strings.HasPrefix(mimetype, "video") && !strings.HasPrefix(mimetype, "audio") && !(mimetype == "application/pdf")
 }
 
 // NoCompression means Store
@@ -144,14 +144,12 @@ func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 // encryptResource encrypts a resource in a Readium Package
 func encryptResource(profile license.EncryptionProfile, encrypter crypto.Encrypter, key crypto.ContentKey, resource Resource, packageWriter PackageWriter) error {
 
-	storageMethod := uint16(Deflate)
-
 	// FIXME: this is currently always set to false
-	mustBeCompressedBeforeEncryption := resource.CompressBeforeEncryption()
+	compressBeforeEncryption := resource.CompressBeforeEncryption()
 
-	if mustBeCompressedBeforeEncryption {
-		// no further compression when zipping if the resource has already been deflated
-		storageMethod = NoCompression
+	storageMethod := uint16(NoCompression)
+	if compressBeforeEncryption {
+		storageMethod = uint16(Deflate)
 	}
 
 	file, err := packageWriter.NewFile(resource.Path(), resource.ContentType(), storageMethod)
@@ -164,7 +162,7 @@ func encryptResource(profile license.EncryptionProfile, encrypter crypto.Encrypt
 	}
 	var reader io.Reader = resourceReader
 
-	if mustBeCompressedBeforeEncryption {
+	if compressBeforeEncryption {
 		var buffer bytes.Buffer
 		deflateWriter, err := flate.NewWriter(&buffer, 9)
 		if err != nil {
