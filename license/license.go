@@ -51,7 +51,7 @@ type Link struct {
 	Type      string `json:"type,omitempty"`
 	Title     string `json:"title,omitempty"`
 	Profile   string `json:"profile,omitempty"`
-	Templated bool   `json:"templated,omitempty" "default false"`
+	Templated bool   `json:"templated,omitempty"`
 	Size      int64  `json:"length,omitempty"`
 	//Digest    []byte `json:"hash,omitempty"`
 	Checksum string `json:"hash,omitempty"`
