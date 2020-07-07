@@ -22,10 +22,12 @@ import (
 	"github.com/readium/readium-lcp-server/storage"
 )
 
+// Source in an interface
 type Source interface {
 	Feed(chan<- *Task)
 }
 
+// Task is an interface
 type Task struct {
 	Name string
 	Body io.ReaderAt
@@ -33,44 +35,53 @@ type Task struct {
 	done chan Result
 }
 
+// EncryptedFileInfo contains a file, its size and sha256
 type EncryptedFileInfo struct {
 	File   *os.File
 	Size   int64
 	Sha256 string
 }
 
+// NewTask generates a new task
 func NewTask(name string, body io.ReaderAt, size int64) *Task {
 	return &Task{Name: name, Body: body, Size: size, done: make(chan Result, 1)}
 }
 
+// Result is a result
 type Result struct {
 	Error   error
-	Id      string
+	ID      string
 	Elapsed time.Duration
 }
 
+// Wait returns a result
 func (t *Task) Wait() Result {
 	r := <-t.done
 	return r
 }
 
+// Done returns a result
 func (t *Task) Done(r Result) {
 	t.done <- r
 }
 
+// ManualSource is a struc
 type ManualSource struct {
 	ch chan<- *Task
 }
 
+// Feed is a struc
 func (s *ManualSource) Feed(ch chan<- *Task) {
 	s.ch = ch
 }
 
+// Post is a struc
 func (s *ManualSource) Post(t *Task) Result {
 	s.ch <- t
 	return t.Wait()
 }
 
+// Packager is a struct
 type Packager struct {
 	Incoming chan *Task
 	done     chan struct{}
@@ -102,7 +113,7 @@ func (p Packager) genKey(r *Result) {
 	if err != nil {
 		return
 	}
-	r.Id = uid.String()
+	r.ID = uid.String()
 }
 
 func (p Packager) readZip(r *Result, in io.ReaderAt, size int64) *zip.Reader {
@@ -161,7 +172,7 @@ func (p Packager) addToStore(r *Result, info *EncryptedFileInfo) {
 		return
 	}
 
-	_, r.Error = p.store.Add(r.Id, info.File)
+	_, r.Error = p.store.Add(r.ID, info.File)
 
 	info.File.Close()
 	os.Remove(info.File.Name())
@@ -171,7 +182,7 @@ func (p Packager) addToIndex(r *Result, key []byte, name string, info *Encrypted
 	if r.Error != nil {
 		return
 	}
-	r.Error = p.idx.Add(index.Content{Id: r.Id, EncryptionKey: key, Location: name, Length: info.Size, Sha256: info.Sha256, Type: contentType})
+	r.Error = p.idx.Add(index.Content{ID: r.ID, EncryptionKey: key, Location: name, Length: info.Size, Sha256: info.Sha256, Type: contentType})
 }
 
 // NewPackager waits for incoming EPUB files, encrypts them and adds them to the store

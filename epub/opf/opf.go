@@ -1,5 +1,4 @@
-// Copyright 2019 European Digital Reading Lab. All rights reserved.
-// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Copyright 2020 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -42,7 +41,7 @@ type Manifest struct {
 
 // Item is the manifest item structure
 type Item struct {
-	Id         string `xml:"id,attr"`
+	ID         string `xml:"id,attr"`
 	Href       string `xml:"href,attr"`
 	MediaType  string `xml:"media-type,attr"`
 	Properties string `xml:"properties,attr"`

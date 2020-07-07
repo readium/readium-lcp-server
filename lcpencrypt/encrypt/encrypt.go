@@ -1,27 +1,6 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2020 Readium Foundation. All rights reserved.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package encrypt
 
@@ -37,49 +16,9 @@ import (
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
+	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
 )
-
-func EncryptWebPubPackage(profile pack.EncryptionProfile, inputPath string, outputPath string) (EncryptionArtifact, error) {
-	reader, err := pack.OpenPackagedRWP(inputPath)
-	if err != nil {
-		return encryptionError(err.Error())
-	}
-
-	output, err := os.Create(outputPath)
-	if err != nil {
-		return encryptionError("Unable to create output file")
-	}
-
-	writer, err := reader.NewWriter(output)
-	if err != nil {
-		return encryptionError("Unable to create output writer")
-	}
-
-	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
-
-	encryptionKey, err := pack.Process(profile, encrypter, reader, writer)
-	if err != nil {
-		return encryptionError("Unable to encrypt file")
-	}
-	writer.Close()
-
-	hasher := sha256.New()
-	output.Seek(0, 0)
-	io.Copy(hasher, output)
-
-	stat, err := output.Stat()
-	if err != nil {
-		return encryptionError("Could not stat output file")
-	}
-
-	return EncryptionArtifact{
-		Path:          outputPath,
-		EncryptionKey: encryptionKey,
-		Size:          stat.Size(),
-		Checksum:      hex.EncodeToString(hasher.Sum(nil)),
-	}, nil
-}
 
 // EncryptionArtifact is the result of a successful encryption process
 type EncryptionArtifact struct {
@@ -98,12 +37,59 @@ func encryptionError(message string) (EncryptionArtifact, error) {
 	return EncryptionArtifact{}, errors.New(message)
 }
 
-// EncryptEpub Encrypt input file to output file
+// EncryptPackage generates an encrypted output RWPP out of the input RWPP
+// It is called from the test frontend server
+func EncryptPackage(profile license.EncryptionProfile, inputPath string, outputPath string) (EncryptionArtifact, error) {
+
+	// create an AES encrypter for publication resources
+	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
+
+	// create a reader on the un-encrypted readium package
+	reader, err := pack.OpenRWPP(inputPath)
+	if err != nil {
+		return encryptionError(err.Error())
+	}
+	// create the encrypted package file
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		return encryptionError("Unable to create output file")
+	}
+	defer outputFile.Close()
+	// create a writer on the encrypted package
+	writer, err := reader.NewWriter(outputFile)
+	if err != nil {
+		return encryptionError("Unable to create output writer")
+	}
+	// encrypt resources from the input package, return the encryption key
+	encryptionKey, err := pack.Process(profile, encrypter, reader, writer)
+	if err != nil {
+		return encryptionError("Unable to encrypt file")
+	}
+	// calculate the output file size and checksum
+	hasher := sha256.New()
+	outputFile.Seek(0, 0)
+	io.Copy(hasher, outputFile)
+
+	stat, err := outputFile.Stat()
+	if err != nil {
+		return encryptionError("Could not stat output file")
+	}
+
+	return EncryptionArtifact{
+		Path:          outputPath,
+		EncryptionKey: encryptionKey,
+		Size:          stat.Size(),
+		Checksum:      hex.EncodeToString(hasher.Sum(nil)),
+	}, nil
+}
+
+// EncryptEpub generates an encrypted output file out of the input file
+// It is called from the test frontend server
 func EncryptEpub(inputPath string, outputPath string) (EncryptionArtifact, error) {
+
 	if _, err := os.Stat(inputPath); err != nil {
 		return encryptionError("Input file does not exist")
 	}
-
 	// Read file
 	buf, err := ioutil.ReadFile(inputPath)
 	if err != nil {
@@ -122,19 +108,19 @@ func EncryptEpub(inputPath string, outputPath string) (EncryptionArtifact, error
 	}
 
 	// Create output file
-	output, err := os.Create(outputPath)
+	outputFile, err := os.Create(outputPath)
 	if err != nil {
 		return encryptionError("Unable to create output file")
 	}
 
 	// Pack / encrypt the epub content, fill the output file
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
-	_, encryptionKey, err := pack.Do(encrypter, epubContent, output)
+	_, encryptionKey, err := pack.Do(encrypter, epubContent, outputFile)
 	if err != nil {
 		return encryptionError("Unable to encrypt file")
 	}
 
-	stats, err := output.Stat()
+	stats, err := outputFile.Stat()
 	if err != nil || (stats.Size() <= 0) {
 		return encryptionError("Unable to stat output file")
 	}
@@ -148,6 +134,6 @@ func EncryptEpub(inputPath string, outputPath string) (EncryptionArtifact, error
 
 	checksum := hex.EncodeToString(hasher.Sum(nil))
 
-	output.Close()
+	outputFile.Close()
 	return EncryptionArtifact{outputPath, encryptionKey, stats.Size(), checksum}, nil
 }

@@ -1,0 +1,45 @@
+{
+  "conformsTo": "https://www.w3/org/TR/audiobooks/",
+  "id": "id1",
+  "name": "audiotest",
+  "publisher": "Stanford",
+  "author": ["Alpha", {"name":"Beta","identifier":"b"}, {"name":{"fr":"Gamma"},"sortAs":"g"}, {"name":{"fr":"Zeta","en":"Taze"}}],
+  "readBy": "Music",
+  "inLanguage": ["fr","en"],
+  "datePublished": "2020-03-23T12:50:20Z",
+  "dateModified": "2020-03-23T16:58:27.372Z",
+  "readingProgression": "ltr",
+  "duration": "PT150S",
+  "readingOrder": [
+    {
+      "url": "audio/gtr-jazz.mp3",
+      "encodingFormat": "audio/mpeg",
+      "name": "Track 1",
+      "duration": "PT10S"
+    },
+    {
+      "url": "audio/Latin.mp3",
+      "name": "Track 2",
+      "duration": "PT12S",
+      "description":"Latin track",
+      "alternate": [
+        {
+          "url": "audio/Latin.mp3"
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "url": "cover/audiobook-cover.webp",
+      "encodingFormat": "image/webp",
+      "name": "Cover"
+    },
+    {
+      "url": "index.html",
+      "encodingFormat": "text/html",
+      "name": "Table of Contents",
+      "description": "An XHTML document with the ToC"
+    }
+  ]
+}

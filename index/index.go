@@ -33,8 +33,10 @@ import (
 	"github.com/readium/readium-lcp-server/config"
 )
 
-var NotFound = errors.New("Content not found")
+// ErrNotFound signals content not found
+var ErrNotFound = errors.New("Content not found")
 
+// Index is an interface
 type Index interface {
 	Get(id string) (Content, error)
 	Add(c Content) error
@@ -42,8 +44,9 @@ type Index interface {
 	List() func() (Content, error)
 }
 
+// Content represents an encrypted resource
 type Content struct {
-	Id            string `json:"id"`
+	ID            string `json:"id"`
 	EncryptionKey []byte `json:"-"`
 	Location      string `json:"location"`
 	Length        int64  `json:"length"` //not exported in license spec?
@@ -63,11 +66,11 @@ func (i dbIndex) Get(id string) (Content, error) {
 	defer records.Close()
 	if records.Next() {
 		var c Content
-		err = records.Scan(&c.Id, &c.EncryptionKey, &c.Location, &c.Length, &c.Sha256, &c.Type)
+		err = records.Scan(&c.ID, &c.EncryptionKey, &c.Location, &c.Length, &c.Sha256, &c.Type)
 		return c, err
 	}
 
-	return Content{}, NotFound
+	return Content{}, ErrNotFound
 }
 
 func (i dbIndex) Add(c Content) error {
@@ -76,7 +79,7 @@ func (i dbIndex) Add(c Content) error {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(c.Id, c.EncryptionKey, c.Location, c.Length, c.Sha256, c.Type)
+	_, err = add.Exec(c.ID, c.EncryptionKey, c.Location, c.Length, c.Sha256, c.Type)
 	return err
 }
 
@@ -86,7 +89,7 @@ func (i dbIndex) Update(c Content) error {
 		return err
 	}
 	defer add.Close()
-	_, err = add.Exec(c.EncryptionKey, c.Location, c.Length, c.Sha256, c.Id, c.Type)
+	_, err = add.Exec(c.EncryptionKey, c.Location, c.Length, c.Sha256, c.Type, c.ID)
 	return err
 }
 
@@ -99,15 +102,16 @@ func (i dbIndex) List() func() (Content, error) {
 		var c Content
 		var err error
 		if rows.Next() {
-			err = rows.Scan(&c.Id, &c.EncryptionKey, &c.Location, &c.Length, &c.Sha256, &c.Type)
+			err = rows.Scan(&c.ID, &c.EncryptionKey, &c.Location, &c.Length, &c.Sha256, &c.Type)
 		} else {
 			rows.Close()
-			err = NotFound
+			err = ErrNotFound
 		}
 		return c, err
 	}
 }
 
+// Open opens an SQL database
 func Open(db *sql.DB) (i Index, err error) {
 	// if sqlite, create the content table in the lcp db if it does not exist
 	if strings.HasPrefix(config.Config.LcpServer.Database, "sqlite") {

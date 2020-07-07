@@ -1,27 +1,6 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2020 Readium Foundation. All rights reserved.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package apilcp
 
@@ -46,6 +25,7 @@ import (
 	"github.com/readium/readium-lcp-server/storage"
 )
 
+// Server groups functions used by the lcp server
 type Server interface {
 	Store() storage.Store
 	Index() index.Index
@@ -56,7 +36,7 @@ type Server interface {
 
 // LcpPublication is a struct for communication with lcp-server
 type LcpPublication struct {
-	ContentId          string  `json:"content-id"`
+	ContentID          string  `json:"content-id"`
 	ContentKey         []byte  `json:"content-encryption-key"`
 	Output             string  `json:"protected-content-location"`
 	Size               *int64  `json:"protected-content-length"`
@@ -89,11 +69,11 @@ func cleanupTempFile(f *os.File) {
 	os.Remove(f.Name())
 }
 
-// StoreContent stores content in the storage
-// the content name is given in the url (name)
-// a temporary file is created, then deleted after the content has been stored
-//
+// StoreContent stores content in the storage.
+// The content name is given in the url (name)
+// A temporary file is created, then deleted after the content has been stored
 func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
+
 	vars := mux.Vars(r)
 
 	size, f, err := writeRequestFileToTemp(r.Body)
@@ -115,7 +95,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusCreated)
 
-	json.NewEncoder(w).Encode(result.Id)
+	json.NewEncoder(w).Encode(result.ID)
 }
 
 // AddContent adds content to the storage
@@ -126,6 +106,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 // The content_id is taken from  the url.
 // The input file is then deleted.
 func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
+
 	// parse the json payload
 	vars := mux.Vars(r)
 	decoder := json.NewDecoder(r.Body)
@@ -140,7 +121,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: "The content id must be set in the url"}, http.StatusBadRequest)
 		return
 	}
-
+	// open the encrypted file, use its full path
 	file, err := getAndOpenFile(publication.Output)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
@@ -176,10 +157,10 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	//todo check hash & length?
 
 	code := http.StatusCreated
-	if err == index.NotFound { //insert into database
-		c.Id = contentID
+	if err == index.ErrNotFound { //insert into database
+		c.ID = contentID
 		err = s.Index().Add(c)
-	} else { //update the encryption key for c.Id = publication.ContentId
+	} else { //update the encryption key for c.ID = publication.ContentID
 		err = s.Index().Update(c)
 		code = http.StatusOK
 	}
@@ -195,8 +176,8 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 // ListContents lists the content in the storage index
-//
 func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
+
 	fn := s.Index().List()
 	contents := make([]index.Content, 0)
 
@@ -216,14 +197,14 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 
 // GetContent fetches and returns an encrypted content file
 // selected by it content id (uuid)
-//
 func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
+
 	// get the content id from the calling url
 	vars := mux.Vars(r)
 	contentID := vars["content_id"]
 	content, err := s.Index().Get(contentID)
 	if err != nil { //item probably not found
-		if err == index.NotFound {
+		if err == index.ErrNotFound {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		} else {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
@@ -259,18 +240,19 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 }
 
-func getAndOpenFile(filePathOrUrl string) (*os.File, error) {
-	httpOrHttps, err := isHttpOrHttps(filePathOrUrl)
+// getAndOpenFile opens a file from a path, or downloads then opens it if its location is a URL
+func getAndOpenFile(filePathOrURL string) (*os.File, error) {
 
+	HTTPOrHTTPS, err := isHTTPOrHTTPS(filePathOrURL)
 	if err != nil {
 		return nil, err
 	}
 
-	if httpOrHttps {
-		return downloadAndOpenFile(filePathOrUrl)
+	if HTTPOrHTTPS {
+		return downloadAndOpenFile(filePathOrURL)
 	}
 
-	return os.Open(filePathOrUrl)
+	return os.Open(filePathOrURL)
 }
 
 func downloadAndOpenFile(url string) (*os.File, error) {
@@ -286,8 +268,8 @@ func downloadAndOpenFile(url string) (*os.File, error) {
 	return os.Open(fileName)
 }
 
-func isHttpOrHttps(filePathOrUrl string) (bool, error) {
-	url, err := url.Parse(filePathOrUrl)
+func isHTTPOrHTTPS(filePathOrURL string) (bool, error) {
+	url, err := url.Parse(filePathOrURL)
 	if err != nil {
 		return false, errors.New("Error parsing input file")
 	}
@@ -308,7 +290,7 @@ func downloadFile(url string, targetFilePath string) error {
 	}
 
 	if resp.StatusCode >= 300 {
-		return errors.New(fmt.Sprintf("HTTP response: %d %s when downloading %s", resp.StatusCode, resp.Status, url))
+		return fmt.Errorf("HTTP response: %d %s when downloading %s", resp.StatusCode, resp.Status, url)
 	}
 
 	defer resp.Body.Close()

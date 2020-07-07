@@ -1,5 +1,4 @@
-// Copyright 2017 European Digital Reading Lab. All rights reserved.
-// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Copyright 2020 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -13,20 +12,19 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
-
-	"fmt"
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/lcpencrypt/encrypt"
 	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
+	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
 	uuid "github.com/satori/go.uuid"
 
@@ -52,7 +50,7 @@ type WebPublication interface {
 	Update(publication Publication) error
 	Delete(id int64) error
 	List(page int, pageNum int) func() (Publication, error)
-	Upload(*http.Request, http.ResponseWriter, Publication)
+	Upload(multipart.File, string, Publication) error
 	CheckByTitle(title string) (int64, error)
 }
 
@@ -72,8 +70,8 @@ type PublicationManager struct {
 }
 
 // Get gets a publication by its ID
-//
 func (pubManager PublicationManager) Get(id int64) (Publication, error) {
+
 	dbGetByID, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication WHERE id = ? LIMIT 1")
 	if err != nil {
 		return Publication{}, err
@@ -96,8 +94,8 @@ func (pubManager PublicationManager) Get(id int64) (Publication, error) {
 }
 
 // GetByUUID returns a publication by its uuid
-//
 func (pubManager PublicationManager) GetByUUID(uuid string) (Publication, error) {
+
 	dbGetByUUID, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication WHERE uuid = ? LIMIT 1")
 	if err != nil {
 		return Publication{}, err
@@ -120,8 +118,8 @@ func (pubManager PublicationManager) GetByUUID(uuid string) (Publication, error)
 }
 
 // CheckByTitle checks if the title of a publication exists or not in the db
-//
 func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
+
 	dbGetByTitle, err := pubManager.db.Prepare("SELECT COUNT(1) FROM publication WHERE title = ?")
 	if err != nil {
 		return -1, err
@@ -141,46 +139,64 @@ func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
 	return -1, ErrNotFound
 }
 
-// BuildWebPubPackage builds a WebPub package
-//
-func BuildWebPubPackage(pub Publication, inputPath string, outputPath string) error {
-	return pack.BuildWebPubPackageFromPDF(pub.Title, inputPath, outputPath)
-}
+// encryptPublication encrypts an EPUB, PDF or LPF file and provides the resulting file to the LCP server
+func encryptPublication(inputPath string, pub Publication, pubManager PublicationManager) error {
 
-// EncryptPublication encrypts a Publication File and sends the content to the LCP server
-//
-func EncryptPublication(inputPath string, pub Publication, pubManager PublicationManager) error {
 	// generate a new uuid; this will be the content id in the lcp server
-	uid, err_u := uuid.NewV4()
-	if err_u != nil {
-		return err_u
+	uid, err := uuid.NewV4()
+	if err != nil {
+		return err
 	}
 	contentUUID := uid.String()
+
+	// set the encryption profile from the config file
+	var lcpProfile license.EncryptionProfile
+	if pubManager.config.Profile == "1.0" {
+		lcpProfile = license.V1Profile
+	} else {
+		lcpProfile = license.BasicProfile
+	}
 
 	// create a temp file in the frontend "encrypted repository"
 	outputFilename := contentUUID + ".tmp"
 	outputPath := path.Join(pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
 
-	var err error
+	// encrypt the master file found at inputPath, write in the temp file, in the "encrypted repository"
 	var encryptedPub encrypt.EncryptionArtifact
 	var contentType string
-	// encrypt the master file found at inputPath, write in the temp file, in the "encrypted repository"
+
+	// process EPUB files
 	if strings.HasSuffix(inputPath, ".epub") {
 		contentType = epub.ContentType_EPUB
 		encryptedPub, err = encrypt.EncryptEpub(inputPath, outputPath)
+
+		// process PDF files
 	} else if strings.HasSuffix(inputPath, ".pdf") {
 		contentType = "application/pdf+lcp"
 		clearWebPubPath := outputPath + ".webpub"
-		err = BuildWebPubPackage(pub, inputPath, clearWebPubPath)
+		err = pack.BuildRWPPFromPDF(pub.Title, inputPath, clearWebPubPath)
 		if err != nil {
 			log.Printf("Error building webpub package: %s", err)
 			return err
 		}
-		encryptedPub, err = encrypt.EncryptWebPubPackage(pack.EncryptionProfile(pubManager.config.Profile), clearWebPubPath, outputPath)
-		// Remove the intermediate file
-		os.Remove(clearWebPubPath)
+		defer os.Remove(clearWebPubPath)
+		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, clearWebPubPath, outputPath)
+
+		// process LPF files
+	} else if strings.HasSuffix(inputPath, ".lpf") {
+		// FIXME: short term solution; should be extended to other profiles
+		contentType = "application/audiobook+lcp"
+		clearWebPubPath := outputPath + ".webpub"
+		err = pack.BuildRWPPFromLPF(inputPath, clearWebPubPath)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(clearWebPubPath)
+		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, clearWebPubPath, outputPath)
+
+		// unknown file
 	} else {
-		return errors.New("Could not match the filename")
+		return errors.New("Could not match the file extension: " + inputPath)
 	}
 
 	if err != nil {
@@ -194,7 +210,7 @@ func EncryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	// prepare the import request to the lcp server
 	contentDisposition := slugify.Slugify(pub.Title)
 	lcpPublication := apilcp.LcpPublication{}
-	lcpPublication.ContentId = contentUUID
+	lcpPublication.ContentID = contentUUID
 	lcpPublication.ContentKey = encryptedPub.EncryptionKey
 	// both frontend and lcp server must understand this path (warning if using Docker containers)
 	lcpPublication.Output = outputPath
@@ -257,8 +273,8 @@ func EncryptPublication(inputPath string, pub Publication, pubManager Publicatio
 
 // Add adds a new publication
 // Encrypts a master File and sends the content to the LCP server
-//
 func (pubManager PublicationManager) Add(pub Publication) error {
+
 	// get the path to the master file
 	inputPath := path.Join(
 		pubManager.config.FrontendServer.MasterRepository, pub.MasterFilename)
@@ -268,46 +284,43 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 		return err
 	}
 	// encrypt the publication and send the content to the LCP server
-	return EncryptPublication(inputPath, pub, pubManager)
+	return encryptPublication(inputPath, pub, pubManager)
 }
 
 // Upload creates a new publication, named after a POST form parameter.
-// Encrypts a master File and sends the content to the LCP server.
-// A temp file is created then deleted.
-//
-func (pubManager PublicationManager) Upload(r *http.Request, w http.ResponseWriter, pub Publication) {
+// The file is processed, encrypted and sent to the LCP server.
+func (pubManager PublicationManager) Upload(file multipart.File, extension string, pub Publication) error {
 
-	file, header, err := r.FormFile("file")
-
-	ext := filepath.Ext(header.Filename)
-
-	tmpfile, err := ioutil.TempFile("", "inputpub.*"+ext)
-
+	// create a temp file
+	tmpfile, err := ioutil.TempFile("", "uploaded-*"+extension)
 	if err != nil {
-		fmt.Fprintln(w, err)
-		return
+		return err
 	}
-
 	defer os.Remove(tmpfile.Name())
 
-	_, err = io.Copy(tmpfile, file)
-
-	if err := tmpfile.Close(); err != nil {
-		log.Fatal(err)
-	}
-	// encrypt the publication and send the content to the LCP server
-	if err := EncryptPublication(tmpfile.Name(), pub, pubManager); err != nil {
-		log.Fatal(err)
+	// copy the request payload to the temp file
+	if _, err = io.Copy(tmpfile, file); err != nil {
+		return err
 	}
 
-	fmt.Fprintf(w, "File uploaded successfully : ")
-	fmt.Fprintf(w, header.Filename)
+	// close the temp file
+	if err = tmpfile.Close(); err != nil {
+		return err
+	}
+
+	// process and encrypt the publication, send the content to the LCP server
+	err = encryptPublication(tmpfile.Name(), pub, pubManager)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Update updates a publication
 // Only the title is updated
-//
 func (pubManager PublicationManager) Update(pub Publication) error {
+
 	dbUpdate, err := pubManager.db.Prepare("UPDATE publication SET title=?, status=? WHERE id = ?")
 	if err != nil {
 		return err
@@ -324,15 +337,9 @@ func (pubManager PublicationManager) Update(pub Publication) error {
 }
 
 // Delete deletes a publication, selected by its numeric id
-//
 func (pubManager PublicationManager) Delete(id int64) error {
 
-	var (
-		title string
-	)
-
-	fmt.Print("Delete:")
-	fmt.Println(id)
+	var title string
 
 	dbGetMasterFile, err := pubManager.db.Prepare("SELECT title FROM publication WHERE id = ?")
 	if err != nil {
@@ -385,9 +392,9 @@ func (pubManager PublicationManager) Delete(id int64) error {
 
 // List lists publications within a given range
 // Parameters: page = number of items per page; pageNum = page offset (0 for the first page)
-//
 func (pubManager PublicationManager) List(page int, pageNum int) func() (Publication, error) {
-	dbList, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY title desc LIMIT ? OFFSET ?")
+
+	dbList, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc LIMIT ? OFFSET ?")
 	if err != nil {
 		return func() (Publication, error) { return Publication{}, err }
 	}
@@ -418,8 +425,8 @@ func (pubManager PublicationManager) List(page int, pageNum int) func() (Publica
 
 // Init initializes the publication manager
 // Creates the publication db table.
-//
 func Init(config config.Configuration, db *sql.DB) (i WebPublication, err error) {
+
 	// if sqlite, create the content table in the frontend db if it does not exist
 	if strings.HasPrefix(config.FrontendServer.Database, "sqlite") {
 		_, err = db.Exec(tableDef)

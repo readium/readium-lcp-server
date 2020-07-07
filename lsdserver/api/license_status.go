@@ -1,5 +1,4 @@
-// Copyright 2017 European Digital Reading Lab. All rights reserved.
-// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Copyright 2020 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -20,9 +19,9 @@ import (
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/lcpserver/api"
+	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/license_statuses"
+	licensestatuses "github.com/readium/readium-lcp-server/license_statuses"
 	"github.com/readium/readium-lcp-server/localization"
 	"github.com/readium/readium-lcp-server/logging"
 	"github.com/readium/readium-lcp-server/problem"
@@ -70,7 +69,7 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 
 	licenseID := vars["key"]
 
-	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseID)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseID(licenseID)
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
@@ -142,7 +141,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the license id from the url
 	licenseID := vars["key"]
 	// check the existence of the license in the lsd server
-	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseID)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseID(licenseID)
 	if err != nil {
 		if licenseStatus == nil {
 			// the license is not stored in the lsd server
@@ -189,7 +188,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// check if the device has already been registered for this license
-	deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.Id, deviceID)
+	deviceStatus, err := s.Transactions().CheckDeviceStatus(licenseStatus.ID, deviceID)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		logging.WriteToFile(complianceTestNumber, REGISTER_DEVICE, strconv.Itoa(http.StatusInternalServerError), err.Error())
@@ -202,7 +201,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 	} else {
 
 		// create a registered event
-		event := makeEvent(status.STATUS_ACTIVE, deviceName, deviceID, licenseStatus.Id)
+		event := makeEvent(status.STATUS_ACTIVE, deviceName, deviceID, licenseStatus.ID)
 		err = s.Transactions().Add(*event, status.STATUS_ACTIVE_INT)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
@@ -263,7 +262,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 
 	var msg string
 
-	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseID)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseID(licenseID)
 	if err != nil {
 		if licenseStatus == nil {
 			msg = "The license id " + licenseID + " was not found in the database"
@@ -303,7 +302,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// create a return event
-	event := makeEvent(status.STATUS_RETURNED, deviceName, deviceID, licenseStatus.Id)
+	event := makeEvent(status.STATUS_RETURNED, deviceName, deviceID, licenseStatus.ID)
 	err = s.Transactions().Add(*event, status.STATUS_RETURNED_INT)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
@@ -378,7 +377,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// get the license status by license id
 	licenseID := vars["key"]
-	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseID)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseID(licenseID)
 
 	if err != nil {
 		if licenseStatus == nil {
@@ -470,7 +469,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// create a renew event
-	event := makeEvent(status.EVENT_RENEWED, deviceName, deviceID, licenseStatus.Id)
+	event := makeEvent(status.EVENT_RENEWED, deviceName, deviceID, licenseStatus.ID)
 	err = s.Transactions().Add(*event, status.EVENT_RENEWED_INT)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
@@ -579,7 +578,7 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 	licenseStatuses := make([]licensestatuses.LicenseStatus, 0)
 
 	fn := s.LicenseStatuses().List(devicesLimit, perPage, page*perPage)
-	for it, err := fn(); err == nil && it.Id != 0; it, err = fn() {
+	for it, err := fn(); err == nil && it.ID != 0; it, err = fn() {
 		licenseStatuses = append(licenseStatuses, it)
 	}
 	if err != nil {
@@ -624,7 +623,7 @@ func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	licenseID := vars["key"]
 
-	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseID)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseID(licenseID)
 	if err != nil {
 		if licenseStatus == nil {
 			problem.NotFoundHandler(w, r)
@@ -636,9 +635,9 @@ func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	registeredDevicesList := transactions.RegisteredDevicesList{Devices: make([]transactions.Device, 0), Id: licenseStatus.LicenseRef}
+	registeredDevicesList := transactions.RegisteredDevicesList{Devices: make([]transactions.Device, 0), ID: licenseStatus.LicenseRef}
 
-	fn := s.Transactions().ListRegisteredDevices(licenseStatus.Id)
+	fn := s.Transactions().ListRegisteredDevices(licenseStatus.ID)
 	for it, err := fn(); err == nil; it, err = fn() {
 		registeredDevicesList.Devices = append(registeredDevicesList.Devices, it)
 	}
@@ -665,7 +664,7 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 	log.Println("Cancel or revoke " + licenseID)
 
 	// get the current license status
-	licenseStatus, err := s.LicenseStatuses().GetByLicenseId(licenseID)
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseID(licenseID)
 	if err != nil {
 		// erroneous license id
 		if licenseStatus == nil {
@@ -744,7 +743,7 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 	// the event source is not a device.
 	deviceName := "system"
 	deviceID := "system"
-	event := makeEvent(st, deviceName, deviceID, licenseStatus.Id)
+	event := makeEvent(st, deviceName, deviceID, licenseStatus.ID)
 	err = s.Transactions().Add(*event, ty)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
@@ -772,7 +771,7 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 // and creates needed inner objects of license status
 //
 func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatus) {
-	ls.LicenseRef = license.Id
+	ls.LicenseRef = license.ID
 
 	registerAvailable := config.Config.LicenseStatus.Register
 
@@ -820,7 +819,7 @@ func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatu
 func getEvents(ls *licensestatuses.LicenseStatus, s Server) error {
 	events := make([]transactions.Event, 0)
 
-	fn := s.Transactions().GetByLicenseStatusId(ls.Id)
+	fn := s.Transactions().GetByLicenseStatusId(ls.ID)
 	var err error
 	var event transactions.Event
 	for event, err = fn(); err == nil; event, err = fn() {
@@ -857,7 +856,7 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 		*links = append(*links, link)
 		// default template
 	} else {
-		link := licensestatuses.Link{Href: lcpBaseURL + "/licenses/" + ls.LicenseRef, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
+		link := licensestatuses.Link{Href: lcpBaseURL + "/api/v1/licenses/" + ls.LicenseRef, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
 		*links = append(*links, link)
 	}
 	// if register is set
@@ -925,7 +924,7 @@ func updateLicense(timeEnd time.Time, licenseID string) (int, error) {
 	}
 	// create a minimum license object, limited to the license id plus rights
 	// FIXME: remove the id (here and in the lcpserver license.go)
-	minLicense := license.License{Id: licenseID, Rights: new(license.UserRights)}
+	minLicense := license.License{ID: licenseID, Rights: new(license.UserRights)}
 	// set the new end date
 	minLicense.Rights.End = &timeEnd
 

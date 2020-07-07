@@ -1,9 +1,4 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-// Copyright 2017 European Digital Reading Lab. All rights reserved.
-// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Copyright 2020 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -13,6 +8,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -23,6 +19,7 @@ import (
 
 // GetPublications returns a list of publications
 func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
+
 	var page int64
 	var perPage int64
 	var err error
@@ -44,7 +41,7 @@ func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 			return
 		}
 	} else {
-		perPage = 30
+		perPage = 100
 	}
 
 	if page > 0 {
@@ -57,7 +54,6 @@ func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 
 	pubs := make([]webpublication.Publication, 0)
-	//log.Println("ListAll(" + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
 	fn := s.PublicationAPI().List(int(perPage), int(page))
 	for it, err := fn(); err == nil; it, err = fn() {
 		pubs = append(pubs, it)
@@ -81,8 +77,8 @@ func GetPublications(w http.ResponseWriter, r *http.Request, s IServer) {
 }
 
 // GetPublication returns a publication from its numeric id, given as part of the calling url
-//
 func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
+
 	vars := mux.Vars(r)
 	var id int
 	var err error
@@ -113,8 +109,9 @@ func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-// CheckPublicationByTitle check if a publication with this title exist
+// CheckPublicationByTitle checks if a publication with this title exists
 func CheckPublicationByTitle(w http.ResponseWriter, r *http.Request, s IServer) {
+
 	var title string
 	title = r.URL.Query()["title"][0]
 
@@ -145,6 +142,7 @@ func CheckPublicationByTitle(w http.ResponseWriter, r *http.Request, s IServer) 
 
 //DecodeJSONPublication transforms a json string to a User struct
 func DecodeJSONPublication(r *http.Request) (webpublication.Publication, error) {
+
 	var dec *json.Decoder
 	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_JSON {
 		dec = json.NewDecoder(r.Body)
@@ -156,6 +154,7 @@ func DecodeJSONPublication(r *http.Request) (webpublication.Publication, error) 
 
 // CreatePublication creates a publication in the database
 func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
+
 	var pub webpublication.Publication
 	var err error
 	if pub, err = DecodeJSONPublication(r); err != nil {
@@ -174,14 +173,35 @@ func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 }
 
 // UploadPublication creates a new publication via a POST request
+// This function is called from the frontend test client
 func UploadPublication(w http.ResponseWriter, r *http.Request, s IServer) {
+
 	var pub webpublication.Publication
+
+	// get the title of the publication from the 'title' URL query param
 	pub.Title = r.URL.Query()["title"][0]
-	s.PublicationAPI().Upload(r, w, pub)
+
+	// get the file handle
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+
+	// get the input file extension (will be used to select the proper encryption process)
+	extension := filepath.Ext(header.Filename)
+
+	err = s.PublicationAPI().Upload(file, extension, pub)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // UpdatePublication updates an identified publication (id) in the database
 func UpdatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
+
 	vars := mux.Vars(r)
 	var id int
 	var err error
@@ -215,12 +235,12 @@ func UpdatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 		}
 		//database update ok
 		w.WriteHeader(http.StatusOK)
-		//return
 	}
 }
 
 // DeletePublication removes a publication in the database
 func DeletePublication(w http.ResponseWriter, r *http.Request, s IServer) {
+
 	vars := mux.Vars(r)
 	id, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {

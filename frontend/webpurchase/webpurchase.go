@@ -200,7 +200,7 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 	encryptedAttrs := []string{"email", "name"}
 	partialLicense.User.Email = purchase.User.Email
 	partialLicense.User.Name = purchase.User.Name
-	partialLicense.User.Id = purchase.User.UUID
+	partialLicense.User.ID = purchase.User.UUID
 	partialLicense.User.Encrypted = encryptedAttrs
 
 	// get the hashed passphrase from the purchase
@@ -298,7 +298,7 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 
 	// store the license id if it was not already set
 	if purchase.LicenseUUID == nil {
-		purchase.LicenseUUID = &fullLicense.Id
+		purchase.LicenseUUID = &fullLicense.ID
 		pManager.Update(purchase)
 		if err != nil {
 			return license.License{}, errors.New("Unable to update the license id")
