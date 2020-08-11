@@ -135,7 +135,7 @@ func S3(config S3Config) (Store, error) {
 	// Credentials defaults to a chain of credential providers to search for credentials in environment
 	// variables, shared credential file, and EC2 Instance Roles.
 	// Therefore, we only explicitly define static credentials if these are present in config
-	if config.ID != "" && config.Secret != "" && config.Token != "" {
+	if config.ID != "" && config.Secret != "" {
 		awsConfig.Credentials = credentials.NewStaticCredentials(config.ID, config.Secret, config.Token)
 	}
 
