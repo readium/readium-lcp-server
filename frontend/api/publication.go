@@ -180,6 +180,9 @@ func UploadPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	// get the title of the publication from the 'title' URL query param
 	pub.Title = r.URL.Query()["title"][0]
+	if len(r.URL.Query()["uuid"]) > 0 {
+		pub.UUID = r.URL.Query()["uuid"][0]
+	}
 
 	// get the file handle
 	file, header, err := r.FormFile("file")
