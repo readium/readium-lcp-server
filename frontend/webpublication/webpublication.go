@@ -148,6 +148,9 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 		return err
 	}
 	contentUUID := uid.String()
+	if len(pub.UUID) > 0 {
+		contentUUID = pub.UUID
+	}
 
 	// set the encryption profile from the config file
 	var lcpProfile license.EncryptionProfile
