@@ -206,6 +206,12 @@ func SetLicenseLinks(l *License, c index.Content) error {
 			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{license_id}", l.ID, 1)
 			l.Links[i].Type = api.ContentType_LSD_JSON
 		}
+
+		// hint link
+		if l.Links[i].Rel == "hint" {
+			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{license_id}", l.ID, 1)
+			l.Links[i].Type = api.ContentType_TEXT_HTML
+		}
 	}
 
 	return nil
