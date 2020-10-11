@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -139,7 +140,7 @@ func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
 	return -1, ErrNotFound
 }
 
-// encryptPublication encrypts an EPUB, PDF or LPF file and provides the resulting file to the LCP server
+// encryptPublication encrypts an EPUB, PDF, LPF or RWPP file and provides the resulting file to the LCP server
 func encryptPublication(inputPath string, pub Publication, pubManager PublicationManager) error {
 
 	// generate a new uuid; this will be the content id in the lcp server
@@ -168,13 +169,14 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	var encryptedPub encrypt.EncryptionArtifact
 	var contentType string
 
+	switch filepath.Ext(inputPath) {
 	// process EPUB files
-	if strings.HasSuffix(inputPath, ".epub") {
+	case ".epub":
 		contentType = epub.ContentType_EPUB
 		encryptedPub, err = encrypt.EncryptEpub(inputPath, outputPath)
 
 		// process PDF files
-	} else if strings.HasSuffix(inputPath, ".pdf") {
+	case ".pdf":
 		contentType = "application/pdf+lcp"
 		clearWebPubPath := outputPath + ".webpub"
 		err = pack.BuildRWPPFromPDF(pub.Title, inputPath, clearWebPubPath)
@@ -186,7 +188,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, clearWebPubPath, outputPath)
 
 		// process LPF files
-	} else if strings.HasSuffix(inputPath, ".lpf") {
+	case ".lpf":
 		// FIXME: short term solution; should be extended to other profiles
 		contentType = "application/audiobook+lcp"
 		clearWebPubPath := outputPath + ".webpub"
@@ -197,8 +199,18 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 		defer os.Remove(clearWebPubPath)
 		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, clearWebPubPath, outputPath)
 
+		// process RWPP Audiobook files
+	case ".audiobook":
+		contentType = "application/audiobook+lcp"
+		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, inputPath, outputPath)
+
+		// process RWPP Divina files
+	case ".divina":
+		contentType = "application/divina+lcp"
+		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, inputPath, outputPath)
+
 		// unknown file
-	} else {
+	default:
 		return errors.New("Could not match the file extension: " + inputPath)
 	}
 
@@ -362,6 +374,7 @@ func (pubManager PublicationManager) Delete(id int64) error {
 		}
 
 		// delete the epub file from the master repository
+		// FIXME: make it work for all kinds of extensions
 		inputPath := path.Join(pubManager.config.FrontendServer.MasterRepository, title+".epub")
 
 		if _, err := os.Stat(inputPath); err == nil {

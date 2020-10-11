@@ -17,7 +17,7 @@
       </label>
     </div>
     <br/>
-    <label for="publication-filename">EPUB, PDF or LPF file</label>
+    <label for="publication-filename">EPUB, PDF, LPF or RWPP file</label>
     <div *ngIf="form.value['type'] == 'UPLOAD'">
       <div ng2FileDrop
                       [ngClass]="{'nv-file-over': hasBaseDropZoneOver, 'nv-bad-file':notAPublication}"
@@ -25,8 +25,8 @@
                       [uploader]="uploader"
                       class="drop-zone">
           <div *ngIf="droppedItem&&!notAPublication">{{droppedItem.file.name}}</div>
-          <div *ngIf="!droppedItem&&!notAPublication">Drop an EPUB, PDF or LPF file here</div>
-          <div *ngIf="droppedItem&&notAPublication">The file must have a .epub, .pdf or .lpf extension.</div>
+          <div *ngIf="!droppedItem&&!notAPublication">Drop a publication here</div>
+          <div *ngIf="droppedItem&&notAPublication">The file must have an .epub, .pdf, .lpf, .audiobook or .divina extension.</div>
       </div>
     </div>
     <div *ngIf="form.value['type'] != 'UPLOAD'">

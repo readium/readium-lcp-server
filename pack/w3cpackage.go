@@ -19,8 +19,11 @@ import (
 	"github.com/rickb777/date/period"
 )
 
-// W3CManifestName is the name of the W3C manifest in a LPF package
+// W3CManifestName is the name of the W3C manifest in an LPF package
 const W3CManifestName = "publication.json"
+
+// W3CEntryPageName is the name of the W3C entry page in an LPF package
+const W3CEntryPageName = "index.html"
 
 // RWPManifestName is the name of the Readium Manifest in a package
 const RWPManifestName = "manifest.json"
@@ -132,6 +135,7 @@ func mapLinks(w3clinks []rwpm.W3CLink) (rwpmLinks []rwpm.Link) {
 // generateRWPManifest generates a json Readium manifest (as []byte) out of a W3C Manifest
 func generateRWPManifest(w3cman rwpm.W3CPublication) (manifest rwpm.Publication) {
 
+	// debug
 	//displayW3CMan(w3cman)
 
 	manifest.Context = []string{"https://readium.org/webpub-manifest/context.jsonld"}
@@ -157,8 +161,11 @@ func generateRWPManifest(w3cman rwpm.W3CPublication) (manifest rwpm.Publication)
 	manifest.Metadata.Language = w3cman.InLanguage
 	// W3C manifest: published and modified are date-or-datetime,
 	// Readium manifest: published is a date; modified is a datetime
-	manifest.Metadata.Published = rwpm.Date(time.Time(w3cman.DatePublished))
-	manifest.Metadata.Modified = time.Time(w3cman.DateModified)
+	manifest.Metadata.Published = rwpm.Date(time.Time(*w3cman.DatePublished))
+	if w3cman.DateModified != nil {
+		modified := time.Time(*w3cman.DateModified)
+		manifest.Metadata.Modified = &modified
+	}
 	manifest.Metadata.Duration, _ = isoDurationToSc(w3cman.Duration)
 	manifest.Metadata.ReadingProgression = w3cman.ReadingProgression
 
@@ -229,6 +236,8 @@ func BuildRWPPFromLPF(lpfPath string, rwppPath string) error {
 	if err != nil {
 		return err
 	}
+	// debug
+	//println(string(rwpJSON))
 
 	// create the rwpp file
 	rwppFile, err := os.Create(rwppPath)

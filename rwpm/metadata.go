@@ -20,8 +20,9 @@ type Metadata struct {
 	Description        string        `json:"description,omitempty"`
 	Language           MultiString   `json:"language,omitempty"`
 	ReadingProgression string        `json:"readingProgression,omitempty"`
-	Modified           time.Time     `json:"modified,omitempty"`
-	Published          Date          `json:"published,omitempty"`
+	//
+	Modified  *time.Time `json:"modified,omitempty"`
+	Published Date       `json:"published,omitempty"`
 	// contributors
 	Publisher   Contributors `json:"publisher,omitempty"`
 	Artist      Contributors `json:"artist,omitempty"`
@@ -37,10 +38,11 @@ type Metadata struct {
 	Penciler    Contributors `json:"penciler,omitempty"`
 	Translator  Contributors `json:"translator,omitempty"`
 	// other descriptive metadata
-	Subject       Subjects `json:"subject,omitempty"`
-	Duration      int      `json:"duration,omitempty"`
-	NumberOfPages int      `json:"numberOfPages,omitempty"`
-	Abridged      bool     `json:"abridged,omitempty"`
+	Subject Subjects `json:"subject,omitempty"`
+	// FIXME: Duration is a float in the spec
+	Duration      int  `json:"duration,omitempty"`
+	NumberOfPages int  `json:"numberOfPages,omitempty"`
+	Abridged      bool `json:"abridged,omitempty"`
 	// collections & series
 	BelongsTo *BelongsTo `json:"belongsTo,omitempty"`
 
@@ -70,6 +72,11 @@ func (d *DateOrDatetime) UnmarshalJSON(b []byte) error {
 
 // MarshalJSON marshalls DateOrDatetime
 func (d DateOrDatetime) MarshalJSON() ([]byte, error) {
+
+	//if time.Time(d).IsZero() {
+	//println("Zero dateordatetime")
+	//return nil, nil
+	//}
 
 	return json.Marshal(time.Time(d))
 }

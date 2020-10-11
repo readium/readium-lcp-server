@@ -44,6 +44,7 @@ func (reader *RWPPReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 	}
 
 	// copy immediately the W3C manifest if it exists in the source package
+	// FIXME: this doesn't seem to be the best location for such zip to zip copy
 	if w3cmanFile, ok := files[W3CManifestName]; ok {
 		fw, err := zipWriter.Create(W3CManifestName)
 		if err != nil {
@@ -54,10 +55,35 @@ func (reader *RWPPReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 		file.Close()
 	}
 
-	// copy immediately the ancilliary resources from the source manifest as they should not be encrypted
+	// copy immediately the W3C entry page if it exists in the source package
+	// FIXME: this doesn't seem to be the best location for such zip to zip copy
+	if w3centryFile, ok := files[W3CEntryPageName]; ok {
+		fw, err := zipWriter.Create(W3CEntryPageName)
+		if err != nil {
+			return nil, err
+		}
+		file, err := w3centryFile.Open()
+		_, err = io.Copy(fw, file)
+		file.Close()
+	}
+
+	// copy immediately all ancilliary resources from the source manifest as they should not be encrypted
 	// FIXME: this doesn't seem to be the best location for such zip to zip copy
 	for _, manifestResource := range reader.manifest.Resources {
 		sourceFile := files[manifestResource.Href]
+		fw, err := zipWriter.Create(sourceFile.Name)
+		if err != nil {
+			return nil, err
+		}
+		file, err := sourceFile.Open()
+		_, err = io.Copy(fw, file)
+		file.Close()
+	}
+
+	// copy immediately all links from the source manifest as they should not be encrypted
+	// FIXME: this doesn't seem to be the best location for such zip to zip copy
+	for _, manifestLink := range reader.manifest.Links {
+		sourceFile := files[manifestLink.Href]
 		fw, err := zipWriter.Create(sourceFile.Name)
 		if err != nil {
 			return nil, err

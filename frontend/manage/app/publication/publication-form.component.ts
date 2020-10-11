@@ -63,7 +63,8 @@ export class PublicationFormComponent implements OnInit {
     {
         this.split = fileItem.file.name.split('.');
         let extension = this.split[this.split.length-1];
-        if (extension === "epub" || extension === "pdf" || extension === "lpf")
+        if (extension === "epub" || extension === "pdf" || extension === "lpf" || 
+            extension === "audiobook" || extension === "divina")
         {
             this.notAPublication = false;
         }
