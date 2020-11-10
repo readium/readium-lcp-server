@@ -199,6 +199,7 @@ func (writer *RWPPWriter) NewFile(path string, contentType string, storageMethod
 
 // MarkAsEncrypted marks a resource as encrypted (with an lcp profile and algorithm), in the writer manifest
 // FIXME: currently only looks into the reading order. Add "alternates", think about adding "resources"
+// FIXME: process resources which are compressed before encryption -> add Compression and OriginalLength properties in this case
 func (writer *RWPPWriter) MarkAsEncrypted(path string, originalSize int64, profile license.EncryptionProfile, algorithm string) {
 
 	for i, resource := range writer.manifest.ReadingOrder {

@@ -144,15 +144,9 @@ func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 // encryptResource encrypts a resource in a Readium Package
 func encryptResource(profile license.EncryptionProfile, encrypter crypto.Encrypter, key crypto.ContentKey, resource Resource, packageWriter PackageWriter) error {
 
-	// FIXME: this is currently always set to false
-	compressBeforeEncryption := resource.CompressBeforeEncryption()
-
-	storageMethod := uint16(NoCompression)
-	if compressBeforeEncryption {
-		storageMethod = uint16(Deflate)
-	}
-
-	file, err := packageWriter.NewFile(resource.Path(), resource.ContentType(), storageMethod)
+	// add the file to the package writer
+	// note: the file is stored as-is because compression, when applied, is applied *before* encryption
+	file, err := packageWriter.NewFile(resource.Path(), resource.ContentType(), uint16(NoCompression))
 	if err != nil {
 		return err
 	}
@@ -162,7 +156,8 @@ func encryptResource(profile license.EncryptionProfile, encrypter crypto.Encrypt
 	}
 	var reader io.Reader = resourceReader
 
-	if compressBeforeEncryption {
+	// FIXME: CompressBeforeEncryption() is currently always set to false
+	if resource.CompressBeforeEncryption() {
 		var buffer bytes.Buffer
 		deflateWriter, err := flate.NewWriter(&buffer, 9)
 		if err != nil {
@@ -205,9 +200,6 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 		method = Deflate
 	}
 
-	// set the storage method to Deflate or NoCompression
-	file.StorageMethod = uint16(method)
-
 	data.Properties = &xmlenc.EncryptionProperties{
 		Properties: []xmlenc.EncryptionProperty{
 			{Compression: xmlenc.Compression{Method: method, OriginalLength: file.OriginalSize}},
@@ -230,6 +222,9 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 
 		input = ioutil.NopCloser(&buf)
 	}
+
+	// note: the file is stored as-is because compression, when applied, is applied *before* encryption
+	file.StorageMethod = NoCompression
 
 	fw, err := w.AddResource(file.Path, file.StorageMethod)
 	if err != nil {
