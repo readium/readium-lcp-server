@@ -65,7 +65,7 @@ func (ep *Epub) addCleartextResource(name string) {
 }
 
 // Read reads the opf file in the zip passed as a parameter,
-// selects resources which must no be encrypted
+// selects resources which mustn't be encrypted
 // and returns an EPUB object
 func Read(r *zip.Reader) (Epub, error) {
 	var ep Epub

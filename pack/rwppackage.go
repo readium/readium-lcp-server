@@ -101,10 +101,10 @@ func (reader *RWPPReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 	}, nil
 }
 
-// Resources returns a list of all resources which should be encrypted
-// FIXME: the name of this function isn't great.
-// Note: the current design choice is to leave ancillaty resources (in "resources") non-encrypted
-// FIXME: also encrypt "resources" and "alternates"
+// Resources returns a list of all resources which may be encrypted
+// It is part of the PackageReader interface.
+// Note: the current design choice is to leave ancillary resources (in "resources" and "alternates") unencrypted
+// FIXME: add "resources" and "alternates" to the slice
 func (reader *RWPPReader) Resources() []Resource {
 	// index files by name to avoid multiple linear searches
 	files := map[string]*zip.File{}
@@ -170,7 +170,7 @@ func (nc *NopWriteCloser) Close() error {
 	return nil
 }
 
-// NewFile creates a header in the zip archive and adds an entry to the reading order if missing.
+// NewFile creates a header in the zip archive and adds an entry to the writer reading order if missing.
 // This function is called in two main cases:
 // - one is the creation of a Readium Package for a PDF file (no existing entry in the manifest)
 // - another in the encryption of an existing Readium Package (there is already an entry in the manifest)
@@ -182,7 +182,7 @@ func (writer *RWPPWriter) NewFile(path string, contentType string, storageMethod
 		Method: storageMethod,
 	})
 
-	// add an entry to the reading order if missing
+	// add an entry to the writer reading order if missing
 	found := false
 	for _, resource := range writer.manifest.ReadingOrder {
 		if path == resource.Href {
@@ -197,7 +197,7 @@ func (writer *RWPPWriter) NewFile(path string, contentType string, storageMethod
 	return &NopWriteCloser{w}, err
 }
 
-// MarkAsEncrypted marks a resource as encrypted (with an lcp profile and algorithm), in the manifest
+// MarkAsEncrypted marks a resource as encrypted (with an lcp profile and algorithm), in the writer manifest
 // FIXME: currently only looks into the reading order. Add "alternates", think about adding "resources"
 func (writer *RWPPWriter) MarkAsEncrypted(path string, originalSize int64, profile license.EncryptionProfile, algorithm string) {
 
