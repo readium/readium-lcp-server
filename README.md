@@ -118,6 +118,8 @@ git clone -b feature/F https://github.com/readium/readium-lcp-server.git src/git
 go get -v github.com/readium/readium-lcp-server/...
 ````
 
+Warning: Go has a funny 3-dots syntax, and you really have to type "/..." at the end of the line. 
+
 You may prefer to install only some of the three executables. 
 In such a case, the "go get" command should be called once for each package, e.g. for the lcpserver from the master branch:
 ```sh
