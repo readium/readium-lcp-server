@@ -203,15 +203,23 @@ Here are the details about the configuration properties of each server. In the s
 Note: It may be practical to put the authentication file in the configuration folder ("lcpconfig" in the samples below). 
 
 `storage` section: parameters related to the storage of encrypted publications.
-- `mode` : optional. If its value is "s3", `bucket` and `region` are required, otherwise `filesystem` is required.
-- `filesystem`: subsection, not used if `mode` is "s3": parameters related to a file system storage.   
+- `mode` : optional. Possible values are "local" (default value) and "s3".
+
+If `mode` value is `s3`:
+- `endpoint` (optional): name of the target S3 endpoint, if one is defined in the AWS S3 setup.
+- `region` (required): name of the target AWS region.
+- `bucket` (required): name of the target S3 bucket.
+
+If the storage is an S3 bucket, client credentials default to a chain of credential providers, searched in environment variables and a shared credential file. See [Setting up an S3 Storage](https://github.com/readium/readium-lcp-server/wiki/Setting-up-an-S3-storage) for details. 
+
+Alternatively (and this is not recommended!), credentials can be stored in clear in the configuration file:
+- `access_id`: value of the AWS access key id.
+- `secret`: value of the AWS secret access key.
+
+If `mode` value is NOT `s3`:
+- `filesystem` subsection: parameters related to a file system storage.   
   - `directory`: absolute path to the directory in which the encrypted publications are stored. In production, this directory must be accessible from the Web via the URL defined in `license/links/publication` (see below) 
   This storage must be accessible from the Web via a simple URL, specified via the `license/publication` parameter.
-- `bucket`: only used if `mode` is "s3": value of the s3 bucket.
-- `region`: only used if `mode` is "s3": value of the AWS region.
-- `access_id`: only used if `mode` is "s3" and aws credentials are static: value of the AWS AccessKeyID.
-- `secret`: only used if `mode` is "s3" and aws credentials are static: value of the AWS SecretAccessKey.
-- `token`: only used if `mode` is "s3" and aws credentials are static: value of the AWS SessionToken.
 
 `certificate` section:	parameters related to the signature of licenses: 	
 - `cert`: the provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature. A test certificate is provided in the test/cert directory of the project (`cert-edrlab-test.pem`). 
