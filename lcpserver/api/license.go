@@ -72,10 +72,6 @@ func checkGetLicenseInput(l *license.License) error {
 // checkGenerateLicenseInput: if we generate a license, check mandatory information in the input body
 func checkGenerateLicenseInput(l *license.License) error {
 
-	if l.Provider == "" {
-		log.Println("License provider is missing")
-		return ErrMandatoryInfoMissing
-	}
 	if l.User.ID == "" {
 		log.Println("User identification is missing")
 		return ErrMandatoryInfoMissing
