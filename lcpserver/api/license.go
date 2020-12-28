@@ -65,12 +65,6 @@ func checkGetLicenseInput(l *license.License) error {
 	if len(l.Encryption.UserKey.Value) != 32 {
 		return ErrBadValue
 	}
-	// the hash algorithm is given a default value -> sha256
-	if l.Encryption.UserKey.Algorithm == "" {
-		log.Println("User passphrase hash algorithm is missing, set default value")
-		// the only valid value (used in LCP basic and 1.0 profiles) is sha256
-		l.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
-	}
 
 	return nil
 }
