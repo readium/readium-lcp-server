@@ -185,12 +185,31 @@ func SetDefaultLinks() []Link {
 	return *links
 }
 
+// SetDefaultLinks sets a Link array from config links
+func AppendDefaultLinks(inLinks *[]Link) []Link {
+
+	if *inLinks == nil {
+		// Not Link. Set the default
+		return SetDefaultLinks()
+	} else {
+		// otherwhise append the default value. If default Link already present, overide with default
+		links := new([]Link)
+		for _, link := range *inLinks {
+			rel := link.Rel
+			if _, exist := DefaultLinks[rel]; !exist {
+				*links = append(*links, link)
+			}
+		}
+		return append(*links, SetDefaultLinks()...)
+	}
+}
+
 // SetLicenseLinks sets publication and status links
 // l.ContentID must have been set before the call
 func SetLicenseLinks(l *License, c index.Content) error {
 
-	// set the links
-	l.Links = SetDefaultLinks()
+	// Append the links
+	l.Links = AppendDefaultLinks(&l.Links)
 
 	for i := 0; i < len(l.Links); i++ {
 		// publication link

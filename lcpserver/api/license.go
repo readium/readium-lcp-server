@@ -100,6 +100,7 @@ func copyInputToLicense(licIn *license.License, licOut *license.License) {
 	licOut.User.Email = licIn.User.Email
 	licOut.User.Name = licIn.User.Name
 	licOut.User.Encrypted = licIn.User.Encrypted
+	licOut.Links = licIn.Links
 }
 
 // normalize the start and end date, UTC, no milliseconds
