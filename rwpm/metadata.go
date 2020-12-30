@@ -118,7 +118,7 @@ type Meta struct {
 type Properties struct {
 	Contains     []string   `json:"contains,omitempty"`
 	Layout       string     `json:"layout,omitempty"`
-	MediaOverlay string     `json:"media-overlay,omitempty"`
+	MediaOverlay string     `json:"mediaOverlay,omitempty"`
 	Orientation  string     `json:"orientation,omitempty"`
 	Overflow     string     `json:"overflow,omitempty"`
 	Page         string     `json:"page,omitempty"`
@@ -132,7 +132,7 @@ type Encrypted struct {
 	Profile        string `json:"profile,omitempty"`
 	Algorithm      string `json:"algorithm,omitempty"`
 	Compression    string `json:"compression,omitempty"`
-	OriginalLength int    `json:"original-length,omitempty"`
+	OriginalLength int    `json:"originalLength,omitempty"`
 }
 
 // Subjects is an array of subjects
@@ -141,7 +141,7 @@ type Subjects []Subject
 // Subject of a publication
 type Subject struct {
 	Name   string `json:"name"`
-	SortAs string `json:"sort_as,omitempty"`
+	SortAs string `json:"sortAs,omitempty"`
 	Scheme string `json:"scheme,omitempty"`
 	Code   string `json:"code,omitempty"`
 }
