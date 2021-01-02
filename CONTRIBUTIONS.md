@@ -10,8 +10,8 @@ To see the full list of contributors, please check the Github revision history.
 - Jean-Philippe Bougie (De Marque), who initiated the project in 2014
 - Rémi Bauzac (TEA-ebooks)
 - Hanna Boichenko (EDRLab)
-- Léo Stéfani (EDRLab)
-- Cyrille Lebeaupin (noop / EDRLab)
+- Léo Stéfani (noop for EDRLab)
+- Cyrille Lebeaupin (noop for EDRLab)
 - Stephan Nemegeer (ePagine)
 - Daniel Weck (EDRLab)
 - Laurent Le Meur (EDRLab)
