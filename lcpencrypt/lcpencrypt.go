@@ -289,12 +289,13 @@ func processLPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.E
 	// generate a tmp Readium Package (rwpp) out of W3C Package (lpf)
 	tmpPackagePath := pub.Output + ".webpub"
 	err := pack.BuildRWPPFromLPF(inputPath, tmpPackagePath)
+	// will remove the tmp file even if an error is returned
+	defer os.Remove(tmpPackagePath)
+	// process error
 	if err != nil {
 		pub.ErrorMessage = "Error building RWPP from LPF"
 		return err
 	}
-	// will remove the temp file
-	defer os.Remove(tmpPackagePath)
 
 	// build an encrypted package
 	err = buildEncryptedRWPP(pub, tmpPackagePath, encrypter, lcpProfile)
