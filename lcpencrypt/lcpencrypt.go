@@ -25,7 +25,7 @@ import (
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/lcpserver/api"
+	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/pack"
 	uuid "github.com/satori/go.uuid"
@@ -116,6 +116,7 @@ func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel i
 	if err != nil {
 		os.Stdout.WriteString(err.Error())
 	}
+	os.Stdout.WriteString("\n")
 	/* kept for future debug
 	jsonBody, err := json.MarshalIndent(lcpPublication, " ", "  ")
 	if err != nil {
