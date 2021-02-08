@@ -9,7 +9,7 @@ debug
 *.a
 *.lib
 *.exe
-*.yaml
+# *.yaml
 !test/config.yaml
 **/manage/config.js
 frontend/manage/node_modules/*
