@@ -11,8 +11,8 @@ version: "3.7"
 services:
   license-server:
     build: # Info to build the Docker image
-      context: ./Dockerfiles # Specify where the Dockerfile is located (e.g. in the root directory of the project)
-      dockerfile: LicenseServer # Specify the name of the Dockerfile
+      context: ./lcpserver # Specify where the Dockerfile is located (e.g. in the root directory of the project)
+      # dockerfile: LicenseServer # Specify the name of the Dockerfile
     restart: on-failure
 
     ports:
@@ -26,8 +26,8 @@ services:
       - readium # Docker containers (services) that need to connect to each other should be on the same network.
   license-status-server:
     build:
-      context: ./Dockerfiles
-      dockerfile: LicenseStatusServer
+      context: ./lsdserver
+      # dockerfile: LicenseStatusServer
     restart: on-failure
     ports:
       - 8990:8990
