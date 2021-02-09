@@ -1,47 +1,3 @@
-# # version: "3"
-# # services:
-# #   frontend:
-# #     image: gitlab.com/steppelink/readium/frontend:latest
-# #   lcpserver:
-# #     image: gitlab.com/steppelink/readium/lcpserver:latest
-# #   lsdserver:
-# #     image: gitlab.com/steppelink/readium/lsdserver:latest
-
-# version: "3.7"
-# services:
-#   license-server:
-#     build: # Info to build the Docker image
-#       context: ./lcpserver # Specify where the Dockerfile is located (e.g. in the root directory of the project)
-#       # dockerfile: LicenseServer # Specify the name of the Dockerfile
-#     restart: on-failure
-
-#     ports:
-#       - 8989:8989
-#     environment: # You can use this section to set environment variables. But you can also use the .env file.
-#       - READIUM_LCPSERVER_CONFIG=/etc/readium-lcp-server/lcp-config.yaml # configuration file
-#     volumes:
-#       - /etc/readium-lcp-server:/etc/readium-lcp-server:cached
-#       - /readium/lcpfiles:/readium/lcpfiles
-#     networks:
-#       - readium # Docker containers (services) that need to connect to each other should be on the same network.
-#   license-status-server:
-#     build:
-#       context: ./lsdserver
-#       # dockerfile: LicenseStatusServer
-#     restart: on-failure
-#     ports:
-#       - 8990:8990
-#     environment:
-#       - READIUM_LSDSERVER_CONFIG=/etc/readium-lcp-server/lsd-config.yaml
-#     volumes:
-#       - /etc/readium-lcp-server:/etc/readium-lcp-server:cached
-#       - /readium/lcpfiles:/readium/lcpfiles
-#     networks:
-#       - readium
-# networks:
-#   readium:
-
-  
 version: "3.6"
 
 x-app: &default-app
@@ -63,19 +19,14 @@ x-app: &default-app
     - "READIUM_FRONTEND_PORT=${READIUM_FRONTEND_PORT}"
     - "READIUM_FRONTEND_DATABASE=${READIUM_FRONTEND_DATABASE}"
     - "READIUM_ENC_CONTENT=/opt/readium/files/encrypted"
-    - "READIUM_CONTENT_S3_BUCKET=${READIUM_CONTENT_S3_BUCKET}"
-    - "AWS_REGION=${AWS_REGION}"
-    - "AWS_S3_USER=${AWS_S3_USER}"
-    - "AWS_S3_KEY=${AWS_S3_KEY}"
-    - "AWS_S3_SECRET=${AWS_S3_SECRET}"
 
 services:
   database:
     build: ./database
     image: database
+    restart: always
     ports:
       - "${READIUM_DATABASE_EXTERNAL_PORT}:${READIUM_DATABASE_PORT}"
-    restart: always
     environment:
       MYSQL_ROOT_PASSWORD: "${READIUM_DATABASE_PASSWORD}"
     volumes:
@@ -83,6 +34,7 @@ services:
 
   sftp:
     image: "atmoz/sftp:alpine"
+    restart: always
     ports:
       - "${READIUM_SFTP_EXTERNAL_PORT}:${READIUM_SFTP_PORT}"
     volumes:
@@ -112,7 +64,6 @@ services:
       - "./etc:/etc/readium"
     depends_on:
       - database
-      - minio
 
   lsdserver:
     <<: *default-app
@@ -141,15 +92,6 @@ services:
       - "./etc:/etc/readium"
     depends_on:
       - database
-
-  minio:
-    image: minio/minio
-    environment:
-      - "MINIO_ACCESS_KEY=${AWS_S3_KEY}"
-      - "MINIO_SECRET_KEY=${AWS_S3_SECRET}"
-    ports:
-      - "9000:9000"
-    command: ["server", "/data"]
 
 volumes:
   encfiles:
