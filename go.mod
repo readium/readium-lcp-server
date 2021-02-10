@@ -19,7 +19,7 @@ require (
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	github.com/technoweenie/grohl v0.0.0-20140924204239-f4613feb389e
 	github.com/urfave/negroni v1.0.0
+	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 // indirect
 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a
-	golang.org/x/tools v0.0.0-20200414131530-0037cb7812fa // indirect
 	gopkg.in/yaml.v2 v2.2.8
 )
