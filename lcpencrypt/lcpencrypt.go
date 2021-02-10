@@ -324,7 +324,7 @@ func main() {
 	var err error
 	var pub apilcp.LcpPublication
 	var inputPath = flag.String("input", "", "source epub/pdf/lpf file locator (file system or http GET)")
-	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new one is generated")
+	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new uuid is generated")
 	var outputFilename = flag.String("output", "", "optional target location for the encrypted content (file system or http PUT)")
 	var lcpsv = flag.String("lcpsv", "", "optional http endpoint of the License server (adds content)")
 	var username = flag.String("login", "", "login (License server)")
