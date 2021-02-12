@@ -20,7 +20,7 @@ Prerequisites
 No binaries are currently pre-built, so you need to get a working Golang installation. 
 Please refer to the official documentation for installation procedures at https://golang.org/.
 
-Install go 1.13 or higher; go 1.9 is not supported anymore by some modules. 
+Install *go 1.13* or higher.
 
 The servers require the setup of an SQL Database. 
 
@@ -96,7 +96,7 @@ Public functionalities (accessible from the web):
 Install
 =======
 
-Assuming a working Go installation, the following will install the three executables that constitute a complete Readium LCP Server.
+Assuming a working Go installation and a properly set $GOPATH, the following will install the four executables that constitute a complete Readium LCP Server.
 
 On Linux and MacOS:
 
@@ -108,19 +108,26 @@ cd $GOPATH
 go get -v github.com/readium/readium-lcp-server/...
 ```
 
-Alternatively, if you want to use a feature/F branch:
+Warning: Go has a funny 3-dots syntax, and you really have to type "/..." at the end of the line. 
+
+You should now find the generated Go binaries in $GOPATH/bin: 
+
+- `lcpencrypt`: the command line encryption tool,
+- `lcpserver`: the license server,
+- `lsdserver`: the status document server,
+- `frontend`: a test application (Test Frontend Server) which mimics your content management system. 
+
+Alternatively, if you want to use a feature branch:
 ```sh
 # from the go workspace
 cd $GOPATH
 # clone the repo, selecting the feature/F branch
-git clone -b feature/F https://github.com/readium/readium-lcp-server.git src/github.com/readium/readium-lcp-server
+git clone -b <feature-branch> https://github.com/readium/readium-lcp-server.git src/github.com/readium/readium-lcp-server
 # then fetch, build and install the different packages and their dependencies
 go get -v github.com/readium/readium-lcp-server/...
 ````
 
-Warning: Go has a funny 3-dots syntax, and you really have to type "/..." at the end of the line. 
-
-You may prefer to install only some of the three executables. 
+You may prefer to install only some of the executables. 
 In such a case, the "go get" command should be called once for each package, e.g. for the lcpserver from the master branch:
 ```sh
 cd $GOPATH
@@ -129,15 +136,13 @@ go get -v github.com/readium/readium-lcp-server/lcpserver
 
 To install properly the Test Frontend Server, you must also install several npm packages.
 
-Move to $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
-To install the packages and test your install, type
+Note: use a modern version of npm, e.g. npm 6.12.0 or higher. 
+
+To install the npm packages, type:
 ```sh
 cd $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
 npm install
-npm start
 ````
-
-If this gives no error, your install is ready; type Ctrl-C to move out of the test mode. In case of errors, read Readme.md in the "manage" directory to get more details.
 
 On Windows 10:
 
@@ -151,56 +156,64 @@ Also, in the previous instructions, replace:
 Configuration
 ==============
 
-The server is controlled by a yaml configuration file (e.g. "config.yaml").  
+## Environment variables
 
-The License Server, License Status Server and Frontend test server will search their configuration file in the bin directory by default; but the path to this file can be changed using the environment variable:
+The server is controlled by a yaml configuration file (e.g. "config.yaml") stored in a convenient folder, eg. `/usr/local/var/lcp`.  
+
+The License Server, License Status Server and Frontend test server will search their configuration file in the go bin directory by default; but the path to the file should be changed using an environment variable:
 
 * `READIUM_LCPSERVER_CONFIG` for the License server
 * `READIUM_LSDSERVER_CONFIG` for the License Status server
 * `READIUM_FRONTEND_CONFIG` for the Frontend test server
 
-The value of the three global variables must be of the form /path/to/lcpconfig.yaml.
+The value of the each global variable is an absolute path to the configuration file for the given server. The three servers may share the same configuration file (useful if they are executed on the same server) or each server may get its own configuration file; this is your choice. 
 
-The three servers may share the same configuration file (if they are both executed on the same server) or they may have their own configuration file. 
+## Password file
 
-The LCP and LSD servers also require authenticated API requests for some of their functionalities. A password file named `htpasswd` must therefore be created to handle such authentication data, for each module. Like the configuration file, the htpasswd file may be shared between the two modules.
+The LCP and LSD servers also require authenticated API requests for some of their functionalities. A password file formatted as an Apache "htpasswd" file is used for such authentication data. The htpasswd file format is of the form:
+
+```sh
+	User:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
+```
 
 An example of password file generator is found [here](http://www.htaccesstools.com/htpasswd-generator/). 
-The htpasswd file format is e.g.:
-```sh
-	User1:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
-	User2:$apr1$lldfYQA5$8fVeTVyKsiPeqcBWrjBKMT
-```
+
+The password file may be shared between the LCP and LSD servers if the same credentials are used for both. The exact location and name of the file have no importance, as it will be referenced from the configuration file; but we recommand to name it `htpasswd` and place this file in the same folder as the configuration file, eg. `/usr/local/var/lcp`.
+
+## Certificate
+
+The LCP server requires an X509 certificate and its associated private key. The exact location and name of these files have no importance, as they will be referenced from the configuration file; but we recommand to keep the file name of the file provided by EDRLAb and place these files in a subfolder of the previous one, eg. `/usr/local/var/lcp/cert`.
+
+A test certificate (`cert-edrlab-test.pem`) and private key (`privkey-edrlab-test.pem`) are provided in the `test/cert` directory of the project. These files are be used as long as the LCP server is configured in test mode (`profile` = `basic`). They are replaced by a provider specific certificate and private key when the server is moved to its production mode. 
 
 ## Quick-start configuration
 
 A quick-start configuration meant only for test purposes is available in `test/config.yaml`. This file includes a default configuration for the the LCP, LSD and frontend servers.
 
 1. Create a LCP_HOME folder, eg. `/usr/local/var/lcp`
-2. Create the sub-folders `db`, `files`, `files/encrypted` and `files/master` in LCP_HOME
-3. Copy the folder `test/cert` and the newly generated `htpasswd` files to LCP_HOME
-4. Copy the `test/config.yaml` file into `$GOPATH/bin`, or setup the `READIUM_*_CONFIG` env variables
-5. Replace any occurrence of `<LCP_HOME>` in config.yaml by the absolute path to the LCP_HOME folder
-
+2. Copy the `test/config.yaml` file into LCP_HOME 
+3. Replace any occurrence of `<LCP_HOME>` in config.yaml with the absolute path to the LCP_HOME folder
+4. Setup the `READIUM_*_CONFIG` env variables, which must reference the configuration file
+5. Generate a password file and place it into LCP_HOME
+6. Create `cert`, `db`, `files/storage` folders in LCP_HOME
+7. Copy the test certificate, test private key into the `cert` subfolder of LCP_HOME
 
 ## Individual server configurations
 
-Here are the details about the configuration properties of each server. In the samples, replace `<LCP_HOME>` with the absolute path to the folder containing encrypted files, database and certificates.
+Here are the details about the configuration properties of each server. In the samples, replace `<LCP_HOME>` with the absolute path to the folder containing the configuration file, password file, encrypted files, database and certificates.
 
 ### License Server
 
-`profile`: value of the LCP profile; values are:
-- `basic` (default value, as described in the Readium LCP specification, used for tests only);
-- `1.0` (i.e. the current production profile, managed by EDRLab).
+`profile`: value of the LCP profile; allowed values are:
+- `basic`: default value, as described in the Readium LCP specification, used for tests only
+- `1.0`: the current production profile, created by EDRLab.
 
 `lcp` section: parameters associated with the License Server.
 - `host`: the public server hostname, `hostname` by default
 - `port`: the listening port, `8989` by default
 - `public_base_url`: the public base URL, used by the license status server and the frontend test server to communicate with this server; combination of the host and port values on http by default, which is sufficient as the license server should not be visible from the Web.  
 - `database`: the URI formatted connection string to the database, `sqlite3://file:lcp.sqlite?cache=shared&mode=rwc` by default
-- `auth_file`: mandatory; the authentication file using the Apache `htpasswd` format. Passwords must be encrypted using MD5.
-
-Note: It may be practical to put the authentication file in the configuration folder ("lcpconfig" in the samples below). 
+- `auth_file`: mandatory; the path to the password file introduced above. 
 
 `storage` section: parameters related to the storage of encrypted publications.
 - `mode` : optional. Possible values are "local" (default value) and "s3".
@@ -222,10 +235,8 @@ If `mode` value is NOT `s3`:
   This storage must be accessible from the Web via a simple URL, specified via the `license/publication` parameter.
 
 `certificate` section:	parameters related to the signature of licenses: 	
-- `cert`: the provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature. A test certificate is provided in the test/cert directory of the project (`cert-edrlab-test.pem`). 
-- `private_key`: the private key (.pem). It will be used for signing  licenses. A test private key is provided in the test/cert directory of the project (`privkey-edrlab-test.pem`).
-
-Note: It may be practical to put these files in the configuration folder ("lcpconfig" in the samples below). 
+- `cert`: the path to provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature. 
+- `private_key`: the path to the private key (.pem) asociated with the certificate. It will be used for signing licenses. 
 
 `license` section: parameters related to static information to be included in all licenses generated by the License Server:
 - `links`: subsection: links that will be included in all licenses. `hint` and `publication` links are required in a Readium LCP license.
@@ -286,7 +297,7 @@ lsd_notify_auth:
 - `port`: the listening port, `8990` by default
 - `public_base_url`: the public base URL, used by the license server and the frontend test server to communicate with this server; combination of the host and port values on http by default; as this server is exposed on the Web in production, a domain name should be present in the URL.
 - `database`: the URI formatted connection string to the database, `sqlite3://file:lsd.sqlite?cache=shared&mode=rwc` by default
-- `auth_file`: mandatory; the authentication file using the Apache `htpasswd` format. Passwords must be encrypted using MD5.
+- `auth_file`: mandatory; the path to the password file introduced above. 
 
 - `license_link_url`: mandatory; the url template representing the url from which a license can be fetched from the provider's frontend server. This url will be inserted in the 'license' link of every status document. It must be the url of a server acting as a proxy between the user request and the License Server. Such proxy is mandatory, as the License Server  does not possess user information needed to craft a license from its identifier. If the test frontend server is used as a proxy, the url must be of the form "http://<frontend-server-url>/api/v1/licenses/{license_id}" (note the /api/v1 section).
 
@@ -301,8 +312,6 @@ lsd_notify_auth:
 `lcp_update_auth` section: authentication parameters used by the License Status Server for updating a license via the License Server. The notification endpoint is configured in the `lcp` section.
 - `username`: mandatory, authentication username
 - `password`: mandatory, authentication password
-
-`goofy_mode` property: it is really useful to test client apps for their resilience to errors issued by a License server, e.g. a registration error. This boolean property (true/false) (false by default) will trigger the License Status Server to a mode where errors occure. Currently, only the registration error use case is programmed; other errors will be added later.  
 
 Here is a License Status Server sample config (assuming the License Status Server is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
 
@@ -342,7 +351,18 @@ lcp_update_auth:
 - `right_print`: allowed number of printed pages, which will be inserted in all licenses produced via this test frontend.
 - `right_copy`: allowed number of copied characters, which will be inserted in all licenses produced via this test frontend.
 
-The config file of a Test Frontend Server must define a `lcp` `public_base_url`, `lsd` `public_base_url`, `lcp_update_auth` `username` and `password`, and `lsd_notify_auth` `username` and `password`.
+The config file of a Test Frontend Server must also define the following properties: 
+
+`lcp` 
+- `public_base_url`
+`lsd`
+-`public_base_url`
+`lcp_update_auth` 
+- `username`
+- `password`
+`lsd_notify_auth`
+- `username`
+- `password`
 
 Here is a Test Frontend Server sample config:
 ```json
@@ -382,17 +402,15 @@ NOTE: a CBC / GCM configurable property has been DISABLED, see https://github.co
 
 Execution
 ==========
-each server must be launched in a different context (i.e. a different shell for local use), from 
- `$GOPATH/bin`
+Each server must be launched in a different context (i.e. a different terminal for local use). If the path to the generated Go binaries ($GOPATH/bin) is properly set, each server can launched from any location:
 
-Each server is executed with no parameter:
-- `./lcpserver`
-- `./lsdserver`
-- `./frontend`
+- `lcpserver`
+- `lsdserver`
+- `frontend`
 
-After the frontend server is launched, you can access to the server GUI via its base url, e.g. http://127.0.0.1:8991
+After the frontend server has been launched, you can access the server GUI via its base url, e.g. http://127.0.0.1:8991
 
-NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended, as you won't be able to access the modules from e.g. a mobile app. It's much better to use the WiFi IPv4 address to your computer, and access the server from your mobile device via WiFi.  
+NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended, as you won't be able to access the modules from e.g. a mobile app. It is much better to use the WiFi IPv4 address of your computer and access the server from a mobile device via WiFi.  
 
 Contributing
 ============
