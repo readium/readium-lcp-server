@@ -355,11 +355,14 @@ The config file of a Test Frontend Server must also define the following propert
 
 `lcp` 
 - `public_base_url`
+
 `lsd`
 -`public_base_url`
+
 `lcp_update_auth` 
 - `username`
 - `password`
+
 `lsd_notify_auth`
 - `username`
 - `password`
