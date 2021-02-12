@@ -353,13 +353,13 @@ lcp_update_auth:
 
 The config file of a Test Frontend Server must also define the following properties: 
 
-`lcp` 
+`lcp`
 - `public_base_url`
 
 `lsd`
--`public_base_url`
+- `public_base_url`
 
-`lcp_update_auth` 
+`lcp_update_auth`
 - `username`
 - `password`
 
