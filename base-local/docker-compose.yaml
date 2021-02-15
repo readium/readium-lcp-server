@@ -32,14 +32,14 @@ services:
     volumes:
       - "dbdata:/var/lib/mysql"
 
-  sftp:
-    image: "atmoz/sftp:alpine"
-    restart: always
-    ports:
-      - "${READIUM_SFTP_EXTERNAL_PORT}:${READIUM_SFTP_PORT}"
-    volumes:
-      - "./files/users.conf:/etc/sftp/users.conf:ro"
-      - "rawfiles:/home"
+  # sftp:
+  #   image: "atmoz/sftp:alpine"
+  #   restart: always
+  #   ports:
+  #     - "${READIUM_SFTP_EXTERNAL_PORT}:${READIUM_SFTP_PORT}"
+  #   volumes:
+  #     - "./files/users.conf:/etc/sftp/users.conf:ro"
+  #     - "rawfiles:/home"
 
   lcpencrypt:
     <<: *default-app
