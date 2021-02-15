@@ -57,7 +57,7 @@ license_status:
 frontend:
   host: "0.0.0.0"
   port: 8991
-  public_base_url: "https://readium.elibrary.mn/"
+  public_base_url: "https://readium.elibrary.mn"
   database: "mysql://root:secretpassword@tcp(database:3306)/testfrontend?parseTime=true"
   master_repository: "/opt/readium/files/raw/frontend/uploads"
   encrypted_repository: "/opt/readium/files/encrypted"
