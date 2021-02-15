@@ -44,7 +44,7 @@ lsd:
   public_base_url: "https://readium.elibrary.mn/lsdserver"
   database: "mysql://root:secretpassword@tcp(database:3306)/lsdserver?parseTime=true"
   auth_file: "/etc/readium/htpasswd"
-  license_link_url: "https://readium.elibrary.mn//api/v1/licenses/{license_id}"
+  license_link_url: "https://readium.elibrary.mn/api/v1/licenses/{license_id}"
 license_status:
   register: true
   renew: true
