@@ -287,8 +287,13 @@ func downloadFromS3AndOpen(url string) (*os.File, error) {
 	file, _ := ioutil.TempFile("", "")
 	fileName := file.Name()
 
+	accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	secretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+
+	fmt.Println("ACCESS_KEY_ID", accessKeyID, "AWS_SECRET_ACCESS_KEY", secretAccessKey)
+
 	awsConfig := &aws.Config{
-		Credentials: credentials.NewStaticCredentials(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), ""),
+		Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
 		// Endpoint:         aws.String(os.Getenv("AWS_ENDPOINT_URL")),
 		Region:           aws.String(os.Getenv("AWS_REGION")),
 		DisableSSL:       aws.Bool(true),
