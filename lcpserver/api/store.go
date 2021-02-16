@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -287,8 +286,7 @@ func downloadFromS3AndOpen(url string) (*os.File, error) {
 	file, _ := ioutil.TempFile("", "")
 	fileName := file.Name()
 
-	creds := credentials.NewSharedCredentials("/credentials", "default")
-	sess, _ := session.NewSession(aws.NewConfig().WithRegion("us-west-2").WithCredentials(creds))
+	sess, _ := session.NewSession()
 
 	downloader := s3manager.NewDownloader(sess)
 	url = strings.ReplaceAll(url, "s3://", "")
