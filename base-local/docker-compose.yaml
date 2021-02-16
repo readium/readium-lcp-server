@@ -56,7 +56,7 @@ services:
 
   lcpserver:
     <<: *default-app
-    image: "readium/lcpserver:working"
+    image: "registry.gitlab.com/steppelink/r-and-d/readium/lcpserver:latest"
     build:
       context: .
       target: "lcpserver"
