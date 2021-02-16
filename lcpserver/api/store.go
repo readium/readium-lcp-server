@@ -288,9 +288,9 @@ func downloadFromS3AndOpen(url string) (*os.File, error) {
 	fileName := file.Name()
 
 	accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
-	secretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	secretAccessKey := os.Getenv("AWS_ACCESS_SECRET_KEY")
 
-	fmt.Println("ACCESS_KEY_ID", accessKeyID, "AWS_SECRET_ACCESS_KEY", secretAccessKey)
+	fmt.Println("ACCESS_KEY_ID", accessKeyID, "AWS_ACCESS_SECRET_KEY", secretAccessKey)
 
 	awsConfig := &aws.Config{
 		Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
