@@ -30,10 +30,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/endigo/readium-lcp-server/api"
+	"github.com/endigo/readium-lcp-server/frontend/webuser"
+	"github.com/endigo/readium-lcp-server/problem"
 	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/frontend/webuser"
-	"github.com/readium/readium-lcp-server/problem"
 )
 
 //GetUsers returns a list of users

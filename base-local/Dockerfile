@@ -85,8 +85,8 @@ CMD ["sh", "-c", "envsubst < /etc/readium/config.yaml > /tmp/config.yaml && mv /
 FROM base AS testfrontend
 
 COPY --from=builder \
-  /go/src/github.com/readium/readium-lcp-server/frontend/manage \
-  /go/src/github.com/readium/readium-lcp-server/frontend/manage
+  /go/src/github.com/endigo/readium-lcp-server/frontend/manage \
+  /go/src/github.com/endigo/readium-lcp-server/frontend/manage
 COPY --from=builder /go/bin/frontend /go/bin/frontend
 RUN mkdir -p /opt/readium/files/raw/frontend/uploads
 

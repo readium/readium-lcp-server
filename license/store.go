@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/readium/readium-lcp-server/config"
+	"github.com/endigo/readium-lcp-server/config"
 )
 
 var ErrNotFound = errors.New("License not found")

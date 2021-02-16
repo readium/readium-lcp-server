@@ -14,10 +14,10 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/readium/readium-lcp-server/crypto"
-	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/pack"
+	"github.com/endigo/readium-lcp-server/crypto"
+	"github.com/endigo/readium-lcp-server/epub"
+	"github.com/endigo/readium-lcp-server/license"
+	"github.com/endigo/readium-lcp-server/pack"
 )
 
 // EncryptionArtifact is the result of a successful encryption process

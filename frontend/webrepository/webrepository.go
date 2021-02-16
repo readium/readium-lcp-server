@@ -12,7 +12,7 @@ import (
 
 	"path/filepath"
 
-	"github.com/readium/readium-lcp-server/config"
+	"github.com/endigo/readium-lcp-server/config"
 )
 
 // ErrNotFound error trown when repository is not found

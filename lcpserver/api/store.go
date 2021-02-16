@@ -23,12 +23,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/gorilla/mux"
 
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/index"
-	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/pack"
-	"github.com/readium/readium-lcp-server/problem"
-	"github.com/readium/readium-lcp-server/storage"
+	"github.com/endigo/readium-lcp-server/api"
+	"github.com/endigo/readium-lcp-server/index"
+	"github.com/endigo/readium-lcp-server/license"
+	"github.com/endigo/readium-lcp-server/pack"
+	"github.com/endigo/readium-lcp-server/problem"
+	"github.com/endigo/readium-lcp-server/storage"
 )
 
 // Server groups functions used by the lcp server
@@ -287,7 +287,7 @@ func downloadFromS3AndOpen(url string) (*os.File, error) {
 	file, _ := ioutil.TempFile("", "")
 	fileName := file.Name()
 
-	creds := credentials.NewSharedCredentials("/root/.aws/credentials", "default")
+	creds := credentials.NewSharedCredentials("/credentials", "default")
 	sess, _ := session.NewSession(aws.NewConfig().WithRegion("us-west-2").WithCredentials(creds))
 
 	downloader := s3manager.NewDownloader(sess)

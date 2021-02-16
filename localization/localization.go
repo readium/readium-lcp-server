@@ -30,7 +30,7 @@ import (
 
 	"github.com/nicksnyder/go-i18n/i18n"
 
-	"github.com/readium/readium-lcp-server/config"
+	"github.com/endigo/readium-lcp-server/config"
 )
 
 //InitTranslations loads files with translation according to array in config file.

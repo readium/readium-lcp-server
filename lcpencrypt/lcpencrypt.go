@@ -23,11 +23,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/readium/readium-lcp-server/crypto"
-	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/lcpserver/api"
-	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/pack"
+	"github.com/endigo/readium-lcp-server/crypto"
+	"github.com/endigo/readium-lcp-server/epub"
+	"github.com/endigo/readium-lcp-server/lcpserver/api"
+	"github.com/endigo/readium-lcp-server/license"
+	"github.com/endigo/readium-lcp-server/pack"
 	uuid "github.com/satori/go.uuid"
 )
 

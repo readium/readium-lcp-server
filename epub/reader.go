@@ -14,8 +14,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/readium/readium-lcp-server/epub/opf"
-	"github.com/readium/readium-lcp-server/xmlenc"
+	"github.com/endigo/readium-lcp-server/epub/opf"
+	"github.com/endigo/readium-lcp-server/xmlenc"
 	"golang.org/x/net/html/charset"
 )
 

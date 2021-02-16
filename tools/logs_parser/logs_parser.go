@@ -29,7 +29,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/readium/readium-lcp-server/logging"
+	"github.com/endigo/readium-lcp-server/logging"
 )
 
 func main() {

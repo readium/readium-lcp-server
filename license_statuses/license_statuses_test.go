@@ -11,7 +11,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/readium/readium-lcp-server/config"
+	"github.com/endigo/readium-lcp-server/config"
 )
 
 //TestHistoryCreation opens database and tries to add(get) license status to(from) table 'licensestatus'

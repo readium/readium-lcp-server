@@ -1,4 +1,4 @@
-module github.com/readium/readium-lcp-server
+module github.com/endigo/readium-lcp-server
 
 go 1.13
 

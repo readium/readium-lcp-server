@@ -30,7 +30,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/readium/readium-lcp-server/config"
+	"github.com/endigo/readium-lcp-server/config"
 )
 
 // ErrNotFound signals content not found
