@@ -8,10 +8,10 @@ RUN apk add --no-cache --update --virtual .build-deps \
   gettext
 
 # Create Go binaries
-RUN go get -v github.com/readium/readium-lcp-server/...
+RUN go get -v github.com/endigo/readium-lcp-server/...
 
 # Additional node modules for frontend
-WORKDIR /go/src/github.com/readium/readium-lcp-server/frontend/manage
+WORKDIR /go/src/github.com/endigo/readium-lcp-server/frontend/manage
 RUN npm install && npm run-script build
 
 RUN mkdir -p \
