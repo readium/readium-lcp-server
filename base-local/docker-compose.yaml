@@ -19,6 +19,9 @@ x-app: &default-app
     - "READIUM_FRONTEND_PORT=${READIUM_FRONTEND_PORT}"
     - "READIUM_FRONTEND_DATABASE=${READIUM_FRONTEND_DATABASE}"
     - "READIUM_ENC_CONTENT=/opt/readium/files/encrypted"
+    - "AWS_REGION=${AWS_REGION}"
+    - "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
+    - "AWS_ACCESS_SECRET_KEY=${AWS_ACCESS_SECRET_KEY}"
 
 services:
   database:
