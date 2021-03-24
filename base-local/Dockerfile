@@ -61,22 +61,24 @@ ENTRYPOINT ["watchmedo", "tricks-from", "/opt/readium/files/raw/watcher.yaml"]
 ## FINAL LCP SERVER
 ###############################################################################
 
-FROM base AS lcpserver
+FROM scratch AS lcpserver
 
 COPY --from=builder /go/bin/lcpserver /go/bin/lcpserver
 # COPY files/aws_credentials /root/.aws/credentials
 ENV READIUM_LCPSERVER_CONFIG=/etc/readium/config.yaml
-CMD ["sh", "-c", "envsubst < /etc/readium/config.yaml > /tmp/config.yaml && mv /tmp/config.yaml /etc/readium/config.yaml; /go/bin/lcpserver"]
+# CMD ["sh", "-c", "envsubst < /etc/readium/config.yaml > /tmp/config.yaml && mv /tmp/config.yaml /etc/readium/config.yaml; /go/bin/lcpserver"]
+ENTRYPOINT [ "/go/bin/lcpserver" ]
 
 ###############################################################################
 ## FINAL LSD SERVER
 ###############################################################################
 
-FROM base AS lsdserver
+FROM scratch AS lsdserver
 
 COPY --from=builder /go/bin/lsdserver /go/bin/lsdserver
 ENV READIUM_LSDSERVER_CONFIG=/etc/readium/config.yaml
-CMD ["sh", "-c", "envsubst < /etc/readium/config.yaml > /tmp/config.yaml && mv /tmp/config.yaml /etc/readium/config.yaml; /go/bin/lsdserver"]
+# CMD ["sh", "-c", "envsubst < /etc/readium/config.yaml > /tmp/config.yaml && mv /tmp/config.yaml /etc/readium/config.yaml; /go/bin/lsdserver"]
+ENTRYPOINT [ "/go/bin/lsdserver" ]
 
 ###############################################################################
 ## FINAL TEST FRONTEND SERVER
