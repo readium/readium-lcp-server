@@ -19,21 +19,33 @@ x-app: &default-app
     - "READIUM_FRONTEND_PORT=${READIUM_FRONTEND_PORT}"
     - "READIUM_FRONTEND_DATABASE=${READIUM_FRONTEND_DATABASE}"
     - "READIUM_ENC_CONTENT=/opt/readium/files/encrypted"
+    - "READIUM_CONTENT_S3_BUCKET=${READIUM_CONTENT_S3_BUCKET}"
     - "AWS_REGION=${AWS_REGION}"
-    - "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
-    - "AWS_ACCESS_SECRET_KEY=${AWS_ACCESS_SECRET_KEY}"
+    - "AWS_S3_USER=${AWS_S3_USER}"
+    - "AWS_S3_KEY=${AWS_S3_KEY}"
+    - "AWS_S3_SECRET=${AWS_S3_SECRET}"
 
 services:
+  # database:
+  #   build: ./database
+  #   image: database
+  #   restart: always
+  # ports:
+  #   - "${READIUM_DATABASE_EXTERNAL_PORT}:${READIUM_DATABASE_PORT}"
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: "${READIUM_DATABASE_PASSWORD}"
+  #   volumes:
+  #     - "dbdata:/var/lib/mysql"
   database:
-    build: ./database
-    image: database
+    image: postgres:12-alpine
     restart: always
     ports:
       - "${READIUM_DATABASE_EXTERNAL_PORT}:${READIUM_DATABASE_PORT}"
     environment:
-      MYSQL_ROOT_PASSWORD: "${READIUM_DATABASE_PASSWORD}"
+      POSTGRES_PASSWORD: "${READIUM_DATABASE_PASSWORD}"
     volumes:
-      - "dbdata:/var/lib/mysql"
+      - ./database/entrypoint:/docker-entrypoint-initdb.d/
+      - "dbdata:/var/lib/postgresql/data"
 
   # sftp:
   #   image: "atmoz/sftp:alpine"
@@ -56,7 +68,7 @@ services:
 
   lcpserver:
     <<: *default-app
-    image: "registry.gitlab.com/steppelink/r-and-d/readium/lcpserver:latest"
+    image: "readium/lcpserver:working"
     build:
       context: .
       target: "lcpserver"
