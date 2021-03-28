@@ -10,9 +10,14 @@ RUN apk add --no-cache --update --virtual .build-deps \
 # Create Go binaries
 RUN go get -v github.com/endigo/readium-lcp-server/...
 
+# RUN go build -o /go/bin/lcpserver lcpserver
+# RUN go build -o /go/bin/lsdserver lsdserver
+# RUN go build -o /go/bin/lcpencrypt lcpencrypt
+# RUN go build -o /go/bin/frontend frontend
+
 # Additional node modules for frontend
-WORKDIR /go/src/github.com/endigo/readium-lcp-server/frontend/manage
-RUN npm install && npm run-script build
+# WORKDIR /go/src/github.com/endigo/readium-lcp-server/frontend/manage
+# RUN npm install && npm run-script build
 
 RUN mkdir -p \
   /opt/readium/db \

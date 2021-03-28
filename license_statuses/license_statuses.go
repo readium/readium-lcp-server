@@ -28,12 +28,12 @@ type LicenseStatuses interface {
 }
 
 type dbLicenseStatuses struct {
-	db             *sql.DB
-	get            *sql.Stmt
-	add            *sql.Stmt
-	list           *sql.Stmt
-	getbylicenseid *sql.Stmt
-	update         *sql.Stmt
+	db *sql.DB
+	// get            *sql.Stmt
+	// add            *sql.Stmt
+	// list           *sql.Stmt
+	// getbylicenseid *sql.Stmt
+	// update         *sql.Stmt
 }
 
 //Get gets license status by id
@@ -49,8 +49,10 @@ func (i dbLicenseStatuses) getByID(id int) (*LicenseStatus, error) {
 	var licenseUpdate *time.Time
 	var statusUpdate *time.Time
 
-	row := i.get.QueryRow(id)
-	err := row.Scan(&ls.ID, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef, &ls.CurrentEndLicense)
+	get, err := i.db.Prepare("SELECT * FROM license_status WHERE id = $1 LIMIT $2")
+
+	row := get.QueryRow(id)
+	err = row.Scan(&ls.ID, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef, &ls.CurrentEndLicense)
 
 	if err == nil {
 		status.GetStatus(statusDB, &ls.Status)
@@ -77,7 +79,7 @@ func (i dbLicenseStatuses) getByID(id int) (*LicenseStatus, error) {
 
 //Add adds license status to database
 func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
-	add, err := i.db.Prepare("INSERT INTO license_status (status, license_updated, status_updated, device_count, potential_rights_end, license_ref,  rights_end) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	add, err := i.db.Prepare("INSERT INTO license_status (status, license_updated, status_updated, device_count, potential_rights_end, license_ref,  rights_end) VALUES ($1, $2, $3, $4, $5, $6, $7)")
 	if err != nil {
 		return err
 	}
@@ -100,7 +102,9 @@ func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
 // List gets license statuses which have devices count more than devices limit
 // input parameters: limit - how much license statuses need to get, offset - from what position need to start
 func (i dbLicenseStatuses) List(deviceLimit int64, limit int64, offset int64) func() (LicenseStatus, error) {
-	rows, err := i.list.Query(deviceLimit, limit, offset)
+	list, err := i.db.Prepare(`SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= $1
+		ORDER BY id DESC LIMIT $2 OFFSET $3`)
+	rows, err := list.Query(deviceLimit, limit, offset)
 	if err != nil {
 		return func() (LicenseStatus, error) { return LicenseStatus{}, err }
 	}
@@ -132,8 +136,10 @@ func (i dbLicenseStatuses) GetByLicenseID(licenseID string) (*LicenseStatus, err
 	var licenseUpdate *time.Time
 	var statusUpdate *time.Time
 
-	row := i.getbylicenseid.QueryRow(licenseID)
-	err := row.Scan(&ls.ID, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef, &ls.CurrentEndLicense)
+	getbylicenseid, err := i.db.Prepare("SELECT * FROM license_status where license_ref = $1")
+
+	row := getbylicenseid.QueryRow(licenseID)
+	err = row.Scan(&ls.ID, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef, &ls.CurrentEndLicense)
 
 	if err == nil {
 		status.GetStatus(statusDB, &ls.Status)
@@ -173,7 +179,7 @@ func (i dbLicenseStatuses) Update(ls LicenseStatus) error {
 	}
 
 	var result sql.Result
-	result, err = i.db.Exec("UPDATE license_status SET status=?, license_updated=?, status_updated=?, device_count=?,potential_rights_end=?,  rights_end=?  WHERE id=?",
+	result, err = i.db.Exec("UPDATE license_status SET status=$1, license_updated=$2, status_updated=$3, device_count=$4, potential_rights_end=$5, rights_end=$6 WHERE id=$7",
 		statusInt, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, potentialRightsEnd, ls.CurrentEndLicense, ls.ID)
 
 	if err == nil {
@@ -195,20 +201,30 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 		}
 	}
 
-	get, err := db.Prepare("SELECT * FROM license_status WHERE id = ? LIMIT 1")
+	// if postgres, create the license_status table in the lsd db if it does not exist
+	if strings.HasPrefix(config.Config.LsdServer.Database, "postgres") {
+		_, err = db.Exec(tableDefPG)
+		if err != nil {
+			log.Println("Error creating license_status table")
+			return
+		}
+	}
+
+	// get, err := db.Prepare("SELECT * FROM license_status WHERE id = $1 LIMIT $2")
+	// if err != nil {
+	// 	return
+	// }
+
+	// list, err := db.Prepare(`SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= $1
+	// 	ORDER BY id DESC LIMIT $2 OFFSET $3`)
+
+	// getbylicenseid, err := db.Prepare("SELECT * FROM license_status where license_ref = $1")
+
 	if err != nil {
 		return
 	}
-
-	list, err := db.Prepare(`SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ?
-		ORDER BY id DESC LIMIT ? OFFSET ?`)
-
-	getbylicenseid, err := db.Prepare("SELECT * FROM license_status where license_ref = ?")
-
-	if err != nil {
-		return
-	}
-	l = dbLicenseStatuses{db, get, nil, list, getbylicenseid, nil}
+	// l = dbLicenseStatuses{db, get, nil, list, getbylicenseid, nil}
+	l = dbLicenseStatuses{db}
 	return
 }
 
@@ -221,5 +237,17 @@ const tableDef = "CREATE TABLE IF NOT EXISTS license_status (" +
 	"potential_rights_end datetime DEFAULT NULL," +
 	"license_ref varchar(255) NOT NULL," +
 	"rights_end datetime DEFAULT NULL  " +
+	");" +
+	"CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);"
+
+const tableDefPG = "CREATE TABLE IF NOT EXISTS license_status (" +
+	"id serial PRIMARY KEY," +
+	"status int NOT NULL," +
+	"license_updated timestamp NOT NULL," +
+	"status_updated timestamp NOT NULL," +
+	"device_count int DEFAULT NULL," +
+	"potential_rights_end timestamp DEFAULT NULL," +
+	"license_ref varchar(255) NOT NULL," +
+	"rights_end timestamp DEFAULT NULL  " +
 	");" +
 	"CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);"

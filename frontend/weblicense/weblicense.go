@@ -93,7 +93,7 @@ func (licManager LicenseManager) Get(id int64) (License, error) {
 											INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 											INNER JOIN publication as pu ON p.publication_id = pu.id
 											INNER JOIN user as u ON p.user_id = u.id
-											WHERE id = ?`)
+											WHERE id = $1`)
 	if err != nil {
 		return License{}, err
 	}
@@ -125,7 +125,7 @@ func (licManager LicenseManager) GetFiltered(filter string) ([]License, error) {
 											INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 											INNER JOIN publication as pu ON p.publication_id = pu.id
 											INNER JOIN user as u ON p.user_id = u.id
-											WHERE l.device_count >= ?`)
+											WHERE l.device_count >= $1`)
 	if err != nil {
 		return []License{}, err
 	}
@@ -156,7 +156,7 @@ func (licManager LicenseManager) GetFiltered(filter string) ([]License, error) {
 // Add adds a new license
 //
 func (licManager LicenseManager) Add(licenses License) error {
-	add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)")
+	add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES ($1, $2, $3, $4)")
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func (licManager LicenseManager) AddFromJSON(licensesJSON []byte) error {
 		return err
 	}
 	for _, l := range licenses {
-		add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)")
+		add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES ($1, $2, $3, $4)")
 		if err != nil {
 			return err
 		}
@@ -209,17 +209,18 @@ func (licManager LicenseManager) PurgeDataBase() error {
 // Update updates a license
 //
 func (licManager LicenseManager) Update(lic License) error {
-	dbUpdate, err := licManager.db.Prepare("UPDATE license_view SET device_count=?, uuid=?, status=? , message=? WHERE id = ?")
+	dbUpdate, err := licManager.db.Prepare("UPDATE license_view SET device_count=$1, uuid=$2, status=$3 , message=$4 WHERE id = $5")
 	if err != nil {
 		return err
 	}
 	defer dbUpdate.Close()
 	_, err = dbUpdate.Exec(
 		lic.DeviceCount,
-		lic.Status,
 		lic.UUID,
+		lic.Status,
+		lic.Message,
 		lic.ID,
-		lic.Message)
+	)
 	if err != nil {
 		return err
 	}
@@ -231,7 +232,7 @@ func (licManager LicenseManager) Update(lic License) error {
 func (licManager LicenseManager) Delete(id int64) error {
 
 	// delete a license
-	dbDelete, err := licManager.db.Prepare("DELETE FROM license_view WHERE id = ?")
+	dbDelete, err := licManager.db.Prepare("DELETE FROM license_view WHERE id = $1")
 	if err != nil {
 		log.Println("Error deleting license_view table")
 		return err

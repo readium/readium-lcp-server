@@ -46,18 +46,23 @@ type Event struct {
 }
 
 type dbTransactions struct {
-	db                    *sql.DB
-	get                   *sql.Stmt
-	add                   *sql.Stmt
-	getbylicensestatusid  *sql.Stmt
-	checkdevicestatus     *sql.Stmt
-	listregistereddevices *sql.Stmt
+	db *sql.DB
+	// get                   *sql.Stmt
+	// add                   *sql.Stmt
+	// getbylicensestatusid  *sql.Stmt
+	// checkdevicestatus     *sql.Stmt
+	// listregistereddevices *sql.Stmt
 }
 
 // Get returns an event by its id
 //
 func (i dbTransactions) Get(id int) (Event, error) {
-	records, err := i.get.Query(id)
+	// select an event by its id
+	get, err := i.db.Prepare("SELECT * FROM event WHERE id = $1 LIMIT 1")
+	if err != nil {
+		return Event{}, err
+	}
+	records, err := get.Query(id)
 	var typeInt int
 
 	defer records.Close()
@@ -77,7 +82,7 @@ func (i dbTransactions) Get(id int) (Event, error) {
 // The parameter eventType corresponds to the field 'type' in table 'event'
 //
 func (i dbTransactions) Add(e Event, eventType int) error {
-	add, err := i.db.Prepare("INSERT INTO event (device_name, timestamp, type, device_id, license_status_fk) VALUES (?, ?, ?, ?, ?)")
+	add, err := i.db.Prepare("INSERT INTO event (device_name, timestamp, type, device_id, license_status_fk) VALUES ($1, $2, $3, $4, $5)")
 
 	if err != nil {
 		return err
@@ -91,7 +96,12 @@ func (i dbTransactions) Add(e Event, eventType int) error {
 // GetByLicenseStatusId returns all events by license status id
 //
 func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event, error) {
-	rows, err := i.getbylicensestatusid.Query(licenseStatusFk)
+	getbylicensestatusid, err := i.db.Prepare("SELECT * FROM event WHERE license_status_fk = $1")
+	if err != nil {
+		return func() (Event, error) { return Event{}, err }
+	}
+
+	rows, err := getbylicensestatusid.Query(licenseStatusFk)
 	if err != nil {
 		return func() (Event, error) { return Event{}, err }
 	}
@@ -116,7 +126,13 @@ func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event,
 // ListRegisteredDevices returns all devices which have an 'active' status by licensestatus id
 //
 func (i dbTransactions) ListRegisteredDevices(licenseStatusFk int) func() (Device, error) {
-	rows, err := i.listregistereddevices.Query(licenseStatusFk)
+	listregistereddevices, err := i.db.Prepare(`SELECT device_id,
+	device_name, timestamp  FROM event  WHERE license_status_fk = $1 AND type = 1`)
+	if err != nil {
+		return func() (Device, error) { return Device{}, err }
+	}
+
+	rows, err := listregistereddevices.Query(licenseStatusFk)
 	if err != nil {
 		return func() (Device, error) { return Device{}, err }
 	}
@@ -140,8 +156,11 @@ func (i dbTransactions) CheckDeviceStatus(licenseStatusFk int, deviceId string) 
 	var typeString string
 	var typeInt int
 
-	row := i.checkdevicestatus.QueryRow(licenseStatusFk, deviceId)
-	err := row.Scan(&typeInt)
+	// the status of a device corresponds to the latest event stored in the db.
+	checkdevicestatus, err := i.db.Prepare(`SELECT type FROM event WHERE license_status_fk = $1
+	AND device_id = $2 ORDER BY timestamp DESC LIMIT 1`)
+	row := checkdevicestatus.QueryRow(licenseStatusFk, deviceId)
+	err = row.Scan(&typeInt)
 
 	if err == nil {
 		typeString = status.EventTypes[typeInt]
@@ -166,26 +185,27 @@ func Open(db *sql.DB) (t Transactions, err error) {
 		}
 	}
 
-	// select an event by its id
-	get, err := db.Prepare("SELECT * FROM event WHERE id = ? LIMIT 1")
+	// // select an event by its id
+	// get, err := db.Prepare("SELECT * FROM event WHERE id = $1 LIMIT 1")
+	// if err != nil {
+	// 	return
+	// }
+
+	// getbylicensestatusid, err := db.Prepare("SELECT * FROM event WHERE license_status_fk = $1")
+
+	// // the status of a device corresponds to the latest event stored in the db.
+	// checkdevicestatus, err := db.Prepare(`SELECT type FROM event WHERE license_status_fk = $1
+	// AND device_id = $2 ORDER BY timestamp DESC LIMIT 1`)
+
+	// listregistereddevices, err := db.Prepare(`SELECT device_id,
+	// device_name, timestamp  FROM event  WHERE license_status_fk = $1 AND type = 1`)
+
 	if err != nil {
 		return
 	}
 
-	getbylicensestatusid, err := db.Prepare("SELECT * FROM event WHERE license_status_fk = ?")
-
-	// the status of a device corresponds to the latest event stored in the db.
-	checkdevicestatus, err := db.Prepare(`SELECT type FROM event WHERE license_status_fk = ?
-	AND device_id = ? ORDER BY timestamp DESC LIMIT 1`)
-
-	listregistereddevices, err := db.Prepare(`SELECT device_id,
-	device_name, timestamp  FROM event  WHERE license_status_fk = ? AND type = 1`)
-
-	if err != nil {
-		return
-	}
-
-	t = dbTransactions{db, get, nil, getbylicensestatusid, checkdevicestatus, listregistereddevices}
+	// t = dbTransactions{db, get, nil, getbylicensestatusid, checkdevicestatus, listregistereddevices}
+	t = dbTransactions{db}
 	return
 }
 

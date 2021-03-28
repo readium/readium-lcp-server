@@ -51,8 +51,13 @@ import (
 )
 
 func dbFromURI(uri string) (string, string) {
+	var driver string
 	parts := strings.Split(uri, "://")
-	return parts[0], parts[1]
+	if driver = parts[0]; driver == "postgres" {
+		// lib/pq requires full postgres connection string
+		return driver, uri
+	}
+	return driver, parts[1]
 }
 
 func main() {

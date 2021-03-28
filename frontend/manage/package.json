@@ -40,7 +40,7 @@
     "@types/jquery": "^2.0.40",
     "@types/jssha": "0.0.29",
     "angular-in-memory-web-api": "~0.3.0",
-    "bootstrap": "git://github.com/twbs/bootstrap.git#v4-dev",
+    "bootstrap": "^4.6.0",
     "core-js": "^2.4.1",
     "cpx": "^1.5.0",
     "cryptojs": "^2.5.3",

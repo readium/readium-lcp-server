@@ -55,14 +55,19 @@ type Content struct {
 }
 
 type dbIndex struct {
-	db   *sql.DB
-	get  *sql.Stmt
-	add  *sql.Stmt
-	list *sql.Stmt
+	db *sql.DB
+	// get  *sql.Stmt
+	// add  *sql.Stmt
+	// list *sql.Stmt
 }
 
 func (i dbIndex) Get(id string) (Content, error) {
-	records, err := i.get.Query(id)
+	get, err := i.db.Prepare("SELECT id,encryption_key,location,length,sha256,type FROM content WHERE id = $1 LIMIT 1")
+	if err != nil {
+		return Content{}, err
+	}
+
+	records, err := get.Query(id)
 	defer records.Close()
 	if records.Next() {
 		var c Content
@@ -74,7 +79,7 @@ func (i dbIndex) Get(id string) (Content, error) {
 }
 
 func (i dbIndex) Add(c Content) error {
-	add, err := i.db.Prepare("INSERT INTO content (id,encryption_key,location,length,sha256,type) VALUES (?, ?, ?, ?, ?, ?)")
+	add, err := i.db.Prepare("INSERT INTO content (id,encryption_key,location,length,sha256,type) VALUES ($1, $2, $3, $4, $5, $6)")
 	if err != nil {
 		return err
 	}
@@ -84,7 +89,7 @@ func (i dbIndex) Add(c Content) error {
 }
 
 func (i dbIndex) Update(c Content) error {
-	add, err := i.db.Prepare("UPDATE content SET encryption_key=? , location=?, length=?, sha256=?, type=? WHERE id=?")
+	add, err := i.db.Prepare("UPDATE content SET encryption_key=$1 , location=$2, length=$3, sha256=$4, type=$5 WHERE id=$6")
 	if err != nil {
 		return err
 	}
@@ -94,7 +99,11 @@ func (i dbIndex) Update(c Content) error {
 }
 
 func (i dbIndex) List() func() (Content, error) {
-	rows, err := i.list.Query()
+	list, err := i.db.Prepare("SELECT id,encryption_key,location,length,sha256,type FROM content")
+	if err != nil {
+		return func() (Content, error) { return Content{}, err }
+	}
+	rows, err := list.Query()
 	if err != nil {
 		return func() (Content, error) { return Content{}, err }
 	}
@@ -122,15 +131,15 @@ func Open(db *sql.DB) (i Index, err error) {
 		db.Exec("ALTER TABLE content ADD COLUMN \"type\" varchar(255) NOT NULL DEFAULT 'application/epub+zip'")
 	}
 
-	get, err := db.Prepare("SELECT id,encryption_key,location,length,sha256,type FROM content WHERE id = ? LIMIT 1")
-	if err != nil {
-		return
-	}
-	list, err := db.Prepare("SELECT id,encryption_key,location,length,sha256,type FROM content")
-	if err != nil {
-		return
-	}
-	i = dbIndex{db, get, nil, list}
+	// get, err := db.Prepare("SELECT id,encryption_key,location,length,sha256,type FROM content WHERE id = $1 LIMIT 1")
+	// if err != nil {
+	// 	return
+	// }
+	// list, err := db.Prepare("SELECT id,encryption_key,location,length,sha256,type FROM content")
+	// if err != nil {
+	// 	return
+	// }
+	i = dbIndex{db}
 	return
 }
 

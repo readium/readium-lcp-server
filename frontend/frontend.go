@@ -42,7 +42,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/endigo/readium-lcp-server/config"
-	"github.com/endigo/readium-lcp-server/frontend/server"
+	frontend "github.com/endigo/readium-lcp-server/frontend/server"
 	"github.com/endigo/readium-lcp-server/frontend/webdashboard"
 	"github.com/endigo/readium-lcp-server/frontend/weblicense"
 	"github.com/endigo/readium-lcp-server/frontend/webpublication"
@@ -52,8 +52,13 @@ import (
 )
 
 func dbFromURI(uri string) (string, string) {
+	var driver string
 	parts := strings.Split(uri, "://")
-	return parts[0], parts[1]
+	if driver = parts[0]; driver == "postgres" {
+		// lib/pq requires full postgres connection string
+		return driver, uri
+	}
+	return driver, parts[1]
 }
 
 func main() {

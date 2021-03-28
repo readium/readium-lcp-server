@@ -1,10 +1,10 @@
 # Configuration Settings for LCP servers
 # Shared configuration, all services in one file
 # Encrypted Resource type:
-#   * For initial testing, filesystem only
+#   * TODO: S3 bucket: publicly accessible folder for simple
+#     development environment (not production) -- needs work
 
-# The usernames and passwords must match the ones in the htpasswd files
-# for each server.
+# The usernames and passwords must match the ones in the htpasswd files for each server.
 
 lcp_update_auth:
   username: "lcp"
@@ -20,31 +20,35 @@ profile: "basic"
 lcp:
   host: "0.0.0.0"
   port: 8989
-  public_base_url: "http://192.168.1.79:8989"
-  database: "mysql://root:secretpassword@tcp(database:3306)/lcpserver?parseTime=true"
+  public_base_url: "http://lcpserver:8989"
+  # database: postgres://host=database port=5432 user=postgres password=postgres dbname=lcpserver sslmode=disable
+  database: postgres://postgres:postgres@database/lcpserver?sslmode=disable
   auth_file: "/etc/readium/htpasswd"
 storage:
-  mode: "filesystem"
-  filesystem:
-    directory: "/opt/readium/files/encrypted"
+  mode: "s3"
+  bucket: "S3-BUCKET"
+  region: "us-west-2"
+  access_id: "AKIA5QZPHQT4YTXHPXOM"
+  secret: "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"
 certificate:
   cert: "/etc/readium/certificate.pub"
   private_key: "/etc/readium/certificate.pem"
 license:
   links:
-    status: "http://192.168.1.79:8990/licenses/{license_id}/status"
-    hint: "http://192.168.1.79:8991/static/hint.html"
-    publication: "http://192.168.1.79:8989/contents/{publication_id}"
+    status: "http://lsdserver:8990/licenses/{license_id}/status"
+    hint: "http://testfrontend:8991/static/hint.html"
+    publication: "https://S3-BUCKET.s3.us-west-2.amazonaws.com/{publication_id}"
 
 # LSD Server
 
 lsd:
   host: "0.0.0.0"
   port: 8990
-  public_base_url: "http://192.168.1.79:8990"
-  database: "mysql://root:secretpassword@tcp(database:3306)/lsdserver?parseTime=true"
+  public_base_url: "http://lsdserver:8990"
+  # database: postgres://host=database port=5432 user=postgres password=postgres dbname=lsdserver sslmode=disable
+  database: postgres://postgres:postgres@database/lsdserver?sslmode=disable
   auth_file: "/etc/readium/htpasswd"
-  license_link_url: "http://192.168.1.79:8991/api/v1/licenses/{license_id}"
+  license_link_url: "http://testfrontend:8991/api/v1/licenses/{license_id}"
 license_status:
   register: true
   renew: true
@@ -57,8 +61,9 @@ license_status:
 frontend:
   host: "0.0.0.0"
   port: 8991
-  public_base_url: "http://192.168.1.79:8991"
-  database: "mysql://root:secretpassword@tcp(database:3306)/testfrontend?parseTime=true"
+  public_base_url: "http://testfrontend:8991"
+  # database: postgres://host=database port=5432 user=postgres password=postgres dbname=testfrontend sslmode=disable
+  database: postgres://postgres:postgres@database/testfrontend?sslmode=disable
   master_repository: "/opt/readium/files/raw/frontend/uploads"
   encrypted_repository: "/opt/readium/files/encrypted"
   provider_uri: "https://www.myprovider.org"

@@ -32,7 +32,7 @@ import (
 	"strings"
 
 	"github.com/endigo/readium-lcp-server/config"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 //ErrNotFound error trown when user is not found
@@ -59,13 +59,15 @@ type User struct {
 }
 
 type dbUser struct {
-	db         *sql.DB
-	getUser    *sql.Stmt
-	getByEmail *sql.Stmt
+	db *sql.DB
 }
 
 func (user dbUser) Get(id int64) (User, error) {
-	records, err := user.getUser.Query(id)
+	getUser, err := user.db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE id = $1 LIMIT 1")
+	if err != nil {
+		return User{}, err
+	}
+	records, err := getUser.Query(id)
 	defer records.Close()
 	if records.Next() {
 		var c User
@@ -77,7 +79,11 @@ func (user dbUser) Get(id int64) (User, error) {
 }
 
 func (user dbUser) GetByEmail(email string) (User, error) {
-	records, err := user.getByEmail.Query(email)
+	getByEmail, err := user.db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE email = $1 LIMIT 1")
+	if err != nil {
+		return User{}, err
+	}
+	records, err := getByEmail.Query(email)
 	defer records.Close()
 	if records.Next() {
 		var c User
@@ -89,7 +95,7 @@ func (user dbUser) GetByEmail(email string) (User, error) {
 }
 
 func (user dbUser) Add(newUser User) error {
-	add, err := user.db.Prepare("INSERT INTO user (uuid, name, email, password, hint) VALUES (?, ?, ?, ?, ?)")
+	add, err := user.db.Prepare("INSERT INTO user (uuid, name, email, password, hint) VALUES ($1, $2, $3, $4, $5)")
 	if err != nil {
 		return err
 	}
@@ -107,7 +113,7 @@ func (user dbUser) Add(newUser User) error {
 }
 
 func (user dbUser) Update(changedUser User) error {
-	add, err := user.db.Prepare("UPDATE user SET name=? , email=?, password=?, hint=? WHERE id=?")
+	add, err := user.db.Prepare("UPDATE user SET name=$1 , email=$2, password=$3, hint=$4 WHERE id=$5")
 	if err != nil {
 		return err
 	}
@@ -118,7 +124,7 @@ func (user dbUser) Update(changedUser User) error {
 
 func (user dbUser) DeleteUser(userID int64) error {
 	// delete purchases from user
-	delPurchases, err := user.db.Prepare(`DELETE FROM purchase WHERE user_id=?`)
+	delPurchases, err := user.db.Prepare(`DELETE FROM purchase WHERE user_id=$1`)
 	if err != nil {
 		return err
 	}
@@ -127,7 +133,7 @@ func (user dbUser) DeleteUser(userID int64) error {
 		return err
 	}
 	// and delete user
-	query, err := user.db.Prepare("DELETE FROM user WHERE id=?")
+	query, err := user.db.Prepare("DELETE FROM user WHERE id=$1")
 	if err != nil {
 		return err
 	}
@@ -139,7 +145,7 @@ func (user dbUser) DeleteUser(userID int64) error {
 func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
 	listUsers, err := user.db.Query(`SELECT id, uuid, name, email, password, hint
 	FROM user
-	ORDER BY email desc LIMIT ? OFFSET ? `, page, pageNum*page)
+	ORDER BY email desc LIMIT $1 OFFSET $2 `, page, pageNum*page)
 	if err != nil {
 		return func() (User, error) { return User{}, err }
 	}
@@ -170,15 +176,16 @@ func Open(db *sql.DB) (i WebUser, err error) {
 			return
 		}
 	}
-	get, err := db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE id = ? LIMIT 1")
-	if err != nil {
-		return
-	}
-	getByEmail, err := db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE email = ? LIMIT 1")
-	if err != nil {
-		return
-	}
-	i = dbUser{db, get, getByEmail}
+	// get, err := db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE id = $1 LIMIT 1")
+	// if err != nil {
+	// 	return
+	// }
+	// getByEmail, err := db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE email = $1 LIMIT 1")
+	// if err != nil {
+	// 	return
+	// }
+	// i = dbUser{db, get, getByEmail}
+	i = dbUser{db}
 	return
 }
 

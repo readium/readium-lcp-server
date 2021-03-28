@@ -21,8 +21,8 @@ import (
 	"github.com/endigo/readium-lcp-server/frontend/webpublication"
 	"github.com/endigo/readium-lcp-server/frontend/webuser"
 	"github.com/endigo/readium-lcp-server/license"
-	"github.com/endigo/readium-lcp-server/license_statuses"
-	"github.com/satori/go.uuid"
+	licensestatuses "github.com/endigo/readium-lcp-server/license_statuses"
+	uuid "github.com/satori/go.uuid"
 )
 
 //ErrNotFound Error is thrown when a purchase is not found
@@ -145,7 +145,7 @@ func convertRecordToPurchase(records *sql.Rows) (Purchase, error) {
 // Get a purchase using its id
 //
 func (pManager PurchaseManager) Get(id int64) (Purchase, error) {
-	dbGetQuery := purchaseManagerQuery + ` WHERE p.id = ? LIMIT 1`
+	dbGetQuery := purchaseManagerQuery + ` WHERE p.id = $1 LIMIT 1`
 	dbGet, err := pManager.db.Prepare(dbGetQuery)
 	if err != nil {
 		return Purchase{}, err
@@ -407,7 +407,7 @@ func (pManager PurchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 // GetByLicenseID gets a purchase by the associated license id
 //
 func (pManager PurchaseManager) GetByLicenseID(licenseID string) (Purchase, error) {
-	dbGetByLicenseIDQuery := purchaseManagerQuery + ` WHERE p.license_uuid = ? LIMIT 1`
+	dbGetByLicenseIDQuery := purchaseManagerQuery + ` WHERE p.license_uuid = $1 LIMIT 1`
 	dbGetByLicenseID, err := pManager.db.Prepare(dbGetByLicenseIDQuery)
 	if err != nil {
 		return Purchase{}, err
@@ -426,7 +426,7 @@ func (pManager PurchaseManager) GetByLicenseID(licenseID string) (Purchase, erro
 // List all purchases, with pagination
 //
 func (pManager PurchaseManager) List(page int, pageNum int) func() (Purchase, error) {
-	dbListQuery := purchaseManagerQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
+	dbListQuery := purchaseManagerQuery + ` ORDER BY p.transaction_date desc LIMIT $1 OFFSET $2`
 	dbList, err := pManager.db.Prepare(dbListQuery)
 	if err != nil {
 		return func() (Purchase, error) { return Purchase{}, err }
@@ -440,8 +440,8 @@ func (pManager PurchaseManager) List(page int, pageNum int) func() (Purchase, er
 // ListByUser lists the purchases of a given user, with pagination
 //
 func (pManager PurchaseManager) ListByUser(userID int64, page int, pageNum int) func() (Purchase, error) {
-	dbListByUserQuery := purchaseManagerQuery + ` WHERE u.id = ?
-ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
+	dbListByUserQuery := purchaseManagerQuery + ` WHERE u.id = $1
+ORDER BY p.transaction_date desc LIMIT $2 OFFSET $3`
 	dbListByUser, err := pManager.db.Prepare(dbListByUserQuery)
 	if err != nil {
 		return func() (Purchase, error) { return Purchase{}, err }
@@ -459,7 +459,7 @@ func (pManager PurchaseManager) Add(p Purchase) error {
 	(uuid, publication_id, user_id,
 	type, transaction_date,
 	start_date, end_date, status)
-	VALUES (?, ?, ?, ?, ?, ?, ?, 'ok')`)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, 'ok')`)
 	if err != nil {
 		return err
 	}
@@ -483,9 +483,13 @@ func (pManager PurchaseManager) Add(p Purchase) error {
 
 	_, err = add.Exec(
 		p.UUID,
-		p.Publication.ID, p.User.ID,
-		string(p.Type), p.TransactionDate,
-		p.StartDate, p.EndDate)
+		p.Publication.ID,
+		p.User.ID,
+		string(p.Type),
+		p.TransactionDate,
+		p.StartDate,
+		p.EndDate,
+	)
 
 	return err
 }
@@ -569,7 +573,7 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 	}
 	// update the db with the updated license id, start date, end date, status
 	update, err := pManager.db.Prepare(`UPDATE purchase
-	SET license_uuid=?, start_date=?, end_date=?, status=? WHERE id=?`)
+	SET license_uuid=$1, start_date=$2, end_date=$3, status=$4 WHERE id=$5`)
 	if err != nil {
 		return err
 	}

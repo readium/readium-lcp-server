@@ -72,7 +72,7 @@ type PublicationManager struct {
 // Get gets a publication by its ID
 func (pubManager PublicationManager) Get(id int64) (Publication, error) {
 
-	dbGetByID, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication WHERE id = ? LIMIT 1")
+	dbGetByID, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication WHERE id = $1 LIMIT 1")
 	if err != nil {
 		return Publication{}, err
 	}
@@ -96,7 +96,7 @@ func (pubManager PublicationManager) Get(id int64) (Publication, error) {
 // GetByUUID returns a publication by its uuid
 func (pubManager PublicationManager) GetByUUID(uuid string) (Publication, error) {
 
-	dbGetByUUID, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication WHERE uuid = ? LIMIT 1")
+	dbGetByUUID, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication WHERE uuid = $1 LIMIT 1")
 	if err != nil {
 		return Publication{}, err
 	}
@@ -120,7 +120,7 @@ func (pubManager PublicationManager) GetByUUID(uuid string) (Publication, error)
 // CheckByTitle checks if the title of a publication exists or not in the db
 func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
 
-	dbGetByTitle, err := pubManager.db.Prepare("SELECT COUNT(1) FROM publication WHERE title = ?")
+	dbGetByTitle, err := pubManager.db.Prepare("SELECT COUNT(1) FROM publication WHERE title = $1")
 	if err != nil {
 		return -1, err
 	}
@@ -258,7 +258,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	// the publication uuid is the lcp db content id.
 	pub.UUID = contentUUID
 	pub.Status = StatusOk
-	dbAdd, err := pubManager.db.Prepare("INSERT INTO publication (uuid, title, status) VALUES ( ?, ?, ?)")
+	dbAdd, err := pubManager.db.Prepare("INSERT INTO publication (uuid, title, status) VALUES ( $1, $2, $3)")
 	if err != nil {
 		return err
 	}
@@ -321,7 +321,7 @@ func (pubManager PublicationManager) Upload(file multipart.File, extension strin
 // Only the title is updated
 func (pubManager PublicationManager) Update(pub Publication) error {
 
-	dbUpdate, err := pubManager.db.Prepare("UPDATE publication SET title=?, status=? WHERE id = ?")
+	dbUpdate, err := pubManager.db.Prepare("UPDATE publication SET title=$1, status=$2 WHERE id = $3")
 	if err != nil {
 		return err
 	}
@@ -341,7 +341,7 @@ func (pubManager PublicationManager) Delete(id int64) error {
 
 	var title string
 
-	dbGetMasterFile, err := pubManager.db.Prepare("SELECT title FROM publication WHERE id = ?")
+	dbGetMasterFile, err := pubManager.db.Prepare("SELECT title FROM publication WHERE id = $1")
 	if err != nil {
 		return err
 	}
@@ -371,7 +371,7 @@ func (pubManager PublicationManager) Delete(id int64) error {
 	result.Close()
 
 	// delete all purchases relative to this publication
-	delPurchases, err := pubManager.db.Prepare(`DELETE FROM purchase WHERE publication_id=?`)
+	delPurchases, err := pubManager.db.Prepare(`DELETE FROM purchase WHERE publication_id=$1`)
 	if err != nil {
 		return err
 	}
@@ -381,7 +381,7 @@ func (pubManager PublicationManager) Delete(id int64) error {
 	}
 
 	// delete the publication
-	dbDelete, err := pubManager.db.Prepare("DELETE FROM publication WHERE id = ?")
+	dbDelete, err := pubManager.db.Prepare("DELETE FROM publication WHERE id = $1")
 	if err != nil {
 		return err
 	}
@@ -394,7 +394,7 @@ func (pubManager PublicationManager) Delete(id int64) error {
 // Parameters: page = number of items per page; pageNum = page offset (0 for the first page)
 func (pubManager PublicationManager) List(page int, pageNum int) func() (Publication, error) {
 
-	dbList, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc LIMIT ? OFFSET ?")
+	dbList, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc LIMIT $1 OFFSET $2")
 	if err != nil {
 		return func() (Publication, error) { return Publication{}, err }
 	}
