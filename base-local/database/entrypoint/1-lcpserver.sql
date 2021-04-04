@@ -1,3 +1,5 @@
+\connect lcpserver;
+
 CREATE TABLE "content" (
     "id" varchar(255) PRIMARY KEY NOT NULL,
     "encryption_key" varchar(64) NOT NULL,

@@ -1,3 +1,5 @@
+\connect lsdserver;
+
 CREATE TABLE "license_status" (
     "id" serial PRIMARY KEY,
     "status" int NOT NULL,

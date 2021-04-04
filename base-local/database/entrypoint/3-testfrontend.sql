@@ -1,3 +1,5 @@
+\connect testfrontend;
+
 CREATE TABLE "publication" (
     "id" serial PRIMARY KEY,
     "uuid" varchar(255) NOT NULL,	/* == content id */
