@@ -39,7 +39,7 @@ p.start_date, p.end_date, p.status,
 u.id, u.uuid, u.name, u.email, u.password, u.hint,
 pu.id, pu.uuid, pu.title, pu.status
 from purchase p
-join user u on (p.user_id=u.id)
+join users u on (p.user_id=u.id)
 join publication pu on (p.publication_id=pu.id)`
 
 //WebPurchase defines possible interactions with DB
