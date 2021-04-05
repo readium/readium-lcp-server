@@ -17,7 +17,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/endigo/readium-lcp-server/api"
 	"github.com/endigo/readium-lcp-server/config"
@@ -241,7 +240,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
 
 	var lcpClient = &http.Client{
-		Timeout: time.Second * 5,
+		// Timeout: time.Second * 30,
 	}
 	// sends the import request to the lcp server
 	resp, err := lcpClient.Do(req)
