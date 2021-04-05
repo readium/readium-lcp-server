@@ -63,7 +63,7 @@ type dbUser struct {
 }
 
 func (user dbUser) Get(id int64) (User, error) {
-	getUser, err := user.db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE id = $1 LIMIT 1")
+	getUser, err := user.db.Prepare("SELECT id, uuid, name, email, password, hint FROM users WHERE id = $1 LIMIT 1")
 	if err != nil {
 		return User{}, err
 	}
@@ -79,7 +79,7 @@ func (user dbUser) Get(id int64) (User, error) {
 }
 
 func (user dbUser) GetByEmail(email string) (User, error) {
-	getByEmail, err := user.db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE email = $1 LIMIT 1")
+	getByEmail, err := user.db.Prepare("SELECT id, uuid, name, email, password, hint FROM users WHERE email = $1 LIMIT 1")
 	if err != nil {
 		return User{}, err
 	}
@@ -95,7 +95,7 @@ func (user dbUser) GetByEmail(email string) (User, error) {
 }
 
 func (user dbUser) Add(newUser User) error {
-	add, err := user.db.Prepare("INSERT INTO user (uuid, name, email, password, hint) VALUES ($1, $2, $3, $4, $5)")
+	add, err := user.db.Prepare("INSERT INTO users(uuid, name, email, password, hint) VALUES ($1, $2, $3, $4, $5)")
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (user dbUser) Add(newUser User) error {
 }
 
 func (user dbUser) Update(changedUser User) error {
-	add, err := user.db.Prepare("UPDATE user SET name=$1 , email=$2, password=$3, hint=$4 WHERE id=$5")
+	add, err := user.db.Prepare("UPDATE users SET name=$1 , email=$2, password=$3, hint=$4 WHERE id=$5")
 	if err != nil {
 		return err
 	}
@@ -133,7 +133,7 @@ func (user dbUser) DeleteUser(userID int64) error {
 		return err
 	}
 	// and delete user
-	query, err := user.db.Prepare("DELETE FROM user WHERE id=$1")
+	query, err := user.db.Prepare("DELETE FROM users WHERE id=$1")
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func (user dbUser) DeleteUser(userID int64) error {
 
 func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
 	listUsers, err := user.db.Query(`SELECT id, uuid, name, email, password, hint
-	FROM user
+	FROM users
 	ORDER BY email desc LIMIT $1 OFFSET $2 `, page, pageNum*page)
 	if err != nil {
 		return func() (User, error) { return User{}, err }
@@ -189,7 +189,7 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	return
 }
 
-const tableDef = "CREATE TABLE IF NOT EXISTS user (" +
+const tableDef = "CREATE TABLE IF NOT EXISTS users (" +
 	"id integer NOT NULL PRIMARY KEY," +
 	"uuid varchar(255) NOT NULL," +
 	"name varchar(64) NOT NULL," +

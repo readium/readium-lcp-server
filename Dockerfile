@@ -3,6 +3,8 @@ FROM golang:1.16-alpine as builder
 ENV CGO_ENABLED=0
 WORKDIR /go/app
 
+RUN apk --update add ca-certificates
+
 COPY . .
 
 RUN go mod download
@@ -16,9 +18,11 @@ RUN mkdir -p \
   /opt/readium/db \
   /opt/readium/files/encrypted
 
-FROM node:15-alpine as frontendbuilder
+FROM node:14-alpine as frontendbuilder
 
 COPY --from=builder /go/app /go/app
+
+RUN apk add --no-cache --update --virtual .build-deps python make
 
 # Additional node modules for frontend
 WORKDIR /go/app/frontend/manage
@@ -27,6 +31,7 @@ RUN yarn && yarn build
 # FROM scratch
 FROM scratch as lcpserver
 
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /go/bin/lcpserver /go/bin/lcpserver
 COPY --from=builder /opt/readium /opt/readium
 
@@ -45,14 +50,14 @@ FROM scratch as lcpencrypt
 COPY --from=builder /go/bin/lcpencrypt /go/bin/lcpencrypt
 COPY --from=builder /opt/readium /opt/readium
 
-FROM scratch as testfrontend
+FROM node:14-alpine as testfrontend
 
 COPY --from=builder /opt/readium /opt/readium
 COPY --from=frontendbuilder \
-  /go/src/github.com/endigo/readium-lcp-server/frontend/manage \
-  /go/src/github.com/endigo/readium-lcp-server/frontend/manage
+  /go/app/frontend/manage \
+  /go/app/frontend/manage
 
 COPY --from=builder /go/bin/frontend /go/bin/frontend
-RUN mkdir -p /opt/readium/files/raw/frontend/uploads
+# RUN mkdir -p /opt/readium/files/raw/frontend/uploads
 
 ENTRYPOINT ["/go/bin/frontend"]

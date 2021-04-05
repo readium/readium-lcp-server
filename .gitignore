@@ -26,3 +26,5 @@ lcpserver/.DS_Store
 npm-debug.log
 manage/config.js
 .env
+
+# config.yaml

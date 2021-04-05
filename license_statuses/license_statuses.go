@@ -201,15 +201,6 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 		}
 	}
 
-	// if postgres, create the license_status table in the lsd db if it does not exist
-	if strings.HasPrefix(config.Config.LsdServer.Database, "postgres") {
-		_, err = db.Exec(tableDefPG)
-		if err != nil {
-			log.Println("Error creating license_status table")
-			return
-		}
-	}
-
 	// get, err := db.Prepare("SELECT * FROM license_status WHERE id = $1 LIMIT $2")
 	// if err != nil {
 	// 	return
@@ -237,17 +228,5 @@ const tableDef = "CREATE TABLE IF NOT EXISTS license_status (" +
 	"potential_rights_end datetime DEFAULT NULL," +
 	"license_ref varchar(255) NOT NULL," +
 	"rights_end datetime DEFAULT NULL  " +
-	");" +
-	"CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);"
-
-const tableDefPG = "CREATE TABLE IF NOT EXISTS license_status (" +
-	"id serial PRIMARY KEY," +
-	"status int NOT NULL," +
-	"license_updated timestamp NOT NULL," +
-	"status_updated timestamp NOT NULL," +
-	"device_count int DEFAULT NULL," +
-	"potential_rights_end timestamp DEFAULT NULL," +
-	"license_ref varchar(255) NOT NULL," +
-	"rights_end timestamp DEFAULT NULL  " +
 	");" +
 	"CREATE INDEX IF NOT EXISTS license_ref_index on license_status (license_ref);"

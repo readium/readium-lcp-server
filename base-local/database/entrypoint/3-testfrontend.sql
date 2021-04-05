@@ -9,7 +9,7 @@ CREATE TABLE "publication" (
 
 CREATE INDEX uuid_index ON publication ("uuid");
 
-CREATE TABLE "user" (
+CREATE TABLE "users" (
     "id" serial PRIMARY KEY,
     "uuid" varchar(255) NOT NULL,
     "name" varchar(64) NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE "purchase" (
     "end_date" timestamp,
     "status" varchar(255) NOT NULL,
     FOREIGN KEY ("publication_id") REFERENCES "publication" ("id"),
-    FOREIGN KEY ("user_id") REFERENCES "user" ("id")
+    FOREIGN KEY ("user_id") REFERENCES "users" ("id")
 );
 
 CREATE INDEX "idx_purchase" ON "purchase" ("license_uuid");

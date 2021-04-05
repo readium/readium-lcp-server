@@ -62,7 +62,12 @@
   resolved "https://registry.yarnpkg.com/@types/jssha/-/jssha-0.0.29.tgz#95e83dba98787ff796d2d5f37a1925abf41bc9cb"
   integrity sha1-leg9uph4f/eW0tXzehklq/Qbycs=
 
-"@types/node@^6.0.35", "@types/node@^6.0.46":
+"@types/node@^14.14.37":
+  version "14.14.37"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-14.14.37.tgz#a3dd8da4eb84a996c36e331df98d82abd76b516e"
+  integrity sha512-XYmBiy+ohOR4Lh5jE379fV2IU+6Jn4g5qASinhitfyO71b/sCo6MKsMLF5tc7Zf2CE8hViVQyYSobJNke8OvUw==
+
+"@types/node@^6.0.35":
   version "6.14.13"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-6.14.13.tgz#b6649578fc0b5dac88c4ef48a46cab33c50a6c72"
   integrity sha512-J1F0XJ/9zxlZel5ZlbeSuHW2OpabrUAqpFuC2sm2I3by8sERQ8+KCjNKUcq8QHuzpGMWiJpo9ZxeHrqrP2KzQw==
@@ -4236,10 +4241,10 @@ type-is@~1.6.17:
     media-typer "0.3.0"
     mime-types "~2.1.24"
 
-typescript@^2.4.0:
-  version "2.9.2"
-  resolved "https://registry.yarnpkg.com/typescript/-/typescript-2.9.2.tgz#1cbf61d05d6b96269244eb6a3bce4bd914e0f00c"
-  integrity sha512-Gr4p6nFNaoufRIY4NMdpQRNmgxVIGMs4Fcu/ujdYk3nAZqk7supzBE9idmvfZIlH/Cuj//dvi+019qEue9lV0w==
+typescript@^4.2.3:
+  version "4.2.3"
+  resolved "https://registry.yarnpkg.com/typescript/-/typescript-4.2.3.tgz#39062d8019912d43726298f09493d598048c1ce3"
+  integrity sha512-qOcYwxaByStAWrBf4x0fibwZvMRG+r4cQoTjbPtUlrWjBHbmCAww1i448U0GJ+3cNNEtebDteo/cHOR3xJ4wEw==
 
 ua-parser-js@^0.7.18:
   version "0.7.25"
