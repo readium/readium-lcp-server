@@ -39,7 +39,7 @@ func (s *sqlStore) ListAll(page int, pageNum int) func() (LicenseReport, error) 
 	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end, content_fk
 	FROM license
-	ORDER BY issued desc LIMIT ? OFFSET ? `, page, pageNum*page)
+	ORDER BY issued desc LIMIT $1 OFFSET $2`, page, pageNum*page)
 	if err != nil {
 		return func() (LicenseReport, error) { return LicenseReport{}, err }
 	}
@@ -70,7 +70,7 @@ func (s *sqlStore) List(contentID string, page int, pageNum int) func() (License
 	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end, content_fk
 	FROM license
-	WHERE content_fk=? LIMIT ? OFFSET ? `, contentID, page, pageNum*page)
+	WHERE content_fk=$1 LIMIT $2 OFFSET $3 `, contentID, page, pageNum*page)
 	if err != nil {
 		return func() (LicenseReport, error) { return LicenseReport{}, err }
 	}
@@ -96,7 +96,7 @@ func (s *sqlStore) List(contentID string, page int, pageNum int) func() (License
 // UpdateRights
 //
 func (s *sqlStore) UpdateRights(l License) error {
-	result, err := s.db.Exec("UPDATE license SET rights_print=?, rights_copy=?, rights_start=?, rights_end=?,updated=?  WHERE id=?",
+	result, err := s.db.Exec("UPDATE license SET rights_print=$1, rights_copy=$2, rights_start=$3, rights_end=$4, updated=$5  WHERE id=$6",
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End, time.Now().UTC().Truncate(time.Second), l.ID)
 
 	if err == nil {
@@ -112,7 +112,7 @@ func (s *sqlStore) UpdateRights(l License) error {
 func (s *sqlStore) Add(l License) error {
 	_, err := s.db.Exec(`INSERT INTO license (id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end, content_fk) 
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?,  ?, ?)`,
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		l.ID, l.User.ID, l.Provider, l.Issued, nil,
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End,
 		l.ContentID)
@@ -122,9 +122,9 @@ func (s *sqlStore) Add(l License) error {
 // Update updates a record in the license table
 //
 func (s *sqlStore) Update(l License) error {
-	_, err := s.db.Exec(`UPDATE license SET user_id=?,provider=?,updated=?,
-				rights_print=?,	rights_copy=?,	rights_start=?,	rights_end=?, content_fk =?
-				WHERE id=?`,
+	_, err := s.db.Exec(`UPDATE license SET user_id=$1, provider=$2, updated=$3,
+				rights_print=$4, rights_copy=$5,	rights_start=$6, rights_end=$7, content_fk =$8
+				WHERE id=$9`,
 		l.User.ID, l.Provider,
 		time.Now().UTC().Truncate(time.Second),
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End,
@@ -137,8 +137,8 @@ func (s *sqlStore) Update(l License) error {
 // UpdateLsdStatus
 //
 func (s *sqlStore) UpdateLsdStatus(id string, status int32) error {
-	_, err := s.db.Exec(`UPDATE license SET lsd_status =?
-				WHERE id=?`,
+	_, err := s.db.Exec(`UPDATE license SET lsd_status =$1
+				WHERE id=$2`,
 		status,
 		id)
 
@@ -154,7 +154,7 @@ func (s *sqlStore) Get(id string) (License, error) {
 
 	row := s.db.QueryRow(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy,
 	rights_start, rights_end, content_fk FROM license
-	where id = ?`, id)
+	where id = $1`, id)
 
 	err := row.Scan(&l.ID, &l.User.ID, &l.Provider, &l.Issued, &l.Updated,
 		&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End,
