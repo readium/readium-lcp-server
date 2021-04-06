@@ -84,8 +84,11 @@ func checkGenerateLicenseInput(l *license.License) error {
 // get license, copy useful data from licIn to LicOut
 func copyInputToLicense(licIn *license.License, licOut *license.License) {
 
-	// copy the hashed passphrase, user hint and algorithm
-	licOut.Encryption.UserKey = licIn.Encryption.UserKey
+	// copy the user hint and hashed passphrase
+	licOut.Encryption.UserKey.Hint = licIn.Encryption.UserKey.Hint
+	licOut.Encryption.UserKey.Value = licIn.Encryption.UserKey.Value
+	licOut.Encryption.UserKey.HexValue = licIn.Encryption.UserKey.HexValue
+
 	// copy optional user information
 	licOut.User.Email = licIn.User.Email
 	licOut.User.Name = licIn.User.Name
@@ -115,6 +118,9 @@ func buildLicense(lic *license.License, s Server) error {
 
 	// set the LCP profile
 	license.SetLicenseProfile(lic)
+
+	// force the algorithm to the one defined by the basic and 1.0 profiles
+	lic.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 
 	// get content info from the db
 	content, err := s.Index().Get(lic.ContentID)
@@ -255,7 +261,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	// get the input body.
 	// It contains the hashed passphrase, user hint
-	// and other optional user data the provider wants to see embedded in thel license
+	// and other optional user data the provider wants to see embedded in the license
 	var err error
 	var licIn license.License
 	err = DecodeJSONLicense(r, &licIn)
@@ -466,6 +472,7 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 	license.Initialize(contentID, &lic)
 	// normalize the start and end date, UTC, no milliseconds
 	setRights(&lic)
+
 	// build the license
 	err = buildLicense(&lic, s)
 	if err != nil {

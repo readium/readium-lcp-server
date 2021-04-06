@@ -28,8 +28,8 @@ type W3CPublication struct {
 	ReadBy             W3CContributors  `json:"readBy,omitempty"`
 	Translator         W3CContributors  `json:"translator,omitempty"`
 	InLanguage         MultiString      `json:"inLanguage,omitempty"`
-	DatePublished      DateOrDatetime   `json:"datePublished,omitempty"`
-	DateModified       DateOrDatetime   `json:"dateModified,omitempty"`
+	DatePublished      *DateOrDatetime  `json:"datePublished,omitempty"`
+	DateModified       *DateOrDatetime  `json:"dateModified,omitempty"`
 	ReadingProgression string           `json:"readingProgression,omitempty"`
 	Duration           string           `json:"duration,omitempty"`
 	Description        string           `json:"dcterms:description,omitempty"`

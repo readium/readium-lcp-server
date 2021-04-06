@@ -25,7 +25,7 @@ import (
 
 	"github.com/endigo/readium-lcp-server/crypto"
 	"github.com/endigo/readium-lcp-server/epub"
-	"github.com/endigo/readium-lcp-server/lcpserver/api"
+	apilcp "github.com/endigo/readium-lcp-server/lcpserver/api"
 	"github.com/endigo/readium-lcp-server/license"
 	"github.com/endigo/readium-lcp-server/pack"
 	uuid "github.com/satori/go.uuid"
@@ -116,6 +116,7 @@ func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel i
 	if err != nil {
 		os.Stdout.WriteString(err.Error())
 	}
+	os.Stdout.WriteString("\n")
 	/* kept for future debug
 	jsonBody, err := json.MarshalIndent(lcpPublication, " ", "  ")
 	if err != nil {
@@ -146,13 +147,18 @@ func outputExtension(sourceExt string) string {
 	var targetExt string
 	switch sourceExt {
 	case ".epub":
+		// an LCP protected EPUB file keeps the same extension
 		targetExt = ".epub"
 	case ".pdf":
 		targetExt = ".lcpdf"
+	case ".audiobook":
+		targetExt = ".lcpau"
+	case ".divina":
+		targetExt = ".lcpdi"
 	case ".lpf":
 		// short term solution. We'll need to inspect the manifest and check conformsTo,
 		// to be certain this is an audiobook (vs another profile of Web Publication)
-		targetExt = ".audiobook"
+		targetExt = ".lcpau"
 	}
 	return targetExt
 }
@@ -164,7 +170,7 @@ func buildEncryptedRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter 
 	// create a reader on the un-encrypted readium package
 	reader, err := pack.OpenRWPP(inputPath)
 	if err != nil {
-		pub.ErrorMessage = "Error opening the temp package"
+		pub.ErrorMessage = "Error opening package " + inputPath
 		return err
 	}
 	// create the encrypted package file
@@ -278,25 +284,39 @@ func processPDF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.E
 // processLPF transforms a W3C LPF file into a Readium Package and encrypts its resources
 func processLPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile, outputExt string) error {
 
-	switch outputExt {
-	case ".audiobook":
-		pub.ContentType = "application/audiobook+lcp"
-	case ".divina":
-		pub.ContentType = "application/divina+lcp"
-	}
+	// When other kinds of LPF files will be created, a switch on outputExt will be used
+	// to select the proper mime-type
+	pub.ContentType = "application/audiobook+lcp"
 
 	// generate a tmp Readium Package (rwpp) out of W3C Package (lpf)
 	tmpPackagePath := pub.Output + ".webpub"
 	err := pack.BuildRWPPFromLPF(inputPath, tmpPackagePath)
+	// will remove the tmp file even if an error is returned
+	defer os.Remove(tmpPackagePath)
+	// process error
 	if err != nil {
 		pub.ErrorMessage = "Error building RWPP from LPF"
 		return err
 	}
-	// will remove the temp file
-	defer os.Remove(tmpPackagePath)
 
 	// build an encrypted package
 	err = buildEncryptedRWPP(pub, tmpPackagePath, encrypter, lcpProfile)
+	return err
+}
+
+// processRWPP encrypts the source Readium Package
+func processRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile, outputExt string) error {
+
+	// select a mime-type
+	switch outputExt {
+	case ".lcpau":
+		pub.ContentType = "application/audiobook+lcp"
+	case ".lcpdi":
+		pub.ContentType = "application/divina+lcp"
+	}
+
+	// build an encrypted package
+	err := buildEncryptedRWPP(pub, inputPath, encrypter, lcpProfile)
 	return err
 }
 
@@ -304,7 +324,7 @@ func main() {
 	var err error
 	var pub apilcp.LcpPublication
 	var inputPath = flag.String("input", "", "source epub/pdf/lpf file locator (file system or http GET)")
-	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new one is generated")
+	var contentid = flag.String("contentid", "", "optional content identifier; if omitted a new uuid is generated")
 	var outputFilename = flag.String("output", "", "optional target location for the encrypted content (file system or http PUT)")
 	var lcpsv = flag.String("lcpsv", "", "optional http endpoint of the License server (adds content)")
 	var username = flag.String("login", "", "login (License server)")
@@ -335,7 +355,7 @@ func main() {
 	pub.ContentID = *contentid
 
 	// if the output file name not set,
-	// then <content-id>.epub|lcpdf is created in the working directory
+	// then [content-id].[ext] is created into the working directory
 	inputExt := filepath.Ext(*inputPath)
 	var basefilename string
 	var outputExt string
@@ -370,12 +390,17 @@ func main() {
 	} else if inputExt == ".pdf" {
 		err := processPDF(&pub, *inputPath, encrypter, lcpProfile)
 		if err != nil {
-			exitWithError(pub, err, 40)
+			exitWithError(pub, err, 31)
 		}
 	} else if inputExt == ".lpf" {
 		err := processLPF(&pub, *inputPath, encrypter, lcpProfile, outputExt)
 		if err != nil {
-			exitWithError(pub, err, 50)
+			exitWithError(pub, err, 32)
+		}
+	} else if inputExt == ".audiobook" {
+		err := processRWPP(&pub, *inputPath, encrypter, lcpProfile, outputExt)
+		if err != nil {
+			exitWithError(pub, err, 33)
 		}
 	}
 
@@ -384,7 +409,7 @@ func main() {
 		err = notifyLcpServer(*lcpsv, *contentid, pub, *username, *password)
 		if err != nil {
 			pub.ErrorMessage = "Error notifying the License Server"
-			exitWithError(pub, err, 60)
+			exitWithError(pub, err, 40)
 		} else {
 			os.Stdout.WriteString("License Server was notified\n")
 		}
@@ -394,7 +419,7 @@ func main() {
 	jsonBody, err := json.MarshalIndent(pub, " ", "  ")
 	if err != nil {
 		pub.ErrorMessage = "Error creating json pub"
-		exitWithError(pub, err, 70)
+		exitWithError(pub, err, 50)
 	}
 	os.Stdout.Write(jsonBody)
 	os.Stdout.WriteString("\nEncryption was successful\n")

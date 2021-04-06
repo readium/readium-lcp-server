@@ -10,8 +10,6 @@ import (
 	"os"
 	"path"
 
-	"path/filepath"
-
 	"github.com/endigo/readium-lcp-server/config"
 )
 
@@ -51,7 +49,7 @@ func (repManager RepositoryManager) GetMasterFile(name string) (RepositoryFile, 
 	return RepositoryFile{}, ErrNotFound
 }
 
-// GetMasterFiles returns all repository files
+// GetMasterFiles returns all filenames from the master repository
 func (repManager RepositoryManager) GetMasterFiles() func() (RepositoryFile, error) {
 	files, err := ioutil.ReadDir(repManager.MasterRepositoryPath)
 	var fileIndex int
@@ -63,16 +61,11 @@ func (repManager RepositoryManager) GetMasterFiles() func() (RepositoryFile, err
 	return func() (RepositoryFile, error) {
 		var repFile RepositoryFile
 
-		// Filter on epub and pdf
 		for fileIndex < len(files) {
 			file := files[fileIndex]
-			fileExt := filepath.Ext(file.Name())
+			repFile.Name = file.Name()
 			fileIndex++
-
-			if fileExt == ".epub" || fileExt == ".pdf" {
-				repFile.Name = file.Name()
-				return repFile, err
-			}
+			return repFile, err
 		}
 
 		return repFile, ErrNotFound
