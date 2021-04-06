@@ -28,8 +28,6 @@ storage:
   mode: "s3"
   bucket: "S3-BUCKET"
   region: "us-west-2"
-  # access_id: "AKIA5QZPHQT4YTXHPXOM"
-  # secret: "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"
 certificate:
   cert: "/etc/readium/certificate.pub"
   private_key: "/etc/readium/certificate.pem"
