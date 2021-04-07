@@ -92,7 +92,7 @@ func (licManager LicenseManager) Get(id int64) (License, error) {
 	dbGetByID, err := licManager.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license_view AS l 
 											INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 											INNER JOIN publication as pu ON p.publication_id = pu.id
-											INNER JOIN user as u ON p.user_id = u.id
+											INNER JOIN users as u ON p.user_id = u.id
 											WHERE id = $1`)
 	if err != nil {
 		return License{}, err
@@ -124,7 +124,7 @@ func (licManager LicenseManager) GetFiltered(filter string) ([]License, error) {
 	dbGetByID, err := licManager.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license_view AS l 
 											INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 											INNER JOIN publication as pu ON p.publication_id = pu.id
-											INNER JOIN user as u ON p.user_id = u.id
+											INNER JOIN users as u ON p.user_id = u.id
 											WHERE l.device_count >= $1`)
 	if err != nil {
 		return []License{}, err
