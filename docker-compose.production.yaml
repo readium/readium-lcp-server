@@ -29,16 +29,15 @@ x-app: &default-app
     - "AWS_S3_SECRET=${AWS_S3_SECRET}"
 
 services:
-  # database:
-  #   build: ./database
-  #   image: database
-  #   restart: always
-  # ports:
-  #   - "${READIUM_DATABASE_EXTERNAL_PORT}:${READIUM_DATABASE_PORT}"
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: "${READIUM_DATABASE_PASSWORD}"
-  #   volumes:
-  #     - "dbdata:/var/lib/mysql"
+  caddy:
+    image: caddy:alpine
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./certs:/root/.caddy
   database:
     image: postgres:12-alpine
     restart: always
@@ -50,31 +49,9 @@ services:
       - ./base-local/database/entrypoint:/docker-entrypoint-initdb.d/
       - "dbdata:/var/lib/postgresql/data"
 
-  # sftp:
-  #   image: "atmoz/sftp:alpine"
-  #   restart: always
-  #   ports:
-  #     - "${READIUM_SFTP_EXTERNAL_PORT}:${READIUM_SFTP_PORT}"
-  #   volumes:
-  #     - "./files/users.conf:/etc/sftp/users.conf:ro"
-  #     - "rawfiles:/home"
-
-  # lcpencrypt:
-  #   <<: *default-app
-  #   image: "readium/lcpencrypt:working"
-  #   build:
-  #     context: .
-  #     target: "lcpencrypt"
-  #   volumes:
-  #     - "encfiles:/opt/readium/files/encrypted"
-  #     - "rawfiles:/opt/readium/files/raw"
-
   lcpserver:
     <<: *default-app
     image: "registry.gitlab.com/steppelink/r-and-d/readium/lcpserver:latest"
-    build:
-      context: .
-      target: "lcpserver"
     ports:
       - "${READIUM_LCPSERVER_EXTERNAL_PORT}:${READIUM_LCPSERVER_PORT}"
     volumes:
@@ -86,9 +63,6 @@ services:
   lsdserver:
     <<: *default-app
     image: "registry.gitlab.com/steppelink/r-and-d/readium/lsdserver:latest"
-    build:
-      context: .
-      target: "lsdserver"
     ports:
       - "${READIUM_LSDSERVER_EXTERNAL_PORT}:${READIUM_LSDSERVER_PORT}"
     volumes:
@@ -99,9 +73,6 @@ services:
   testfrontend:
     <<: *default-app
     image: "registry.gitlab.com/steppelink/r-and-d/readium/testfrontend:latest"
-    build:
-      context: .
-      target: "testfrontend"
     ports:
       - "${READIUM_FRONTEND_EXTERNAL_PORT}:${READIUM_FRONTEND_PORT}"
     volumes:
