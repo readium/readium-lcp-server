@@ -287,8 +287,8 @@ func downloadFromS3AndOpen(url string) (*os.File, error) {
 	file, _ := ioutil.TempFile("", "")
 	fileName := file.Name()
 
-	accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
-	secretAccessKey := os.Getenv("AWS_ACCESS_SECRET_KEY")
+	accessKeyID := os.Getenv("AWS_S3_KEY")
+	secretAccessKey := os.Getenv("AWS_S3_SECRET")
 
 	fmt.Println("ACCESS_KEY_ID", accessKeyID, "AWS_ACCESS_SECRET_KEY", secretAccessKey)
 
