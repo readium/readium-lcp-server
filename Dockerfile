@@ -29,7 +29,8 @@ WORKDIR /go/app/frontend/manage
 RUN yarn && yarn build
 
 # FROM scratch
-FROM scratch as lcpserver
+# FROM scratch as lcpserver
+FROM alpine as lcpserver
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /go/bin/lcpserver /go/bin/lcpserver
