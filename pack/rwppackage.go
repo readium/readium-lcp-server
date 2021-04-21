@@ -12,8 +12,8 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/rwpm"
+	"github.com/endigo/readium-lcp-server/license"
+	"github.com/endigo/readium-lcp-server/rwpm"
 )
 
 // RWPPReader is a Readium Package reader

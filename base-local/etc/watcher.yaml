@@ -1,0 +1,17 @@
+tricks:
+  - watchdog.tricks.ShellCommandTrick:
+        patterns: ["*.epub", "*.pdf"]
+        ignore_directories: True
+        shell_command:
+            if [ ${watch_event_type} == "created" ]; then
+                echo "File ${watch_src_path} created";
+                set -x;
+                sleep 30;
+                /go/bin/lcpencrypt
+                    -input "${watch_src_path}"
+                    -lcpsv "$READIUM_LCPSERVER_HOST"
+                    -login "$READIUM_LCPSERVER_USERNAME"
+                    -password "$READIUM_LCPSERVER_PASSWORD";
+                echo ""
+            ; fi
+

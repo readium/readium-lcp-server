@@ -33,12 +33,12 @@ import (
 	auth "github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/index"
-	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
-	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/pack"
-	"github.com/readium/readium-lcp-server/storage"
+	"github.com/endigo/readium-lcp-server/api"
+	"github.com/endigo/readium-lcp-server/index"
+	apilcp "github.com/endigo/readium-lcp-server/lcpserver/api"
+	"github.com/endigo/readium-lcp-server/license"
+	"github.com/endigo/readium-lcp-server/pack"
+	"github.com/endigo/readium-lcp-server/storage"
 )
 
 type Server struct {

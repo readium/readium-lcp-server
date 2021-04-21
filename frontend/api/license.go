@@ -11,11 +11,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/endigo/readium-lcp-server/api"
+	"github.com/endigo/readium-lcp-server/frontend/webpublication"
+	"github.com/endigo/readium-lcp-server/frontend/webpurchase"
+	"github.com/endigo/readium-lcp-server/problem"
 	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/frontend/webpublication"
-	"github.com/readium/readium-lcp-server/frontend/webpurchase"
-	"github.com/readium/readium-lcp-server/problem"
 )
 
 // GetFilteredLicenses searches licenses activated by more than n devices

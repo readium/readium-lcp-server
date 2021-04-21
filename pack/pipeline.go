@@ -16,10 +16,10 @@ import (
 
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/readium/readium-lcp-server/crypto"
-	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/index"
-	"github.com/readium/readium-lcp-server/storage"
+	"github.com/endigo/readium-lcp-server/crypto"
+	"github.com/endigo/readium-lcp-server/epub"
+	"github.com/endigo/readium-lcp-server/index"
+	"github.com/endigo/readium-lcp-server/storage"
 )
 
 // Source in an interface

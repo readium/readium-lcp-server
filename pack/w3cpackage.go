@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/readium/readium-lcp-server/rwpm"
+	"github.com/endigo/readium-lcp-server/rwpm"
 	"github.com/rickb777/date/period"
 )
 
