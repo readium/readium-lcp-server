@@ -91,6 +91,10 @@ func main() {
 	}
 
 	driver, cnxn := dbFromURI(dbURI)
+    if driver == "postgres" {
+        cnxn = dbURI
+    }
+
 	db, err := sql.Open(driver, cnxn)
 	if err != nil {
 		panic(err)
