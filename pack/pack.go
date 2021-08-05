@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"compress/flate"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"strings"
@@ -167,7 +166,7 @@ func encryptResource(profile license.EncryptionProfile, encrypter crypto.Encrypt
 		io.Copy(deflateWriter, resourceReader)
 		resourceReader.Close()
 		deflateWriter.Close()
-		reader = ioutil.NopCloser(&buffer)
+		reader = &buffer
 	}
 
 	err = encrypter.Encrypt(key, reader, file)
@@ -210,17 +209,19 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 
 	input := file.Contents
 
+	// the content has to be compressed before encryption
 	if compress {
 		var buf bytes.Buffer
-		deflateWriter, err := flate.NewWriter(&buf, 9)
+		deflateWriter, err := flate.NewWriter(&buf, flate.BestCompression)
 		if err != nil {
 			return err
 		}
 		io.Copy(deflateWriter, file.Contents)
+
 		deflateWriter.Close()
 		file.ContentsSize = uint64(buf.Len())
 
-		input = ioutil.NopCloser(&buf)
+		input = &buf
 	}
 
 	// note: the file is stored as-is because compression, when applied, is applied *before* encryption
@@ -230,6 +231,7 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 	if err != nil {
 		return err
 	}
+	// encrypt the buffer and store the result into a new file
 	return encrypter.Encrypt(key, input, fw)
 }
 
