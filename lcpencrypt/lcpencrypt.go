@@ -10,14 +10,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -70,34 +67,10 @@ func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPubl
 	return nil
 }
 
-// getBufferFromInputResource reads and returns in a buffer
-// the content of a file on the local filesystem
-// or the content of a remote resource if the scheme is http:// or https://
-func getBufferFromInputResource(inputPath string) ([]byte, error) {
-
-	url, err := url.Parse(inputPath)
-	if err != nil {
-		return nil, errors.New("Error parsing input file")
-	}
-	if url.Scheme == "http" || url.Scheme == "https" {
-		res, err := http.Get(inputPath)
-		if err != nil {
-			return nil, err
-		}
-		defer res.Body.Close()
-		return ioutil.ReadAll(res.Body)
-	} else if url.Scheme == "ftp" {
-		return nil, errors.New("ftp not supported yet")
-
-	} else {
-		return ioutil.ReadFile(inputPath)
-	}
-}
-
 func showHelpAndExit() {
 
-	log.Println("lcpencrypt protects an epub/pdf file for usage in an lcp environment")
-	log.Println("-input        source epub/pdf/lpf file locator (file system or http GET)")
+	log.Println("lcpencrypt protects a publication using the LCP DRM")
+	log.Println("-input        source file path")
 	log.Println("[-profile]    encryption profile")
 	log.Println("[-contentid]  optional content identifier, if omitted a new one will be generated")
 	log.Println("[-output]     optional target location for protected content (file system or http PUT)")
@@ -129,12 +102,10 @@ func exitWithError(lcpPublication apilcp.LcpPublication, err error, errorlevel i
 	os.Exit(errorlevel)
 }
 
-func getChecksum(file *os.File) string {
+// checksum calculates the checksum of a file
+func checksum(file *os.File) string {
 
 	hasher := sha256.New()
-	//s, err := ioutil.ReadFile(filename) // filename as string
-	//hasher.Write(s)
-	// Note: this alternative code should save memory (no s buffer); found in lcpencrypt.go
 	file.Seek(0, 0)
 	if _, err := io.Copy(hasher, file); err != nil {
 		return ""
@@ -198,7 +169,7 @@ func buildEncryptedRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter 
 	if err == nil && (stats.Size() > 0) {
 		filesize := stats.Size()
 		pub.Size = &filesize
-		cs := getChecksum(outputFile)
+		cs := checksum(outputFile)
 		pub.Checksum = &cs
 	}
 	if stats.Size() == 0 {
@@ -213,22 +184,18 @@ func processEPUB(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.
 
 	pub.ContentType = epub.ContentType_EPUB
 
-	// read the content of the input resource, *keep it in memory*
-	buf, err := getBufferFromInputResource(inputPath)
+	// create a zip reader from the input path
+	zr, err := zip.OpenReader(inputPath)
 	if err != nil {
-		pub.ErrorMessage = "Error opening input file, for more information type 'lcpencrypt -help' "
+		pub.ErrorMessage = "Error opening the epub file"
 		return err
 	}
-	// create a zip reader from the zipped data in the buffer
-	zr, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
-	if err != nil {
-		pub.ErrorMessage = "Error opening the zip file"
-		return err
-	}
+	defer zr.Close()
+
 	// generate an EPUB object
-	epub, err := epub.Read(zr)
+	epub, err := epub.Read(&zr.Reader)
 	if err != nil {
-		pub.ErrorMessage = "Error reading the epub content"
+		pub.ErrorMessage = "Error reading epub content"
 		return err
 	}
 	// create the output file
@@ -252,7 +219,7 @@ func processEPUB(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.
 	if err == nil && (stats.Size() > 0) {
 		filesize := stats.Size()
 		pub.Size = &filesize
-		cs := getChecksum(outputFile)
+		cs := checksum(outputFile)
 		pub.Checksum = &cs
 	}
 	if stats.Size() == 0 {
