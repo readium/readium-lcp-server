@@ -87,21 +87,31 @@ func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Mani
 		return
 	}
 
+	// initialise the target publication
 	ew := epub.NewWriter(w)
 	ew.WriteHeader()
 	if ep.Encryption == nil {
 		ep.Encryption = &xmlenc.Manifest{}
 	}
 
+	// create a compressing tool
+	var buf bytes.Buffer
+	compressor, err := flate.NewWriter(&buf, flate.BestCompression)
+	if err != nil {
+		return
+	}
+
 	for _, res := range ep.Resource {
 		if _, alreadyEncrypted := ep.Encryption.DataForFile(res.Path); !alreadyEncrypted && canEncrypt(res, ep) {
-			toCompress := mustCompressBeforeEncryption(*res, ep)
-			err = encryptFile(encrypter, key, ep.Encryption, res, toCompress, ew)
+			compress := mustCompressBeforeEncryption(*res, ep)
+			// encrypt the resource after optionally compressing it
+			err = encryptFile(compressor, compress, encrypter, key, ep.Encryption, res, ew)
 			if err != nil {
 				log.Println("Error encrypting " + res.Path + ": " + err.Error())
 				return
 			}
 		} else {
+			// copy the resource as-is to the target publication
 			err = ew.Copy(res)
 			if err != nil {
 				log.Println("Error copying the file")
@@ -110,7 +120,11 @@ func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Mani
 		}
 	}
 
+	// save the encryption manifest
 	ew.WriteEncryption(ep.Encryption)
+	if err = compressor.Close(); err != nil {
+		return
+	}
 
 	return ep.Encryption, key, ew.Close()
 }
@@ -180,8 +194,9 @@ func encryptResource(profile license.EncryptionProfile, encrypter crypto.Encrypt
 }
 
 // encryptFile encrypts a file in an EPUB package
-func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool, w *epub.Writer) error {
+func encryptFile(compressor *flate.Writer, compress bool, encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, file *epub.Resource, w *epub.Writer) error {
 
+	// set encryption properties for the resource
 	data := xmlenc.Data{}
 	data.Method.Algorithm = xmlenc.URI(encrypter.Signature())
 	data.KeyInfo = &xmlenc.KeyInfo{}
@@ -194,11 +209,11 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 	}
 	data.CipherData.CipherReference.URI = xmlenc.URI(uri.EscapedPath())
 
+	// declare to the reading software that the content is compressed before encryption
 	method := NoCompression
 	if compress {
 		method = Deflate
 	}
-
 	data.Properties = &xmlenc.EncryptionProperties{
 		Properties: []xmlenc.EncryptionProperty{
 			{Compression: xmlenc.Compression{Method: method, OriginalLength: file.OriginalSize}},
@@ -207,31 +222,32 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 
 	m.Data = append(m.Data, data)
 
+	// by default, the source file is the source of the encryption
 	input := file.Contents
 
-	// the content has to be compressed before encryption
+	// if the content has to be compressed before encryption
 	if compress {
+		// use a new buffer as target of the compressor
 		var buf bytes.Buffer
-		deflateWriter, err := flate.NewWriter(&buf, flate.BestCompression)
-		if err != nil {
+		compressor.Reset(&buf)
+		io.Copy(compressor, file.Contents)
+		if err := compressor.Close(); err != nil {
 			return err
 		}
-		io.Copy(deflateWriter, file.Contents)
-
-		deflateWriter.Close()
-		file.ContentsSize = uint64(buf.Len())
-
+		//file.ContentsSize = uint64(buf.Len())
+		// use the buffer as source of the encryption
 		input = &buf
 	}
 
-	// note: the file is stored as-is because compression, when applied, is applied *before* encryption
+	// note: the file is stored as-is in the zip because compression, when applied, is applied before encryption
+	// and therefore *before* storage.
 	file.StorageMethod = NoCompression
 
-	fw, err := w.AddResource(file.Path, file.StorageMethod)
+	fw, err := w.AddResource(file.Path, NoCompression)
 	if err != nil {
 		return err
 	}
-	// encrypt the buffer and store the result into a new file
+	// encrypt the buffer and store the resulting resource in the target publication
 	return encrypter.Encrypt(key, input, fw)
 }
 
