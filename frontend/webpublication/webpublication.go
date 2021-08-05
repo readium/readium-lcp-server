@@ -161,8 +161,6 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 		lcpProfile = license.BasicProfile
 	}
 
-	start := time.Now()
-
 	// create a temp file in the frontend "encrypted repository"
 	outputFilename := contentUUID + ".tmp"
 	outputPath := path.Join(pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
@@ -224,9 +222,6 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 		return err
 	}
 
-	elapsed := time.Since(start)
-	log.Println("Elapsed time, encrypt file: " + elapsed.String())
-
 	// prepare the import request to the lcp server
 	contentDisposition := slugify.Slugify(pub.Title)
 	lcpPublication := apilcp.LcpPublication{}
@@ -244,8 +239,6 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	if err != nil {
 		return err
 	}
-
-	start = time.Now()
 
 	// send the content to the LCP server
 	lcpServerConfig := pubManager.config.LcpServer
@@ -276,9 +269,6 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 		// error on creation
 		return err
 	}
-
-	elapsed = time.Since(start)
-	log.Println("Elapsed time, PUT file to the lcp server: " + elapsed.String())
 
 	// store the new publication in the db
 	// the publication uuid is the lcp db content id.
@@ -328,8 +318,6 @@ func (pubManager PublicationManager) Upload(file multipart.File, extension strin
 
 	log.Println("Upload a publication, use a tmp file")
 
-	start := time.Now()
-
 	// copy the request payload to the temp file
 	if _, err = io.Copy(tmpfile, file); err != nil {
 		return err
@@ -339,9 +327,6 @@ func (pubManager PublicationManager) Upload(file multipart.File, extension strin
 	if err = tmpfile.Close(); err != nil {
 		return err
 	}
-
-	elapsed := time.Since(start)
-	log.Println("Elapsed time, write tmp clear file: " + elapsed.String())
 
 	// process and encrypt the publication, send the content to the LCP server
 	err = encryptPublication(tmpfile.Name(), pub, pubManager)
