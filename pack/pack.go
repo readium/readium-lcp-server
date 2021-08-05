@@ -251,8 +251,8 @@ func encryptFile(compressor *flate.Writer, compress bool, encrypter crypto.Encry
 	return encrypter.Encrypt(key, input, fw)
 }
 
-// findFile finds a file in an EPUB object
-func findFile(name string, ep epub.Epub) (*epub.Resource, bool) {
+// FindFile finds a file in an EPUB object
+func FindFile(name string, ep epub.Epub) (*epub.Resource, bool) {
 
 	for _, res := range ep.Resource {
 		if res.Path == name {
