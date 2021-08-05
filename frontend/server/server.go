@@ -82,7 +82,7 @@ func New(
 			Handler:        sr.N,
 			Addr:           bindAddr,
 			WriteTimeout:   15 * time.Second,
-			ReadTimeout:    5 * time.Second,
+			ReadTimeout:    20 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
 		repositories: repositoryAPI,
