@@ -67,6 +67,11 @@ func EncryptPackage(profile license.EncryptionProfile, inputPath string, outputP
 		return encryptionError("Unable to encrypt file")
 	}
 
+	err = writer.Close()
+	if err != nil {
+		return encryptionError("Unable to close the writer")
+	}
+
 	// calculate the output file size and checksum
 	hasher := sha256.New()
 	outputFile.Seek(0, 0)
