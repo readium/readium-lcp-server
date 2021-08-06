@@ -7,13 +7,28 @@ package encrypt
 import (
 	"fmt"
 	"testing"
+
+	"github.com/readium/readium-lcp-server/license"
 )
 
-func TestEncrypt(t *testing.T) {
+func TestEncryptEPUB(t *testing.T) {
 
 	inputPath := "../../test/samples/sample.epub"
 	outputPath := "../../test/samples/sample-encrypted.epub"
 	result, err := EncryptEpub(inputPath, outputPath)
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	fmt.Printf("output: %s size %d\n", result.Path, result.Size)
+
+}
+
+func TestEncryptRPF(t *testing.T) {
+
+	inputPath := "../../test/samples/tst-features.divina"
+	outputPath := "../../test/samples/tst-features-encrypted.divina"
+	result, err := EncryptPackage(license.BasicProfile, inputPath, outputPath)
 	if err != nil {
 		t.Error(err.Error())
 	}
