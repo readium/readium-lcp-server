@@ -81,8 +81,8 @@ func New(
 		Server: http.Server{
 			Handler:        sr.N,
 			Addr:           bindAddr,
-			WriteTimeout:   15 * time.Second,
-			ReadTimeout:    20 * time.Second,
+			WriteTimeout:   20 * time.Second,
+			ReadTimeout:    150 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
 		repositories: repositoryAPI,
