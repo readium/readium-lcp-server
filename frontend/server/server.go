@@ -35,16 +35,16 @@ import (
 	"time"
 
 	"github.com/claudiu/gocron"
+	"github.com/endigo/readium-lcp-server/api"
+	"github.com/endigo/readium-lcp-server/config"
+	staticapi "github.com/endigo/readium-lcp-server/frontend/api"
+	"github.com/endigo/readium-lcp-server/frontend/webdashboard"
+	"github.com/endigo/readium-lcp-server/frontend/weblicense"
+	"github.com/endigo/readium-lcp-server/frontend/webpublication"
+	"github.com/endigo/readium-lcp-server/frontend/webpurchase"
+	"github.com/endigo/readium-lcp-server/frontend/webrepository"
+	"github.com/endigo/readium-lcp-server/frontend/webuser"
 	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/config"
-	staticapi "github.com/readium/readium-lcp-server/frontend/api"
-	"github.com/readium/readium-lcp-server/frontend/webdashboard"
-	"github.com/readium/readium-lcp-server/frontend/weblicense"
-	"github.com/readium/readium-lcp-server/frontend/webpublication"
-	"github.com/readium/readium-lcp-server/frontend/webpurchase"
-	"github.com/readium/readium-lcp-server/frontend/webrepository"
-	"github.com/readium/readium-lcp-server/frontend/webuser"
 )
 
 //Server struct contains server info and  db interfaces

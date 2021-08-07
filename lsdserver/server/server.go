@@ -12,10 +12,10 @@ import (
 	"github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/license_statuses"
-	"github.com/readium/readium-lcp-server/lsdserver/api"
-	"github.com/readium/readium-lcp-server/transactions"
+	"github.com/endigo/readium-lcp-server/api"
+	"github.com/endigo/readium-lcp-server/license_statuses"
+	"github.com/endigo/readium-lcp-server/lsdserver/api"
+	"github.com/endigo/readium-lcp-server/transactions"
 )
 
 type Server struct {

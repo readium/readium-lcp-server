@@ -42,17 +42,22 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/index"
-	lcpserver "github.com/readium/readium-lcp-server/lcpserver/server"
-	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/pack"
-	"github.com/readium/readium-lcp-server/storage"
+	"github.com/endigo/readium-lcp-server/config"
+	"github.com/endigo/readium-lcp-server/index"
+	lcpserver "github.com/endigo/readium-lcp-server/lcpserver/server"
+	"github.com/endigo/readium-lcp-server/license"
+	"github.com/endigo/readium-lcp-server/pack"
+	"github.com/endigo/readium-lcp-server/storage"
 )
 
 func dbFromURI(uri string) (string, string) {
+	var driver string
 	parts := strings.Split(uri, "://")
-	return parts[0], parts[1]
+	if driver = parts[0]; driver == "postgres" {
+		// lib/pq requires full postgres connection string
+		return driver, uri
+	}
+	return driver, parts[1]
 }
 
 func main() {

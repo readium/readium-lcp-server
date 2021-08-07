@@ -16,22 +16,27 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/abbot/go-http-auth"
+	auth "github.com/abbot/go-http-auth"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/license_statuses"
-	"github.com/readium/readium-lcp-server/localization"
-	"github.com/readium/readium-lcp-server/logging"
-	"github.com/readium/readium-lcp-server/lsdserver/server"
-	"github.com/readium/readium-lcp-server/transactions"
+	"github.com/endigo/readium-lcp-server/config"
+	licensestatuses "github.com/endigo/readium-lcp-server/license_statuses"
+	"github.com/endigo/readium-lcp-server/localization"
+	"github.com/endigo/readium-lcp-server/logging"
+	lsdserver "github.com/endigo/readium-lcp-server/lsdserver/server"
+	"github.com/endigo/readium-lcp-server/transactions"
 )
 
 func dbFromURI(uri string) (string, string) {
+	var driver string
 	parts := strings.Split(uri, "://")
-	return parts[0], parts[1]
+	if driver = parts[0]; driver == "postgres" {
+		// lib/pq requires full postgres connection string
+		return driver, uri
+	}
+	return driver, parts[1]
 }
 
 func main() {

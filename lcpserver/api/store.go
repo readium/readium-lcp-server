@@ -14,15 +14,21 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/gorilla/mux"
 
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/index"
-	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/pack"
-	"github.com/readium/readium-lcp-server/problem"
-	"github.com/readium/readium-lcp-server/storage"
+	"github.com/endigo/readium-lcp-server/api"
+	"github.com/endigo/readium-lcp-server/index"
+	"github.com/endigo/readium-lcp-server/license"
+	"github.com/endigo/readium-lcp-server/pack"
+	"github.com/endigo/readium-lcp-server/problem"
+	"github.com/endigo/readium-lcp-server/storage"
 )
 
 // Server groups functions used by the lcp server
@@ -243,6 +249,15 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 // getAndOpenFile opens a file from a path, or downloads then opens it if its location is a URL
 func getAndOpenFile(filePathOrURL string) (*os.File, error) {
 
+	isS3, err := isS3Link(filePathOrURL)
+	if err != nil {
+		return nil, err
+	}
+
+	if isS3 {
+		return downloadFromS3AndOpen(filePathOrURL)
+	}
+
 	HTTPOrHTTPS, err := isHTTPOrHTTPS(filePathOrURL)
 	if err != nil {
 		return nil, err
@@ -268,6 +283,43 @@ func downloadAndOpenFile(url string) (*os.File, error) {
 	return os.Open(fileName)
 }
 
+func downloadFromS3AndOpen(url string) (*os.File, error) {
+	file, _ := ioutil.TempFile("", "")
+	fileName := file.Name()
+
+	accessKeyID := os.Getenv("AWS_S3_KEY")
+	secretAccessKey := os.Getenv("AWS_S3_SECRET")
+
+	fmt.Println("ACCESS_KEY_ID", accessKeyID, "AWS_ACCESS_SECRET_KEY", secretAccessKey)
+
+	awsConfig := &aws.Config{
+		Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
+		// Endpoint:         aws.String(os.Getenv("AWS_ENDPOINT_URL")),
+		Region:           aws.String(os.Getenv("AWS_REGION")),
+		DisableSSL:       aws.Bool(true),
+		S3ForcePathStyle: aws.Bool(true),
+	}
+
+	sess, _ := session.NewSession(awsConfig)
+
+	downloader := s3manager.NewDownloader(sess)
+	url = strings.ReplaceAll(url, "s3://", "")
+	bucketName := strings.Split(url, "/")[0]
+	objectKey := strings.ReplaceAll(url, bucketName+"/", "")
+
+	_, err := downloader.Download(file,
+		&s3.GetObjectInput{
+			Bucket: aws.String(bucketName),
+			Key:    aws.String(objectKey),
+		})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return os.Open(fileName)
+}
+
 func isHTTPOrHTTPS(filePathOrURL string) (bool, error) {
 	url, err := url.Parse(filePathOrURL)
 	if err != nil {
@@ -275,6 +327,15 @@ func isHTTPOrHTTPS(filePathOrURL string) (bool, error) {
 	}
 
 	return url.Scheme == "http" || url.Scheme == "https", nil
+}
+
+func isS3Link(filePathOrURL string) (bool, error) {
+	url, err := url.Parse(filePathOrURL)
+	if err != nil {
+		return false, errors.New("Error parsing input file")
+	}
+
+	return url.Scheme == "s3", nil
 }
 
 func downloadFile(url string, targetFilePath string) error {

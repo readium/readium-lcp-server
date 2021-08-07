@@ -1,39 +1,38 @@
-Readium LCP Server
-==================
+# Readium LCP Server
 
-Documentation
-============
-As a retailer, public library or specialized e-distributor, you are distributing EPUB and PDF files and you want them protected against oversharing by the Readium LCP DRM. Your distribution platform already handles publications, users and the purchases / loans and you can develop a REST interface between this platform and a License server. If you are in this situation, the open-source codebase is what you need. 
+# Documentation
+
+As a retailer, public library or specialized e-distributor, you are distributing EPUB and PDF files and you want them protected against oversharing by the Readium LCP DRM. Your distribution platform already handles publications, users and the purchases / loans and you can develop a REST interface between this platform and a License server. If you are in this situation, the open-source codebase is what you need.
 
 Using the Readium LCP Server you can:
-* Encrypt your entire catalog of EPUB and PDF files and make these files ready for download from any LCP compliant user agents;
-* Generate LCP licenses on the fly from your distribution platform, which will deliver them to the proper users and user agents;
-* Let users request a loan extension or make an early loan return;
-* Cancel a license in case a user has declared he wasn't able to user it (usually because he does not use an LCP compliant reading application);
-* Revoke a license in case a user has overshared it. 
- 
+
+- Encrypt your entire catalog of EPUB and PDF files and make these files ready for download from any LCP compliant user agents;
+- Generate LCP licenses on the fly from your distribution platform, which will deliver them to the proper users and user agents;
+- Let users request a loan extension or make an early loan return;
+- Cancel a license in case a user has declared he wasn't able to user it (usually because he does not use an LCP compliant reading application);
+- Revoke a license in case a user has overshared it.
+
 Detailed documentation can be found in the [Wiki pages](../../wiki) of the project.
 
-Prerequisites
-=============
+# Prerequisites
 
-No binaries are currently pre-built, so you need to get a working Golang installation. 
+No binaries are currently pre-built, so you need to get a working Golang installation.
 Please refer to the official documentation for installation procedures at https://golang.org/.
 
-Install *go 1.13* or higher.
+Install _go 1.13_ or higher.
 
-The servers require the setup of an SQL Database. 
+The servers require the setup of an SQL Database.
 
-- SQLite is sufficient for most needs. If the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. SQLite database creation scripts are provided in the "dbmodel" folder in case they are useful. 
--  MySQL database creation scripts are provided as well in the "dbmodel" folder. These scripts should be run before launching the servers for the first time. 
+- SQLite is sufficient for most needs. If the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. SQLite database creation scripts are provided in the "dbmodel" folder in case they are useful.
+- MySQL database creation scripts are provided as well in the "dbmodel" folder. These scripts should be run before launching the servers for the first time.
 
-We expect other drivers (PostgresQL ...) to be provided by the community. Some developers have deployed MS SQL Server, but the corresponding scripts were not provided so far. 
+We expect other drivers (PostgresQL ...) to be provided by the community. Some developers have deployed MS SQL Server, but the corresponding scripts were not provided so far.
 
-A major revision of the software will feature an ORM (Object Realtional Mapper), but it is still unsufficiently tested to be moved to the master branch. 
+A major revision of the software will feature an ORM (Object Realtional Mapper), but it is still unsufficiently tested to be moved to the master branch.
 
 Your platform must be able to handle:
 
-1/ the license server, active in your intranet, not accessible from the Web, only accessible from you frontend server via its REST API. 
+1/ the license server, active in your intranet, not accessible from the Web, only accessible from you frontend server via its REST API.
 
 2/ the license status server, accessible from the Web via its REST API.
 
@@ -43,140 +42,190 @@ You must obtain a X.509 certificate and confidential crypto information through 
 
 A folder publicly accessible from the Web must be made available for the server to store encrypted files.
 
-Executables
-===========
+# Executables
+
 The server software is composed of three independant parts:
 
-## [lcpencrypt]  
+## [lcpencrypt]
 
-A command line utility for content encryption. This utility can be included in any processing pipeline. 
+A command line utility for content encryption. This utility can be included in any processing pipeline.
 
 lcpencrypt:
-* Takes an unprotected publication as input and generates an encrypted file as output.
-* Notifies the License server of the generation of the encrypted file.
+
+- Takes an unprotected publication as input and generates an encrypted file as output.
+- Notifies the License server of the generation of the encrypted file.
 
 ## [lcpserver]
 
 A License server, which implements Readium Licensed Content Protection 1.0.
 
 Private functionalities (authentication needed):
-* Store the data resulting from an external encryption
-* Generate a license
-* Generate a protected publication
-* Update the rights associated with a license
-* Get a set of licenses
-* Get a license
+
+- Store the data resulting from an external encryption
+- Generate a license
+- Generate a protected publication
+- Update the rights associated with a license
+- Get a set of licenses
+- Get a license
 
 ## [lsdserver]
 
 A License Status server, which implements Readium License Status Document 1.0.
 
 Public functionalities (accessible from the web):
-* Return a license status document
-* Process a device registration
-* Process a lending return
-* Process a lending renewal
+
+- Return a license status document
+- Process a device registration
+- Process a lending return
+- Process a lending renewal
 
 Private functionalities (authentication needed):
-* Create a license status document
-* Filter licenses
-* List all registered devices for a given licence
-* Revoke/cancel a license
 
+- Create a license status document
+- Filter licenses
+- List all registered devices for a given licence
+- Revoke/cancel a license
 
 ## [frontend]
 
-A Test Frontend server, which mimics your own frontend platform (e.g. bookselling website), with a GUI and its own REST API. Its sole goal is to help you test the License and License status servers. 
+A Test Frontend server, which mimics your own frontend platform (e.g. bookselling website), with a GUI and its own REST API. Its sole goal is to help you test the License and License status servers.
 
 Public functionalities (accessible from the web):
-* Fetch a license from its id
-* Fetch a licensed publication from the license id
 
+- Fetch a license from its id
+- Fetch a licensed publication from the license id
 
-Install
-=======
+# Install
 
 Assuming a working Go installation and a properly set $GOPATH, the following will install the four executables that constitute a complete Readium LCP Server.
 
 On Linux and MacOS:
 
 If you want to use the master branch:
+
 ```sh
 # from the go workspace
 cd $GOPATH
 # fetch, build and install the different packages and their dependencies
-go get -v github.com/readium/readium-lcp-server/...
+go get -v github.com/endigo/readium-lcp-server/...
 ```
 
-Warning: Go has a funny 3-dots syntax, and you really have to type "/..." at the end of the line. 
+<<<<<<< HEAD
+Alternatively, if you want to use a feature/F branch:
 
-You should now find the generated Go binaries in $GOPATH/bin: 
+=======
+Warning: Go has a funny 3-dots syntax, and you really have to type "/..." at the end of the line.
+
+You should now find the generated Go binaries in $GOPATH/bin:
 
 - `lcpencrypt`: the command line encryption tool,
 - `lcpserver`: the license server,
 - `lsdserver`: the status document server,
-- `frontend`: a test application (Test Frontend Server) which mimics your content management system. 
+- `frontend`: a test application (Test Frontend Server) which mimics your content management system.
 
 Alternatively, if you want to use a feature branch:
+
+> > > > > > > 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
+
 ```sh
 # from the go workspace
 cd $GOPATH
 # clone the repo, selecting the feature/F branch
+<<<<<<< HEAD
+git clone -b feature/F https://github.com/endigo/readium-lcp-server.git src/github.com/endigo/readium-lcp-server
+=======
 git clone -b <feature-branch> https://github.com/readium/readium-lcp-server.git src/github.com/readium/readium-lcp-server
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
 # then fetch, build and install the different packages and their dependencies
-go get -v github.com/readium/readium-lcp-server/...
-````
+go get -v github.com/endigo/readium-lcp-server/...
+```
 
-You may prefer to install only some of the executables. 
-In such a case, the "go get" command should be called once for each package, e.g. for the lcpserver from the master branch:
+<<<<<<< HEAD
+Warning: Go has a funny 3-dots syntax, and you really have to type "/..." at the end of the line.
+
+# You may prefer to install only some of the three executables.
+
+You may prefer to install only some of the executables.
+
+> > > > > > > 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
+> > > > > > > In such a case, the "go get" command should be called once for each package, e.g. for the lcpserver from the master branch:
+
 ```sh
 cd $GOPATH
-go get -v github.com/readium/readium-lcp-server/lcpserver
+go get -v github.com/endigo/readium-lcp-server/lcpserver
 ```
 
 To install properly the Test Frontend Server, you must also install several npm packages.
 
-Note: use a modern version of npm, e.g. npm 6.12.0 or higher. 
+<<<<<<< HEAD
+Move to $GOPATH/src/github.com/endigo/readium-lcp-server/frontend/manage
+To install the packages and test your install, type
+
+=======
+Note: use a modern version of npm, e.g. npm 6.12.0 or higher.
 
 To install the npm packages, type:
+
+> > > > > > > 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
+
 ```sh
-cd $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
+cd $GOPATH/src/github.com/endigo/readium-lcp-server/frontend/manage
 npm install
+<<<<<<< HEAD
+npm start
+```
+
+=======
+
 ````
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
 
 On Windows 10:
 
-You must first install a GCC compiler in order to compile the SQLite module and to move later to "production mode". [TDM-GCC](http://tdm-gcc.tdragon.net/download) gives great results. 
+You must first install a GCC compiler in order to compile the SQLite module and to move later to "production mode". [TDM-GCC](http://tdm-gcc.tdragon.net/download) gives great results.
 
-Also, in the previous instructions, replace: 
+Also, in the previous instructions, replace:
 
-* $GOPATH with %GOPATH%
-* forward slashes with backslashes in paths.
+- $GOPATH with %GOPATH%
+- forward slashes with backslashes in paths.
 
-Configuration
-==============
+# Configuration
 
+<<<<<<< HEAD
+The server is controlled by a yaml configuration file (e.g. "config.yaml").
+=======
 ## Environment variables
 
-The server is controlled by a yaml configuration file (e.g. "config.yaml") stored in a convenient folder, eg. `/usr/local/var/lcp`.  
+The server is controlled by a yaml configuration file (e.g. "config.yaml") stored in a convenient folder, eg. `/usr/local/var/lcp`.
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
 
 The License Server, License Status Server and Frontend test server will search their configuration file in the go bin directory by default; but the path to the file should be changed using an environment variable:
 
-* `READIUM_LCPSERVER_CONFIG` for the License server
-* `READIUM_LSDSERVER_CONFIG` for the License Status server
-* `READIUM_FRONTEND_CONFIG` for the Frontend test server
+- `READIUM_LCPSERVER_CONFIG` for the License server
+- `READIUM_LSDSERVER_CONFIG` for the License Status server
+- `READIUM_FRONTEND_CONFIG` for the Frontend test server
 
-The value of the each global variable is an absolute path to the configuration file for the given server. The three servers may share the same configuration file (useful if they are executed on the same server) or each server may get its own configuration file; this is your choice. 
+The value of the each global variable is an absolute path to the configuration file for the given server. The three servers may share the same configuration file (useful if they are executed on the same server) or each server may get its own configuration file; this is your choice.
 
+<<<<<<< HEAD
+The three servers may share the same configuration file (if they are both executed on the same server) or they may have their own configuration file.
+=======
 ## Password file
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
 
 The LCP and LSD servers also require authenticated API requests for some of their functionalities. A password file formatted as an Apache "htpasswd" file is used for such authentication data. The htpasswd file format is of the form:
 
+<<<<<<< HEAD
+An example of password file generator is found [here](http://www.htaccesstools.com/htpasswd-generator/).
+The htpasswd file format is e.g.:
+
+=======
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
 ```sh
 	User:$apr1$OMWGq53X$Qf17b.ezwEM947Vrr/oTh0
 ```
 
-An example of password file generator is found [here](http://www.htaccesstools.com/htpasswd-generator/). 
+An example of password file generator is found [here](http://www.htaccesstools.com/htpasswd-generator/).
 
 The password file may be shared between the LCP and LSD servers if the same credentials are used for both. The exact location and name of the file have no importance, as it will be referenced from the configuration file; but we recommand to name it `htpasswd` and place this file in the same folder as the configuration file, eg. `/usr/local/var/lcp`.
 
@@ -184,19 +233,26 @@ The password file may be shared between the LCP and LSD servers if the same cred
 
 The LCP server requires an X509 certificate and its associated private key. The exact location and name of these files have no importance, as they will be referenced from the configuration file; but we recommand to keep the file name of the file provided by EDRLAb and place these files in a subfolder of the previous one, eg. `/usr/local/var/lcp/cert`.
 
-A test certificate (`cert-edrlab-test.pem`) and private key (`privkey-edrlab-test.pem`) are provided in the `test/cert` directory of the project. These files are be used as long as the LCP server is configured in test mode (`profile` = `basic`). They are replaced by a provider specific certificate and private key when the server is moved to its production mode. 
+A test certificate (`cert-edrlab-test.pem`) and private key (`privkey-edrlab-test.pem`) are provided in the `test/cert` directory of the project. These files are be used as long as the LCP server is configured in test mode (`profile` = `basic`). They are replaced by a provider specific certificate and private key when the server is moved to its production mode.
 
 ## Quick-start configuration
 
 A quick-start configuration meant only for test purposes is available in `test/config.yaml`. This file includes a default configuration for the the LCP, LSD and frontend servers.
 
 1. Create a LCP_HOME folder, eg. `/usr/local/var/lcp`
-2. Copy the `test/config.yaml` file into LCP_HOME 
+<<<<<<< HEAD
+2. Create the sub-folders `db`, `files`, `files/encrypted` and `files/master` in LCP_HOME
+3. Copy the folder `test/cert` and the newly generated `htpasswd` files to LCP_HOME
+4. Copy the `test/config.yaml` file into `$GOPATH/bin`, or setup the `READIUM_*_CONFIG` env variables
+5. Replace any occurrence of `<LCP_HOME>` in config.yaml by the absolute path to the LCP_HOME folder
+=======
+2. Copy the `test/config.yaml` file into LCP_HOME
 3. Replace any occurrence of `<LCP_HOME>` in config.yaml with the absolute path to the LCP_HOME folder
 4. Setup the `READIUM_*_CONFIG` env variables, which must reference the configuration file
 5. Generate a password file and place it into LCP_HOME
 6. Create `cert`, `db`, `files/storage` folders in LCP_HOME
 7. Copy the test certificate, test private key into the `cert` subfolder of LCP_HOME
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
 
 ## Individual server configurations
 
@@ -204,64 +260,94 @@ Here are the details about the configuration properties of each server. In the s
 
 ### License Server
 
+<<<<<<< HEAD
+`profile`: value of the LCP profile; values are:
+
+- `basic` (default value, as described in the Readium LCP specification, used for tests only);
+- `1.0` (i.e. the current production profile, managed by EDRLab).
+=======
 `profile`: value of the LCP profile; allowed values are:
 - `basic`: default value, as described in the Readium LCP specification, used for tests only
 - `1.0`: the current production profile, created by EDRLab.
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
 
 `lcp` section: parameters associated with the License Server.
+
 - `host`: the public server hostname, `hostname` by default
 - `port`: the listening port, `8989` by default
-- `public_base_url`: the public base URL, used by the license status server and the frontend test server to communicate with this server; combination of the host and port values on http by default, which is sufficient as the license server should not be visible from the Web.  
+- `public_base_url`: the public base URL, used by the license status server and the frontend test server to communicate with this server; combination of the host and port values on http by default, which is sufficient as the license server should not be visible from the Web.
 - `database`: the URI formatted connection string to the database, `sqlite3://file:lcp.sqlite?cache=shared&mode=rwc` by default
-- `auth_file`: mandatory; the path to the password file introduced above. 
+<<<<<<< HEAD
+- `auth_file`: mandatory; the authentication file (an .htpasswd). Passwords must be encrypted using MD5.
+
+Note: It may be practical to put the authentication file in the configuration folder ("lcpconfig" in the samples below).
+=======
+- `auth_file`: mandatory; the path to the password file introduced above.
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
 
 `storage` section: parameters related to the storage of encrypted publications.
+
 - `mode` : optional. Possible values are "local" (default value) and "s3".
 
 If `mode` value is `s3`:
+
 - `endpoint` (optional): name of the target S3 endpoint, if one is defined in the AWS S3 setup.
 - `region` (required): name of the target AWS region.
 - `bucket` (required): name of the target S3 bucket.
 
-If the storage is an S3 bucket, client credentials default to a chain of credential providers, searched in environment variables and a shared credential file. See [Setting up an S3 Storage](https://github.com/readium/readium-lcp-server/wiki/Setting-up-an-S3-storage) for details. 
+If the storage is an S3 bucket, client credentials default to a chain of credential providers, searched in environment variables and a shared credential file. See [Setting up an S3 Storage](https://github.com/endigo/readium-lcp-server/wiki/Setting-up-an-S3-storage) for details.
 
 Alternatively (and this is not recommended!), credentials can be stored in clear in the configuration file:
+
 - `access_id`: value of the AWS access key id.
 - `secret`: value of the AWS secret access key.
 
 If `mode` value is NOT `s3`:
-- `filesystem` subsection: parameters related to a file system storage.   
-  - `directory`: absolute path to the directory in which the encrypted publications are stored. In production, this directory must be accessible from the Web via the URL defined in `license/links/publication` (see below) 
-  This storage must be accessible from the Web via a simple URL, specified via the `license/publication` parameter.
 
-`certificate` section:	parameters related to the signature of licenses: 	
-- `cert`: the path to provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature. 
-- `private_key`: the path to the private key (.pem) asociated with the certificate. It will be used for signing licenses. 
+<<<<<<< HEAD
+- `filesystem` subsection: parameters related to a file system storage.
+  - `directory`: absolute path to the directory in which the encrypted publications are stored. In production, this directory must be accessible from the Web via the URL defined in `license/links/publication` (see below)
+    This storage must be accessible from the Web via a simple URL, specified via the `license/publication` parameter.
+
+`certificate` section: parameters related to the signature of licenses:
+
+- `cert`: the provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature. A test certificate is provided in the test/cert directory of the project (`cert-edrlab-test.pem`).
+- `private_key`: the private key (.pem). It will be used for signing licenses. A test private key is provided in the test/cert directory of the project (`privkey-edrlab-test.pem`).
+
+Note: It may be practical to put these files in the configuration folder ("lcpconfig" in the samples below).
+=======
+`certificate` section:	parameters related to the signature of licenses:
+- `cert`: the path to provider certificate file (.pem or .crt). It will be inserted in the licenses and used by clients for checking the signature.
+- `private_key`: the path to the private key (.pem) asociated with the certificate. It will be used for signing licenses.
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
 
 `license` section: parameters related to static information to be included in all licenses generated by the License Server:
+
 - `links`: subsection: links that will be included in all licenses. `hint` and `publication` links are required in a Readium LCP license.
-  If no such link exists in the partial license passed from the frontend when a new license his requested, 
-  these link values will be inserted in the partial license.  
-  If no value is present in the configuration file and no value is inserted in the partial license, 
+  If no such link exists in the partial license passed from the frontend when a new license his requested,
+  these link values will be inserted in the partial license.
+  If no value is present in the configuration file and no value is inserted in the partial license,
   the License server will reply with a 500 Server Error at license creation.
   The sub-properties of the `links` section are:
-  - `hint`: required; location where a Reading System can redirect a User looking for additional information about the User Passphrase. 
-  - `publication`: optional, templated URL; 
-    location where the encrypted Publication associated with the License Document will be downloaded from the Web. 
+  - `hint`: required; location where a Reading System can redirect a User looking for additional information about the User Passphrase.
+  - `publication`: optional, templated URL;
+    location where the encrypted Publication associated with the License Document will be downloaded from the Web.
     This access point corresponds to the directory where encrypted publications are stored by the License Server (see `storage/filesystem/directory`).
-    To expose this storage directory on the Web, the provider may decide to install a reverse-proxy, use a Web drive, use a CDN etc. This is a deployment choice which has nothing to do with this open-source projet.  
-    During initial tests (before the License Server is hidden from the Web), this URL may simply be the one described described [here](https://github.com/readium/readium-lcp-server/wiki/LCP-License-Server-API#fetch-an-encrypted-publication). 
+    To expose this storage directory on the Web, the provider may decide to install a reverse-proxy, use a Web drive, use a CDN etc. This is a deployment choice which has nothing to do with this open-source projet.
+    During initial tests (before the License Server is hidden from the Web), this URL may simply be the one described described [here](https://github.com/endigo/readium-lcp-server/wiki/LCP-License-Server-API#fetch-an-encrypted-publication).
     The publication (alias content) identifier is inserted in the URL via the variable {publication_id}.
-    Note that this is working because the file name of the stored encrypted publications is simply their publication identifier. 
+    Note that this is working because the file name of the stored encrypted publications is simply their publication identifier.
   - `status`: optional, templated URL; location of the Status Document associated with a License Document.
     The license identifier is inserted via the variable {license_id}.
 
-`lsd_notify_auth` section: authentication parameters used by the License Server for notifying the License Status Server 
+`lsd_notify_auth` section: authentication parameters used by the License Server for notifying the License Status Server
 of a license generation. The notification endpoint is configured in the `lsd` section.
+
 - `username`: mandatory, authentication username
 - `password`: mandatory, authentication password
 
 Here is a License Server sample config (assuming the License Status Server is using the 'basic' LCP profile, is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
+
 ```json
 profile: "basic"
 lcp:
@@ -278,13 +364,13 @@ certificate:
     private_key: "<LCP_HOME>/cert/privkey.pem"
 license:
     links:
-        status: "http://127.0.0.1:8990/licenses/{license_id}/status"     
+        status: "http://127.0.0.1:8990/licenses/{license_id}/status"
         hint: "http://127.0.0.1:8991/static/hint.html"
-        publication: "http://127.0.0.1:8989/contents/{publication_id}" 
+        publication: "http://127.0.0.1:8989/contents/{publication_id}"
 
 lsd:
     public_base_url:  "http://127.0.0.1:8990"
-lsd_notify_auth: 
+lsd_notify_auth:
     username: "adm_username"
     password: "adm_password"
 
@@ -292,27 +378,35 @@ lsd_notify_auth:
 
 ### License Status Server
 
-`lsd` section: parameters associated with the License Status Server. 
+`lsd` section: parameters associated with the License Status Server.
+
 - `host`: the public server hostname, `hostname` by default
 - `port`: the listening port, `8990` by default
 - `public_base_url`: the public base URL, used by the license server and the frontend test server to communicate with this server; combination of the host and port values on http by default; as this server is exposed on the Web in production, a domain name should be present in the URL.
 - `database`: the URI formatted connection string to the database, `sqlite3://file:lsd.sqlite?cache=shared&mode=rwc` by default
-- `auth_file`: mandatory; the path to the password file introduced above. 
+- `auth_file`: mandatory; the path to the password file introduced above.
 
-- `license_link_url`: mandatory; the url template representing the url from which a license can be fetched from the provider's frontend server. This url will be inserted in the 'license' link of every status document. It must be the url of a server acting as a proxy between the user request and the License Server. Such proxy is mandatory, as the License Server  does not possess user information needed to craft a license from its identifier. If the test frontend server is used as a proxy, the url must be of the form "http://<frontend-server-url>/api/v1/licenses/{license_id}" (note the /api/v1 section).
+- `license_link_url`: mandatory; the url template representing the url from which a license can be fetched from the provider's frontend server. This url will be inserted in the 'license' link of every status document. It must be the url of a server acting as a proxy between the user request and the License Server. Such proxy is mandatory, as the License Server does not possess user information needed to craft a license from its identifier. If the test frontend server is used as a proxy, the url must be of the form "http://<frontend-server-url>/api/v1/licenses/{license_id}" (note the /api/v1 section).
 
 `license_status` section: parameters related to the interactions implemented by the License Status server, if any:
-- `renting_days`: maximum number of days allowed for a loan, from the date the loan starts. If set to 0 or absent, no loan renewal is possible. 
-- `renew`: boolean; if `true`, the renewal of a loan is possible. 
+
+- `renting_days`: maximum number of days allowed for a loan, from the date the loan starts. If set to 0 or absent, no loan renewal is possible.
+- `renew`: boolean; if `true`, the renewal of a loan is possible.
 - `renew_days`: default number of additional days allowed during a renewal.
-- `return`: boolean; if `true`, an early return is possible.  
+- `return`: boolean; if `true`, an early return is possible.
 - `register`: boolean; if `true`, registering a device is possible.
 - `renew_page_url`: URL; if set, the renew feature is implemented as an HTML page, using this URL. This is mostly useful for testing client applications.
 
 `lcp_update_auth` section: authentication parameters used by the License Status Server for updating a license via the License Server. The notification endpoint is configured in the `lcp` section.
+
 - `username`: mandatory, authentication username
 - `password`: mandatory, authentication password
 
+<<<<<<< HEAD
+`goofy_mode` property: it is really useful to test client apps for their resilience to errors issued by a License server, e.g. a registration error. This boolean property (true/false) (false by default) will trigger the License Status Server to a mode where errors occure. Currently, only the registration error use case is programmed; other errors will be added later.
+
+=======
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
 Here is a License Status Server sample config (assuming the License Status Server is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
 
 ```json
@@ -332,26 +426,27 @@ license_status:
 
 lcp:
   public_base_url:  "http://127.0.0.1:8989"
-lcp_update_auth: 
+lcp_update_auth:
     username: "adm_username"
     password: "adm_password"
 ```
 
 ### Frontend Server
 
-`frontend` section: parameters associated with the Test Frontend Server. 
+`frontend` section: parameters associated with the Test Frontend Server.
+
 - `host`: the public server hostname, `hostname` by default
 - `port`: the listening port, `8991` by default
-- `public_base_url`: the public base URL, used to access the frontend UI; combination of the host and port values on http by default 
+- `public_base_url`: the public base URL, used to access the frontend UI; combination of the host and port values on http by default
 - `database`: the URI formatted connection string to the database, `sqlite3://file:frontend.sqlite?cache=shared&mode=rwc` by default
-- `master_repository`: repository where the uploaded EPUB files are stored before encryption. 
-- `encrypted_repository`: repository where the encrypted EPUB files are stored after upload. The LCP server must have access to the path declared here, as it will move each encrypted file to its final storage folder on notification of encryption from the Frontend Server. 
-- `directory`: the directory containing the client web app; by default $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage.
+- `master_repository`: repository where the uploaded EPUB files are stored before encryption.
+- `encrypted_repository`: repository where the encrypted EPUB files are stored after upload. The LCP server must have access to the path declared here, as it will move each encrypted file to its final storage folder on notification of encryption from the Frontend Server.
+- `directory`: the directory containing the client web app; by default $GOPATH/src/github.com/endigo/readium-lcp-server/frontend/manage.
 - `provider_uri`: provider uri, which will be inserted in all licenses produced via this test frontend.
 - `right_print`: allowed number of printed pages, which will be inserted in all licenses produced via this test frontend.
 - `right_copy`: allowed number of copied characters, which will be inserted in all licenses produced via this test frontend.
 
-The config file of a Test Frontend Server must also define the following properties: 
+The config file of a Test Frontend Server must also define the following properties:
 
 `lcp`
 - `public_base_url`
@@ -368,6 +463,7 @@ The config file of a Test Frontend Server must also define the following propert
 - `password`
 
 Here is a Test Frontend Server sample config:
+
 ```json
 frontend:
     host: "127.0.0.1"
@@ -383,10 +479,10 @@ lcp:
   public_base_url:  "http://127.0.0.1:8989"
 lsd:
   public_base_url:  "http://127.0.0.1:8990"
-lcp_update_auth: 
+lcp_update_auth:
     username: "adm_username"
     password: "adm_password"
-lsd_notify_auth: 
+lsd_notify_auth:
     username: "adm_username"
     password: "adm_password"
 ```
@@ -394,15 +490,28 @@ lsd_notify_auth:
 ### And for all servers
 
 `localization` section: parameters related to the localization of the messages sent by all three servers.
+
 - `languages`: array of supported localization languages
 - `folder`: point to localization file (a .json)
 - `default_language`: default language for localization
 
 NOTE: the localization file names (ex: 'en-US.json, de-DE.json') must match the set of supported localization languages.
 
-NOTE: a CBC / GCM configurable property has been DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
+NOTE: a CBC / GCM configurable property has been DISABLED, see https://github.com/endigo/readium-lcp-server/issues/109
 "aes256_cbc_or_gcm": either "GCM" or "CBC" (which is the default value). This is used only for encrypting publication resources, not the content key, not the user key check, not the LCP license fields.
 
+<<<<<<< HEAD
+# Execution
+
+each server must be launched in a different context (i.e. a different shell for local use), from
+`$GOPATH/bin`
+
+Each server is executed with no parameter:
+
+- `./lcpserver`
+- `./lsdserver`
+- `./frontend`
+=======
 Execution
 ==========
 Each server must be launched in a different context (i.e. a different terminal for local use). If the path to the generated Go binaries ($GOPATH/bin) is properly set, each server can launched from any location:
@@ -410,11 +519,17 @@ Each server must be launched in a different context (i.e. a different terminal f
 - `lcpserver`
 - `lsdserver`
 - `frontend`
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
 
 After the frontend server has been launched, you can access the server GUI via its base url, e.g. http://127.0.0.1:8991
 
-NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended, as you won't be able to access the modules from e.g. a mobile app. It is much better to use the WiFi IPv4 address of your computer and access the server from a mobile device via WiFi.  
+<<<<<<< HEAD
+NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended, as you won't be able to access the modules from e.g. a mobile app. It's much better to use the WiFi IPv4 address to your computer, and access the server from your mobile device via WiFi.
 
-Contributing
-============
-Please make a Pull Request with tests at github.com/readium/readium-lcp-server
+# Contributing
+=======
+NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended, as you won't be able to access the modules from e.g. a mobile app. It is much better to use the WiFi IPv4 address of your computer and access the server from a mobile device via WiFi.
+>>>>>>> 3ca57ccda906cb8e4123e645a65ceed8c9d9bb6a
+
+Please make a Pull Request with tests at github.com/endigo/readium-lcp-server
+````

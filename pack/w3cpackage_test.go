@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/readium/readium-lcp-server/rwpm"
+	"github.com/endigo/readium-lcp-server/rwpm"
 )
 
 // TestMapW3CPublication tests the mapping of a W3C manifest to a Readium manifest

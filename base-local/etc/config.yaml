@@ -1,0 +1,69 @@
+# Configuration Settings for LCP servers
+# Shared configuration, all services in one file
+# Encrypted Resource type:
+#   * TODO: S3 bucket: publicly accessible folder for simple
+#     development environment (not production) -- needs work
+
+# The usernames and passwords must match the ones in the htpasswd files for each server.
+
+lcp_update_auth:
+  username: "lcp"
+  password: "secretpassword"
+
+lsd_notify_auth:
+  username: "lcp"
+  password: "secretpassword"
+
+# LCP Server
+
+profile: "basic"
+lcp:
+  host: "0.0.0.0"
+  port: 8989
+  public_base_url: "http://lcpserver:8989"
+  # database: postgres://host=database port=5432 user=postgres password=postgres dbname=lcpserver sslmode=disable
+  database: postgres://postgres:postgres@database/lcpserver?sslmode=disable
+  auth_file: "/etc/readium/htpasswd"
+storage:
+  mode: "s3"
+  bucket: "S3-BUCKET"
+  region: "us-west-2"
+certificate:
+  cert: "/etc/readium/certificate.pub"
+  private_key: "/etc/readium/certificate.pem"
+license:
+  links:
+    status: "http://lsdserver:8990/licenses/{license_id}/status"
+    hint: "http://testfrontend:8991/static/hint.html"
+    publication: "https://S3-BUCKET.s3.us-west-2.amazonaws.com/{publication_id}"
+
+# LSD Server
+
+lsd:
+  host: "0.0.0.0"
+  port: 8990
+  public_base_url: "http://lsdserver:8990"
+  # database: postgres://host=database port=5432 user=postgres password=postgres dbname=lsdserver sslmode=disable
+  database: postgres://postgres:postgres@database/lsdserver?sslmode=disable
+  auth_file: "/etc/readium/htpasswd"
+  license_link_url: "http://testfrontend:8991/api/v1/licenses/{license_id}"
+license_status:
+  register: true
+  renew: true
+  return: true
+  renting_days: 60
+  renew_days: 7
+
+# Frontend Server
+
+frontend:
+  host: "0.0.0.0"
+  port: 8991
+  public_base_url: "http://testfrontend:8991"
+  # database: postgres://host=database port=5432 user=postgres password=postgres dbname=testfrontend sslmode=disable
+  database: postgres://postgres:postgres@database/testfrontend?sslmode=disable
+  master_repository: "/opt/readium/files/raw/frontend/uploads"
+  encrypted_repository: "/opt/readium/files/encrypted"
+  provider_uri: "https://www.myprovider.org"
+  right_print: 10
+  right_copy: 2000

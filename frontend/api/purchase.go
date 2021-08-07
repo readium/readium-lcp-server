@@ -12,11 +12,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/endigo/readium-lcp-server/api"
+	"github.com/endigo/readium-lcp-server/frontend/webpurchase"
+	"github.com/endigo/readium-lcp-server/license"
+	"github.com/endigo/readium-lcp-server/problem"
 	"github.com/gorilla/mux"
-	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/frontend/webpurchase"
-	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/problem"
 
 	"github.com/Machiel/slugify"
 )
