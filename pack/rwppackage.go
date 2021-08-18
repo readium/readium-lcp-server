@@ -84,6 +84,9 @@ func (reader *RWPPReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 	// FIXME: this doesn't seem to be the best location for such zip to zip copy
 	for _, manifestLink := range reader.manifest.Links {
 		sourceFile := files[manifestLink.Href]
+		if sourceFile == nil {
+			continue
+		}
 		fw, err := zipWriter.Create(sourceFile.Name)
 		if err != nil {
 			return nil, err
