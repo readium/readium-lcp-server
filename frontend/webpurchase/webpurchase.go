@@ -21,8 +21,8 @@ import (
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webuser"
 	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/license_statuses"
-	"github.com/satori/go.uuid"
+	licensestatuses "github.com/readium/readium-lcp-server/license_statuses"
+	uuid "github.com/satori/go.uuid"
 )
 
 //ErrNotFound Error is thrown when a purchase is not found
@@ -269,7 +269,7 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
 
 	var lcpClient = &http.Client{
-		Timeout: time.Second * 5,
+		Timeout: time.Second * 10,
 	}
 	// POST the request
 	resp, err := lcpClient.Do(req)
@@ -332,7 +332,7 @@ func (pManager PurchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 	}
 	// send the request
 	var lcpClient = &http.Client{
-		Timeout: time.Second * 5,
+		Timeout: time.Second * 10,
 	}
 	resp, err := lcpClient.Do(req)
 	if err != nil {
@@ -376,7 +376,7 @@ func (pManager PurchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 	req.Header.Add("Content-Type", api.ContentType_JSON)
 
 	var lsdClient = &http.Client{
-		Timeout: time.Second * 5,
+		Timeout: time.Second * 10,
 	}
 
 	resp, err := lsdClient.Do(req)
@@ -543,7 +543,7 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 		}
 		// call the lsd server
 		var lsdClient = &http.Client{
-			Timeout: time.Second * 5,
+			Timeout: time.Second * 10,
 		}
 		resp, err := lsdClient.Do(req)
 		if err != nil {

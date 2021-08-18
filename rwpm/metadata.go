@@ -38,11 +38,10 @@ type Metadata struct {
 	Penciler    Contributors `json:"penciler,omitempty"`
 	Translator  Contributors `json:"translator,omitempty"`
 	// other descriptive metadata
-	Subject Subjects `json:"subject,omitempty"`
-	// FIXME: Duration is a float in the spec
-	Duration      int  `json:"duration,omitempty"`
-	NumberOfPages int  `json:"numberOfPages,omitempty"`
-	Abridged      bool `json:"abridged,omitempty"`
+	Subject       Subjects `json:"subject,omitempty"`
+	Duration      float32  `json:"duration,omitempty"`
+	NumberOfPages int      `json:"numberOfPages,omitempty"`
+	Abridged      bool     `json:"abridged,omitempty"`
 	// collections & series
 	BelongsTo *BelongsTo `json:"belongsTo,omitempty"`
 

@@ -6,12 +6,10 @@ package encrypt
 
 import (
 	"archive/zip"
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/readium/readium-lcp-server/crypto"
@@ -49,91 +47,94 @@ func EncryptPackage(profile license.EncryptionProfile, inputPath string, outputP
 	if err != nil {
 		return encryptionError(err.Error())
 	}
+
 	// create the encrypted package file
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
 		return encryptionError("Unable to create output file")
 	}
 	defer outputFile.Close()
+
 	// create a writer on the encrypted package
 	writer, err := reader.NewWriter(outputFile)
 	if err != nil {
 		return encryptionError("Unable to create output writer")
 	}
+
 	// encrypt resources from the input package, return the encryption key
 	encryptionKey, err := pack.Process(profile, encrypter, reader, writer)
 	if err != nil {
 		return encryptionError("Unable to encrypt file")
 	}
+
+	err = writer.Close()
+	if err != nil {
+		return encryptionError("Unable to close the writer")
+	}
+
 	// calculate the output file size and checksum
 	hasher := sha256.New()
 	outputFile.Seek(0, 0)
-	io.Copy(hasher, outputFile)
-
-	stat, err := outputFile.Stat()
+	size, err := io.Copy(hasher, outputFile)
 	if err != nil {
-		return encryptionError("Could not stat output file")
+		return encryptionError("Could not generate a hash for the file")
 	}
 
 	return EncryptionArtifact{
 		Path:          outputPath,
 		EncryptionKey: encryptionKey,
-		Size:          stat.Size(),
+		Size:          size,
 		Checksum:      hex.EncodeToString(hasher.Sum(nil)),
 	}, nil
 }
 
 // EncryptEpub generates an encrypted output file out of the input file
-// It is called from the test frontend server
+// It is called from the test frontend server; inputPath is therefore a file path.
 func EncryptEpub(inputPath string, outputPath string) (EncryptionArtifact, error) {
 
 	if _, err := os.Stat(inputPath); err != nil {
 		return encryptionError("Input file does not exist")
 	}
-	// Read file
-	buf, err := ioutil.ReadFile(inputPath)
+
+	// create a zip reader from the input path
+	zr, err := zip.OpenReader(inputPath)
 	if err != nil {
-		return encryptionError("Unable to read input file")
+		return encryptionError("Unable to open the input file")
+	}
+	defer zr.Close()
+
+	// parse the source epub
+	epubContent, err := epub.Read(&zr.Reader)
+	if err != nil {
+		return encryptionError("Error reading epub content")
 	}
 
-	// Read the epub content from the zipped buffer
-	zipReader, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
-	if err != nil {
-		return encryptionError("Invalid ZIP (EPUB) file")
-	}
-
-	epubContent, err := epub.Read(zipReader)
-	if err != nil {
-		return encryptionError("Invalid EPUB content")
-	}
-
-	// Create output file
+	// create the output file
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
 		return encryptionError("Unable to create output file")
 	}
+	defer outputFile.Close()
 
-	// Pack / encrypt the epub content, fill the output file
+	// pack / encrypt the epub content, fill the output file
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
 	_, encryptionKey, err := pack.Do(encrypter, epubContent, outputFile)
 	if err != nil {
 		return encryptionError("Unable to encrypt file")
 	}
 
-	stats, err := outputFile.Stat()
-	if err != nil || (stats.Size() <= 0) {
-		return encryptionError("Unable to stat output file")
-	}
-
+	// calculate the output file size and checksum
 	hasher := sha256.New()
-	s, err := ioutil.ReadFile(outputPath)
-	_, err = hasher.Write(s)
+	outputFile.Seek(0, 0)
+	size, err := io.Copy(hasher, outputFile)
 	if err != nil {
-		return encryptionError("Unable to build checksum")
+		return encryptionError("Could not generate a hash for the file")
 	}
 
-	checksum := hex.EncodeToString(hasher.Sum(nil))
-
-	outputFile.Close()
-	return EncryptionArtifact{outputPath, encryptionKey, stats.Size(), checksum}, nil
+	return EncryptionArtifact{
+		Path:          outputPath,
+		EncryptionKey: encryptionKey,
+		Size:          size,
+		Checksum:      hex.EncodeToString(hasher.Sum(nil)),
+	}, nil
 }

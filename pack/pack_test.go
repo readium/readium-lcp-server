@@ -27,7 +27,7 @@ func TestPacking(t *testing.T) {
 
 	// keep a raw html file for future use
 	htmlFilePath := "OPS/chapter_001.xhtml"
-	inputRes, ok := findFile(htmlFilePath, input)
+	inputRes, ok := FindFile(htmlFilePath, input)
 	if !ok {
 		t.Fatalf("Could not find %s in input", htmlFilePath)
 	}
@@ -68,7 +68,7 @@ func TestPacking(t *testing.T) {
 	}
 	output, _ := epub.Read(zr)
 
-	if res, ok := findFile("OPS/images/Moby-Dick_FE_title_page.jpg", output); !ok {
+	if res, ok := FindFile("OPS/images/Moby-Dick_FE_title_page.jpg", output); !ok {
 		t.Errorf("Could not find image")
 	} else {
 		if res.Compressed {
@@ -89,7 +89,7 @@ func TestPacking(t *testing.T) {
 		t.Errorf("Expected %s to have an original length of %d, got %d", htmlFilePath, 13877, l)
 	}
 
-	if res, ok := findFile(htmlFilePath, output); !ok {
+	if res, ok := FindFile(htmlFilePath, output); !ok {
 		t.Errorf("Could not find html file")
 	} else {
 		if !res.Compressed {

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"compress/flate"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"strings"
@@ -54,10 +53,17 @@ func Process(profile license.EncryptionProfile, encrypter crypto.Encrypter, read
 		return
 	}
 
+	// create a compressing tool
+	var buf bytes.Buffer
+	compressor, err := flate.NewWriter(&buf, flate.BestCompression)
+	if err != nil {
+		return
+	}
+
 	// loop through the resources of the source package, encrypt them if needed, copy them into the dest package
 	for _, resource := range reader.Resources() {
 		if !resource.Encrypted() && resource.CanBeEncrypted() {
-			err = encryptResource(profile, encrypter, key, resource, writer)
+			err = encryptRPFResource(compressor, profile, encrypter, key, resource, writer)
 			if err != nil {
 				log.Println("Error encrypting " + resource.Path() + ": " + err.Error())
 				return
@@ -70,14 +76,16 @@ func Process(profile license.EncryptionProfile, encrypter crypto.Encrypter, read
 		}
 	}
 
-	err = writer.Close()
+	// close the compressor
+	if err = compressor.Close(); err != nil {
+		return
+	}
 
 	return
 }
 
 // Do encrypts when necessary the resources of an EPUB package
-// Note: It calls encryptFile
-// It is currently called only for EPUB files
+// It is called for EPUB files only
 // FIXME: try to merge Process() and Do()
 func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key crypto.ContentKey, err error) {
 
@@ -88,21 +96,31 @@ func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Mani
 		return
 	}
 
+	// initialise the target publication
 	ew := epub.NewWriter(w)
 	ew.WriteHeader()
 	if ep.Encryption == nil {
 		ep.Encryption = &xmlenc.Manifest{}
 	}
 
+	// create a compressing tool
+	var buf bytes.Buffer
+	compressor, err := flate.NewWriter(&buf, flate.BestCompression)
+	if err != nil {
+		return
+	}
+
 	for _, res := range ep.Resource {
 		if _, alreadyEncrypted := ep.Encryption.DataForFile(res.Path); !alreadyEncrypted && canEncrypt(res, ep) {
-			toCompress := mustCompressBeforeEncryption(*res, ep)
-			err = encryptFile(encrypter, key, ep.Encryption, res, toCompress, ew)
+			compress := mustCompressBeforeEncryption(*res, ep)
+			// encrypt the resource after optionally compressing it
+			err = encryptEPUBResource(compressor, compress, encrypter, key, ep.Encryption, res, ew)
 			if err != nil {
 				log.Println("Error encrypting " + res.Path + ": " + err.Error())
 				return
 			}
 		} else {
+			// copy the resource as-is to the target publication
 			err = ew.Copy(res)
 			if err != nil {
 				log.Println("Error copying the file")
@@ -111,7 +129,13 @@ func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Mani
 		}
 	}
 
+	// save the encryption manifest
 	ew.WriteEncryption(ep.Encryption)
+
+	// close the compressor
+	if err = compressor.Close(); err != nil {
+		return
+	}
 
 	return ep.Encryption, key, ew.Close()
 }
@@ -141,8 +165,8 @@ func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 	return ep.CanEncrypt(file.Path)
 }
 
-// encryptResource encrypts a resource in a Readium Package
-func encryptResource(profile license.EncryptionProfile, encrypter crypto.Encrypter, key crypto.ContentKey, resource Resource, packageWriter PackageWriter) error {
+// encryptRPFResource encrypts a resource in a Readium Package
+func encryptRPFResource(compressor *flate.Writer, profile license.EncryptionProfile, encrypter crypto.Encrypter, key crypto.ContentKey, resource Resource, packageWriter PackageWriter) error {
 
 	// add the file to the package writer
 	// note: the file is stored as-is because compression, when applied, is applied *before* encryption
@@ -158,16 +182,16 @@ func encryptResource(profile license.EncryptionProfile, encrypter crypto.Encrypt
 
 	// FIXME: CompressBeforeEncryption() is currently always set to false
 	if resource.CompressBeforeEncryption() {
-		var buffer bytes.Buffer
-		deflateWriter, err := flate.NewWriter(&buffer, 9)
-		if err != nil {
+
+		// use a new buffer as target of the compressor
+		var buf bytes.Buffer
+		compressor.Reset(&buf)
+		io.Copy(compressor, resourceReader)
+		if err := compressor.Close(); err != nil {
 			return err
 		}
-
-		io.Copy(deflateWriter, resourceReader)
-		resourceReader.Close()
-		deflateWriter.Close()
-		reader = ioutil.NopCloser(&buffer)
+		// use the buffer as source of the encryption
+		reader = &buf
 	}
 
 	err = encrypter.Encrypt(key, reader, file)
@@ -180,9 +204,10 @@ func encryptResource(profile license.EncryptionProfile, encrypter crypto.Encrypt
 	return err
 }
 
-// encryptFile encrypts a file in an EPUB package
-func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, file *epub.Resource, compress bool, w *epub.Writer) error {
+// encryptEPUBResource encrypts a file in an EPUB package
+func encryptEPUBResource(compressor *flate.Writer, compress bool, encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, file *epub.Resource, w *epub.Writer) error {
 
+	// set encryption properties for the resource
 	data := xmlenc.Data{}
 	data.Method.Algorithm = xmlenc.URI(encrypter.Signature())
 	data.KeyInfo = &xmlenc.KeyInfo{}
@@ -195,11 +220,11 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 	}
 	data.CipherData.CipherReference.URI = xmlenc.URI(uri.EscapedPath())
 
+	// declare to the reading software that the content is compressed before encryption
 	method := NoCompression
 	if compress {
 		method = Deflate
 	}
-
 	data.Properties = &xmlenc.EncryptionProperties{
 		Properties: []xmlenc.EncryptionProperty{
 			{Compression: xmlenc.Compression{Method: method, OriginalLength: file.OriginalSize}},
@@ -208,33 +233,37 @@ func encryptFile(encrypter crypto.Encrypter, key []byte, m *xmlenc.Manifest, fil
 
 	m.Data = append(m.Data, data)
 
+	// by default, the source file is the source of the encryption
 	input := file.Contents
 
+	// if the content has to be compressed before encryption
 	if compress {
+		// use a new buffer as target of the compressor
 		var buf bytes.Buffer
-		deflateWriter, err := flate.NewWriter(&buf, 9)
-		if err != nil {
+		compressor.Reset(&buf)
+		io.Copy(compressor, file.Contents)
+		if err := compressor.Close(); err != nil {
 			return err
 		}
-		io.Copy(deflateWriter, file.Contents)
-		deflateWriter.Close()
-		file.ContentsSize = uint64(buf.Len())
-
-		input = ioutil.NopCloser(&buf)
+		//file.ContentsSize = uint64(buf.Len())
+		// use the buffer as source of the encryption
+		input = &buf
 	}
 
-	// note: the file is stored as-is because compression, when applied, is applied *before* encryption
+	// note: the file is stored as-is in the zip because compression, when applied, is applied before encryption
+	// and therefore *before* storage.
 	file.StorageMethod = NoCompression
 
-	fw, err := w.AddResource(file.Path, file.StorageMethod)
+	fw, err := w.AddResource(file.Path, NoCompression)
 	if err != nil {
 		return err
 	}
+	// encrypt the buffer and store the resulting resource in the target publication
 	return encrypter.Encrypt(key, input, fw)
 }
 
-// findFile finds a file in an EPUB object
-func findFile(name string, ep epub.Epub) (*epub.Resource, bool) {
+// FindFile finds a file in an EPUB object
+func FindFile(name string, ep epub.Epub) (*epub.Resource, bool) {
 
 	for _, res := range ep.Resource {
 		if res.Path == name {

@@ -115,7 +115,7 @@ func CheckPublicationByTitle(w http.ResponseWriter, r *http.Request, s IServer) 
 	var title string
 	title = r.URL.Query()["title"][0]
 
-	log.Println("Check publication stored with name " + string(title))
+	log.Println("Check the existence of a publication named " + string(title))
 
 	if pub, err := s.PublicationAPI().CheckByTitle(string(title)); err == nil {
 		enc := json.NewEncoder(w)
@@ -162,6 +162,8 @@ func CreatePublication(w http.ResponseWriter, r *http.Request, s IServer) {
 		return
 	}
 
+	log.Println("Create a publication named " + pub.Title)
+
 	// add publication
 	if err := s.PublicationAPI().Add(pub); err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
@@ -184,9 +186,12 @@ func UploadPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 		pub.UUID = r.URL.Query()["uuid"][0]
 	}
 
+	log.Println("Upload a publication named " + pub.Title)
+
 	// get the file handle
 	file, header, err := r.FormFile("file")
 	if err != nil {
+		log.Println("Error in FormFile")
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}

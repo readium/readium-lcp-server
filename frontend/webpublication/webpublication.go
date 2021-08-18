@@ -239,6 +239,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	if err != nil {
 		return err
 	}
+
 	// send the content to the LCP server
 	lcpServerConfig := pubManager.config.LcpServer
 	lcpURL := lcpServerConfig.PublicBaseUrl + "/contents/" + contentUUID
@@ -256,7 +257,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
 
 	var lcpClient = &http.Client{
-		Timeout: time.Second * 5,
+		Timeout: time.Second * 60,
 	}
 	// sends the import request to the lcp server
 	resp, err := lcpClient.Do(req)
@@ -294,6 +295,8 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 	inputPath := path.Join(
 		pubManager.config.FrontendServer.MasterRepository, pub.MasterFilename)
 
+	log.Println("Add a publication from path " + inputPath)
+
 	if _, err := os.Stat(inputPath); err != nil {
 		// the master file does not exist
 		return err
@@ -312,6 +315,8 @@ func (pubManager PublicationManager) Upload(file multipart.File, extension strin
 		return err
 	}
 	defer os.Remove(tmpfile.Name())
+
+	log.Println("Upload a publication, use a tmp file")
 
 	// copy the request payload to the temp file
 	if _, err = io.Copy(tmpfile, file); err != nil {
