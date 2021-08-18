@@ -31,15 +31,14 @@ type Publication struct {
 
 // Link object used in collections and links
 type Link struct {
-	Href      string      `json:"href"`
-	Templated bool        `json:"templated,omitempty"`
-	Type      string      `json:"type,omitempty"`
-	Title     string      `json:"title,omitempty"`
-	Rel       MultiString `json:"rel,omitempty"`
-	Height    int         `json:"height,omitempty"`
-	Width     int         `json:"width,omitempty"`
-	// FIXME: Duration is a float in the spec
-	Duration   int         `json:"duration,omitempty"`
+	Href       string      `json:"href"`
+	Templated  bool        `json:"templated,omitempty"`
+	Type       string      `json:"type,omitempty"`
+	Title      string      `json:"title,omitempty"`
+	Rel        MultiString `json:"rel,omitempty"`
+	Height     int         `json:"height,omitempty"`
+	Width      int         `json:"width,omitempty"`
+	Duration   float32     `json:"duration,omitempty"`
 	Bitrate    int         `json:"bitrate,omitempty"`
 	Properties *Properties `json:"properties,omitempty"`
 	Alternate  []Link      `json:"alternate,omitempty"`

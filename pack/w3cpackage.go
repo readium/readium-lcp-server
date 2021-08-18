@@ -295,10 +295,10 @@ func newUUID() (string, error) {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", uuid[0:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:]), nil
 }
 
-// isoDurationToSc transforms an ISO duration to a number of seconds
-func isoDurationToSc(iso string) (seconds int, err error) {
+// isoDurationToSc transforms an ISO duration to a number of seconds, as a float
+func isoDurationToSc(iso string) (seconds float32, err error) {
 	period, err := period.Parse(iso)
-	seconds = period.Hours()*3600 + period.Minutes()*60 + period.Seconds()
+	seconds = float32(period.Hours()*3600 + period.Minutes()*60 + period.Seconds())
 	return
 }
 
