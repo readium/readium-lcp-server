@@ -9,12 +9,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/abbot/go-http-auth"
+	auth "github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 
 	"github.com/readium/readium-lcp-server/api"
-	"github.com/readium/readium-lcp-server/license_statuses"
-	"github.com/readium/readium-lcp-server/lsdserver/api"
+	licensestatuses "github.com/readium/readium-lcp-server/license_statuses"
+	apilsd "github.com/readium/readium-lcp-server/lsdserver/api"
 	"github.com/readium/readium-lcp-server/transactions"
 )
 
@@ -66,6 +66,7 @@ func New(bindAddr string, readonly bool, complianceMode bool, goofyMode bool, ls
 	s.handlePrivateFunc(sr.R, licenseRoutesPathPrefix, apilsd.FilterLicenseStatuses, basicAuth).Methods("GET")
 
 	s.handleFunc(licenseRoutes, "/{key}/status", apilsd.GetLicenseStatusDocument).Methods("GET")
+	s.handleFunc(licenseRoutes, "/{key}", apilsd.GetFreshLicense).Methods("GET")
 
 	if complianceMode {
 		s.handleFunc(sr.R, "/compliancetest", apilsd.AddLogToFile).Methods("POST")

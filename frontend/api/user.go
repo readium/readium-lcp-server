@@ -32,7 +32,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/api"
+	"github.com/readium/readium-lcp-server/frontend/webpurchase"
 	"github.com/readium/readium-lcp-server/frontend/webuser"
+	apilsd "github.com/readium/readium-lcp-server/lsdserver/api"
 	"github.com/readium/readium-lcp-server/problem"
 )
 
@@ -81,7 +83,6 @@ func GetUsers(w http.ResponseWriter, r *http.Request, s IServer) {
 		w.Header().Set("Link", "</users/?page="+previousPage+">; rel=\"previous\"; title=\"previous\"")
 	}
 	w.Header().Set("Content-Type", api.ContentType_JSON)
-
 	enc := json.NewEncoder(w)
 	err = enc.Encode(users)
 	if err != nil {
@@ -99,11 +100,9 @@ func GetUser(w http.ResponseWriter, r *http.Request, s IServer) {
 		problem.Error(w, r, problem.Problem{Detail: "User ID must be an integer"}, http.StatusBadRequest)
 	}
 	if user, err := s.UserAPI().Get(int64(id)); err == nil {
+		w.Header().Set("Content-Type", api.ContentType_JSON)
 		enc := json.NewEncoder(w)
 		if err = enc.Encode(user); err == nil {
-			// send json of correctly encoded user info
-			w.Header().Set("Content-Type", api.ContentType_JSON)
-			w.WriteHeader(http.StatusOK)
 			return
 		}
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
@@ -118,6 +117,61 @@ func GetUser(w http.ResponseWriter, r *http.Request, s IServer) {
 				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 			}
 		}
+	}
+	return
+}
+
+// GetLicenseOwner retrieves a user by a license uuid he owns
+func GetLicenseOwner(w http.ResponseWriter, r *http.Request, s IServer) {
+
+	vars := mux.Vars(r)
+	licenseID := vars["license_id"]
+
+	// get the purchase related to the license
+	purchase, err := s.PurchaseAPI().GetByLicenseID(licenseID)
+	if err != nil {
+		switch err {
+		case webpurchase.ErrNotFound:
+			{
+				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+			}
+		default:
+			{
+				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			}
+		}
+	}
+
+	// get the corresponding user info
+	user, err := s.UserAPI().Get(purchase.User.ID)
+	if err != nil {
+		switch err {
+		case webuser.ErrNotFound:
+			{
+				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+			}
+		default:
+			{
+				problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			}
+		}
+	}
+
+	// map user info to a shared structure
+	userData := apilsd.UserData{}
+	userData.ID = user.UUID
+	userData.Name = user.Name
+	userData.Email = user.Email
+	userData.Hint = user.Hint
+	userData.PassphraseHash = user.Password
+
+	w.Header().Set("Content-Type", api.ContentType_JSON)
+	// json encode user info
+	enc := json.NewEncoder(w)
+	err = enc.Encode(userData)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
 	}
 	return
 }

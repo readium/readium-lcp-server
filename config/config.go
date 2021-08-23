@@ -43,6 +43,7 @@ type Configuration struct {
 	FrontendServer FrontendServerInfo `yaml:"frontend"`
 	LsdNotifyAuth  Auth               `yaml:"lsd_notify_auth"`
 	LcpUpdateAuth  Auth               `yaml:"lcp_update_auth"`
+	CMSAccessAuth  Auth               `yaml:"cms_access_auth"`
 	LicenseStatus  LicenseStatus      `yaml:"license_status"`
 	Localization   Localization       `yaml:"localization"`
 	ComplianceMode bool               `yaml:"compliance_mode"`
@@ -66,6 +67,7 @@ type ServerInfo struct {
 type LsdServerInfo struct {
 	ServerInfo     `yaml:",inline"`
 	LicenseLinkUrl string `yaml:"license_link_url,omitempty"`
+	UserDataUrl    string `yaml:"user_data_url,omitempty"`
 	LogDirectory   string `yaml:"log_directory"`
 }
 
@@ -113,8 +115,8 @@ type LicenseStatus struct {
 	Renew        bool   `yaml:"renew"`
 	Register     bool   `yaml:"register"`
 	Return       bool   `yaml:"return"`
-	RentingDays  int    `yaml:"renting_days" "default 0"`
-	RenewDays    int    `yaml:"renew_days" "default 0"`
+	RentingDays  int    `yaml:"renting_days"`
+	RenewDays    int    `yaml:"renew_days"`
 	RenewPageUrl string `yaml:"renew_page_url,omitempty"`
 }
 
