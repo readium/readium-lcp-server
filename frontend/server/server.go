@@ -83,7 +83,7 @@ func New(
 		Server: http.Server{
 			Handler:        sr.N,
 			Addr:           bindAddr,
-			WriteTimeout:   20 * time.Second,
+			WriteTimeout:   150 * time.Second,
 			ReadTimeout:    150 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
