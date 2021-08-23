@@ -78,13 +78,9 @@ func TestFetchLicense(t *testing.T) {
 
 	plic, err := initPartialLicense(LicenseID, userData)
 
-	lic, err := fetchLicense(plic)
+	_, err = fetchLicense(plic)
 	if err != nil {
 		t.Error(err.Error())
 		t.FailNow()
-	}
-
-	if lic.ID == "" {
-		t.Error("Unexpected License ID")
 	}
 }
