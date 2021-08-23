@@ -16,9 +16,11 @@ var LicenseID string = "812bbfe8-9a57-4b14-b8f3-4e0fc6e841c0"
 
 func TestGetUserData(t *testing.T) {
 
-	config.Config.LsdServer.UserDataUrl = "http://192.168.0.8:8991/api/v1/licenses/{license_id}/user"
-	config.Config.CMSAccessAuth.Username = "laurent"
-	config.Config.CMSAccessAuth.Password = "laurent"
+	// enter here a valid URL
+	config.Config.LsdServer.UserDataUrl = "http://xx.xx.xx.xx:pppp/aaaaa/{license_id}/aaaa"
+	// enter here valid credentials
+	config.Config.CMSAccessAuth.Username = "xxxxx"
+	config.Config.CMSAccessAuth.Password = "xxxxx"
 
 	log.Println("username ", config.Config.CMSAccessAuth.Username)
 
@@ -40,7 +42,7 @@ func TestInitPartialLicense(t *testing.T) {
 		Name:           "John Doe",
 		Email:          "jdoe@example.com",
 		Hint:           "Good hint",
-		PassphraseHash: "faeb00ca518bea7cb11a7ef31fb6183b489b1b6eadb792bec64a03b3f6ff80a8",
+		PassphraseHash: "faeb00ca518bea7cb11a7ef31f63183b489b1b6eadb792bec64a03b3f6ff80a8",
 	}
 
 	plic, err := initPartialLicense(LicenseID, userData)
@@ -60,16 +62,18 @@ func TestInitPartialLicense(t *testing.T) {
 
 func TestFetchLicense(t *testing.T) {
 
-	config.Config.LcpServer.PublicBaseUrl = "http://192.168.0.8:8989"
-	config.Config.LcpUpdateAuth.Username = "laurent"
-	config.Config.LcpUpdateAuth.Password = "laurent"
+	// enter here a valid URL
+	config.Config.LcpServer.PublicBaseUrl = "http://xx.xx.xx.xx:pppp"
+	// enter here valid credentials
+	config.Config.LcpUpdateAuth.Username = "xxxx"
+	config.Config.LcpUpdateAuth.Password = "xxxx"
 
 	userData := UserData{
 		ID:             "123-123-123",
 		Name:           "John Doe",
 		Email:          "jdoe@example.com",
 		Hint:           "Good hint",
-		PassphraseHash: "faeb00ca518bea7cb11a7ef31fb6183b489b1b6eadb792bec64a03b3f6ff80a8",
+		PassphraseHash: "faeb00ca518bea7cb11sdf434b6183b489b1b6eadb792bec64a03b3f6ff80a8",
 	}
 
 	plic, err := initPartialLicense(LicenseID, userData)
