@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
@@ -47,7 +48,7 @@ func GetFreshLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 	}
 
-	// get a fresh license from the License Server
+	// get a fresh license from the License Server (as []byte)
 	freshLicense, err := getLicense(licenseID)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
@@ -58,9 +59,7 @@ func GetFreshLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", api.ContentType_LCP_JSON)
 	w.Header().Set("Content-Disposition", "attachment; filename=\"license.lcpl\"")
 
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
-	err = enc.Encode(freshLicense)
+	_, err = w.Write(freshLicense)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -70,7 +69,7 @@ func GetFreshLicense(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 // GetLicense gets a fresh license from the License Server
-func getLicense(licenseID string) (lic license.License, err error) {
+func getLicense(licenseID string) (lic []byte, err error) {
 
 	// get user data from the CMS
 	var userData UserData
@@ -157,7 +156,7 @@ func initPartialLicense(licenseID string, userData UserData) (plic license.Licen
 }
 
 // fetchLicense fetches a license from the License Server
-func fetchLicense(plic license.License) (lic license.License, err error) {
+func fetchLicense(plic license.License) (lic []byte, err error) {
 	// json encode the partial license
 	jplic, err := json.Marshal(plic)
 	if err != nil {
@@ -182,8 +181,8 @@ func fetchLicense(plic license.License) (lic license.License, err error) {
 	}
 	defer resp.Body.Close()
 
-	dec := json.NewDecoder(resp.Body)
 	if resp.StatusCode != 200 {
+		dec := json.NewDecoder(resp.Body)
 		var errStatus problem.Problem
 		err = dec.Decode(&errStatus)
 		if err != nil {
@@ -192,8 +191,8 @@ func fetchLicense(plic license.License) (lic license.License, err error) {
 		err = errors.New("Fetch License: " + errStatus.Title + " - " + errStatus.Detail)
 		return
 	} else {
-		// decode the license, init the return value
-		err = dec.Decode(&lic)
+		// return the json body as []byte
+		lic, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return
 		}
