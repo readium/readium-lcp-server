@@ -13,6 +13,7 @@ import (
 // Metadata for the default context in WebPub
 type Metadata struct {
 	Type               string        `json:"@type,omitempty"`
+	ConformsTo         string        `json:"conformsTo,omitempty"`
 	Identifier         string        `json:"identifier,omitempty"`
 	Title              MultiLanguage `json:"title"`
 	Subtitle           MultiLanguage `json:"subtitle,omitempty"`
