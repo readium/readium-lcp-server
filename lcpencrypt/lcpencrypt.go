@@ -28,6 +28,10 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+const (
+	Software_Version = "1.4.2"
+)
+
 // notification of newly added content (Publication)
 func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPublication, username string, password string) error {
 
@@ -70,6 +74,7 @@ func notifyLcpServer(lcpService, contentid string, lcpPublication apilcp.LcpPubl
 func showHelpAndExit() {
 
 	log.Println("lcpencrypt protects a publication using the LCP DRM")
+	log.Println("(software version " + Software_Version + ")")
 	log.Println("-input        source file path")
 	log.Println("[-profile]    encryption profile")
 	log.Println("[-contentid]  optional content identifier, if omitted a new one will be generated")

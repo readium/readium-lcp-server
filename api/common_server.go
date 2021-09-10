@@ -30,7 +30,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/abbot/go-http-auth"
+	auth "github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/jeffbmartinez/delay"
 	"github.com/rs/cors"
@@ -41,6 +41,8 @@ import (
 )
 
 const (
+	Software_Version = "1.4.2"
+
 	ContentType_LCP_JSON  = "application/vnd.readium.lcp.license.v1.0+json"
 	ContentType_LSD_JSON  = "application/vnd.readium.license.status.v1.0+json"
 	ContentType_TEXT_HTML = "text/html"
@@ -56,6 +58,8 @@ type ServerRouter struct {
 }
 
 func CreateServerRouter(tplPath string) ServerRouter {
+
+	log.Println("** Software Version " + Software_Version + " **")
 
 	r := mux.NewRouter()
 
