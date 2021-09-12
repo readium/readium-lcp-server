@@ -16,14 +16,14 @@ import (
 	"github.com/readium/readium-lcp-server/rwpm"
 )
 
-// RWPPReader is a Readium Package reader
-type RWPPReader struct {
+// RPFReader is a Readium Package reader
+type RPFReader struct {
 	manifest   rwpm.Publication
 	zipArchive *zip.Reader
 }
 
-// RWPPWriter is a Readium Package writer
-type RWPPWriter struct {
+// RPFWriter is a Readium Package writer
+type RPFWriter struct {
 	manifest  rwpm.Publication
 	zipWriter *zip.Writer
 }
@@ -34,7 +34,7 @@ type NopWriteCloser struct {
 }
 
 // NewWriter returns a new PackageWriter writing a RWP to the output file
-func (reader *RWPPReader) NewWriter(writer io.Writer) (PackageWriter, error) {
+func (reader *RPFReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 
 	zipWriter := zip.NewWriter(writer)
 
@@ -98,7 +98,7 @@ func (reader *RWPPReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 
 	manifest := reader.manifest
 
-	return &RWPPWriter{
+	return &RPFWriter{
 		zipWriter: zipWriter,
 		manifest:  manifest,
 	}, nil
@@ -108,7 +108,7 @@ func (reader *RWPPReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 // It is part of the PackageReader interface.
 // Note: the current design choice is to leave ancillary resources (in "resources" and "alternates") unencrypted
 // FIXME: add "resources" and "alternates" to the slice
-func (reader *RWPPReader) Resources() []Resource {
+func (reader *RPFReader) Resources() []Resource {
 	// index files by name to avoid multiple linear searches
 	files := map[string]*zip.File{}
 	for _, file := range reader.zipArchive.File {
@@ -178,7 +178,7 @@ func (nc *NopWriteCloser) Close() error {
 // - one is the creation of a Readium Package for a PDF file (no existing entry in the manifest)
 // - another in the encryption of an existing Readium Package (there is already an entry in the manifest)
 // FIXME: the PackageWriter interface is obscure; let's make it better.
-func (writer *RWPPWriter) NewFile(path string, contentType string, storageMethod uint16) (io.WriteCloser, error) {
+func (writer *RPFWriter) NewFile(path string, contentType string, storageMethod uint16) (io.WriteCloser, error) {
 
 	w, err := writer.zipWriter.CreateHeader(&zip.FileHeader{
 		Name:   path,
@@ -203,7 +203,7 @@ func (writer *RWPPWriter) NewFile(path string, contentType string, storageMethod
 // MarkAsEncrypted marks a resource as encrypted (with an lcp profile and algorithm), in the writer manifest
 // FIXME: currently only looks into the reading order. Add "alternates", think about adding "resources"
 // FIXME: process resources which are compressed before encryption -> add Compression and OriginalLength properties in this case
-func (writer *RWPPWriter) MarkAsEncrypted(path string, originalSize int64, profile license.EncryptionProfile, algorithm string) {
+func (writer *RPFWriter) MarkAsEncrypted(path string, originalSize int64, profile license.EncryptionProfile, algorithm string) {
 
 	for i, resource := range writer.manifest.ReadingOrder {
 		if path == resource.Href {
@@ -225,7 +225,7 @@ func (writer *RWPPWriter) MarkAsEncrypted(path string, originalSize int64, profi
 // ManifestLocation is the path if the Readium manifest in a package
 const ManifestLocation = "manifest.json"
 
-func (writer *RWPPWriter) writeManifest() error {
+func (writer *RPFWriter) writeManifest() error {
 	w, err := writer.zipWriter.Create(ManifestLocation)
 	if err != nil {
 		return err
@@ -236,7 +236,7 @@ func (writer *RWPPWriter) writeManifest() error {
 }
 
 // Close closes a Readium Package Writer
-func (writer *RWPPWriter) Close() error {
+func (writer *RPFWriter) Close() error {
 	err := writer.writeManifest()
 	if err != nil {
 		return err
@@ -245,8 +245,8 @@ func (writer *RWPPWriter) Close() error {
 	return writer.zipWriter.Close()
 }
 
-// NewRWPPReader creates a new Readium Package reader
-func NewRWPPReader(zipReader *zip.Reader) (*RWPPReader, error) {
+// NewRPFReader creates a new Readium Package reader
+func NewRPFReader(zipReader *zip.Reader) (*RPFReader, error) {
 
 	// find and parse the manifest
 	var manifest rwpm.Publication
@@ -274,23 +274,23 @@ func NewRWPPReader(zipReader *zip.Reader) (*RWPPReader, error) {
 		return nil, errors.New("Could not find manifest")
 	}
 
-	return &RWPPReader{zipArchive: zipReader, manifest: manifest}, nil
+	return &RPFReader{zipArchive: zipReader, manifest: manifest}, nil
 
 }
 
-// OpenRWPP opens a Readium Package and returns a zip reader + a manifest
-func OpenRWPP(name string) (*RWPPReader, error) {
+// OpenRPF opens a Readium Package and returns a zip reader + a manifest
+func OpenRPF(name string) (*RPFReader, error) {
 
 	zipArchive, err := zip.OpenReader(name)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewRWPPReader(&zipArchive.Reader)
+	return NewRPFReader(&zipArchive.Reader)
 }
 
-// BuildRWPPFromPDF builds a Readium Package (rwpp) which embeds a PDF file
-func BuildRWPPFromPDF(title string, inputPath string, outputPath string) error {
+// BuildRPFFromPDF builds a Readium Package (rwpp) which embeds a PDF file
+func BuildRPFFromPDF(title string, inputPath string, outputPath string) error {
 
 	// crate the rwpp
 	f, err := os.Create(outputPath)

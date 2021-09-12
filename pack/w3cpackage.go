@@ -191,8 +191,8 @@ func generateRWPManifest(w3cman rwpm.W3CPublication) (manifest rwpm.Publication)
 	return
 }
 
-// BuildRWPPFromLPF builds a Readium package (rwpp) from a W3C LPF file (lpfPath)
-func BuildRWPPFromLPF(lpfPath string, rwppPath string) error {
+// BuildRPFFromLPF builds a Readium package (rwpp) from a W3C LPF file (lpfPath)
+func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 
 	// open the lpf file
 	lpfFile, err := zip.OpenReader(lpfPath)

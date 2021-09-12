@@ -15,12 +15,12 @@ import (
 	"github.com/readium/readium-lcp-server/rwpm"
 )
 
-func TestOpenRWPPackage(t *testing.T) {
-	if _, err := OpenRWPP("path-does-not-exist.lcpdf"); err == nil {
+func TestOpenRPFackage(t *testing.T) {
+	if _, err := OpenRPF("path-does-not-exist.lcpdf"); err == nil {
 		t.Errorf("Expected to receive an error on missing file, got %s", err)
 	}
 
-	reader, err := OpenRWPP("./samples/basic.lcpdf")
+	reader, err := OpenRPF("./samples/basic.lcpdf")
 	if err != nil {
 		t.Fatalf("Expected to be able to open basic.lcpdf, got %s", err)
 	}
@@ -35,8 +35,8 @@ func TestOpenRWPPackage(t *testing.T) {
 	}
 }
 
-func TestWriteRWPPackage(t *testing.T) {
-	reader, err := OpenRWPP("./samples/basic.lcpdf")
+func TestWriteRPFackage(t *testing.T) {
+	reader, err := OpenRPF("./samples/basic.lcpdf")
 	if err != nil {
 		t.Fatalf("Expected to be able to open basic.lcpdf, got %s", err)
 	}
@@ -72,7 +72,7 @@ func TestWriteRWPPackage(t *testing.T) {
 		t.Fatalf("Could not reopen written archive, %s", err)
 	}
 
-	reader, err = NewRWPPReader(zr)
+	reader, err = NewRPFReader(zr)
 	if err != nil {
 		t.Fatalf("Could not read archive, %s", err)
 	}

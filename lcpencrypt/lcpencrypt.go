@@ -134,12 +134,12 @@ func outputExtension(sourceExt string) string {
 	return targetExt
 }
 
-// buildEncryptedRWPP builds an encrypted Readium package out of an un-encrypted one
+// buildEncryptedRPF builds an encrypted Readium package out of an un-encrypted one
 // FIXME: it cannot be used for EPUB as long as Do() and Process() are not merged
-func buildEncryptedRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile) error {
+func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile) error {
 
 	// create a reader on the un-encrypted readium package
-	reader, err := pack.OpenRWPP(inputPath)
+	reader, err := pack.OpenRPF(inputPath)
 	if err != nil {
 		pub.ErrorMessage = "Error opening package " + inputPath
 		return err
@@ -243,7 +243,7 @@ func processPDF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.E
 
 	// generate a temp Readium Package (rwpp) which embeds the PDF file; its title is the PDF file name
 	tmpPackagePath := pub.Output + ".tmp"
-	err := pack.BuildRWPPFromPDF(filepath.Base(inputPath), inputPath, tmpPackagePath)
+	err := pack.BuildRPFFromPDF(filepath.Base(inputPath), inputPath, tmpPackagePath)
 	if err != nil {
 		pub.ErrorMessage = "Error building Web Publication package from PDF"
 		return err
@@ -251,7 +251,7 @@ func processPDF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.E
 	defer os.Remove(tmpPackagePath)
 
 	// build an encrypted package
-	err = buildEncryptedRWPP(pub, tmpPackagePath, encrypter, lcpProfile)
+	err = buildEncryptedRPF(pub, tmpPackagePath, encrypter, lcpProfile)
 	return err
 }
 
@@ -264,22 +264,22 @@ func processLPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.E
 
 	// generate a tmp Readium Package (rwpp) out of W3C Package (lpf)
 	tmpPackagePath := pub.Output + ".webpub"
-	err := pack.BuildRWPPFromLPF(inputPath, tmpPackagePath)
+	err := pack.BuildRPFFromLPF(inputPath, tmpPackagePath)
 	// will remove the tmp file even if an error is returned
 	defer os.Remove(tmpPackagePath)
 	// process error
 	if err != nil {
-		pub.ErrorMessage = "Error building RWPP from LPF"
+		pub.ErrorMessage = "Error building RPF from LPF"
 		return err
 	}
 
 	// build an encrypted package
-	err = buildEncryptedRWPP(pub, tmpPackagePath, encrypter, lcpProfile)
+	err = buildEncryptedRPF(pub, tmpPackagePath, encrypter, lcpProfile)
 	return err
 }
 
-// processRWPP encrypts the source Readium Package
-func processRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile, outputExt string) error {
+// processRPF encrypts the source Readium Package
+func processRPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile, outputExt string) error {
 
 	// select a mime-type
 	switch outputExt {
@@ -290,7 +290,7 @@ func processRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.
 	}
 
 	// build an encrypted package
-	err := buildEncryptedRWPP(pub, inputPath, encrypter, lcpProfile)
+	err := buildEncryptedRPF(pub, inputPath, encrypter, lcpProfile)
 	return err
 }
 
@@ -372,7 +372,7 @@ func main() {
 			exitWithError(pub, err, 32)
 		}
 	} else if inputExt == ".audiobook" {
-		err := processRWPP(&pub, *inputPath, encrypter, lcpProfile, outputExt)
+		err := processRPF(&pub, *inputPath, encrypter, lcpProfile, outputExt)
 		if err != nil {
 			exitWithError(pub, err, 33)
 		}
