@@ -164,6 +164,13 @@ func buildEncryptedRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter 
 		return err
 	}
 	pub.ContentKey = encryptionKey
+
+	err = writer.Close()
+	if err != nil {
+		pub.ErrorMessage = "Unable to close the writer"
+		return err
+	}
+
 	// calculate the output file size and checksum
 	stats, err := outputFile.Stat()
 	if err == nil && (stats.Size() > 0) {
