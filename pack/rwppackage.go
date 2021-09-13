@@ -212,8 +212,9 @@ func (writer *RPFWriter) MarkAsEncrypted(path string, originalSize int64, profil
 				writer.manifest.ReadingOrder[i].Properties = new(rwpm.Properties)
 			}
 			writer.manifest.ReadingOrder[i].Properties.Encrypted = &rwpm.Encrypted{
-				Scheme:    "http://readium.org/2014/01/lcp",
-				Profile:   profile.String(),
+				Scheme: "http://readium.org/2014/01/lcp",
+				// profile data is not useful and even misleading: the same encryption algorithm applies to basic and 1.0 profiles.
+				//Profile:   profile.String(),
 				Algorithm: algorithm,
 			}
 
