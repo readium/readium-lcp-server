@@ -35,7 +35,7 @@ func encryptionError(message string) (EncryptionArtifact, error) {
 	return EncryptionArtifact{}, errors.New(message)
 }
 
-// EncryptPackage generates an encrypted output RWPP out of the input RWPP
+// EncryptPackage generates an encrypted output RPF out of the input RPF
 // It is called from the test frontend server
 func EncryptPackage(profile license.EncryptionProfile, inputPath string, outputPath string) (EncryptionArtifact, error) {
 
@@ -43,7 +43,7 @@ func EncryptPackage(profile license.EncryptionProfile, inputPath string, outputP
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
 
 	// create a reader on the un-encrypted readium package
-	reader, err := pack.OpenRWPP(inputPath)
+	reader, err := pack.OpenRPF(inputPath)
 	if err != nil {
 		return encryptionError(err.Error())
 	}

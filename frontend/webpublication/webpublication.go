@@ -140,7 +140,7 @@ func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
 	return -1, ErrNotFound
 }
 
-// encryptPublication encrypts an EPUB, PDF, LPF or RWPP file and provides the resulting file to the LCP server
+// encryptPublication encrypts an EPUB, PDF, LPF or RPF file and provides the resulting file to the LCP server
 func encryptPublication(inputPath string, pub Publication, pubManager PublicationManager) error {
 
 	// generate a new uuid; this will be the content id in the lcp server
@@ -179,7 +179,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	case ".pdf":
 		contentType = "application/pdf+lcp"
 		clearWebPubPath := outputPath + ".webpub"
-		err = pack.BuildRWPPFromPDF(pub.Title, inputPath, clearWebPubPath)
+		err = pack.BuildRPFFromPDF(pub.Title, inputPath, clearWebPubPath)
 		if err != nil {
 			log.Printf("Error building webpub package: %s", err)
 			return err
@@ -192,21 +192,26 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 		// FIXME: short term solution; should be extended to other profiles
 		contentType = "application/audiobook+lcp"
 		clearWebPubPath := outputPath + ".webpub"
-		err = pack.BuildRWPPFromLPF(inputPath, clearWebPubPath)
+		err = pack.BuildRPFFromLPF(inputPath, clearWebPubPath)
 		if err != nil {
 			return err
 		}
 		defer os.Remove(clearWebPubPath)
 		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, clearWebPubPath, outputPath)
 
-		// process RWPP Audiobook files
+		// process RPF Audiobook files
 	case ".audiobook":
 		contentType = "application/audiobook+lcp"
 		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, inputPath, outputPath)
 
-		// process RWPP Divina files
+		// process RPF Divina files
 	case ".divina":
 		contentType = "application/divina+lcp"
+		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, inputPath, outputPath)
+
+		// process RPF PDF files
+	case ".rpf":
+		contentType = "application/pdf+lcp"
 		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, inputPath, outputPath)
 
 		// unknown file

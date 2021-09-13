@@ -122,6 +122,10 @@ func outputExtension(sourceExt string) string {
 		targetExt = ".epub"
 	case ".pdf":
 		targetExt = ".lcpdf"
+	case ".rpf":
+		// short term solution. We'll need to inspect the manifest and check conformsTo,
+		// to be certain this package contains a pdf
+		targetExt = ".lcpdf"
 	case ".audiobook":
 		targetExt = ".lcpau"
 	case ".divina":
@@ -134,12 +138,12 @@ func outputExtension(sourceExt string) string {
 	return targetExt
 }
 
-// buildEncryptedRWPP builds an encrypted Readium package out of an un-encrypted one
+// buildEncryptedRPF builds an encrypted Readium package out of an un-encrypted one
 // FIXME: it cannot be used for EPUB as long as Do() and Process() are not merged
-func buildEncryptedRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile) error {
+func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile) error {
 
 	// create a reader on the un-encrypted readium package
-	reader, err := pack.OpenRWPP(inputPath)
+	reader, err := pack.OpenRPF(inputPath)
 	if err != nil {
 		pub.ErrorMessage = "Error opening package " + inputPath
 		return err
@@ -164,6 +168,13 @@ func buildEncryptedRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter 
 		return err
 	}
 	pub.ContentKey = encryptionKey
+
+	err = writer.Close()
+	if err != nil {
+		pub.ErrorMessage = "Unable to close the writer"
+		return err
+	}
+
 	// calculate the output file size and checksum
 	stats, err := outputFile.Stat()
 	if err == nil && (stats.Size() > 0) {
@@ -236,7 +247,7 @@ func processPDF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.E
 
 	// generate a temp Readium Package (rwpp) which embeds the PDF file; its title is the PDF file name
 	tmpPackagePath := pub.Output + ".tmp"
-	err := pack.BuildRWPPFromPDF(filepath.Base(inputPath), inputPath, tmpPackagePath)
+	err := pack.BuildRPFFromPDF(filepath.Base(inputPath), inputPath, tmpPackagePath)
 	if err != nil {
 		pub.ErrorMessage = "Error building Web Publication package from PDF"
 		return err
@@ -244,35 +255,35 @@ func processPDF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.E
 	defer os.Remove(tmpPackagePath)
 
 	// build an encrypted package
-	err = buildEncryptedRWPP(pub, tmpPackagePath, encrypter, lcpProfile)
+	err = buildEncryptedRPF(pub, tmpPackagePath, encrypter, lcpProfile)
 	return err
 }
 
 // processLPF transforms a W3C LPF file into a Readium Package and encrypts its resources
 func processLPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile, outputExt string) error {
 
-	// When other kinds of LPF files will be created, a switch on outputExt will be used
+	// When other kinds of LPF files are created, a switch on outputExt will be used
 	// to select the proper mime-type
 	pub.ContentType = "application/audiobook+lcp"
 
 	// generate a tmp Readium Package (rwpp) out of W3C Package (lpf)
 	tmpPackagePath := pub.Output + ".webpub"
-	err := pack.BuildRWPPFromLPF(inputPath, tmpPackagePath)
+	err := pack.BuildRPFFromLPF(inputPath, tmpPackagePath)
 	// will remove the tmp file even if an error is returned
 	defer os.Remove(tmpPackagePath)
 	// process error
 	if err != nil {
-		pub.ErrorMessage = "Error building RWPP from LPF"
+		pub.ErrorMessage = "Error building RPF from LPF"
 		return err
 	}
 
 	// build an encrypted package
-	err = buildEncryptedRWPP(pub, tmpPackagePath, encrypter, lcpProfile)
+	err = buildEncryptedRPF(pub, tmpPackagePath, encrypter, lcpProfile)
 	return err
 }
 
-// processRWPP encrypts the source Readium Package
-func processRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile, outputExt string) error {
+// processRPF encrypts the source Readium Package
+func processRPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile, outputExt string) error {
 
 	// select a mime-type
 	switch outputExt {
@@ -280,10 +291,12 @@ func processRWPP(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.
 		pub.ContentType = "application/audiobook+lcp"
 	case ".lcpdi":
 		pub.ContentType = "application/divina+lcp"
+	case ".lcpdf":
+		pub.ContentType = "application/pdf+lcp"
 	}
 
 	// build an encrypted package
-	err := buildEncryptedRWPP(pub, inputPath, encrypter, lcpProfile)
+	err := buildEncryptedRPF(pub, inputPath, encrypter, lcpProfile)
 	return err
 }
 
@@ -349,23 +362,24 @@ func main() {
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
 
 	// select the encryption process
-	if inputExt == ".epub" {
+	switch inputExt {
+	case ".epub":
 		err := processEPUB(&pub, *inputPath, encrypter)
 		if err != nil {
 			exitWithError(pub, err, 30)
 		}
-	} else if inputExt == ".pdf" {
+	case ".pdf":
 		err := processPDF(&pub, *inputPath, encrypter, lcpProfile)
 		if err != nil {
 			exitWithError(pub, err, 31)
 		}
-	} else if inputExt == ".lpf" {
+	case ".lpf":
 		err := processLPF(&pub, *inputPath, encrypter, lcpProfile, outputExt)
 		if err != nil {
 			exitWithError(pub, err, 32)
 		}
-	} else if inputExt == ".audiobook" {
-		err := processRWPP(&pub, *inputPath, encrypter, lcpProfile, outputExt)
+	case ".audiobook", ".divina", ".rpf":
+		err := processRPF(&pub, *inputPath, encrypter, lcpProfile, outputExt)
 		if err != nil {
 			exitWithError(pub, err, 33)
 		}

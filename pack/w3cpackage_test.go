@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/readium/readium-lcp-server/rwpm"
 )
@@ -57,6 +58,13 @@ func TestMapW3CPublication(t *testing.T) {
 	}
 	if meta.Language[0] != "fr" || meta.Language[1] != "en" {
 		t.Fatalf("W3C InLanguage badly mapped")
+	}
+	if *meta.Published != rwpm.Date(time.Date(2020, 03, 23, 12, 50, 20, 0, time.UTC)) {
+		t.Fatalf("W3C DatePublished badly mapped")
+	}
+	mod := time.Date(2020, 03, 23, 16, 58, 27, 372000000, time.UTC)
+	if *meta.Modified != mod {
+		t.Fatalf("W3C DateModified badly mapped")
 	}
 	if meta.Duration != 150 {
 		t.Fatalf("W3C Duration badly mapped")

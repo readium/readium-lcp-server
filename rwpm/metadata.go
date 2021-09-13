@@ -22,7 +22,7 @@ type Metadata struct {
 	ReadingProgression string        `json:"readingProgression,omitempty"`
 	//
 	Modified  *time.Time `json:"modified,omitempty"`
-	Published Date       `json:"published,omitempty"`
+	Published *Date      `json:"published,omitempty"`
 	// contributors
 	Publisher   Contributors `json:"publisher,omitempty"`
 	Artist      Contributors `json:"artist,omitempty"`
@@ -71,12 +71,6 @@ func (d *DateOrDatetime) UnmarshalJSON(b []byte) error {
 
 // MarshalJSON marshalls DateOrDatetime
 func (d DateOrDatetime) MarshalJSON() ([]byte, error) {
-
-	//if time.Time(d).IsZero() {
-	//println("Zero dateordatetime")
-	//return nil, nil
-	//}
-
 	return json.Marshal(time.Time(d))
 }
 
