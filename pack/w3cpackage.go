@@ -161,7 +161,11 @@ func generateRWPManifest(w3cman rwpm.W3CPublication) (manifest rwpm.Publication)
 	manifest.Metadata.Language = w3cman.InLanguage
 	// W3C manifest: published and modified are date-or-datetime,
 	// Readium manifest: published is a date; modified is a datetime
-	manifest.Metadata.Published = rwpm.Date(time.Time(*w3cman.DatePublished))
+	// The use of pointer helps dealing with nil values
+	if w3cman.DatePublished != nil {
+		published := rwpm.Date(time.Time(*w3cman.DatePublished))
+		manifest.Metadata.Published = &published
+	}
 	if w3cman.DateModified != nil {
 		modified := time.Time(*w3cman.DateModified)
 		manifest.Metadata.Modified = &modified

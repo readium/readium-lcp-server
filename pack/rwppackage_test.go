@@ -111,7 +111,8 @@ func TestRWPM(t *testing.T) {
 	manifest.Metadata.Identifier = "id1"
 	manifest.Metadata.Title.Set("fr", "title")
 	manifest.Metadata.Description = "description"
-	manifest.Metadata.Published = rwpm.Date(time.Date(2020, 03, 05, 10, 00, 00, 0, time.UTC))
+	published := rwpm.Date(time.Date(2020, 03, 05, 10, 00, 00, 0, time.UTC))
+	manifest.Metadata.Published = &published
 	manifest.Metadata.Duration = 120
 	manifest.Metadata.Author.AddName("Laurent")
 	manifest.Metadata.Language.Add("fr")
