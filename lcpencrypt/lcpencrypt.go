@@ -122,6 +122,10 @@ func outputExtension(sourceExt string) string {
 		targetExt = ".epub"
 	case ".pdf":
 		targetExt = ".lcpdf"
+	case ".rpf":
+		// short term solution. We'll need to inspect the manifest and check conformsTo,
+		// to be certain this package contains a pdf
+		targetExt = ".lcpdf"
 	case ".audiobook":
 		targetExt = ".lcpau"
 	case ".divina":
@@ -258,7 +262,7 @@ func processPDF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.E
 // processLPF transforms a W3C LPF file into a Readium Package and encrypts its resources
 func processLPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.Encrypter, lcpProfile license.EncryptionProfile, outputExt string) error {
 
-	// When other kinds of LPF files will be created, a switch on outputExt will be used
+	// When other kinds of LPF files are created, a switch on outputExt will be used
 	// to select the proper mime-type
 	pub.ContentType = "application/audiobook+lcp"
 
@@ -287,6 +291,8 @@ func processRPF(pub *apilcp.LcpPublication, inputPath string, encrypter crypto.E
 		pub.ContentType = "application/audiobook+lcp"
 	case ".lcpdi":
 		pub.ContentType = "application/divina+lcp"
+	case ".lcpdf":
+		pub.ContentType = "application/pdf+lcp"
 	}
 
 	// build an encrypted package
@@ -356,22 +362,23 @@ func main() {
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
 
 	// select the encryption process
-	if inputExt == ".epub" {
+	switch inputExt {
+	case ".epub":
 		err := processEPUB(&pub, *inputPath, encrypter)
 		if err != nil {
 			exitWithError(pub, err, 30)
 		}
-	} else if inputExt == ".pdf" {
+	case ".pdf":
 		err := processPDF(&pub, *inputPath, encrypter, lcpProfile)
 		if err != nil {
 			exitWithError(pub, err, 31)
 		}
-	} else if inputExt == ".lpf" {
+	case ".lpf":
 		err := processLPF(&pub, *inputPath, encrypter, lcpProfile, outputExt)
 		if err != nil {
 			exitWithError(pub, err, 32)
 		}
-	} else if inputExt == ".audiobook" {
+	case ".audiobook", ".divina", ".rpf":
 		err := processRPF(&pub, *inputPath, encrypter, lcpProfile, outputExt)
 		if err != nil {
 			exitWithError(pub, err, 33)
