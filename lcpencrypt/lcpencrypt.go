@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	Software_Version = "1.4.2"
+	Software_Version = "1.5.0"
 )
 
 // notification of newly added content (Publication)
