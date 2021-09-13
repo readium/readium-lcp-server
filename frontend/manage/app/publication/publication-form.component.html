@@ -26,7 +26,7 @@
                       class="drop-zone">
           <div *ngIf="droppedItem&&!notAPublication">{{droppedItem.file.name}}</div>
           <div *ngIf="!droppedItem&&!notAPublication">Drop a publication here</div>
-          <div *ngIf="droppedItem&&notAPublication">The file must have an .epub, .pdf, .lpf, .audiobook or .divina extension.</div>
+          <div *ngIf="droppedItem&&notAPublication">The file must have an .epub, .pdf, .lpf, .rpf, .audiobook or .divina extension.</div>
       </div>
     </div>
     <div *ngIf="form.value['type'] != 'UPLOAD'">

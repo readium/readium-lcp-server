@@ -209,6 +209,11 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 		contentType = "application/divina+lcp"
 		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, inputPath, outputPath)
 
+		// process RPF PDF files
+	case ".rpf":
+		contentType = "application/pdf+lcp"
+		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, inputPath, outputPath)
+
 		// unknown file
 	default:
 		return errors.New("Could not match the file extension: " + inputPath)
