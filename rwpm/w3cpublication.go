@@ -10,6 +10,7 @@ import (
 
 // W3CPublication = W3C manifest
 type W3CPublication struct {
+	Type               string           `json:"type,omitempty"`
 	ConformsTo         string           `json:"conformsTo,omitempty"`
 	ID                 string           `json:"id,omitempty"`
 	URL                string           `json:"url,omitempty"`
