@@ -72,17 +72,17 @@ const (
 //Purchase struct defines a user in json and database
 //PurchaseType: BUY or LOAN
 type Purchase struct {
-	ID              int64                      `json:"id, omitempty"`
+	ID              int64                      `json:"id,omitempty"`
 	UUID            string                     `json:"uuid"`
 	Publication     webpublication.Publication `json:"publication"`
 	User            webuser.User               `json:"user"`
 	LicenseUUID     *string                    `json:"licenseUuid,omitempty"`
 	Type            string                     `json:"type"`
-	TransactionDate time.Time                  `json:"transactionDate, omitempty"`
-	StartDate       *time.Time                 `json:"startDate, omitempty"`
-	EndDate         *time.Time                 `json:"endDate, omitempty"`
+	TransactionDate time.Time                  `json:"transactionDate,omitempty"`
+	StartDate       *time.Time                 `json:"startDate,omitempty"`
+	EndDate         *time.Time                 `json:"endDate,omitempty"`
 	Status          string                     `json:"status"`
-	MaxEndDate      *time.Time                 `json:"maxEndDate, omitempty"`
+	MaxEndDate      *time.Time                 `json:"maxEndDate,omitempty"`
 }
 
 type PurchaseManager struct {
@@ -338,7 +338,6 @@ func (pManager PurchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 	if err != nil {
 		return license.License{}, err
 	}
-	// FIXME: why this Close()?
 	defer resp.Body.Close()
 
 	// the call must return 206 (partial content) because there is no input partial license
