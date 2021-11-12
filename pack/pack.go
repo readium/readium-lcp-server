@@ -142,7 +142,7 @@ func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Mani
 
 // mustCompressBeforeEncryption checks is a resource must be compressed before encryption.
 // We don't want to compress files if that might cause streaming (byte range requests) issues.
-// The test is applied on the resource media-type; image, video, audio, pdf are stored without compression.
+// The test is applied on the resource media-type; video, audio, pdf are stored without compression.
 func mustCompressBeforeEncryption(file epub.Resource, ep epub.Epub) bool {
 
 	mimetype := file.ContentType
@@ -151,7 +151,7 @@ func mustCompressBeforeEncryption(file epub.Resource, ep epub.Epub) bool {
 		return true
 	}
 
-	return !strings.HasPrefix(mimetype, "image") && !strings.HasPrefix(mimetype, "video") && !strings.HasPrefix(mimetype, "audio") && !(mimetype == "application/pdf")
+	return !strings.HasPrefix(mimetype, "video") && !strings.HasPrefix(mimetype, "audio") && !(mimetype == "application/pdf")
 }
 
 // NoCompression means Store
