@@ -34,6 +34,7 @@ import (
 	"net/http"
 	"time"
 
+	auth "github.com/abbot/go-http-auth"
 	"github.com/claudiu/gocron"
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/api"
@@ -63,7 +64,7 @@ type Server struct {
 // HandlerFunc defines a function handled by the server
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, s staticapi.IServer)
 
-//type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s staticapi.IServer)
+type HandlerPrivateFunc func(w http.ResponseWriter, r *auth.AuthenticatedRequest, s staticapi.IServer)
 
 // New creates a new webserver (basic user interface)
 func New(
@@ -74,14 +75,15 @@ func New(
 	userAPI webuser.WebUser,
 	dashboardAPI webdashboard.WebDashboard,
 	licenseAPI weblicense.WebLicense,
-	purchaseAPI webpurchase.WebPurchase) *Server {
+	purchaseAPI webpurchase.WebPurchase,
+	basicAuth *auth.BasicAuth) *Server {
 
 	sr := api.CreateServerRouter(tplPath)
 	s := &Server{
 		Server: http.Server{
 			Handler:        sr.N,
 			Addr:           bindAddr,
-			WriteTimeout:   20 * time.Second,
+			WriteTimeout:   150 * time.Second,
 			ReadTimeout:    150 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
@@ -168,10 +170,16 @@ func New(
 	s.handleFunc(sr.R, licenseRoutesPathPrefix, staticapi.GetFilteredLicenses).Methods("GET")
 	// get a license by id
 	s.handleFunc(licenseRoutes, "/{license_id}", staticapi.GetLicense).Methods("GET")
+	// get the user who owns a given license; this route is only set if authentication is in use
+	if basicAuth != nil {
+		s.handlePrivateFunc(licenseRoutes, "/{license_id}/user", staticapi.GetLicenseOwner, basicAuth).Methods("GET")
+	}
 
 	return s
 }
 
+// fetchLicenseStatusesTask fetchs from the Status Doc Server, and saves, locally, all license status documents.
+// This is optimizing the visualization of status information in the UI.
 func fetchLicenseStatusesTask(s *Server) {
 	fmt.Println("AUTOMATIC : Fetch and save all license status documents")
 	url := config.Config.LsdServer.PublicBaseUrl + "/licenses"
@@ -237,13 +245,13 @@ func (server *Server) LicenseAPI() weblicense.WebLicense {
 	return server.license
 }
 
+// mux handle functions
 func (server *Server) handleFunc(router *mux.Router, route string, fn HandlerFunc) *mux.Route {
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		fn(w, r, server)
 	})
 }
 
-/*no private functions used
 func (server *Server) handlePrivateFunc(router *mux.Router, route string, fn HandlerFunc, authenticator *auth.BasicAuth) *mux.Route {
 	return router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 		if api.CheckAuth(authenticator, w, r) {
@@ -251,4 +259,3 @@ func (server *Server) handlePrivateFunc(router *mux.Router, route string, fn Han
 		}
 	})
 }
-*/

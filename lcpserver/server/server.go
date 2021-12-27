@@ -80,7 +80,7 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 			Handler:        sr.N,
 			Addr:           bindAddr,
 			WriteTimeout:   240 * time.Second,
-			ReadTimeout:    5 * time.Second,
+			ReadTimeout:    15 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		},
 		readonly: readonly,

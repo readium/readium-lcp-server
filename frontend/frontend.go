@@ -37,12 +37,13 @@ import (
 	"strings"
 	"syscall"
 
+	auth "github.com/abbot/go-http-auth"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/frontend/server"
+	frontend "github.com/readium/readium-lcp-server/frontend/server"
 	"github.com/readium/readium-lcp-server/frontend/webdashboard"
 	"github.com/readium/readium-lcp-server/frontend/weblicense"
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
@@ -153,7 +154,21 @@ func main() {
 
 	fileConfigJs.WriteString(configJs)
 	HandleSignals()
-	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), static, repoManager, publicationDB, userDB, dashboardDB, licenseDB, purchaseDB)
+
+	// basic authentication, optional in the frontend server.
+	// Authentication is used for getting user info from a license id.
+	var authenticator *auth.BasicAuth
+	authFile := config.Config.LsdServer.AuthFile
+	if authFile != "" {
+		_, err = os.Stat(authFile)
+		if err != nil {
+			panic(err)
+		}
+		htpasswd := auth.HtpasswdFileProvider(authFile)
+		authenticator = auth.NewBasicAuthenticator("Basic Realm", htpasswd)
+	}
+
+	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), static, repoManager, publicationDB, userDB, dashboardDB, licenseDB, purchaseDB, authenticator)
 	log.Println("Frontend webserver for LCP running on " + config.Config.FrontendServer.Host + ":" + strconv.Itoa(config.Config.FrontendServer.Port))
 	log.Println("using database " + dbURI)
 
