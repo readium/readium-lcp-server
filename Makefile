@@ -34,7 +34,7 @@ prepare:
 	cp $(ROOT_DIR)/test/cert/privkey-edrlab-test.pem $(BUILD_DIR)/cert/.
 	mkdir -p $(BUILD_DIR)/log
 	sed 's~<LCP_HOME>~$(BUILD_DIR)~g' < $(ROOT_DIR)/test/config.yaml > $(BUILD_DIR)/config.yaml
-	echo "adm_username:$$apr1$$bxwn8jim$$kbfYFRgbBlKDWpAvd2tHW." > $(BUILD_DIR)/httpasswd
+	echo "adm_username:$$apr1$$bxwn8jim$$kbfYFRgbBlKDWpAvd2tHW." > $(BUILD_DIR)/htpasswd
 
 $(lcpencrypt): prepare
 	GOPATH=$(GOPATH) $(CC) ./$@
@@ -50,3 +50,9 @@ $(frontend): prepare
 
 $(frontend_manage): prepare
 	cd ./$@ && npm install
+
+run:
+	READIUM_LCPSERVER_CONFIG=$(READIUM_LCPSERVER_CONFIG) $(BUILD_DIR)/bin/$(lcpserver) > $(BUILD_DIR)/log/$(lcpserver).log &
+	READIUM_LSDSERVER_CONFIG=$(READIUM_LSDSERVER_CONFIG) $(BUILD_DIR)/bin/$(lsdserver) > $(BUILD_DIR)/log/$(lsdserver).log &
+	READIUM_FRONTEND_CONFIG=$(READIUM_FRONTEND_CONFIG) $(BUILD_DIR)/bin/$(frontend) > $(BUILD_DIR)/log/$(frontend).log &
+
