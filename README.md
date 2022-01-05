@@ -43,6 +43,18 @@ You must obtain a X.509 certificate and confidential crypto information through 
 
 A folder publicly accessible from the Web must be made available for the server to store encrypted files.
 
+Quickstart
+==========
+
+
+> You have to download node v6.9.2 to compile the frontend webapp
+
+```
+
+make clean && PATH=/Users/edrlab/Downloads/node-v6.9.2-darwin-x64/bin:$PATH make && make run
+
+```
+
 Executables
 ===========
 The server software is composed of three independant parts:
