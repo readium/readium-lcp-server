@@ -76,8 +76,13 @@ $(frontend_manage): prepare
 		&& mv package.json.backup package.json
 
 run:
-	READIUM_LCPSERVER_CONFIG=$(READIUM_LCPSERVER_CONFIG) $(BUILD_DIR)/bin/$(lcpserver) > $(BUILD_DIR)/log/$(lcpserver).log &
-	READIUM_LSDSERVER_CONFIG=$(READIUM_LSDSERVER_CONFIG) $(BUILD_DIR)/bin/$(lsdserver) > $(BUILD_DIR)/log/$(lsdserver).log &
-	READIUM_FRONTEND_CONFIG=$(READIUM_FRONTEND_CONFIG) $(BUILD_DIR)/bin/$(frontend) > $(BUILD_DIR)/log/$(frontend).log &
-	open http://127.0.0.1:8991/
+	echo "" > $(BUILD_DIR)/run.sh
+	echo "\#! /usr/bin/env sh" >> $(BUILD_DIR)/run.sh
+	echo "READIUM_LCPSERVER_CONFIG=$(READIUM_LCPSERVER_CONFIG) $(BUILD_DIR)/bin/$(lcpserver) > $(BUILD_DIR)/log/$(lcpserver).log &" >> $(BUILD_DIR)/run.sh
+	echo "READIUM_LSDSERVER_CONFIG=$(READIUM_LSDSERVER_CONFIG) $(BUILD_DIR)/bin/$(lsdserver) > $(BUILD_DIR)/log/$(lsdserver).log &" >> $(BUILD_DIR)/run.sh
+	echo "READIUM_FRONTEND_CONFIG=$(READIUM_FRONTEND_CONFIG) $(BUILD_DIR)/bin/$(frontend) > $(BUILD_DIR)/log/$(frontend).logi &" >> $(BUILD_DIR)/run.sh
+	echo "wait" >> $(BUILD_DIR)/run.sh
+	chmod +x $(BUILD_DIR)/run.sh
+	@open http://127.0.0.1:8991/
+	sh $(BUILD_DIR)/run.sh
 
