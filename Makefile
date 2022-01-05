@@ -3,6 +3,8 @@ ROOT_DIR=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 BUILD_DIR=$(ROOT_DIR)/build
 
+UNAME_S= $(shell uname -s)
+
 export READIUM_LCPSERVER_CONFIG := $(BUILD_DIR)/config.yaml
 export READIUM_LSDSERVER_CONFIG := $(BUILD_DIR)/config.yaml
 export READIUM_FRONTEND_CONFIG := $(BUILD_DIR)/config.yaml
@@ -14,15 +16,27 @@ lsdserver=lsdserver
 frontend=frontend
 frontend_manage=frontend/manage
 
+NODE_VERSION=6.9.2
+
+ifeq ($(UNAME_S), Linux)
+	NODE_URL="https://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION)-linux-x64.tar.xz"
+else
+	NODE_URL="https://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION)-darwin-x64.tar.xz"
+endif
 
 CC=go install 
 
-.PHONY: all
+.PHONY: all node run prepare clean
 
-all: $(lcpencrypt) $(lcpserver) $(lsdserver) $(frontend) #$(frontend_manage)
+all: $(lcpencrypt) $(lcpserver) $(lsdserver) $(frontend) $(frontend_manage)
 
 clean:
 	@rm -rf $(BUILD_DIR) 2>/dev/null || true
+	@rm -rf $(ROOT_DIR)/$(frontend_manage)/node_modules
+	@rm -rf $(ROOT_DIR)/$(frontend_manage)/dist
+
+node:
+	open $(NODE_URL)
 
 prepare:
 	mkdir -p $(BUILD_DIR)
@@ -49,10 +63,21 @@ $(frontend): prepare
 	GOPATH=$(GOPATH) $(CC) ./$@
 
 $(frontend_manage): prepare
-	cd ./$@ && npm install
+		cd ./$@ \
+		&& cp package.json package.json.backup \
+		&& sed -i '' '/\"lite-server\"\:/d' package.json \
+		&& npm install \
+		&& npm update \
+		&& npm run clean \
+		&& npm run build-css \
+		&& npm run copy-templates \
+		&& sed -i '' '/es2015/d' node_modules/@types/node/index.d.ts \
+		&& node_modules/.bin/tsc \
+		&& mv package.json.backup package.json
 
 run:
 	READIUM_LCPSERVER_CONFIG=$(READIUM_LCPSERVER_CONFIG) $(BUILD_DIR)/bin/$(lcpserver) > $(BUILD_DIR)/log/$(lcpserver).log &
 	READIUM_LSDSERVER_CONFIG=$(READIUM_LSDSERVER_CONFIG) $(BUILD_DIR)/bin/$(lsdserver) > $(BUILD_DIR)/log/$(lsdserver).log &
 	READIUM_FRONTEND_CONFIG=$(READIUM_FRONTEND_CONFIG) $(BUILD_DIR)/bin/$(frontend) > $(BUILD_DIR)/log/$(frontend).log &
+	open http://127.0.0.1:8991/
 
