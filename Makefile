@@ -20,8 +20,10 @@ NODE_VERSION=6.9.2
 
 ifeq ($(UNAME_S), Linux)
 	NODE_URL="https://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION)-linux-x64.tar.xz"
+	SED_I=sed -i
 else
 	NODE_URL="https://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION)-darwin-x64.tar.xz"
+	SED_I=sed -i ''
 endif
 
 CC=go install 
@@ -66,13 +68,13 @@ $(frontend): prepare
 $(frontend_manage): prepare
 		cd ./$@ \
 		&& cp package.json package.json.backup \
-		&& sed '/\"lite-server\"\:/d' package.json \
+		&&  $(SED_I) '/\"lite-server\"\:/d' package.json \
 		&& npm install \
 		&& npm update \
 		&& npm run clean \
 		&& npm run build-css \
 		&& npm run copy-templates \
-		&& sed '/es2015/d' node_modules/@types/node/index.d.ts \
+		&& $(SED_I) '/es2015/d' node_modules/@types/node/index.d.ts \
 		&& node_modules/.bin/tsc \
 		&& mv package.json.backup package.json \
 		&& cp -r . $(BUILD_DIR)/frontend/manage/.
