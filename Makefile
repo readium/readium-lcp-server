@@ -66,13 +66,13 @@ $(frontend): prepare
 $(frontend_manage): prepare
 		cd ./$@ \
 		&& cp package.json package.json.backup \
-		&& sed -i '' '/\"lite-server\"\:/d' package.json \
+		&& sed '/\"lite-server\"\:/d' package.json \
 		&& npm install \
 		&& npm update \
 		&& npm run clean \
 		&& npm run build-css \
 		&& npm run copy-templates \
-		&& sed -i '' '/es2015/d' node_modules/@types/node/index.d.ts \
+		&& sed '/es2015/d' node_modules/@types/node/index.d.ts \
 		&& node_modules/.bin/tsc \
 		&& mv package.json.backup package.json \
 		&& cp -r . $(BUILD_DIR)/frontend/manage/.
