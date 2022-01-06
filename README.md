@@ -211,10 +211,10 @@ Here are the details about the configuration properties of each server. In the s
 
 #### lcp section
 `lcp`: parameters associated with the License Server.
-- `host`: the public server hostname, `hostname` by default
-- `port`: the listening port, `8989` by default
-- `public_base_url`: the public base URL, used by the license status server and the frontend test server to communicate with this server; combination of the host and port values on http by default, which is sufficient as the license server should not be visible from the Web.  
-- `database`: the URI formatted connection string to the database, `sqlite3://file:lcp.sqlite?cache=shared&mode=rwc` by default
+- `host`: the public server hostname, `hostname` by default.
+- `port`: the listening port, `8989` by default.
+- `public_base_url`: the URL used by the License Status Server and the Frontend Test Server to communicate with this License server; combination of the host and port values on http by default.
+- `database`: the URI formatted connection string to the database, `sqlite3://file:lcp.sqlite?cache=shared&mode=rwc` by default. `mysql://login:password@/dbname?parseTime=true` if your using MySQL.
 - `auth_file`: mandatory; the path to the password file introduced above. 
 
 #### storage section
@@ -253,41 +253,41 @@ If `mode` value is NOT `s3`, the following paremeters are expected:
   The sub-properties of the `links` section are:
   - `status`: required, templated URL; location of the Status Document associated with a License Document.
     The license identifier is inserted via the `{license_id}` variable.
-  - `hint`: required; location where a Reading System can redirect a User looking for additional information about the User Passphrase. 
+  - `hint`: required; location where a Reading System can redirect a user looking for additional information about the User Passphrase. 
   - `publication`: *deprecated in favor of the storage / filesystem / url parameter*, templated URL; 
     Absolute http or https url of the storage volume in which all encrypted publications are stored.
     The publication identifier is inserted via the `{publication_id}` variable.
 
-#### lsd_notify_auth section 
+#### lsd and lsd_notify_auth section 
 `lsd_notify_auth`: authentication parameters used by the License Server for notifying the License Status Server 
 of the generation of a new license. The notification endpoint is configured in the `lsd` section.
 - `username`: required, authentication username
 - `password`: required, authentication password
 
 #### Sample config
-Here is a License Server sample config (assuming the License Status Server is using the 'basic' LCP profile, is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
+Here is a License Server sample config:
 
 ```yaml
 profile: "basic"
 lcp:
-    host: "127.0.0.1"
+    host: "192.168.0.1"
     port: 8989
-    public_base_url: "http://127.0.0.1:8989"
-    database: "sqlite3://file:<LCP_HOME>/db/lcp.sqlite?cache=shared&mode=rwc"
-    auth_file: "<LCP_HOME>/htpasswd"
+    public_base_url: "http://192.168.0.1:8989/lcpserver"
+    database: "sqlite3://file:/usr/local/var/lcp/db/lcp.sqlite?cache=shared&mode=rwc"
+    auth_file: "/usr/local/var/lcp/lcpsv/htpasswd"
 storage:
     filesystem:
-        directory: "<LCP_HOME>/files/storage"
-        url: "http://127.0.0.1:8989/contents/" 
+        directory: "/usr/local/var/lcp/storage"
+        url: "https://www.example.net/lcp/files/storage/" 
 certificate:
-    cert: "<LCP_HOME>/cert/cert.pem"
-    private_key: "<LCP_HOME>/cert/privkey.pem"
+    cert: "/usr/local/var/lcp/cert/cert.pem"
+    private_key: "/usr/local/var/lcp/cert/privkey.pem"
 license:
     links:
-        status: "http://127.0.0.1:8990/licenses/{license_id}/status"     
-        hint: "http://127.0.0.1:8991/static/hint.html"
+        status: "https://www.example.net/lsdserver/licenses/{license_id}/status"     
+        hint: "https://www.example.net/static/lcp_hint.html"
 lsd:
-    public_base_url:  "http://127.0.0.1:8990"
+    public_base_url:  "http://192.168.0.1:8990"
 lsd_notify_auth: 
     username: "adm_username"
     password: "adm_password"
@@ -298,10 +298,10 @@ lsd_notify_auth:
 
 #### lsd section
 `lsd`: parameters associated with the License Status Server. 
-- `host`: the public server hostname, `hostname` by default
-- `port`: the listening port, `8990` by default
-- `public_base_url`: the public base URL, used by the license server and the frontend test server to communicate with this server; combination of the host and port values on http by default; as this server is exposed on the Web in production, a domain name should be present in the URL.
-- `database`: the URI formatted connection string to the database, `sqlite3://file:lsd.sqlite?cache=shared&mode=rwc` by default
+- `host`: the public server hostname, `hostname` by default.
+- `port`: the listening port, `8990` by default.
+- `public_base_url`: the URL used by the License Server and the Frontend Test Server to communicate with this License Status Server; combination of the host and port values on http by default.
+- `database`: the URI formatted connection string to the database, `sqlite3://file:lsd.sqlite?cache=shared&mode=rwc` by default. `mysql://login:password@/dbname?parseTime=true` if your using MySQL.
 - `auth_file`: mandatory; the path to the password file introduced above. 
 
 - `license_link_url`: mandatory; the url template representing the url from which a license can be fetched from the provider's frontend server. This url will be inserted in the 'license' link of every status document. It must be the url of a server acting as a proxy between the user request and the License Server. Such proxy is mandatory, as the License Server  does not possess user information needed to craft a license from its identifier. If the test frontend server is used as a proxy, the url must be of the form "http://<frontend-server-url>/api/v1/licenses/{license_id}" (note the /api/v1 section).
@@ -315,22 +315,22 @@ lsd_notify_auth:
 - `register`: boolean; if `true`, registering a device is possible.
 - `renew_page_url`: URL; if set, the renew feature is implemented as an HTML page, using this URL. This is mostly useful for testing client applications.
 
-#### lcp_update_authsection 
+#### lcp_update_auth section 
 `lcp_update_auth`: authentication parameters used by the License Status Server for updating a license via the License Server. The notification endpoint is configured in the `lcp` section.
 - `username`: mandatory, authentication username
 - `password`: mandatory, authentication password
 
 #### Sample config
-Here is a License Status Server sample config (assuming the License Status Server is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
+Here is a License Status Server sample config:
 
 ```yaml
 lsd:
-    host: "127.0.0.1"
+    host: "192.168.0.1"
     port: 8990
     public_base_url: "http://127.0.0.1:8990"
-    database: "sqlite3://file:<LCP_HOME>/db/lsd.sqlite?cache=shared&mode=rwc"
-    auth_file: "<LCP_HOME>/htpasswd"
-    license_link_url: "http://127.0.0.1:8991/api/v1/licenses/{license_id}"
+    database: "sqlite3://file:/usr/local/var/lcp/db/lsd.sqlite?cache=shared&mode=rwc"
+    auth_file: "/usr/local/var/lcp/htpasswd"
+    license_link_url: "https://www.example.net/lcp/licenses/{license_id}"
 license_status:
     register: true
     renew: true
@@ -351,8 +351,8 @@ lcp_update_auth:
 `frontend`: parameters associated with the Test Frontend Server. 
 - `host`: the public server hostname, `hostname` by default
 - `port`: the listening port, `8991` by default
-- `public_base_url`: the public base URL, used to access the frontend UI; combination of the host and port values on http by default 
-- `database`: the URI formatted connection string to the database, `sqlite3://file:frontend.sqlite?cache=shared&mode=rwc` by default
+- `public_base_url`: the URL used by the Frontend node.js software to communicate with this  Frontend Test Server; combination of the host and port values on http by default.
+- `database`: the URI formatted connection string to the database, `sqlite3://file:frontend.sqlite?cache=shared&mode=rwc` by default. `mysql://login:password@/dbname?parseTime=true` if your using MySQL.
 - `master_repository`: repository where the uploaded EPUB files are stored before encryption. 
 - `encrypted_repository`: repository where the encrypted EPUB files are stored after upload. The LCP server must have access to the path declared here, as it will move each encrypted file to its final storage folder on notification of encryption from the Frontend Server. 
 - `directory`: the directory containing the client web app; by default $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage.
@@ -363,6 +363,8 @@ lcp_update_auth:
 The config file of a Test Frontend Server must also define the following properties: 
 
 #### other required sections
+The Test Frontend Server must communicate with the License Server and the License Status Server. This is why it must contain the following sections, with the values defined above. 
+
 `lcp`
 - `public_base_url`
 
@@ -382,19 +384,19 @@ Here is a Test Frontend Server sample config:
 
 ```yaml
 frontend:
-    host: "127.0.0.1"
+    host: "192.168.0.1"
     port: 8991
-    database: "sqlite3://file:<LCP_HOME>/db/frontend.sqlite?cache=shared&mode=rwc"
-    master_repository: "<LCP_HOME>/files/master"
-    encrypted_repository: "<LCP_HOME>/files/encrypted"
-    provider_uri: "https://www.myprovidername.org"
+    database: "sqlite3://file:/usr/local/var/lcp/db/frontend.sqlite?cache=shared&mode=rwc"
+    master_repository: "/usr/local/var/lcp/files/master"
+    encrypted_repository: "/usr/local/var/lcp/files/encrypted"
+    provider_uri: "https://www.example.net"
     right_print: 10
     right_copy: 2000
 
 lcp:
-  public_base_url:  "http://127.0.0.1:8989"
+  public_base_url:  "http://192.168.0.1:8989"
 lsd:
-  public_base_url:  "http://127.0.0.1:8990"
+  public_base_url:  "http://192.168.0.1:8990"
 lcp_update_auth: 
     username: "adm_username"
     password: "adm_password"
