@@ -47,6 +47,7 @@ prepare:
 	cp $(ROOT_DIR)/test/cert/cert-edrlab-test.pem $(BUILD_DIR)/cert/.
 	cp $(ROOT_DIR)/test/cert/privkey-edrlab-test.pem $(BUILD_DIR)/cert/.
 	mkdir -p $(BUILD_DIR)/log
+	mkdir -p $(BUILD_DIR)/frontend/manage
 	sed 's~<LCP_HOME>~$(BUILD_DIR)~g' < $(ROOT_DIR)/test/config.yaml > $(BUILD_DIR)/config.yaml
 	echo "adm_username:$$apr1$$bxwn8jim$$kbfYFRgbBlKDWpAvd2tHW." > $(BUILD_DIR)/htpasswd
 
@@ -73,7 +74,9 @@ $(frontend_manage): prepare
 		&& npm run copy-templates \
 		&& sed -i '' '/es2015/d' node_modules/@types/node/index.d.ts \
 		&& node_modules/.bin/tsc \
-		&& mv package.json.backup package.json
+		&& mv package.json.backup package.json \
+		&& cp -r . $(BUILD_DIR)/frontend/manage/.
+		
 
 run:
 	rm -f $(BUILD_DIR)/run.sh
