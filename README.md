@@ -266,7 +266,8 @@ of the generation of a new license. The notification endpoint is configured in t
 
 #### Sample config
 Here is a License Server sample config (assuming the License Status Server is using the 'basic' LCP profile, is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
-```json
+
+```yaml
 profile: "basic"
 lcp:
     host: "127.0.0.1"
@@ -322,7 +323,7 @@ lsd_notify_auth:
 #### Sample config
 Here is a License Status Server sample config (assuming the License Status Server is active on http://127.0.0.1:8990 and the Frontend Server is active on http://127.0.0.1:8991):
 
-```json
+```yaml
 lsd:
     host: "127.0.0.1"
     port: 8990
@@ -378,7 +379,8 @@ The config file of a Test Frontend Server must also define the following propert
 
 #### Sample config
 Here is a Test Frontend Server sample config:
-```json
+
+```yaml
 frontend:
     host: "127.0.0.1"
     port: 8991
