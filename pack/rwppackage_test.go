@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/rwpm"
 )
 
@@ -59,7 +58,7 @@ func TestWriteRPFackage(t *testing.T) {
 		t.Fatalf("Could not close file, %s", err)
 	}
 
-	writer.MarkAsEncrypted("test.pdf", 4, license.BasicProfile, "http://www.w3.org/2001/04/xmlenc#aes256-cbc")
+	writer.MarkAsEncrypted("test.pdf", 4, "http://www.w3.org/2001/04/xmlenc#aes256-cbc")
 
 	err = writer.Close()
 	if err != nil {

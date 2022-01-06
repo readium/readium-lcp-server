@@ -12,7 +12,6 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/rwpm"
 )
 
@@ -200,10 +199,10 @@ func (writer *RPFWriter) NewFile(path string, contentType string, storageMethod 
 	return &NopWriteCloser{w}, err
 }
 
-// MarkAsEncrypted marks a resource as encrypted (with an lcp profile and algorithm), in the writer manifest
+// MarkAsEncrypted marks a resource as encrypted (with an algorithm), in the writer manifest
 // FIXME: currently only looks into the reading order. Add "alternates", think about adding "resources"
 // FIXME: process resources which are compressed before encryption -> add Compression and OriginalLength properties in this case
-func (writer *RPFWriter) MarkAsEncrypted(path string, originalSize int64, profile license.EncryptionProfile, algorithm string) {
+func (writer *RPFWriter) MarkAsEncrypted(path string, originalSize int64, algorithm string) {
 
 	for i, resource := range writer.manifest.ReadingOrder {
 		if path == resource.Href {

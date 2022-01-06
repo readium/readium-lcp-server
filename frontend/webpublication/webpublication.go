@@ -5,31 +5,19 @@
 package webpublication
 
 import (
-	"bytes"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"io"
 	"io/ioutil"
 	"log"
 	"mime/multipart"
-	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/lcpencrypt/encrypt"
+	"github.com/readium/readium-lcp-server/encrypt"
 	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
-	"github.com/readium/readium-lcp-server/license"
-	"github.com/readium/readium-lcp-server/pack"
-	uuid "github.com/satori/go.uuid"
-
-	"github.com/Machiel/slugify"
 )
 
 // Publication status
@@ -140,144 +128,33 @@ func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
 	return -1, ErrNotFound
 }
 
-// encryptPublication encrypts an EPUB, PDF, LPF or RPF file and provides the resulting file to the LCP server
+// encryptPublication encrypts a publication, notifies the License Server
+// and inserts a record in the database.
 func encryptPublication(inputPath string, pub Publication, pubManager PublicationManager) error {
 
-	// generate a new uuid; this will be the content id in the lcp server
-	uid, err := uuid.NewV4()
-	if err != nil {
-		return err
-	}
-	contentUUID := uid.String()
-	if len(pub.UUID) > 0 {
-		contentUUID = pub.UUID
-	}
+	var notification *apilcp.LcpPublication
 
-	// set the encryption profile from the config file
-	var lcpProfile license.EncryptionProfile
-	if pubManager.config.Profile == "1.0" {
-		lcpProfile = license.V1Profile
-	} else {
-		lcpProfile = license.BasicProfile
-	}
-
-	// create a temp file in the frontend "encrypted repository"
-	outputFilename := contentUUID + ".tmp"
-	outputPath := path.Join(pubManager.config.FrontendServer.EncryptedRepository, outputFilename)
-
-	// encrypt the master file found at inputPath, write in the temp file, in the "encrypted repository"
-	var encryptedPub encrypt.EncryptionArtifact
-	var contentType string
-
-	switch filepath.Ext(inputPath) {
-	// process EPUB files
-	case ".epub":
-		contentType = epub.ContentType_EPUB
-		encryptedPub, err = encrypt.EncryptEpub(inputPath, outputPath)
-
-		// process PDF files
-	case ".pdf":
-		contentType = "application/pdf+lcp"
-		clearWebPubPath := outputPath + ".webpub"
-		err = pack.BuildRPFFromPDF(pub.Title, inputPath, clearWebPubPath)
-		if err != nil {
-			log.Printf("Error building webpub package: %s", err)
-			return err
-		}
-		defer os.Remove(clearWebPubPath)
-		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, clearWebPubPath, outputPath)
-
-		// process LPF files
-	case ".lpf":
-		// FIXME: short term solution; should be extended to other profiles
-		contentType = "application/audiobook+lcp"
-		clearWebPubPath := outputPath + ".webpub"
-		err = pack.BuildRPFFromLPF(inputPath, clearWebPubPath)
-		if err != nil {
-			return err
-		}
-		defer os.Remove(clearWebPubPath)
-		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, clearWebPubPath, outputPath)
-
-		// process RPF Audiobook files
-	case ".audiobook":
-		contentType = "application/audiobook+lcp"
-		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, inputPath, outputPath)
-
-		// process RPF Divina files
-	case ".divina":
-		contentType = "application/divina+lcp"
-		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, inputPath, outputPath)
-
-		// process RPF PDF files
-	case ".rpf":
-		contentType = "application/pdf+lcp"
-		encryptedPub, err = encrypt.EncryptPackage(lcpProfile, inputPath, outputPath)
-
-		// unknown file
-	default:
-		return errors.New("Could not match the file extension: " + inputPath)
-	}
-
-	if err != nil {
-		// unable to encrypt the master file
-		if _, statErr := os.Stat(inputPath); statErr == nil {
-			os.Remove(inputPath)
-		}
-		return err
-	}
-
-	// prepare the import request to the lcp server
-	contentDisposition := slugify.Slugify(pub.Title)
-	lcpPublication := apilcp.LcpPublication{}
-	lcpPublication.ContentID = contentUUID
-	lcpPublication.ContentKey = encryptedPub.EncryptionKey
-	// both frontend and lcp server must understand this path (warning if using Docker containers)
-	lcpPublication.Output = outputPath
-	lcpPublication.ContentDisposition = &contentDisposition
-	lcpPublication.Checksum = &encryptedPub.Checksum
-	lcpPublication.Size = &encryptedPub.Size
-	lcpPublication.ContentType = contentType
-
-	// json encode the payload
-	jsonBody, err := json.Marshal(lcpPublication)
+	// encrypt the publication
+	// FIXME: work on a direct storage of the output file.
+	outputRepo := pubManager.config.FrontendServer.EncryptedRepository
+	notification, err := encrypt.ProcessPublication("", inputPath, outputRepo, "", "")
 	if err != nil {
 		return err
 	}
 
-	// send the content to the LCP server
-	lcpServerConfig := pubManager.config.LcpServer
-	lcpURL := lcpServerConfig.PublicBaseUrl + "/contents/" + contentUUID
-	log.Println("PUT " + lcpURL)
-	req, err := http.NewRequest("PUT", lcpURL, bytes.NewReader(jsonBody))
+	// send a notification to the License server
+	err = encrypt.NotifyLcpServer(
+		notification,
+		pubManager.config.LcpServer.PublicBaseUrl,
+		pubManager.config.LcpUpdateAuth.Username,
+		pubManager.config.LcpUpdateAuth.Password)
 	if err != nil {
-		return err
-	}
-	// authenticate
-	lcpUpdateAuth := pubManager.config.LcpUpdateAuth
-	if pubManager.config.LcpUpdateAuth.Username != "" {
-		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
-	}
-	// set the payload type
-	req.Header.Add("Content-Type", api.ContentType_LCP_JSON)
-
-	var lcpClient = &http.Client{
-		Timeout: time.Second * 60,
-	}
-	// sends the import request to the lcp server
-	resp, err := lcpClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != 201 {
-		// error on creation
 		return err
 	}
 
 	// store the new publication in the db
 	// the publication uuid is the lcp db content id.
-	pub.UUID = contentUUID
+	pub.UUID = notification.ContentID
 	pub.Status = StatusOk
 	dbAdd, err := pubManager.db.Prepare("INSERT INTO publication (uuid, title, status) VALUES ( ?, ?, ?)")
 	if err != nil {
@@ -289,39 +166,48 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 		pub.UUID,
 		pub.Title,
 		pub.Status)
+
 	return err
 }
 
 // Add adds a new publication
-// Encrypts a master File and sends the content to the LCP server
+// Encrypts a master File and notifies the License server
 func (pubManager PublicationManager) Add(pub Publication) error {
 
 	// get the path to the master file
-	inputPath := path.Join(
+	inputPath := filepath.Join(
 		pubManager.config.FrontendServer.MasterRepository, pub.MasterFilename)
-
-	log.Println("Add a publication from path " + inputPath)
 
 	if _, err := os.Stat(inputPath); err != nil {
 		// the master file does not exist
 		return err
 	}
-	// encrypt the publication and send the content to the LCP server
-	return encryptPublication(inputPath, pub, pubManager)
+
+	// encrypt the publication and send a notification to the License server
+	err := encryptPublication(inputPath, pub, pubManager)
+	if err != nil {
+		return err
+	}
+
+	// delete the master file
+	err = os.Remove(inputPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Upload creates a new publication, named after a POST form parameter.
-// The file is processed, encrypted and sent to the LCP server.
+// Encrypts a master File and notifies the License server
 func (pubManager PublicationManager) Upload(file multipart.File, extension string, pub Publication) error {
 
-	// create a temp file
+	// create a temp file in the default directory
 	tmpfile, err := ioutil.TempFile("", "uploaded-*"+extension)
 	if err != nil {
 		return err
 	}
 	defer os.Remove(tmpfile.Name())
-
-	log.Println("Upload a publication, use a tmp file")
 
 	// copy the request payload to the temp file
 	if _, err = io.Copy(tmpfile, file); err != nil {
@@ -333,13 +219,8 @@ func (pubManager PublicationManager) Upload(file multipart.File, extension strin
 		return err
 	}
 
-	// process and encrypt the publication, send the content to the LCP server
-	err = encryptPublication(tmpfile.Name(), pub, pubManager)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	// encrypt the publication and send a notification to the License server
+	return encryptPublication(tmpfile.Name(), pub, pubManager)
 }
 
 // Update updates a publication
@@ -381,17 +262,6 @@ func (pubManager PublicationManager) Delete(id int64) error {
 		err = result.Scan(&title)
 		if err != nil {
 			return err
-		}
-
-		// delete the epub file from the master repository
-		// FIXME: make it work for all kinds of extensions
-		inputPath := path.Join(pubManager.config.FrontendServer.MasterRepository, title+".epub")
-
-		if _, err := os.Stat(inputPath); err == nil {
-			err = os.Remove(inputPath)
-			if err != nil {
-				return err
-			}
 		}
 	}
 	result.Close()
