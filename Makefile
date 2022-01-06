@@ -76,7 +76,7 @@ $(frontend_manage): prepare
 		&& mv package.json.backup package.json
 
 run:
-	rm $(BUILD_DIR)/run.sh
+	rm -f $(BUILD_DIR)/run.sh
 	echo "#! /usr/bin/env sh" >> $(BUILD_DIR)/run.sh
 	echo "READIUM_LCPSERVER_CONFIG=$(READIUM_LCPSERVER_CONFIG) $(BUILD_DIR)/bin/$(lcpserver) > $(BUILD_DIR)/log/$(lcpserver).log &" >> $(BUILD_DIR)/run.sh
 	echo "READIUM_LSDSERVER_CONFIG=$(READIUM_LSDSERVER_CONFIG) $(BUILD_DIR)/bin/$(lsdserver) > $(BUILD_DIR)/log/$(lsdserver).log &" >> $(BUILD_DIR)/run.sh
