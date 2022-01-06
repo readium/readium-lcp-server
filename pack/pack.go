@@ -14,7 +14,6 @@ import (
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
-	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/xmlenc"
 )
 
@@ -27,7 +26,7 @@ type PackageReader interface {
 // PackageWriter is an interface
 type PackageWriter interface {
 	NewFile(path string, contentType string, storageMethod uint16) (io.WriteCloser, error)
-	MarkAsEncrypted(path string, originalSize int64, profile license.EncryptionProfile, algorithm string)
+	MarkAsEncrypted(path string, originalSize int64, algorithm string)
 	Close() error
 }
 
@@ -44,7 +43,7 @@ type Resource interface {
 }
 
 // Process copies resources from the source to the destination package, after encryption if needed.
-func Process(profile license.EncryptionProfile, encrypter crypto.Encrypter, reader PackageReader, writer PackageWriter) (key crypto.ContentKey, err error) {
+func Process(encrypter crypto.Encrypter, reader PackageReader, writer PackageWriter) (key crypto.ContentKey, err error) {
 
 	// generate an encryption key
 	key, err = encrypter.GenerateKey()
@@ -63,7 +62,7 @@ func Process(profile license.EncryptionProfile, encrypter crypto.Encrypter, read
 	// loop through the resources of the source package, encrypt them if needed, copy them into the dest package
 	for _, resource := range reader.Resources() {
 		if !resource.Encrypted() && resource.CanBeEncrypted() {
-			err = encryptRPFResource(compressor, profile, encrypter, key, resource, writer)
+			err = encryptRPFResource(compressor, encrypter, key, resource, writer)
 			if err != nil {
 				log.Println("Error encrypting " + resource.Path() + ": " + err.Error())
 				return
@@ -166,7 +165,7 @@ func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 }
 
 // encryptRPFResource encrypts a resource in a Readium Package
-func encryptRPFResource(compressor *flate.Writer, profile license.EncryptionProfile, encrypter crypto.Encrypter, key crypto.ContentKey, resource Resource, packageWriter PackageWriter) error {
+func encryptRPFResource(compressor *flate.Writer, encrypter crypto.Encrypter, key crypto.ContentKey, resource Resource, packageWriter PackageWriter) error {
 
 	// add the file to the package writer
 	// note: the file is stored as-is because compression, when applied, is applied *before* encryption
@@ -199,7 +198,7 @@ func encryptRPFResource(compressor *flate.Writer, profile license.EncryptionProf
 	resourceReader.Close()
 	file.Close()
 
-	packageWriter.MarkAsEncrypted(resource.Path(), resource.Size(), profile, encrypter.Signature())
+	packageWriter.MarkAsEncrypted(resource.Path(), resource.Size(), encrypter.Signature())
 
 	return err
 }
