@@ -1,0 +1,11 @@
+
+frontend:
+  host: "${HOST}"
+  port: "${PORT}"
+  directory: "${DIRECTORY}"
+  database: "${DB_URI}"
+  master_repository: "${MASTER_REPOSITORY}"
+  encrypted_repository: "${ENCRYPTED_REPOSITORY}"
+  provider_uri: "${PROVIDER_URI}"
+  right_print: 10
+  right_copy: 2000

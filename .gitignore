@@ -26,5 +26,6 @@ lcpserver/.DS_Store
 npm-debug.log
 manage/config.js
 
+!docker/**/config.yaml
 build/
 .*.swp
