@@ -7,5 +7,5 @@ frontend:
   master_repository: "${MASTER_REPOSITORY}"
   encrypted_repository: "${ENCRYPTED_REPOSITORY}"
   provider_uri: "${PROVIDER_URI}"
-  right_print: 10
-  right_copy: 2000
+  right_print: ${RIGHT_PRINT_NUMBER}
+  right_copy: ${RIGHT_COPY_NUMBER}

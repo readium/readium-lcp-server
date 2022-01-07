@@ -17,15 +17,12 @@ FROM golang:bullseye as frontend-builder
 WORKDIR /lcp
 COPY . /lcp/.
 RUN make frontend
-# COPY /build/bin/frontend /build/bin/frontend
-
-
 
 
 FROM alpine:latest
 WORKDIR /
 
-COPY /docker/frontend/run.sh /run.sh
+COPY /docker/frontend/entrypoint.sh /entrypoint.sh
 COPY /docker/frontend/config.yaml /tmp/config.yaml
 
 COPY --from=manage-builder /lcp/build/frontend/manage/. /manage/.
@@ -35,4 +32,5 @@ COPY --from=frontend-builder /lcp/build/bin/frontend /frontend
 
 EXPOSE ${PORT}
 
-CMD sh /run.sh /tmp/config.yaml /frontend
+# CMD /bin/frontend # $@ return args from the command and not the command name
+ENTRYPOINT ["/entrypoint.sh", "/tmp/config.yaml", "/frontend"]
