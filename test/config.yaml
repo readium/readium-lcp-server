@@ -64,7 +64,7 @@ license_status:
 frontend:
     host: "127.0.0.1"
     port: 8991
-    directory: "<REPO>/frontend/manage"
+    directory: "<LCP_HOME>/frontend/manage" # default is readium_lcp_server/frontend/manage .. you can disable it
     database: "sqlite3://file:<LCP_HOME>/db/frontend.sqlite?cache=shared&mode=rwc"
     master_repository: "<LCP_HOME>/files/master"
     encrypted_repository: "<LCP_HOME>/files/encrypted"
