@@ -22,15 +22,17 @@ RUN make frontend
 FROM alpine:latest
 WORKDIR /
 
+RUN apk add --no-cache gettext # envsubst
+
 COPY /docker/frontend/entrypoint.sh /entrypoint.sh
 COPY /docker/frontend/config.yaml /tmp/config.yaml
 
 COPY --from=manage-builder /lcp/build/frontend/manage/. /manage/.
 ENV DIRECTORY=/manage
 
-COPY --from=frontend-builder /lcp/build/bin/frontend /frontend
+COPY --from=frontend-builder /lcp/build/bin/frontend /bin/frontend
 
 EXPOSE ${PORT}
 
-# CMD /bin/frontend # $@ return args from the command and not the command name
-ENTRYPOINT ["/entrypoint.sh", "/tmp/config.yaml", "/frontend"]
+CMD ["/bin/frontend"]
+ENTRYPOINT ["/entrypoint.sh", "/tmp/config.yaml"]

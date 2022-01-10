@@ -26,7 +26,7 @@ else
 	SED_I=sed -i ''
 endif
 
-CC=go install 
+CC=go install -ldflags="-extldflags=-static"
 
 .PHONY: all node run prepare clean
 

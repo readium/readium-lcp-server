@@ -1,0 +1,38 @@
+
+lcp:
+  host: "${HOST}"
+  port: "${PORT}"
+  public_base_url: "${LCP_BASE_URL}"
+  database: "${DB_URI}"
+  auth_file: "${AUTH_FILE}"
+
+certificate:
+  cert: "${CERTICATE_PATH}"
+  private_key: "${PRIVATE_KEY}"
+
+lsd:
+  public_base_url: "${LSD_BASE_URL}"
+lcp:
+  public_base_url: "${LCP_BASE_URL}"
+lcp_update_auth:
+  username: "${LCP_UPDATE_AUTH_USER}"
+  password: "${LCP_UPDATE_AUTH_PASS}"
+lsd_notify_auth: 
+  username: "${LSD_NOTIFY_AUTH_USER}"
+  password: "${LSD_NOTIFY_AUTH_PASS}"
+storage:
+  Mode: "s3" # be carefull need upercase
+  Endpoint: "${S3_ENDPOINTS}"
+  access_id: "${S3_ACCESS_ID}"
+  disable_ssl: "${S3_DISABLE_SSL}"
+  Secret: "${S3_SECRET}"
+  Bucket: "${S3_BUCKET}"
+  Region: "${S3_REGION}"
+  Token: "${S3_TOKEN}"
+
+localization:
+  languages: ${LOCALIZATION_LANGUAGES_ARRAY} # ["en-US"]
+  folder: "${LOCALIZATION_FOLDER}"  # /src/github.com/readium/readium-lcp-server/messages/
+  default_language: "${LOCALIZATION_DEFAULT_LANGUAGE}" # "en-US"
+
+aes256_cbc_or_gcm: "_GCM"
