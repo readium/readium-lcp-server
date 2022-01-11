@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 if [ `arch` = "arm64" ]
 then
   echo "arm64 detected set platform linux/amd64"
