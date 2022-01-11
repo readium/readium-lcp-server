@@ -26,7 +26,10 @@ else
 	SED_I=sed -i ''
 endif
 
-CC=go install -ldflags="-extldflags=-static"
+#LDFLAGS=-extldflags=-static
+LDFLAGS=
+
+CC=go install -ldflags="$(LDFLAGS)"
 
 .PHONY: all node run prepare clean
 
@@ -68,7 +71,8 @@ $(frontend): prepare
 $(frontend_manage): prepare
 		cd ./$@ \
 		&& cp package.json package.json.backup \
-		&&  $(SED_I) '/\"lite-server\"\:/d' package.json \
+		&& $(SED_I) '/\"lite-server\"\:/d' package.json \
+		&& $(SED_I) 's/git\:/https\:/g' package.json \
 		&& npm install \
 		&& npm update \
 		&& npm run clean \
