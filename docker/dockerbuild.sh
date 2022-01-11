@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ ! -d "$1" ] 
+if [ -d "$1" ] 
 then
 
   echo "run dockers"
@@ -11,7 +11,7 @@ then
 
 else
 
-  echo "$1 doesn't exist ERROR"
+  echo "$1 doesn't exists ERROR"
 
 fi
 
