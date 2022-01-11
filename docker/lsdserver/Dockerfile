@@ -1,5 +1,5 @@
 
-FROM golang:bullseye as lsdserver-builder
+FROM golang:alpine as lsdserver-builder
 WORKDIR /lcp
 COPY . /lcp/.
 
