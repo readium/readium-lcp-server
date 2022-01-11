@@ -37,4 +37,4 @@ COPY --from=frontend-builder /lcp/build/bin/frontend /bin/frontend
 EXPOSE ${PORT}
 
 CMD ["/bin/frontend"]
-ENTRYPOINT ["/entrypoint.sh", "/tmp/config.yaml"]
+ENTRYPOINT ["/entrypoint.sh", "/tmp/config.yaml", "/manage"]

@@ -9,10 +9,10 @@ READIUM_FRONTEND_CONFIG=/config.yaml
 envsubst < $1 > ${READIUM_FRONTEND_CONFIG}
 
 # Update base href of frontend index.html
-sed -i "s@base href=\"/\"@base href=\"${BASE_URL}\"@g" /src/github.com/readium/readium-lcp-server/frontend/manage/index.html
+sed -i "s@base href=\"/\"@base href=\"${BASE_URL}\"@g" $2/index.html
 
-echo "exec $2"
+echo "exec $3"
 
 echo "================="
 
-exec "$2"
+exec "$3"
