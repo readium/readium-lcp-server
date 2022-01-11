@@ -13,9 +13,11 @@ RUN apt-get update \
 RUN PATH=/lcp/node-v6.9.2-linux-x64/bin:$PATH make "frontend/manage"
 
 
-FROM golang:bullseye as frontend-builder
+FROM golang:alpine as frontend-builder
 WORKDIR /lcp
 COPY . /lcp/.
+
+RUN apk add build-base
 RUN make frontend
 
 

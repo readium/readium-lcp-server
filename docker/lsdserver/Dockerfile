@@ -2,6 +2,8 @@
 FROM golang:bullseye as lcpserver-builder
 WORKDIR /lcp
 COPY . /lcp/.
+
+RUN apk add build-base
 RUN make lsdserver
 
 

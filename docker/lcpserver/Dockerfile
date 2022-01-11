@@ -1,7 +1,9 @@
 
-FROM golang:bullseye as lcpserver-builder
+FROM golang:alpine as lcpserver-builder
 WORKDIR /lcp
 COPY . /lcp/.
+
+RUN apk add build-base
 RUN make lcpserver
 
 
