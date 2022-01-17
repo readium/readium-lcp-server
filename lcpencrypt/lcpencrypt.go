@@ -19,9 +19,10 @@ func showHelpAndExit() {
 
 	fmt.Println("lcpencrypt protects a publication using the LCP DRM")
 	fmt.Println("-input        source epub/pdf/lpf file locator (file system or http GET)")
+	fmt.Println("[-output]     optional, target path of encrypted publications")
+	fmt.Println("[-temp]       optional, working folder for temporary files")
 	fmt.Println("[-storage]    optional, final storage of the encrypted publication, fs or s3")
 	fmt.Println("[-url]        optional, base url associated with the storagen")
-	fmt.Println("[-output]     optional, target path of encrypted publications")
 	fmt.Println("[-contentid]  optional, content identifier; if omitted a uuid is generated")
 	fmt.Println("[-lcpsv]      optional, http endpoint, notification of the License server")
 	fmt.Println("[-login]      login (License server) ")
@@ -39,9 +40,10 @@ func exitWithError(context string, err error) {
 
 func main() {
 	var inputPath = flag.String("input", "", "source epub/pdf/lpf file locator (file system or http GET)")
+	var outputRepo = flag.String("output", "", "optional, target folder of encrypted publications")
+	var tempRepo = flag.String("temp", "", "optional, working folder for temporary files")
 	var storageRepo = flag.String("storage", "", "optional, final storage of the encrypted publication, fs or s3")
 	var storageURL = flag.String("url", "", "optional, base url associated with the storage")
-	var outputRepo = flag.String("output", "", "optional, target path of encrypted publications")
 	var contentid = flag.String("contentid", "", "optional, content identifier; if omitted a uuid is generated")
 	var lcpsv = flag.String("lcpsv", "", "optional, http endpoint, notification of the License server")
 	var username = flag.String("login", "", "login (License server)")
@@ -64,7 +66,7 @@ func main() {
 	}
 
 	// encrypt the publication
-	pub, err := encrypt.ProcessPublication(*contentid, *inputPath, *outputRepo, *storageRepo, *storageURL)
+	pub, err := encrypt.ProcessPublication(*contentid, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL)
 	if err != nil {
 		exitWithError("Process a publication", err)
 	}

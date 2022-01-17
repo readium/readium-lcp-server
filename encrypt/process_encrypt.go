@@ -27,7 +27,8 @@ import (
 )
 
 // ProcessPublication encrypts a publication
-func ProcessPublication(contentID string, inputPath string, outputRepo string, storageRepo string, storageURL string) (*apilcp.LcpPublication, error) {
+// inputPath must contain a processable file extension (EPUB, PDF, LPF or RPF)
+func ProcessPublication(contentID, inputPath, tempRepo, outputRepo, storageRepo, storageURL string) (*apilcp.LcpPublication, error) {
 
 	var pub apilcp.LcpPublication
 
@@ -37,7 +38,19 @@ func ProcessPublication(contentID string, inputPath string, outputRepo string, s
 		if err != nil {
 			return nil, err
 		}
-		pub.ContentID = uid.String()
+		contentID = uid.String()
+	}
+	pub.ContentID = contentID
+
+	// if the input file is stored on a remote server, fetch it and store it into a temp folder
+	tempPath, err := fetchInputFile(inputPath, tempRepo, contentID)
+	if err != nil {
+		return nil, err
+	}
+	deleteTemp := false
+	if tempPath != "" {
+		deleteTemp = true
+		inputPath = tempPath
 	}
 
 	// select a storage mode
@@ -73,11 +86,10 @@ func ProcessPublication(contentID string, inputPath string, outputRepo string, s
 	// set target file info
 	targetFileInfo(&pub, inputPath)
 
-	// define a AES encrypted
+	// define an AES encrypter
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
 
 	// select the encryption process from the input file extension
-	var err error
 	err = nil
 	inputExt := filepath.Ext(inputPath)
 
@@ -93,6 +105,13 @@ func ProcessPublication(contentID string, inputPath string, outputRepo string, s
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if deleteTemp {
+		err = os.Remove(inputPath)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// store the publication if required, and set pub.Output
@@ -117,6 +136,51 @@ func ProcessPublication(contentID string, inputPath string, outputRepo string, s
 		return nil, err
 	}
 	return &pub, nil
+}
+
+// fetchInputFile fetches the input file from a remote server
+func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
+
+	url, err := url.Parse(inputPath)
+	if err != nil {
+		return "", err
+	}
+
+	// no need to fetch the file, which is in a file system
+	if url.Scheme != "http" && url.Scheme != "https" && url.Scheme != "ftp" {
+		return "", nil
+	}
+
+	// create a temp repo if needed
+	if tempRepo == "" {
+		tempRepo, _ = os.Getwd()
+	}
+	// the temp file has the same extension as the remote file
+	inputExt := filepath.Ext(inputPath)
+	tempPath := filepath.Join(tempRepo, contentID+inputExt)
+	// create the temp file
+	out, err := os.Create(tempPath)
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+
+	// fetch the file
+	if url.Scheme == "http" || url.Scheme == "https" {
+		res, err := http.Get(inputPath)
+		if err != nil {
+			return "", err
+		}
+		defer res.Body.Close()
+		_, err = io.Copy(out, res.Body)
+		if err != nil {
+			return "", err
+		}
+	} else if url.Scheme == "ftp" {
+		// we'll use https://github.com/jlaffaye/ftp when requested
+		return "", errors.New("ftp not supported yet")
+	}
+	return tempPath, nil
 }
 
 // targetFileInfo set the content type and

@@ -292,7 +292,7 @@ func OpenRPF(name string) (*RPFReader, error) {
 // BuildRPFFromPDF builds a Readium Package (rwpp) which embeds a PDF file
 func BuildRPFFromPDF(title string, inputPath string, outputPath string) error {
 
-	// crate the rwpp
+	// create the rwpp
 	f, err := os.Create(outputPath)
 	if err != nil {
 		return err
