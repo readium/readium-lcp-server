@@ -67,7 +67,7 @@ func (pubManager PublicationManager) Get(id int64) (Publication, error) {
 	}
 	defer dbGetByID.Close()
 
-	records, err := dbGetByID.Query(id)
+	records, _ := dbGetByID.Query(id)
 	if records.Next() {
 		var pub Publication
 		err = records.Scan(
@@ -91,7 +91,7 @@ func (pubManager PublicationManager) GetByUUID(uuid string) (Publication, error)
 	}
 	defer dbGetByUUID.Close()
 
-	records, err := dbGetByUUID.Query(uuid)
+	records, _ := dbGetByUUID.Query(uuid)
 	if records.Next() {
 		var pub Publication
 		err = records.Scan(
@@ -115,7 +115,7 @@ func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
 	}
 	defer dbGetByTitle.Close()
 
-	records, err := dbGetByTitle.Query(title)
+	records, _ := dbGetByTitle.Query(title)
 	if records.Next() {
 		var res int64
 		err = records.Scan(&res)
