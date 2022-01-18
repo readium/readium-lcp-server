@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS `license_status` (
+CREATE TABLE `license_status` (
     `id` int(11) PRIMARY KEY AUTO_INCREMENT,
     `status` int(11) NOT NULL,
     `license_updated` datetime NOT NULL,
@@ -9,9 +9,9 @@ CREATE TABLE IF NOT EXISTS `license_status` (
     `rights_end` datetime DEFAULT NULL
 );
 
-CREATE INDEX IF NOT EXISTS `license_ref_index` ON `license_status` (`license_ref`);
+CREATE INDEX `license_ref_index` ON `license_status` (`license_ref`);
 
-CREATE TABLE IF NOT EXISTS `event` (
+CREATE TABLE `event` (
     `id` int(11) PRIMARY KEY AUTO_INCREMENT,
     `device_name` varchar(255) DEFAULT NULL,
     `timestamp` datetime NOT NULL,
@@ -21,4 +21,4 @@ CREATE TABLE IF NOT EXISTS `event` (
     FOREIGN KEY(`license_status_fk`) REFERENCES `license_status` (`id`)
 );
 
-CREATE INDEX IF NOT EXISTS `license_status_fk_index` on `event` (`license_status_fk`);
+CREATE INDEX `license_status_fk_index` on `event` (`license_status_fk`);
