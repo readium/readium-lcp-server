@@ -1,13 +1,13 @@
-CREATE TABLE `publication` (
+CREATE TABLE IF NOT EXISTS `publication` (
     `id` int(11) PRIMARY KEY AUTO_INCREMENT,
     `uuid` varchar(255) NOT NULL,	/* == content id */
     `title` varchar(255) NOT NULL,
     `status` varchar(255) NOT NULL
 );
 
-CREATE INDEX uuid_index ON publication (`uuid`);
+CREATE INDEX IF NOT EXISTS uuid_index ON publication (`uuid`);
 
-CREATE TABLE `user` (
+CREATE TABLE IF NOT EXISTS `user` (
     `id` int(11) PRIMARY KEY AUTO_INCREMENT,
     `uuid` varchar(255) NOT NULL,
     `name` varchar(64) NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE `user` (
     `hint` varchar(64) NOT NULL
 );
 
-CREATE TABLE `purchase` (
+CREATE TABLE IF NOT EXISTS `purchase` (
     `id` int(11) PRIMARY KEY AUTO_INCREMENT,
     `uuid` varchar(255) NOT NULL,
     `publication_id` int(11) NOT NULL,
@@ -31,9 +31,9 @@ CREATE TABLE `purchase` (
     FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 );
 
-CREATE INDEX `idx_purchase` ON `purchase` (`license_uuid`);
+CREATE INDEX IF NOT EXISTS `idx_purchase` ON `purchase` (`license_uuid`);
 
-CREATE TABLE `license_view` (
+CREATE TABLE IF NOT EXISTS `license_view` (
     `id` int(11) PRIMARY KEY AUTO_INCREMENT,
     `uuid` varchar(255) NOT NULL,
     `device_count` int(11) NOT NULL,

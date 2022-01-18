@@ -1,4 +1,4 @@
-CREATE TABLE `content` (
+CREATE TABLE IF NOT EXISTS `content` (
     `id` varchar(255) PRIMARY KEY NOT NULL,
     `encryption_key` varbinary(64) NOT NULL,
     `location` text NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE `content` (
     `type` varchar(255) NOT NULL DEFAULT 'application/epub+zip'
 );
 
-CREATE TABLE `license` (
+CREATE TABLE IF NOT EXISTS `license` (
     `id` varchar(255) PRIMARY KEY NOT NULL,
     `user_id` varchar(255) NOT NULL,
     `provider` varchar(255) NOT NULL,
