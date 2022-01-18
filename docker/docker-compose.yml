@@ -1,8 +1,72 @@
 version: "3.9"
 services:
-  lcpserver:
-    image: edrlab:lcpserver
-  lsdserver:
-    image: edrlab:lsdserver
-  frontend:
-    image: edrlab:frontend-test-server
+  # lcpserver:
+  #   image: gcr.io/lcp-server-337422/github.com/readium/readium-lcp-server@sha256:2d074cbc374c3b367570e6d0420a3b25934de769809cb6af20876aa6f9218387
+  # lsdserver:
+  #   image: gcr.io/lcp-server-337422/github.com/readium/readium-lsd-server@sha256:d6cb4fb2556ce9521ca6bb01fedee793e7d928619cc912c029d858d9cee15e7e
+  # frontend:
+  #   image: gcr.io/lcp-server-337422/github.com/readium/readium-frontend-server@sha256:968e7daa5febbdf3afe53da1cfa24facc68371831ad85fae96bac21b09307f33
+
+  db:
+    image: mariadb:latest
+      #    restart: always
+    environment:
+      MARIADB_USER: admin
+      MARIADB_PASSWORD: admin
+      MARIADB_ROOT_PASSWORD: password
+      MARIADB_DATABASE: readium-lcp
+    volumes:
+      - db-data:/var/lib/mysql
+      - "${PWD}/dbmodel/mysql_db_setup_frontend.sql:/docker-entrypoint-initdb.d/1.sql"
+      - "${PWD}/dbmodel/mysql_db_setup_lsdserver.sql:/docker-entrypoint-initdb.d/2.sql"
+      - "${PWD}/dbmodel/mysql_db_setup_lcpserver.sql:/docker-entrypoint-initdb.d/3.sql"
+
+  adminer:
+    image: adminer
+    
+      #restart: always
+    ports:
+      - 8081:8080
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2022-01-08T03-11-54Z
+    command: server --console-address ":9001" /data 
+    ports:
+      - 8082:9000
+      - 8083:9001
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    volumes:
+      - minio-data:/data
+    networks:
+      - backnet
+      - webnet
+
+# https://hub.docker.com/r/dockersamples/visualizer
+# doesn't works with docker-compose
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - 8080:8080
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    networks:
+      - webnet
+
+
+volumes:
+  minio-data:
+  db-data:
+
+networks:
+  backnet:
+  webnet:
