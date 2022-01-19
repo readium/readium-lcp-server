@@ -8,7 +8,7 @@ lcp:
   readonly: ${READONLY_BOOL}
 
 certificate:
-  cert: "${CERTICATE_PATH}"
+  cert: "${CERTIFICATE_PATH}"
   private_key: "${PRIVATE_KEY}"
 
 lsd:

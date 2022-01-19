@@ -9,7 +9,7 @@ lsd:
   licence_link_url: "${LICENCE_LINK_URL}"
 
 certificate:
-  cert: "${CERTICATE_PATH}"
+  cert: "${CERTIFICATE_PATH}"
   private_key: "${PRIVATE_KEY}"
 
 lcp:
