@@ -20,3 +20,9 @@ DOCKER_BUILDKIT=1 sudo ./docker/dockerbuild.sh `pwd`
 
 ```
 
+## docker-compose
+
+```
+docker-compose -f docker/docker-compose.yml up
+
+```

@@ -1,7 +1,7 @@
 version: "3.9"
 
 x-common-variables: &common-variables
-  LCP_BASE_URL: "http://127.0.0.1:8091"
+  LCP_BASE_URL: "http://lcpserver:8091"
   LSD_BASE_URL: "http://127.0.0.1:8092"
   FRONTEND_BASE_URL: "http://127.0.0.1:8093"
   DB_URI: "mysql://admin:admin@tcp(db:3306)/readium-lcp"
@@ -11,9 +11,9 @@ x-common-variables: &common-variables
   LCP_UPDATE_AUTH_PASS: "adm_password"
   S3_ENDPOINTS: "http://minio:8082"
   S3_ACCESS_ID: "admin" #key
-  S3_DISABLE_SSL: ""
+  S3_DISABLE_SSL_BOOL: ""
   S3_SECRET: "password"
-  S3_BUCKET: "readium"
+  S3_BUCKET: "readium-lcp"
   S3_REGION: ""
   S3_TOKEN: ""
 
@@ -38,8 +38,11 @@ services:
     networks:
       - dbnet
       - backnet
-    ports:
-      - 8091:8091
+        #    ports:
+        #     - 8091:8091
+    depends_on:
+      - db
+      - minio
 
   lsdserver:
     image: gcr.io/lcp-server-337422/github.com/readium/readium-lsd-server:latest-cd
@@ -60,6 +63,9 @@ services:
       - webnet
     ports:
       - 8092:8092
+    depends_on:
+      - db
+      - minio
 
   frontend:
     image: gcr.io/lcp-server-337422/github.com/readium/readium-frontend-server:latest-cd
@@ -81,6 +87,9 @@ services:
       - webnet
     ports:
       - 8093:8093
+    depends_on:
+      - db
+      - minio
 
 
   db:
@@ -98,8 +107,8 @@ services:
       - "${PWD}/dbmodel/mysql_db_setup_lcpserver.sql:/docker-entrypoint-initdb.d/3.sql"
     networks:
       - dbnet
-    ports:
-      - 3306:3306
+        # ports:
+        # - 3306:3306
 
   adminer:
     image: adminer

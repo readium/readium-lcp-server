@@ -50,9 +50,13 @@ Quickstart
 > You have to download node [v6.9.2](https://nodejs.org/dist/v6.9.2/) to compile the frontend webapp
 
 ```
-
 make clean && PATH=/Users/edrlab/Downloads/node-v6.9.2-darwin-x64/bin:$PATH make && make run
+```
 
+## docker-compose
+
+```
+docker-compose -f docker/docker-compose.yml up
 ```
 
 Executables
