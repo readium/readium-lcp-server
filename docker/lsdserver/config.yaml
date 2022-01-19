@@ -1,7 +1,7 @@
 
 lsd:
   host: "${HOST}"
-  port: "${PORT}"
+  port: ${PORT}
   public_base_url: "${LSD_BASE_URL}"
   database: "${DB_URI}"
   auth_file: "${AUTH_FILE}"
@@ -22,7 +22,7 @@ storage:
   Mode: "s3" # be carefull need upercase
   Endpoint: "${S3_ENDPOINTS}"
   access_id: "${S3_ACCESS_ID}"
-  disable_ssl: "${S3_DISABLE_SSL}"
+  disable_ssl: ${S3_DISABLE_SSL_BOOL}
   Secret: "${S3_SECRET}"
   Bucket: "${S3_BUCKET}"
   Region: "${S3_REGION}"
