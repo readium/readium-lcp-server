@@ -26,6 +26,7 @@ storage:
   Bucket: "${S3_BUCKET}"
   Region: "${S3_REGION}"
   Token: "${S3_TOKEN}"
+  PathStyle: true
 
 localization:
   languages: ${LOCALIZATION_LANGUAGES_ARRAY} # ["en-US"]
