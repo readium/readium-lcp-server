@@ -1,4 +1,4 @@
-version: "3.9"
+version: "3.3"
 
 x-common-variables: &common-variables
   LCP_BASE_URL: "http://lcpserver:8091"
@@ -49,6 +49,11 @@ services:
     depends_on:
       - db
       - minio
+    restart_policy:
+      condition: on-failure
+      delay: 5s
+      max_attempts: 3
+      window: 120s
 
   lsdserver:
     image: gcr.io/lcp-server-337422/github.com/readium/readium-lsd-server:latest-cd
@@ -72,6 +77,12 @@ services:
     depends_on:
       - db
       - minio
+    restart_policy:
+      condition: on-failure
+      delay: 5s
+      max_attempts: 3
+      window: 120s
+
 
   frontend:
     image: gcr.io/lcp-server-337422/github.com/readium/readium-frontend-server:latest-cd
@@ -96,6 +107,12 @@ services:
     depends_on:
       - db
       - minio
+    restart_policy:
+      condition: on-failure
+      delay: 5s
+      max_attempts: 3
+      window: 120s
+
 
 
   db:
@@ -115,6 +132,12 @@ services:
       - dbnet
         # ports:
         # - 3306:3306
+    restart_policy:
+      condition: any
+      delay: 5s
+        #  max_attempts: 3
+      window: 120s
+
 
   adminer:
     image: adminer
@@ -125,6 +148,12 @@ services:
     networks:
       - webnet
       - dbnet
+    restart_policy:
+      condition: on-failure
+      delay: 5s
+      max_attempts: 3
+      window: 120s
+
 
   # https://raw.githubusercontent.com/minio/minio/master/docs/orchestration/docker-compose/docker-compose.yaml
   minio:
@@ -146,6 +175,13 @@ services:
     networks:
       - backnet
       - webnet
+    restart_policy:
+      condition: any
+      delay: 5s
+        # max_attempts: 3
+      window: 120s
+
+
 
 # https://hub.docker.com/r/dockersamples/visualizer
 # doesn't works with docker-compose
