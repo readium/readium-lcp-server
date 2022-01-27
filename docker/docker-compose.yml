@@ -49,11 +49,12 @@ services:
     depends_on:
       - db
       - minio
-    restart_policy:
-      condition: on-failure
-      delay: 5s
-      max_attempts: 3
-      window: 120s
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
 
   lsdserver:
     image: gcr.io/lcp-server-337422/github.com/readium/readium-lsd-server:latest-cd
@@ -77,11 +78,12 @@ services:
     depends_on:
       - db
       - minio
-    restart_policy:
-      condition: on-failure
-      delay: 5s
-      max_attempts: 3
-      window: 120s
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
 
 
   frontend:
@@ -107,11 +109,12 @@ services:
     depends_on:
       - db
       - minio
-    restart_policy:
-      condition: on-failure
-      delay: 5s
-      max_attempts: 3
-      window: 120s
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
 
 
 
@@ -132,11 +135,12 @@ services:
       - dbnet
         # ports:
         # - 3306:3306
-    restart_policy:
-      condition: any
-      delay: 5s
-        #  max_attempts: 3
-      window: 120s
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+          #  max_attempts: 3
+        window: 120s
 
 
   adminer:
@@ -148,11 +152,12 @@ services:
     networks:
       - webnet
       - dbnet
-    restart_policy:
-      condition: on-failure
-      delay: 5s
-      max_attempts: 3
-      window: 120s
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
 
 
   # https://raw.githubusercontent.com/minio/minio/master/docs/orchestration/docker-compose/docker-compose.yaml
@@ -175,11 +180,12 @@ services:
     networks:
       - backnet
       - webnet
-    restart_policy:
-      condition: any
-      delay: 5s
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
         # max_attempts: 3
-      window: 120s
+        window: 120s
 
 
 
