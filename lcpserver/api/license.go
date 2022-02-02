@@ -30,13 +30,13 @@ import (
 )
 
 // ErrMandatoryInfoMissing sets an error message returned to the caller
-var ErrMandatoryInfoMissing = errors.New("Mandatory info missing in the input body")
+var ErrMandatoryInfoMissing = errors.New("mandatory info missing in the input body")
 
 // ErrBadHexValue sets an error message returned to the caller
-var ErrBadHexValue = errors.New("Erroneous user_key.hex_value can't be decoded")
+var ErrBadHexValue = errors.New("erroneous user_key.hex_value can't be decoded")
 
 // ErrBadValue sets an error message returned to the caller
-var ErrBadValue = errors.New("Erroneous user_key.value, can't be decoded")
+var ErrBadValue = errors.New("erroneous user_key.value, can't be decoded")
 
 // checkGetLicenseInput: if we generate or get a license, check mandatory information in the input body
 // and compute request parameters
@@ -208,6 +208,9 @@ func buildLicensedPublication(lic *license.License, s Server) (buf bytes.Buffer,
 
 	zipWriter := zip.NewWriter(&buf)
 	err = copyZipFiles(zipWriter, zr)
+	if err != nil {
+		return buf, err
+	}
 
 	// Encode the license to JSON, remove the trailing newline
 	// write the buffer in the zip
@@ -323,8 +326,6 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the content id from the request URL
 	contentID := vars["content_id"]
 
-	log.Println("Generate License for content id", contentID)
-
 	// get the input body
 	// note: no need to create licIn / licOut here, as the input body contains
 	// info that we want to keep in the full license.
@@ -360,6 +361,9 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		//problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: contentID}, http.StatusInternalServerError)
 		return
 	}
+
+	log.Println("New License:", lic.ID, ". Content:", contentID, "User:", lic.User.ID)
+
 	// set http headers
 	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 	w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
@@ -772,20 +776,6 @@ func notifyLsdServer(l license.License, s Server) {
 		} else {
 			defer req.Body.Close()
 			_ = s.Licenses().UpdateLsdStatus(l.ID, int32(response.StatusCode))
-			// message to the console
-			log.Println("Notify Lsd Server of a new License with id " + l.ID + " = " + strconv.Itoa(response.StatusCode))
 		}
 	}
-}
-
-// utility: log a license for debug purposes
-// ex: logLicense("build licence:", licOut)
-func logLicense(msg string, l *license.License) {
-	log.Println(msg)
-	jsonBody, errj := json.Marshal(*l)
-	if errj != nil {
-		log.Println("logLicense: not well formed json")
-		return
-	}
-	log.Print(string(jsonBody))
 }

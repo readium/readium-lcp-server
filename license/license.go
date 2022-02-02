@@ -9,8 +9,10 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"reflect"
 	"strings"
 	"time"
@@ -162,15 +164,30 @@ func Initialize(contentID string, l *License) {
 }
 
 // CreateDefaultLinks inits the global var DefaultLinks from config data
-func CreateDefaultLinks() {
+func CreateDefaultLinks() error {
 
 	configLinks := config.Config.License.Links
+	// the storage url should now be in the storage section.
+	storageURL := config.Config.Storage.FileSystem.URL
 
 	DefaultLinks = make(map[string]string)
 
 	for key := range configLinks {
 		DefaultLinks[key] = configLinks[key]
 	}
+	// this value supercedes a (deprecated) publication link placed in the license section;
+	// keep backward compatibility.
+	if storageURL != "" {
+		u, err := url.Parse(storageURL)
+		if err != nil {
+			return err
+		}
+		if !strings.HasSuffix(u.Path, "/") {
+			u.Path = u.Path + "/"
+		}
+		DefaultLinks["publication"] = u.String() + "{publication_id}"
+	}
+	return nil
 }
 
 // setDefaultLinks sets a Link array from config links
@@ -211,26 +228,52 @@ func SetLicenseLinks(l *License, c index.Content) error {
 	// append default links to custom links
 	l.Links = appendDefaultLinks(&l.Links)
 
+	// check if the publication link is in the content database
+	hasPubLink, err := isURL(c.Location)
+	if err != nil {
+		return err
+	}
+
 	for i := 0; i < len(l.Links); i++ {
-		// set publication link
+		// set the publication link
 		if l.Links[i].Rel == "publication" {
-			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{publication_id}", l.ContentID, 1)
+			if hasPubLink {
+				// this happens only in case the configuration is broken
+				l.Links[i].Href = c.Location
+				l.Links[i].Title = l.ContentID
+				hasPubLink = false
+			} else {
+				l.Links[i].Href = strings.Replace(l.Links[i].Href, "{publication_id}", l.ContentID, 1)
+				l.Links[i].Title = c.Location
+			}
 			l.Links[i].Type = c.Type
 			l.Links[i].Size = c.Length
-			l.Links[i].Title = c.Location
 			l.Links[i].Checksum = c.Sha256
 		}
-		// set status link
+		// set the status link
 		if l.Links[i].Rel == "status" {
 			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{license_id}", l.ID, 1)
 			l.Links[i].Type = api.ContentType_LSD_JSON
 		}
 
-		// set hint page link
+		// set the hint page link, which may be associated with a specific license
 		if l.Links[i].Rel == "hint" {
 			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{license_id}", l.ID, 1)
 			l.Links[i].Type = api.ContentType_TEXT_HTML
 		}
+	}
+
+	// add the publication link present in the content index
+	if hasPubLink {
+		link := Link{
+			Rel:      "publication",
+			Href:     c.Location,
+			Title:    l.ContentID,
+			Type:     c.Type,
+			Size:     c.Length,
+			Checksum: c.Sha256,
+		}
+		l.Links = append(l.Links, link)
 	}
 
 	return nil
@@ -318,4 +361,12 @@ func SignLicense(l *License, cert *tls.Certificate) error {
 	l.Signature = &res
 
 	return nil
+}
+
+func isURL(filePathOrURL string) (bool, error) {
+	url, err := url.Parse(filePathOrURL)
+	if err != nil {
+		return false, errors.New("error parsing the input string")
+	}
+	return url.Scheme == "http" || url.Scheme == "https", nil
 }
