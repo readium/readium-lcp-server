@@ -100,7 +100,7 @@ func ProcessPublication(contentID, inputPath, tempRepo, outputRepo, storageRepo,
 		err = processPDF(&pub, inputPath, outputPath, encrypter)
 	case ".lpf":
 		err = processLPF(&pub, inputPath, outputPath, encrypter)
-	case ".audiobook", ".divina", ".rpf":
+	case ".audiobook", ".divina", ".webpub":
 		err = processRPF(&pub, inputPath, outputPath, encrypter)
 	}
 	if err != nil {
@@ -211,7 +211,7 @@ func targetFileInfo(pub *apilcp.LcpPublication, inputPath string) error {
 		// to be certain this is an audiobook (vs another profile of Web Publication)
 		ext = "lcpau"
 		contentType = "application/audiobook+lcp"
-	case ".rpf":
+	case ".webpub":
 		// short term solution. We'll need to inspect the manifest and check conformsTo,
 		// to be certain this package contains a pdf
 		ext = "lcpdf"

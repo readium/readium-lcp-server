@@ -3,7 +3,7 @@ Readium LCP Server
 
 Documentation
 ============
-As a retailer, public library or specialized e-distributor, you are distributing EPUB or PDF ebooks, LPF or RPF packaged audiobooks or comics. You want them protected by the Readium LCP DRM. Your CMS (Content Management system) already handles publications, users, purchases or loans, your technical team is able to integrate this CMS with a License server by creating a new endpoint in the CMS and requesting the License Server via its REST interface. If you are in this situation, this open-source codebase is made for you. 
+As a retailer, public library or specialized e-distributor, you are distributing EPUB or PDF ebooks, LPF or RPF (.webpub) packaged audiobooks or comics. You want them protected by the Readium LCP DRM. Your CMS (Content Management system) already handles publications, users, purchases or loans, your technical team is able to integrate this CMS with a License server by creating a new endpoint in the CMS and requesting the License Server via its REST interface. If you are in this situation, this open-source codebase is made for you. 
 
 Using the Readium LCP Server you can:
 * Encrypt your entire catalog of publications and store these encrypted files in a file system or S3 bucket, ready for download from any LCP compliant reading application;
