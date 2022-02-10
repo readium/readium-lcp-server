@@ -53,7 +53,7 @@
     "ng2-datetime-picker": "^0.12.8",
     "ng2-file-upload": "^1.2.0",
     "ng2-slugify": "^0.1.0",
-    "node-sass": "^4.13.1",
+    "node-sass": "^7.0.0",
     "reflect-metadata": "^0.1.8",
     "rxjs": "5.4.2",
     "systemjs": "0.19.40",
