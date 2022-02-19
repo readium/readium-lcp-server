@@ -54,7 +54,7 @@ A command line utility for content encryption. This utility can be included in a
 lcpencrypt can:
 * Take an unprotected publication as input and generates an encrypted file as output
 * Optionally, store the encrypted file into a file system or S3 bucket
-* Notifie the License server of the generation of the encrypted file
+* Notify the License server of the generation of the encrypted file
 
 ## [lcpserver]
 
