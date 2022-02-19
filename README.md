@@ -81,7 +81,7 @@ Public functionalities (accessible from the web) are:
 Private functionalities (authentication required) are:
 * Be notified of the generation of a new license
 * Filter licenses by count of registered devices
-* List all registered devices for a given licence
+* List all registered devices for a given license
 * Revoke or cancel a license
 
 ## [frontend]
