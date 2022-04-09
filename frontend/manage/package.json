@@ -49,7 +49,7 @@
     "font-awesome": "^4.7.0",
     "jquery": "^3.5.0",
     "jssha": "^2.2.0",
-    "moment": "^2.17.1",
+    "moment": "^2.29.2",
     "ng2-datetime-picker": "^0.12.8",
     "ng2-file-upload": "^1.2.0",
     "ng2-slugify": "^0.1.0",
