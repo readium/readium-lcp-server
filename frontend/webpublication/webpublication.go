@@ -137,7 +137,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	// encrypt the publication
 	// FIXME: work on a direct storage of the output file.
 	outputRepo := pubManager.config.FrontendServer.EncryptedRepository
-	notification, err := encrypt.ProcessPublication("", inputPath, "", outputRepo, "", "")
+	notification, err := encrypt.ProcessPublication("", "", inputPath, "", outputRepo, "", "")
 	if err != nil {
 		return err
 	}

@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/url"
 	"strings"
+	"encoding/base64"
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
@@ -42,16 +43,30 @@ type Resource interface {
 	Open() (io.ReadCloser, error)
 }
 
-// Process copies resources from the source to the destination package, after encryption if needed.
-func Process(encrypter crypto.Encrypter, reader PackageReader, writer PackageWriter) (key crypto.ContentKey, err error) {
+func GetOrSetContentKey(encrypter crypto.Encrypter, contentKey string)  (key crypto.ContentKey, err error) {
+	if contentKey != "" {
+		key,err = base64.StdEncoding.DecodeString(contentKey)
+		if err != nil {
+			log.Println("Error unpacking given content key")
+			return nil,err
+		}
+	} else {
+		key, err = encrypter.GenerateKey()
+		if err != nil {
+			log.Println("Error generating an encryption key")
+			return nil,err
+		}
+	}
+	return key,nil
+}
 
-	// generate an encryption key
-	key, err = encrypter.GenerateKey()
-	if err != nil {
-		log.Println("Error generating an encryption key")
+
+// Process copies resources from the source to the destination package, after encryption if needed.
+func Process(encrypter crypto.Encrypter, contentKey string, reader PackageReader, writer PackageWriter) (key crypto.ContentKey, err error) {
+
+	if key,err = GetOrSetContentKey(encrypter, contentKey); err != nil {
 		return
 	}
-
 	// create a compressing tool
 	var buf bytes.Buffer
 	compressor, err := flate.NewWriter(&buf, flate.BestCompression)
@@ -70,6 +85,7 @@ func Process(encrypter crypto.Encrypter, reader PackageReader, writer PackageWri
 		} else {
 			err = resource.CopyTo(writer)
 			if err != nil {
+				log.Println("Error copying the file")
 				return
 			}
 		}
@@ -86,12 +102,10 @@ func Process(encrypter crypto.Encrypter, reader PackageReader, writer PackageWri
 // Do encrypts when necessary the resources of an EPUB package
 // It is called for EPUB files only
 // FIXME: try to merge Process() and Do()
-func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key crypto.ContentKey, err error) {
+func Do(encrypter crypto.Encrypter, contentKey string, ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key crypto.ContentKey, err error) {
 
 	// generate an encryption key
-	key, err = encrypter.GenerateKey()
-	if err != nil {
-		log.Println("Error generating a key")
+	if key,err = GetOrSetContentKey(encrypter, contentKey); err != nil {
 		return
 	}
 

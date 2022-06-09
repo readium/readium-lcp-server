@@ -24,6 +24,7 @@ func showHelpAndExit() {
 	fmt.Println("[-storage]    optional, final storage of the encrypted publication, fs or s3")
 	fmt.Println("[-url]        optional, base url associated with the storagen")
 	fmt.Println("[-contentid]  optional, content identifier; if omitted a uuid is generated")
+	fmt.Println("[-contentkey]  optional, base64 encoded content key; if omitted a random content key is generated")
 	fmt.Println("[-lcpsv]      optional, http endpoint, notification of the License server")
 	fmt.Println("[-login]      login (License server) ")
 	fmt.Println("[-password]   password (License server)")
@@ -45,6 +46,7 @@ func main() {
 	var storageRepo = flag.String("storage", "", "optional, final storage of the encrypted publication, fs or s3")
 	var storageURL = flag.String("url", "", "optional, base url associated with the storage")
 	var contentid = flag.String("contentid", "", "optional, content identifier; if omitted a uuid is generated")
+	var contentkey = flag.String("contentkey", "", "optional, base64 encoded content key; if omitted a random content key is generated")
 	var lcpsv = flag.String("lcpsv", "", "optional, http endpoint, notification of the License server")
 	var username = flag.String("login", "", "login (License server)")
 	var password = flag.String("password", "", "password (License server)")
@@ -66,7 +68,7 @@ func main() {
 	}
 
 	// encrypt the publication
-	pub, err := encrypt.ProcessPublication(*contentid, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL)
+	pub, err := encrypt.ProcessPublication(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL)
 	if err != nil {
 		exitWithError("Process a publication", err)
 	}
