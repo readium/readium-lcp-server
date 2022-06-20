@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/readium/readium-lcp-server/encrypt"
 )
@@ -19,11 +20,12 @@ func showHelpAndExit() {
 
 	fmt.Println("lcpencrypt protects a publication using the LCP DRM")
 	fmt.Println("-input        source epub/pdf/lpf file locator (file system or http GET)")
-	fmt.Println("[-output]     optional, target path of encrypted publications")
-	fmt.Println("[-temp]       optional, working folder for temporary files")
-	fmt.Println("[-storage]    optional, final storage of the encrypted publication, fs or s3")
-	fmt.Println("[-url]        optional, base url associated with the storagen")
 	fmt.Println("[-contentid]  optional, content identifier; if omitted a uuid is generated")
+	fmt.Println("[-storage]    optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
+	fmt.Println("[-url]        optional, base url associated with the storage, without filename")
+	fmt.Println("[-filename]   optional, file name of the encrypted publication; if omitted, contentid is used")
+	fmt.Println("[-output]     optional, target folder of encrypted publications")
+	fmt.Println("[-temp]       optional, working folder for temporary files")
 	fmt.Println("[-lcpsv]      optional, http endpoint, notification of the License server")
 	fmt.Println("[-login]      login (License server) ")
 	fmt.Println("[-password]   password (License server)")
@@ -40,11 +42,12 @@ func exitWithError(context string, err error) {
 
 func main() {
 	var inputPath = flag.String("input", "", "source epub/pdf/lpf file locator (file system or http GET)")
+	var contentid = flag.String("contentid", "", "optional, content identifier; if omitted, a uuid is generated")
+	var storageRepo = flag.String("storage", "", "optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
+	var storageURL = flag.String("url", "", "optional, base url associated with the storage, without filename")
+	var storageFilename = flag.String("filename", "", "optional, file name of the encrypted publication; if omitted, contentid is used")
 	var outputRepo = flag.String("output", "", "optional, target folder of encrypted publications")
 	var tempRepo = flag.String("temp", "", "optional, working folder for temporary files")
-	var storageRepo = flag.String("storage", "", "optional, final storage of the encrypted publication, fs or s3")
-	var storageURL = flag.String("url", "", "optional, base url associated with the storage")
-	var contentid = flag.String("contentid", "", "optional, content identifier; if omitted a uuid is generated")
 	var lcpsv = flag.String("lcpsv", "", "optional, http endpoint, notification of the License server")
 	var username = flag.String("login", "", "login (License server)")
 	var password = flag.String("password", "", "password (License server)")
@@ -64,11 +67,17 @@ func main() {
 	if *storageRepo != "" && *storageURL == "" {
 		exitWithError("Parameters", errors.New("incorrect parameters, storage requires url, for more information type 'lcpencrypt -help' "))
 	}
+	if filepath.Ext(*outputRepo) != "" {
+		exitWithError("Parameters", errors.New("incorrect parameters, output must not contain a file name, for more information type 'lcpencrypt -help' "))
+	}
+	if filepath.Ext(*storageRepo) != "" {
+		exitWithError("Parameters", errors.New("incorrect parameters, storage must not contain a file name, for more information type 'lcpencrypt -help' "))
+	}
 
 	// encrypt the publication
-	pub, err := encrypt.ProcessPublication(*contentid, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL)
+	pub, err := encrypt.ProcessEncryption(*contentid, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename)
 	if err != nil {
-		exitWithError("Process a publication", err)
+		exitWithError("Process the encryption of a publication", err)
 	}
 
 	// notify the license server
@@ -84,6 +93,6 @@ func main() {
 	}
 	fmt.Println("Encryption message:")
 	os.Stdout.Write(jsonBody)
-	fmt.Println("\nEncryption was successful)")
+	fmt.Println("\nEncryption was successful.")
 	os.Exit(0)
 }
