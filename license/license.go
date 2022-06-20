@@ -238,7 +238,7 @@ func SetLicenseLinks(l *License, c index.Content) error {
 		// set the publication link
 		if l.Links[i].Rel == "publication" {
 			if hasPubLink {
-				// this happens only in case the configuration is broken
+				// override a default link (from the config) by a publication url from the db if it exists
 				l.Links[i].Href = c.Location
 				l.Links[i].Title = l.ContentID
 				hasPubLink = false
