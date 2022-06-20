@@ -53,7 +53,6 @@ func (i fsItem) PublicURL() string {
 
 func (i fsItem) Contents() (io.ReadCloser, error) {
 	return os.Open(filepath.Join(i.storageDir, i.name))
-	// FIXME: process errors
 }
 
 func (s fsStorage) Add(key string, r io.ReadSeeker) (Item, error) {
@@ -83,7 +82,6 @@ func (s fsStorage) Get(key string) (Item, error) {
 	}
 	return &fsItem{name: key, storageDir: s.fspath, baseURL: s.url}, nil
 }
-
 
 func (s fsStorage) Remove(key string) error {
 	return os.Remove(filepath.Join(s.fspath, key))
