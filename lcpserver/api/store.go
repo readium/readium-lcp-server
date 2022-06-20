@@ -212,9 +212,9 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	content, err := s.Index().Get(contentID)
 	if err != nil { //item probably not found
 		if err == index.ErrNotFound {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+			problem.Error(w, r, problem.Problem{Detail: "Index:" + err.Error(), Instance: contentID}, http.StatusNotFound)
 		} else {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			problem.Error(w, r, problem.Problem{Detail: "Index:" + err.Error(), Instance: contentID}, http.StatusInternalServerError)
 		}
 		return
 	}
@@ -223,22 +223,22 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	item, err := s.Store().Get(contentID)
 	if err != nil { //item probably not found
 		if err == storage.ErrNotFound {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+			problem.Error(w, r, problem.Problem{Detail: "Storage:" + err.Error(), Instance: contentID}, http.StatusNotFound)
 		} else {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			problem.Error(w, r, problem.Problem{Detail: "Storage:" + err.Error(), Instance: contentID}, http.StatusInternalServerError)
 		}
 		return
 	}
 	// opens the file
 	contentReadCloser, err := item.Contents()
 	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: "File:" + err.Error(), Instance: contentID}, http.StatusInternalServerError)
 		return
 	}
 
 	defer contentReadCloser.Close()
 	if err != nil { //file probably not found
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: contentID}, http.StatusBadRequest)
 		return
 	}
 	// set headers
