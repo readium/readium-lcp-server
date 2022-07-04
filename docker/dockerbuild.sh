@@ -2,9 +2,16 @@
 
 set -e
 
+PWD=`pwd`
+if [ `basename "$PWD"` = 'docker' ]
+then
+  echo "try cd .. && ./docker/dockerbuild.sh \`pwd\`"
+  exit 1
+fi
+
 if [ `arch` = "arm64" ]
 then
-  echo "arm64 detected set platform linux/amd64"
+  echo "arm64 detected, so, set platform to linux/amd64"
   PLATFORM=--platform=linux/amd64
 else
   PLATFORM=
@@ -31,8 +38,9 @@ then
   docker build -f docker/frontend/Dockerfile -t frontendtestserver:latest $PLATFORM $1
 
 else
-
-  echo "$1 doesn't exists ERROR"
+  echo "ERROR arg '$1' doesn't exists"
+  echo "try $0 \`pwd\`"
+  exit 1
 
 fi
 
