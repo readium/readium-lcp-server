@@ -27,8 +27,8 @@ services:
     image: gcr.io/lcp-server-337422/github.com/readium/readium-lcp-server:latest-cd
     environment:
       <<: *common-variables
-      HOST: "lcpserver"
-      PORT: 8091 
+      LCP_HOST: "lcpserver"
+      LCP_PORT: 8091 
       AUTH_FILE: "/htpasswd"
       CERTIFICATE_PATH: "/cert.pem"
       PRIVATE_KEY: "/privkey.pem"
@@ -45,7 +45,7 @@ services:
       - dbnet
       - backnet
         #    ports:
-        #     - 8091:8091
+        
     depends_on:
       - db
       - minio
@@ -60,8 +60,8 @@ services:
     image: gcr.io/lcp-server-337422/github.com/readium/readium-lsd-server:latest-cd
     environment:
       <<: *common-variables
-      HOST: "lsdserver"
-      PORT: 8092 
+      LSD_HOST: "lsdserver"
+      LSD_PORT: 8092 
       AUTH_FILE: "/htpasswd"
       CERTIFICATE_PATH: "/cert.pem"
       PRIVATE_KEY: "/privkey.pem"
@@ -90,8 +90,8 @@ services:
     image: gcr.io/lcp-server-337422/github.com/readium/readium-frontend-server:latest-cd
     environment:
       <<: *common-variables
-      HOST: "frontend"
-      PORT: 8093
+      FRONTEND_HOST: "frontend"
+      FRONTEND_PORT: 8093
       # https://github.com/readium/readium-lcp-server/blob/5488039406a76b478d431d5d15c6cb0552fceb1d/docker/frontend/Dockerfile#L33
       # DIRECTORY: 
       PROVIDER_URI: "https://www.myprovidername.org"

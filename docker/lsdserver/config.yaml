@@ -1,7 +1,7 @@
 
 lsd:
-  host: "${HOST}"
-  port: ${PORT}
+  host: "${LSD_HOST}"
+  port: ${LSD_PORT}
   public_base_url: "${LSD_BASE_URL}"
   database: "${DB_URI}"
   auth_file: "${AUTH_FILE}"

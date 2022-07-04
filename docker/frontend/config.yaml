@@ -1,7 +1,7 @@
 
 frontend:
-  host: "${HOST}"
-  port: ${PORT}
+  host: "${FRONTEND_HOST}"
+  port: ${FRONTEND_PORT}
   directory: "${DIRECTORY}"
   public_base_url: "${FRONTEND_BASE_URL}"
   database: "${DB_URI}"

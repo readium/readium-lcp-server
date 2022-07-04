@@ -25,17 +25,22 @@ then
   echo "==============="
   echo "=  LCPSERVER  ="
   echo "==============="
-  docker build -f docker/lcpserver/Dockerfile -t lcpserver:latest $PLATFORM $1
+ # docker build -f docker/lcpserver/Dockerfile -t lcpserver:latest $PLATFORM $1
 
   echo "==============="
   echo "=  LSDSERVER  ="
   echo "==============="
-  docker build -f docker/lsdserver/Dockerfile -t lsdserver:latest $PLATFORM $1
+# docker build -f docker/lsdserver/Dockerfile -t lsdserver:latest $PLATFORM $1
 
   echo "==============="
   echo "=  FRONTEND   ="
   echo "==============="
-  docker build -f docker/frontend/Dockerfile -t frontendtestserver:latest $PLATFORM $1
+ # docker build -f docker/frontend/Dockerfile -t frontendtestserver:latest $PLATFORM $1
+
+  echo "==============="
+  echo "=    FINAL    ="
+  echo "==============="
+  docker build -f docker/Dockerfile -t lcpmasterserver:latest $PLATFORM $1
 
 else
   echo "ERROR arg '$1' doesn't exists"
