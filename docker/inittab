@@ -1,0 +1,7 @@
+
+::respawn:/bin/sh -c "/lcpserver/entrypoint.sh /lcpserver/tmp/config.yaml /lcpserver/lcpserver"
+#::respawn:/bin/sh /lsdserver/entrypoint.sh /lsdserver/tmp/config.yaml /lsdserver/lsdserver
+#::respawn:/bin/sh /frontend/entrypoint.sh /frontend/tmp/config.yaml /frontend/manage /frontend/frontend
+::respawn:/usr/sbin/nginx -g "daemon off;"
+::ctrlaltdel:/sbin/halt
+

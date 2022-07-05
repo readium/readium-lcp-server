@@ -22,23 +22,26 @@ then
 
   echo "run dockers"
 
-  echo "==============="
-  echo "=  LCPSERVER  ="
-  echo "==============="
- # docker build -f docker/lcpserver/Dockerfile -t lcpserver:latest $PLATFORM $1
+  if [ $2 != "master" ]
+  then
+    echo "==============="
+    echo "=  LCPSERVER  ="
+    echo "==============="
+    docker build -f docker/lcpserver/Dockerfile -t lcpserver:latest $PLATFORM $1
+
+    echo "==============="
+    echo "=  LSDSERVER  ="
+    echo "==============="
+    docker build -f docker/lsdserver/Dockerfile -t lsdserver:latest $PLATFORM $1
+
+    echo "==============="
+    echo "=  FRONTEND   ="
+    echo "==============="
+    docker build -f docker/frontend/Dockerfile -t frontendtestserver:latest $PLATFORM $1
+  fi
 
   echo "==============="
-  echo "=  LSDSERVER  ="
-  echo "==============="
-# docker build -f docker/lsdserver/Dockerfile -t lsdserver:latest $PLATFORM $1
-
-  echo "==============="
-  echo "=  FRONTEND   ="
-  echo "==============="
- # docker build -f docker/frontend/Dockerfile -t frontendtestserver:latest $PLATFORM $1
-
-  echo "==============="
-  echo "=    FINAL    ="
+  echo "=    MASTER   ="
   echo "==============="
   docker build -f docker/Dockerfile -t lcpmasterserver:latest $PLATFORM $1
 

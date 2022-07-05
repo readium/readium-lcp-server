@@ -1,4 +1,4 @@
-#! /bin/env bash
+#! /bin/bash
 
 LCP_BASE_URL="http://127.0.0.1:8091"
 LSD_BASE_URL="http://127.0.0.1:8092"
@@ -22,13 +22,16 @@ S3_BUCKET="readium-lcp"
 S3_REGION=""
 S3_TOKEN=""
 
+PORT=8080
 
 
+docker kill mylcp
+docker rm mylcp
 
+./docker/dockerbuild.sh `pwd` master
 
-
-
-
-
-
-
+docker run \
+  --name mylcp \
+  --publish $PORT:$PORT \
+  --env PORT=$PORT \
+  lcpmasterserver
