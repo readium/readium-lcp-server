@@ -34,4 +34,6 @@ docker run \
   --name mylcp \
   --publish $PORT:$PORT \
   --env PORT=$PORT \
+  --volume /tmp/lcp:/lcp \
+  --platform linux/amd64 \
   lcpmasterserver
