@@ -5,7 +5,8 @@ PORT=8080
 docker kill mylcp
 docker rm mylcp
 
-./docker/dockerbuild.sh `pwd` master
+# uncomment this line to build
+# ./docker/dockerbuild.sh `pwd` master
 
 docker run \
   --name mylcp \
