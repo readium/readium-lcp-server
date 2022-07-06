@@ -95,10 +95,12 @@ ENV READIUM_LCPSERVER_CONFIG=/config.yaml
 ENV READIUM_LSDSERVER_CONFIG=/config.yaml
 ENV READIUM_FRONTEND_CONFIG=/config.yaml
 
+ENV PORT=8080
+
 ENV BASE_URL=http://127.0.0.1:8080/frontend/
 
 COPY /docker/nginx.conf.template /etc/nginx/templates/
 
 CMD ["init"]
 
-EXPOSE ${PORT}
+EXPOSE 8080
