@@ -1,13 +1,48 @@
-FROM lcpserver:latest as lcpserver
-FROM lsdserver:latest as lsdserver
-FROM frontendtestserver:latest as frontendtestserver
+
+FROM golang:alpine as lcpserver
+WORKDIR /lcp
+COPY . /lcp/.
+
+RUN apk add build-base
+RUN make lcpserver
+
+
+FROM golang:alpine as lsdserver
+WORKDIR /lcp
+COPY . /lcp/.
+
+RUN apk add build-base
+RUN make lsdserver
+
+# FROM node:6.9.2 doesn't works npm failed to download librairies
+FROM ubuntu:20.04 as frontend-manage
+
+WORKDIR /lcp
+COPY . /lcp/.
+
+RUN apt-get update \
+    && apt-get install -y make curl git \
+    && curl -O https://nodejs.org/dist/v6.9.2/node-v6.9.2-linux-x64.tar.gz \
+    && tar -xzf node-v6.9.2-linux-x64.tar.gz
+
+RUN PATH=/lcp/node-v6.9.2-linux-x64/bin:$PATH make "frontend/manage"
+
+FROM golang:alpine as frontendserver
+WORKDIR /lcp
+COPY . /lcp/.
+
+RUN apk add build-base
+RUN make frontend
+
+
+
 
 FROM nginx:stable-alpine
 
 COPY --from=lcpserver /bin/lcpserver /usr/bin/lcpserver
 COPY --from=lsdserver /bin/lsdserver /usr/bin/lsdserver
-COPY --from=frontendtestserver /bin/frontend /usr/bin/frontend
-COPY --from=frontendtestserver /manage/. /frontend/manage/.
+COPY --from=frontendserver /bin/frontend /usr/bin/frontend
+COPY --from=frontend-manage /manage/. /frontend/manage/.
 
 COPY /test/cert/cert-edrlab-test.pem /cert.pem
 COPY /test/cert/privkey-edrlab-test.pem /privkey.pem
