@@ -39,10 +39,10 @@ RUN make frontend
 
 FROM nginx:stable-alpine
 
-COPY --from=lcpserver /bin/lcpserver /usr/bin/lcpserver
-COPY --from=lsdserver /bin/lsdserver /usr/bin/lsdserver
-COPY --from=frontendserver /bin/frontend /usr/bin/frontend
-COPY --from=frontend-manage /manage/. /frontend/manage/.
+COPY --from=lcpserver /lcp/build/bin/lcpserver /usr/bin/lcpserver
+COPY --from=lsdserver /lcp/build/bin/lsdserver /usr/bin/lsdserver
+COPY --from=frontendserver /lcp/build/bin/frontend /usr/bin/frontend
+COPY --from=frontend-manage /lcp/build/frontend/manage/. /frontend/manage/.
 
 COPY /test/cert/cert-edrlab-test.pem /cert.pem
 COPY /test/cert/privkey-edrlab-test.pem /privkey.pem
