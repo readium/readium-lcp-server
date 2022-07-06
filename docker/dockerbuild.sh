@@ -22,7 +22,7 @@ then
 
   echo "run dockers"
 
-  if [ $2 != "master" ]
+  if [ "$2" != "master" ]
   then
     echo "==============="
     echo "=  LCPSERVER  ="
