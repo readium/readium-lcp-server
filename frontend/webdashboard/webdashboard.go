@@ -98,7 +98,7 @@ func (dashManager DashboardManager) GetDashboardInfos() (Dashboard, error) {
 		records.Close()
 	}
 	//
-	dbGet, err = dashManager.db.Prepare(`SELECT COUNT(*) FROM purchase WHERE type="BUY"`)
+	dbGet, err = dashManager.db.Prepare(`SELECT COUNT(*) FROM purchase WHERE type='BUY'`)
 	if err != nil {
 		return Dashboard{}, err
 	}
@@ -110,7 +110,7 @@ func (dashManager DashboardManager) GetDashboardInfos() (Dashboard, error) {
 		records.Close()
 	}
 	//
-	dbGet, err = dashManager.db.Prepare(`SELECT COUNT(*) FROM purchase WHERE type="LOAN"`)
+	dbGet, err = dashManager.db.Prepare(`SELECT COUNT(*) FROM purchase WHERE type='LOAN'`)
 	if err != nil {
 		return Dashboard{}, err
 	}
