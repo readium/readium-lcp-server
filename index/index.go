@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/readium/readium-lcp-server/config"
+	"github.com/readium/readium-lcp-server/database"
 )
 
 // ErrNotFound signals content not found
@@ -74,7 +75,7 @@ func (i dbIndex) Get(id string) (Content, error) {
 }
 
 func (i dbIndex) Add(c Content) error {
-	add, err := i.db.Prepare("INSERT INTO content (id,encryption_key,location,length,sha256,type) VALUES (?, ?, ?, ?, ?, ?)")
+	add, err := i.db.Prepare(database.GetParamQuery(config.Config.LcpServer.Database, "INSERT INTO content (id,encryption_key,location,length,sha256,type) VALUES (?, ?, ?, ?, ?, ?)"))
 	if err != nil {
 		return err
 	}
@@ -84,7 +85,7 @@ func (i dbIndex) Add(c Content) error {
 }
 
 func (i dbIndex) Update(c Content) error {
-	add, err := i.db.Prepare("UPDATE content SET encryption_key=? , location=?, length=?, sha256=?, type=? WHERE id=?")
+	add, err := i.db.Prepare(database.GetParamQuery(config.Config.LcpServer.Database, "UPDATE content SET encryption_key=? , location=?, length=?, sha256=?, type=? WHERE id=?"))
 	if err != nil {
 		return err
 	}
@@ -122,7 +123,7 @@ func Open(db *sql.DB) (i Index, err error) {
 		db.Exec("ALTER TABLE content ADD COLUMN \"type\" varchar(255) NOT NULL DEFAULT 'application/epub+zip'")
 	}
 
-	get, err := db.Prepare("SELECT id,encryption_key,location,length,sha256,type FROM content WHERE id = ? LIMIT 1")
+	get, err := db.Prepare(database.GetParamQuery(config.Config.LcpServer.Database, "SELECT id,encryption_key,location,length,sha256,type FROM content WHERE id = ? LIMIT 1"))
 	if err != nil {
 		return
 	}
