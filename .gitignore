@@ -27,5 +27,7 @@ npm-debug.log
 manage/config.js
 
 !docker/**/config.yaml
+!docker/cloudbuild.yaml
 build/
 .*.swp
+docker/private/
