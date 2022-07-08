@@ -1,0 +1,25 @@
+steps:
+  # Docker Build
+
+	- name: gcr.io/cloud-builders/gsutil
+		args: ['cp', 'gs://lcpserver-build-prod/libuserkey.a', '/.']
+	- name: gcr.io/cloud-builders/gsutil
+		args: ['cp', 'gs://lcpserver-build-prod/userkey.h', '/.']
+	- name: gcr.io/cloud-builders/gsutil
+		args: ['cp', 'gs://lcpserver-build-prod/user_key.go', '/.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 
+           'eu-west1-docker.pkg.dev/lcpserver-1/github.com/readium/readium-lcp-server-build-prod:latest', 
+					 '-f', 'docker/Dockerfile',
+					 '--build-arg', 'LIBUSERKEY_PATH=/libuserkey.a',
+					 '--build-arg', 'USERKEYH_PATH=/userkey.h',
+					 '--build-arg', 'USERKEYGO_PATH=/user_key.go',
+					 '--build-arg', 'BUILD_PROD=true',
+           '.']
+
+  # Docker Push
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 
+           'eu-west1-docker.pkg.dev/lcpserver-1/github.com/readium/readium-lcp-server-build-prod:latest']
+
