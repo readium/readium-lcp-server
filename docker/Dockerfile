@@ -1,10 +1,15 @@
 
+ARG BUILD_PROD=false
+ARG LIBUSERKEY_PATH=/
+ARG USERKEYH_PATH=/
+ARG USERKEYGO_PATH=/
+
 FROM golang:alpine as lcpserver
 WORKDIR /lcp
 COPY . /lcp/.
 
 RUN apk add build-base
-RUN make lcpserver
+RUN make BUILD_PROD=$BUILD_PROD LIBUSERKEY_PATH=$LIBUSERKEY_PATH USERKEYH_PATH=$USERKEYH_PATH USERKEYGO_PATH=$USERKEYGO_PATH lcpserver
 
 
 FROM golang:alpine as lsdserver
@@ -44,13 +49,19 @@ COPY --from=lsdserver /lcp/build/bin/lsdserver /usr/bin/lsdserver
 COPY --from=frontendserver /lcp/build/bin/frontend /usr/bin/frontend
 COPY --from=frontend-manage /lcp/build/frontend/manage/. /frontend/manage/.
 
-COPY /test/cert/cert-edrlab-test.pem /cert.pem
-COPY /test/cert/privkey-edrlab-test.pem /privkey.pem
-COPY /messages /i18n
-COPY /test/htpasswd /htpasswd
+ARG I18N=/messages
+ARG AUTH_FILE=/test/htpasswd 
+ARG PRIVATE_KEY_PATH=/test/cert/privkey-edrlab-test.pem
+ARG CERTIFICATE_PATH=/test/cert/cert-edrlab-test.pem
+ARG CONFIG_PATH=/docker/config.yaml
+
+COPY $PRIVATE_KEY_PATH /cert.pem
+COPY $CERTIFICATE_PATH /privkey.pem
+COPY $I18N /i18n
+COPY $AUTH_FILE /htpasswd
 
 # envsubst in inittab once
-COPY /docker/config.yaml /tmp/config.yaml
+COPY $CONFIG_PATH /tmp/config.yaml
 COPY /docker/init.sh /init.sh
 
 COPY /docker/inittab /etc/inittab
@@ -63,10 +74,12 @@ ENV LSD_PORT=8082
 ENV LSD_HOST=127.0.0.1
 ENV FRONTEND_PORT=8083
 ENV FRONTEND_HOST=127.0.0.1
+
 ENV AUTH_FILE=/htpasswd
 ENV CERTIFICATE_PATH=/cert.pem
 ENV PRIVATE_KEY=/privkey.pem
 ENV LOCALIZATION_FOLDER=/i18n
+
 ENV LOCALIZATION_DEFAULT_LANGUAGE=en-US
 ENV LOCALIZATION_LANGUAGES_ARRAY=[\"en-US\"]
 
