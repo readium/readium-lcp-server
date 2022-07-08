@@ -44,6 +44,14 @@ clean:
 	@rm -rf $(BUILD_DIR) 2>/dev/null || true
 	@rm -rf $(ROOT_DIR)/$(frontend_manage)/node_modules
 	@rm -rf $(ROOT_DIR)/$(frontend_manage)/dist
+	@if [ "$(BUILD_PROD)" = "true" ]; then\
+		echo "RM $(LIBUSERKEY_PATH)"; 															\
+		rm -f $(BUILD_DIR)/$(lcpserver)/license/$(LIBUSERKEY_PATH); \
+		echo "RM $(USERKEYH_PATH)"; 																\
+		rm -f $(BUILD_DIR)/$(lcpserver)/license/$(USERKEYGO_PATH);	\
+		echo "RM $(USERKEYGO_PATH)";																\
+		rm -f $(BUILD_DIR)/$(lcpserver)/license/$(USERKEYH_PATH);		\
+	fi
 
 node:
 	open $(NODE_URL)
@@ -61,12 +69,12 @@ prepare:
 	sed 's~<LCP_HOME>~$(BUILD_DIR)~g' < $(ROOT_DIR)/test/config.yaml > $(BUILD_DIR)/config.yaml
 	echo "adm_username:$$apr1$$bxwn8jim$$kbfYFRgbBlKDWpAvd2tHW." > $(BUILD_DIR)/htpasswd
 	@if [ "$(BUILD_PROD)" = "true" ]; then\
-		echo "COPY $(LIBUSERKEY_PATH)"
-		cp LIBUSERKEY_PATH $(BUILD_DIR)/$(lcpserver)/license/. 	\
-		echo "COPY $(USERKEYH_PATH)"
-		cp USERKEYH_PATH $(BUILD_DIR)/$(lcpserver)/license/.		\
-		echo "COPY $(USERKEYGO_PATH)"
-		cp USERKEYGO_PATH $(BUILD_DIR)/$(lcpserver)/license/.		\
+		echo "COPY $(LIBUSERKEY_PATH)"; 													\
+		cp LIBUSERKEY_PATH $(BUILD_DIR)/$(lcpserver)/license/.; 	\
+		echo "COPY $(USERKEYH_PATH)"; 														\
+		cp USERKEYH_PATH $(BUILD_DIR)/$(lcpserver)/license/.;			\
+		echo "COPY $(USERKEYGO_PATH)"; 														\
+		cp USERKEYGO_PATH $(BUILD_DIR)/$(lcpserver)/license/.;		\
 	fi
 
 $(lcpencrypt): prepare
