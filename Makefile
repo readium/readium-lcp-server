@@ -5,6 +5,11 @@ BUILD_DIR=$(ROOT_DIR)/build
 
 UNAME_S= $(shell uname -s)
 
+BUILD_PROD=false
+LIBUSERKEY_PATH=/
+USERKEYH_PATH=/
+USERKEYGO_PATH=/
+
 export READIUM_LCPSERVER_CONFIG := $(BUILD_DIR)/config.yaml
 export READIUM_LSDSERVER_CONFIG := $(BUILD_DIR)/config.yaml
 export READIUM_FRONTEND_CONFIG := $(BUILD_DIR)/config.yaml
@@ -55,6 +60,14 @@ prepare:
 	mkdir -p $(BUILD_DIR)/frontend/manage
 	sed 's~<LCP_HOME>~$(BUILD_DIR)~g' < $(ROOT_DIR)/test/config.yaml > $(BUILD_DIR)/config.yaml
 	echo "adm_username:$$apr1$$bxwn8jim$$kbfYFRgbBlKDWpAvd2tHW." > $(BUILD_DIR)/htpasswd
+	@if [ "$(BUILD_PROD)" = "true" ]; then\
+		echo "COPY $(LIBUSERKEY_PATH)"
+		cp LIBUSERKEY_PATH $(BUILD_DIR)/$(lcpserver)/license/. 	\
+		echo "COPY $(USERKEYH_PATH)"
+		cp USERKEYH_PATH $(BUILD_DIR)/$(lcpserver)/license/.		\
+		echo "COPY $(USERKEYGO_PATH)"
+		cp USERKEYGO_PATH $(BUILD_DIR)/$(lcpserver)/license/.		\
+	fi
 
 $(lcpencrypt): prepare
 	GOPATH=$(GOPATH) $(CC) ./$@
