@@ -16,6 +16,7 @@ steps:
     '--build-arg', 'USERKEYGO_PATH=/user_key.go',
     '--build-arg', 'BUILD_PROD=true',
     '.']
+    timeout: 3600s
 
     # Docker Push
   - name: 'gcr.io/cloud-builders/docker'
