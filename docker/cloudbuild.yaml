@@ -17,9 +17,9 @@ steps:
     args: ['build', '-t', 
     'europe-west1-docker.pkg.dev/lcpserver-1/lcp-server-build/readium-lcp-server-build-prod:latest', 
     '-f', 'docker/Dockerfile',
-    '--build-arg', 'LIBUSERKEY_PATH=/workspace/libuserkey.a',
-    '--build-arg', 'USERKEYH_PATH=/workspace/userkey.h',
-    '--build-arg', 'USERKEYGO_PATH=/workspace/user_key.go',
+    '--build-arg', 'LIBUSERKEY_PATH=/libuserkey.a',
+    '--build-arg', 'USERKEYH_PATH=/userkey.h',
+    '--build-arg', 'USERKEYGO_PATH=/user_key.go',
     '--build-arg', 'BUILD_PROD=true',
     '.']
     timeout: 3600s
