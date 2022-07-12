@@ -9,7 +9,7 @@ steps:
 
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 
-    'eu-west1-docker.pkg.dev/lcpserver-1/github.com/readium/readium-lcp-server-build-prod:latest', 
+    'europe-west1-docker.pkg.dev/lcpserver-1/lcp-server-build/readium-lcp-server-build-prod:latest', 
     '-f', 'docker/Dockerfile',
     '--build-arg', 'LIBUSERKEY_PATH=/libuserkey.a',
     '--build-arg', 'USERKEYH_PATH=/userkey.h',
@@ -21,5 +21,5 @@ steps:
     # Docker Push
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 
-    'eu-west1-docker.pkg.dev/lcpserver-1/github.com/readium/readium-lcp-server-build-prod:latest']
+    'europe-west1-docker.pkg.dev/lcpserver-1/lcp-server-build/readium-lcp-server-build-prod:latest']
 
