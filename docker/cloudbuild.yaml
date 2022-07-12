@@ -29,3 +29,4 @@ steps:
     args: ['push', 
     'europe-west1-docker.pkg.dev/lcpserver-1/lcp-server-build/readium-lcp-server-build-prod:latest']
 
+timeout: 3600s
