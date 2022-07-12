@@ -6,6 +6,12 @@ steps:
     args: ['cp', 'gs://lcpserver-build-prod/userkey.h', '/workspace/userkey.h']
   - name: gcr.io/cloud-builders/gsutil
     args: ['cp', 'gs://lcpserver-build-prod/user_key.go', '/workspace/user_key.go']
+  - name: ubuntu
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        ls -la /workspace
 
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 
