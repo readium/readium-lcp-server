@@ -1,11 +1,11 @@
 steps:
   # Docker Build
   - name: gcr.io/cloud-builders/gsutil
-    args: ['cp', 'gs://lcpserver-build-prod/libuserkey.a', '/workspace/.']
+    args: ['cp', 'gs://lcpserver-build-prod/libuserkey.a', '/workspace/libuserkey.a']
   - name: gcr.io/cloud-builders/gsutil
-    args: ['cp', 'gs://lcpserver-build-prod/userkey.h', '/workspace/.']
+    args: ['cp', 'gs://lcpserver-build-prod/userkey.h', '/workspace/userkey.h']
   - name: gcr.io/cloud-builders/gsutil
-    args: ['cp', 'gs://lcpserver-build-prod/user_key.go', '/workspace/.']
+    args: ['cp', 'gs://lcpserver-build-prod/user_key.go', '/workspace/user_key.go']
 
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 
