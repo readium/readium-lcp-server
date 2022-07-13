@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/readium/readium-lcp-server/encrypt"
 )
@@ -74,11 +75,16 @@ func main() {
 		exitWithError("Parameters", errors.New("incorrect parameters, storage must not contain a file name, for more information type 'lcpencrypt -help' "))
 	}
 
+	start := time.Now()
+
 	// encrypt the publication
 	pub, err := encrypt.ProcessEncryption(*contentid, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename)
 	if err != nil {
 		exitWithError("Process the encryption of a publication", err)
 	}
+
+	elapsed := time.Since(start)
+	fmt.Println("Encryption took ", elapsed)
 
 	// notify the license server
 	err = encrypt.NotifyLcpServer(pub, *lcpsv, *username, *password)
