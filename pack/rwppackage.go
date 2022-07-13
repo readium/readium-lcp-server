@@ -32,7 +32,7 @@ type NopWriteCloser struct {
 	io.Writer
 }
 
-// NewWriter returns a new PackageWriter writing a RWP to the output file
+// NewWriter returns a new PackageWriter writing a RPF file to the output file
 func (reader *RPFReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 
 	zipWriter := zip.NewWriter(writer)

@@ -42,7 +42,7 @@ type Resource interface {
 	Open() (io.ReadCloser, error)
 }
 
-// Process copies resources from the source to the destination package, after encryption if needed.
+// Process copies resources from the source to the destination RPF file, after encryption when needed.
 func Process(encrypter crypto.Encrypter, reader PackageReader, writer PackageWriter) (key crypto.ContentKey, err error) {
 
 	// generate an encryption key
@@ -52,7 +52,7 @@ func Process(encrypter crypto.Encrypter, reader PackageReader, writer PackageWri
 		return
 	}
 
-	// create a compressing tool
+	// create a compressor
 	var buf bytes.Buffer
 	compressor, err := flate.NewWriter(&buf, flate.BestCompression)
 	if err != nil {
@@ -102,7 +102,7 @@ func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Mani
 		ep.Encryption = &xmlenc.Manifest{}
 	}
 
-	// create a compressing tool
+	// create a compressor
 	var buf bytes.Buffer
 	compressor, err := flate.NewWriter(&buf, flate.BestCompression)
 	if err != nil {
