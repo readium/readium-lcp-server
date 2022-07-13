@@ -64,7 +64,7 @@ func Process(encrypter crypto.Encrypter, reader PackageReader, writer PackageWri
 		if !resource.Encrypted() && resource.CanBeEncrypted() {
 			err = encryptRPFResource(compressor, encrypter, key, resource, writer)
 			if err != nil {
-				log.Println("Error encrypting " + resource.Path() + ": " + err.Error())
+				log.Println("Error encrypting ", resource.Path(), ": ", err.Error())
 				return
 			}
 		} else {
@@ -115,7 +115,7 @@ func Do(encrypter crypto.Encrypter, ep epub.Epub, w io.Writer) (enc *xmlenc.Mani
 			// encrypt the resource after optionally compressing it
 			err = encryptEPUBResource(compressor, compress, encrypter, key, ep.Encryption, res, ew)
 			if err != nil {
-				log.Println("Error encrypting " + res.Path + ": " + err.Error())
+				log.Println("Error encrypting ", res.Path, ": ", err.Error())
 				return
 			}
 		} else {
