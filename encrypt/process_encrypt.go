@@ -385,6 +385,7 @@ func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, outputPath 
 	if err != nil {
 		return err
 	}
+	defer reader.Close()
 	// create the encrypted package file
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
