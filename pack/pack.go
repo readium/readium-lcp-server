@@ -43,7 +43,7 @@ type Resource interface {
 	Open() (io.ReadCloser, error)
 }
 
-func GetOrSetContentKey(encrypter crypto.Encrypter, contentKey string) (key crypto.ContentKey, err error) {
+func getOrSetContentKey(encrypter crypto.Encrypter, contentKey string) (key crypto.ContentKey, err error) {
 	if contentKey != "" {
 		key, err = base64.StdEncoding.DecodeString(contentKey)
 		if err != nil {
@@ -63,7 +63,7 @@ func GetOrSetContentKey(encrypter crypto.Encrypter, contentKey string) (key cryp
 // Process copies resources from the source to the destination package, after encryption if needed.
 func Process(encrypter crypto.Encrypter, contentKey string, reader PackageReader, writer PackageWriter) (key crypto.ContentKey, err error) {
 
-	if key, err = GetOrSetContentKey(encrypter, contentKey); err != nil {
+	if key, err = getOrSetContentKey(encrypter, contentKey); err != nil {
 		return
 	}
 	// create a compressing tool
@@ -104,7 +104,7 @@ func Process(encrypter crypto.Encrypter, contentKey string, reader PackageReader
 func Do(encrypter crypto.Encrypter, contentKey string, ep epub.Epub, w io.Writer) (enc *xmlenc.Manifest, key crypto.ContentKey, err error) {
 
 	// generate an encryption key
-	if key, err = GetOrSetContentKey(encrypter, contentKey); err != nil {
+	if key, err = getOrSetContentKey(encrypter, contentKey); err != nil {
 		return
 	}
 
