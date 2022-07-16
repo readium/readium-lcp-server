@@ -132,7 +132,7 @@ func TestPackingWithSpace(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
-	encryption, key, err := Do(encrypter, input, buf)
+	encryption, key, err := Do(encrypter, "", input, buf)
 	if err != nil {
 		t.Fatal(err)
 	}
