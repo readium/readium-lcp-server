@@ -28,7 +28,7 @@ import (
 
 // ProcessEncryption encrypts a publication
 // inputPath must contain a processable file extension (EPUB, PDF, LPF or RPF)
-func ProcessEncryption(contentID, inputPath, tempRepo, outputRepo, storageRepo, storageURL, storageFilename string) (*apilcp.LcpPublication, error) {
+func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, storageRepo, storageURL, storageFilename string) (*apilcp.LcpPublication, error) {
 
 	if inputPath == "" {
 		return nil, errors.New("ProcessEncryption, parameter error")
@@ -114,13 +114,13 @@ func ProcessEncryption(contentID, inputPath, tempRepo, outputRepo, storageRepo, 
 
 	switch inputExt {
 	case ".epub":
-		err = processEPUB(&pub, inputPath, outputPath, encrypter)
+		err = processEPUB(&pub, inputPath, outputPath, encrypter, contentKey)
 	case ".pdf":
-		err = processPDF(&pub, inputPath, outputPath, encrypter)
+		err = processPDF(&pub, inputPath, outputPath, encrypter, contentKey)
 	case ".lpf":
-		err = processLPF(&pub, inputPath, outputPath, encrypter)
+		err = processLPF(&pub, inputPath, outputPath, encrypter, contentKey)
 	case ".audiobook", ".divina", ".webpub":
-		err = processRPF(&pub, inputPath, outputPath, encrypter)
+		err = processRPF(&pub, inputPath, outputPath, encrypter, contentKey)
 	}
 	if err != nil {
 		return nil, err
@@ -293,7 +293,7 @@ func checksum(file *os.File) string {
 }
 
 // processEPUB encrypts resources in an EPUB
-func processEPUB(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter) error {
+func processEPUB(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// create a zip reader from the input path
 	zr, err := zip.OpenReader(inputPath)
@@ -316,7 +316,7 @@ func processEPUB(pub *apilcp.LcpPublication, inputPath string, outputPath string
 	defer outputFile.Close()
 	// encrypt the content of the publication,
 	// write  into the output file
-	_, encryptionKey, err := pack.Do(encrypter, epub, outputFile)
+	_, encryptionKey, err := pack.Do(encrypter, contentKey, epub, outputFile)
 	if err != nil {
 		return err
 	}
@@ -336,7 +336,7 @@ func processEPUB(pub *apilcp.LcpPublication, inputPath string, outputPath string
 }
 
 // processPDF wraps a PDF file inside a Readium Package and encrypts its resources
-func processPDF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter) error {
+func processPDF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// generate a temp Readium Package (rwpp) which embeds the PDF file; its title is the PDF file name
 	tmpPackagePath := outputPath + ".tmp"
@@ -349,11 +349,11 @@ func processPDF(pub *apilcp.LcpPublication, inputPath string, outputPath string,
 	}
 
 	// build an encrypted package
-	return buildEncryptedRPF(pub, tmpPackagePath, outputPath, encrypter)
+	return buildEncryptedRPF(pub, tmpPackagePath, outputPath, encrypter, contentKey)
 }
 
 // processLPF transforms a W3C LPF file into a Readium Package and encrypts its resources
-func processLPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter) error {
+func processLPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// generate a tmp Readium Package (rwpp) out of a W3C Package (lpf)
 	tmpPackagePath := outputPath + ".tmp"
@@ -366,19 +366,19 @@ func processLPF(pub *apilcp.LcpPublication, inputPath string, outputPath string,
 	}
 
 	// build an encrypted package
-	return buildEncryptedRPF(pub, tmpPackagePath, outputPath, encrypter)
+	return buildEncryptedRPF(pub, tmpPackagePath, outputPath, encrypter, contentKey)
 }
 
 // processRPF encrypts the source Readium Package
-func processRPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter) error {
+func processRPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// build an encrypted package
-	return buildEncryptedRPF(pub, inputPath, outputPath, encrypter)
+	return buildEncryptedRPF(pub, inputPath, outputPath, encrypter, contentKey)
 }
 
 // buildEncryptedRPF builds an encrypted Readium package out of an un-encrypted one
 // FIXME: it cannot be used for EPUB as long as Do() and Process() are not merged
-func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter) error {
+func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// create a reader on the un-encrypted readium package
 	reader, err := pack.OpenRPF(inputPath)
@@ -398,7 +398,7 @@ func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, outputPath 
 		return err
 	}
 	// encrypt resources from the input package, return the encryption key
-	encryptionKey, err := pack.Process(encrypter, reader, writer)
+	encryptionKey, err := pack.Process(encrypter, contentKey, reader, writer)
 	if err != nil {
 		return err
 	}

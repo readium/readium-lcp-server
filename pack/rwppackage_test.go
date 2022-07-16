@@ -60,7 +60,7 @@ func TestEncryptRPF(t *testing.T) {
 		t.Fatalf("Could not build a writer, %s", err)
 	}
 	// encrypt resources from the input package, return the encryption key
-	_, err = Process(encrypter, reader, writer)
+	_, err = Process(encrypter, "", reader, writer)
 	if err != nil {
 		t.Fatalf("Could not encrypt the publication, %s", err)
 	}
