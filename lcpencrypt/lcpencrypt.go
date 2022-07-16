@@ -22,11 +22,15 @@ func showHelpAndExit() {
 	fmt.Println("lcpencrypt protects a publication using the LCP DRM")
 	fmt.Println("-input        source epub/pdf/lpf file locator (file system or http GET)")
 	fmt.Println("[-contentid]  optional, content identifier; if omitted a uuid is generated")
+<<<<<<< HEAD
 	fmt.Println("[-storage]    optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
 	fmt.Println("[-url]        optional, base url associated with the storage, without filename")
 	fmt.Println("[-filename]   optional, file name of the encrypted publication; if omitted, contentid is used")
 	fmt.Println("[-output]     optional, target folder of encrypted publications")
 	fmt.Println("[-temp]       optional, working folder for temporary files")
+=======
+	fmt.Println("[-contentkey]  optional, base64 encoded content key; if omitted a random content key is generated")
+>>>>>>> 88ced9163657cade0b43f827d57add1deb518f91
 	fmt.Println("[-lcpsv]      optional, http endpoint, notification of the License server")
 	fmt.Println("[-login]      login (License server) ")
 	fmt.Println("[-password]   password (License server)")
@@ -49,6 +53,7 @@ func main() {
 	var storageFilename = flag.String("filename", "", "optional, file name of the encrypted publication; if omitted, contentid is used")
 	var outputRepo = flag.String("output", "", "optional, target folder of encrypted publications")
 	var tempRepo = flag.String("temp", "", "optional, working folder for temporary files")
+	var contentkey = flag.String("contentkey", "", "optional, base64 encoded content key; if omitted a random content key is generated")
 	var lcpsv = flag.String("lcpsv", "", "optional, http endpoint, notification of the License server")
 	var username = flag.String("login", "", "login (License server)")
 	var password = flag.String("password", "", "password (License server)")
@@ -78,7 +83,11 @@ func main() {
 	start := time.Now()
 
 	// encrypt the publication
+<<<<<<< HEAD
 	pub, err := encrypt.ProcessEncryption(*contentid, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename)
+=======
+	pub, err := encrypt.ProcessPublication(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL)
+>>>>>>> 88ced9163657cade0b43f827d57add1deb518f91
 	if err != nil {
 		exitWithError("Process the encryption of a publication", err)
 	}
