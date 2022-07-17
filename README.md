@@ -54,7 +54,7 @@ A command line utility for content encryption. This utility can be included in a
 lcpencrypt can:
 * Take an unprotected publication as input and generates an encrypted file as output
 * Optionally, store the encrypted file into a file system or S3 bucket
-* Notifie the License server of the generation of the encrypted file
+* Notify the License server of the generation of the encrypted file
 
 ## [lcpserver]
 
@@ -81,7 +81,7 @@ Public functionalities (accessible from the web) are:
 Private functionalities (authentication required) are:
 * Be notified of the generation of a new license
 * Filter licenses by count of registered devices
-* List all registered devices for a given licence
+* List all registered devices for a given license
 * Revoke or cancel a license
 
 ## [frontend]
