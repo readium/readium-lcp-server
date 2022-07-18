@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
@@ -446,7 +447,9 @@ func NotifyLcpServer(pub *apilcp.LcpPublication, licenseServerURL string, userna
 		return err
 	}
 	req.SetBasicAuth(username, password)
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 15 * time.Second,
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
