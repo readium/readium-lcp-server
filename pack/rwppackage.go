@@ -59,26 +59,9 @@ func (reader *RPFReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 		file.Close()
 	}
 
-	// copy immediately the W3C entry page if it exists in the source package
-	if w3centryFile, ok := files[W3CEntryPageName]; ok {
-		fw, err := zipWriter.Create(W3CEntryPageName)
-		if err != nil {
-			return nil, err
-		}
-		file, err := w3centryFile.Open()
-		if err != nil {
-			return nil, err
-		}
-		_, err = io.Copy(fw, file)
-		if err != nil {
-			return nil, err
-		}
-		file.Close()
-	}
-
 	// copy immediately all ancilliary resources from the source manifest
 	// as they will not be encrypted in the current implementation
-	// FIXME: work on the encryption of ancilliary resources.
+	// FIXME: work on the encryption of ancilliary resources (except the W3C Entry Page?).
 	for _, manifestResource := range reader.manifest.Resources {
 		sourceFile := files[manifestResource.Href]
 		fw, err := zipWriter.Create(sourceFile.Name)
@@ -96,7 +79,7 @@ func (reader *RPFReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 		file.Close()
 	}
 
-	// copy immediately all linked resources, except the self link, which is the manifest itself,
+	// copy immediately all linked resources, except the manifest itself (self link),
 	// from the source manifest as they should not be encrypted.
 	for _, manifestLink := range reader.manifest.Links {
 		if manifestLink.Href == ManifestLocation {

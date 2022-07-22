@@ -224,9 +224,10 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 				return err
 			}
 			found = true
+			break
 		}
 	}
-	// return an error if the W3C manifest missing
+	// return an error if the W3C manifest is missing
 	if !found {
 		return fmt.Errorf("W3C LPF %s: missing publication.json", lpfPath)
 	}
@@ -277,7 +278,6 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 		}
 		// keep the original compression value (store vs deflate)
 		writer, err := zipWriter.CreateHeader(&file.FileHeader)
-		// writer, err := zipWriter.Create(file.Name)
 		if err != nil {
 			return err
 		}
