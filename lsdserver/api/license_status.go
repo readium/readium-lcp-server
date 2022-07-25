@@ -847,6 +847,7 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 	returnAvailable := config.Config.LicenseStatus.Return && licenseHasRightsEnd && usableLicense
 	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd && usableLicense
 	renewPageUrl := config.Config.LicenseStatus.RenewPageUrl
+	renewManagerUrl := config.Config.LicenseStatus.RenewManagerUrl
 
 	links := new([]licensestatuses.Link)
 
@@ -871,13 +872,19 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 		*links = append(*links, link)
 	}
 
-	// if renew is set and HTML renew page is set
-	if renewAvailable && renewPageUrl != "" {
-		link := licensestatuses.Link{Href: renewPageUrl, Rel: "renew", Type: api.ContentType_TEXT_HTML}
-		*links = append(*links, link)
-	} else if renewAvailable {
-		// this is the usual case, i.e. a simple renew link
-		link := licensestatuses.Link{Href: lsdBaseURL + "/licenses/" + ls.LicenseRef + "/renew{?end,id,name}", Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}
+	// if renew is set
+	if renewAvailable {
+		var link licensestatuses.Link
+		if renewPageUrl != "" {
+			// renewal is managed via a web page
+			link = licensestatuses.Link{Href: renewPageUrl, Rel: "renew", Type: api.ContentType_TEXT_HTML}
+		} else if renewManagerUrl != "" {
+			// renewal is managed via a specific service handled by the provider. It's a templated url, conformant with the LSD specification
+			link = licensestatuses.Link{Href: renewManagerUrl, Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}
+		} else {
+			// this is the usual case, i.e. a simple renew link
+			link = licensestatuses.Link{Href: lsdBaseURL + "/licenses/" + ls.LicenseRef + "/renew{?end,id,name}", Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}
+		}
 		*links = append(*links, link)
 	}
 
