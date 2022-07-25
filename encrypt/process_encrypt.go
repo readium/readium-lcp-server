@@ -120,7 +120,7 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 		err = processPDF(&pub, inputPath, outputPath, encrypter, contentKey)
 	case ".lpf":
 		err = processLPF(&pub, inputPath, outputPath, encrypter, contentKey)
-	case ".audiobook", ".divina", ".webpub":
+	case ".audiobook", ".divina", ".webpub", ".rpf":
 		err = processRPF(&pub, inputPath, outputPath, encrypter, contentKey)
 	}
 	if err != nil {
@@ -230,7 +230,7 @@ func targetFileInfo(pub *apilcp.LcpPublication, inputPath, storageFilename strin
 			ext = inputExt
 		case ".pdf":
 			ext = ".lcpdf"
-		case ".audiobook":
+		case ".audiobook", ".rpf":
 			ext = ".lcpau"
 		case ".divina":
 			ext = ".lcpdi"
