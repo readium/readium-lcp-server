@@ -340,7 +340,10 @@ lsd_notify_auth:
 - `renew_days`: default number of additional days allowed during a renewal.
 - `return`: boolean; if `true`, an early return is possible.  
 - `register`: boolean; if `true`, registering a device is possible.
-- `renew_page_url`: URL; if set, the renew feature is implemented as an HTML page, using this URL. This is mostly useful for testing client applications.
+- `renew_page_url`: URL; if set, the renew feature is implemented as an HTML page. 
+- `renew_manager_url`: URL; if set, the renew feature is managed by the license provider. 
+
+Detailed explanations about the use of `renew_page_url` and `renew_manager_url` are found in a [specific section of the wiki](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#option-manage-renew-requests-using-your-own-rules). 
 
 #### lcp_update_auth section 
 `lcp_update_auth`: authentication parameters used by the License Status Server for updating a license via the License Server. The notification endpoint is configured in the `lcp` section.
