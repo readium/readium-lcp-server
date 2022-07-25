@@ -840,11 +840,12 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 	lsdBaseURL := config.Config.LsdServer.PublicBaseUrl
 	licenseLinkURL := config.Config.LsdServer.LicenseLinkUrl
 	lcpBaseURL := config.Config.LcpServer.PublicBaseUrl
-	registerAvailable := config.Config.LicenseStatus.Register
 
+	usableLicense := (ls.Status == status.STATUS_READY || ls.Status == status.STATUS_ACTIVE)
+	registerAvailable := config.Config.LicenseStatus.Register
 	licenseHasRightsEnd := ls.CurrentEndLicense != nil && !(*ls.CurrentEndLicense).IsZero()
-	returnAvailable := config.Config.LicenseStatus.Return && licenseHasRightsEnd
-	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd
+	returnAvailable := config.Config.LicenseStatus.Return && licenseHasRightsEnd && usableLicense
+	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd && usableLicense
 	renewPageUrl := config.Config.LicenseStatus.RenewPageUrl
 
 	links := new([]licensestatuses.Link)
