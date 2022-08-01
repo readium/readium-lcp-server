@@ -3,12 +3,10 @@ FROM golang:alpine as lcpserver
 WORKDIR /lcp
 COPY . /lcp/.
 
-RUN echo "" > /void
-
 ARG BUILD_PROD=false
-ARG LIBUSERKEY_PATH=/void
-ARG USERKEYH_PATH=/void
-ARG USERKEYGO_PATH=/void
+ARG LIBUSERKEY_PATH=/docker/dummy
+ARG USERKEYH_PATH=/docker/dummy
+ARG USERKEYGO_PATH=/docker/dummy
 
 COPY $LIBUSERKEY_PATH $LIBUSERKEY_PATH
 COPY $USERKEYH_PATH $USERKEYH_PATH
