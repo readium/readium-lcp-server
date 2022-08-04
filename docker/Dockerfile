@@ -59,8 +59,8 @@ ARG PRIVATE_KEY_PATH=/test/cert/privkey-edrlab-test.pem
 ARG CERTIFICATE_PATH=/test/cert/cert-edrlab-test.pem
 ARG CONFIG_PATH=/docker/config.yaml
 
-COPY $PRIVATE_KEY_PATH /cert.pem
-COPY $CERTIFICATE_PATH /privkey.pem
+COPY $PRIVATE_KEY_PATH /privkey.pem
+COPY $CERTIFICATE_PATH /cert.pem
 COPY $I18N /i18n
 COPY $AUTH_FILE /htpasswd
 
