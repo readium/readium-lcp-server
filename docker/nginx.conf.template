@@ -5,6 +5,9 @@ server {
   client_max_body_size 0;
 
   listen ${PORT};
+  server_name         $SERVER_NAME;
+  ssl_certificate     /ssl.crt;
+  ssl_certificate_key /ssl.key;
 
   location /lcpserver/ {
     proxy_pass http://127.0.0.1:${LCP_PORT}/;
