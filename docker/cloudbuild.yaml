@@ -27,6 +27,7 @@ steps:
     '--build-arg', 'BUILD_PROD=true',
     '--build-arg', 'PRIVATE_KEY_PATH=/privkey-edrlab.pem',
     '--build-arg', 'CERTIFICATE_PATH=/cert-edrlab.pem',
+    '--build-arg', 'PROFILE=1.0',
     '.']
     timeout: 3600s
 

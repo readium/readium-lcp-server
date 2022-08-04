@@ -58,6 +58,7 @@ ARG AUTH_FILE=/test/htpasswd
 ARG PRIVATE_KEY_PATH=/test/cert/privkey-edrlab-test.pem
 ARG CERTIFICATE_PATH=/test/cert/cert-edrlab-test.pem
 ARG CONFIG_PATH=/docker/config.yaml
+ARG PROFILE=basic
 
 COPY $PRIVATE_KEY_PATH /privkey.pem
 COPY $CERTIFICATE_PATH /cert.pem
@@ -111,6 +112,8 @@ ENV FRONTEND_PROVIDER_URI=https://www.myprovidername.org
 ENV READIUM_LCPSERVER_CONFIG=/config.yaml
 ENV READIUM_LSDSERVER_CONFIG=/config.yaml
 ENV READIUM_FRONTEND_CONFIG=/config.yaml
+
+ENV PROFILE=$PROFILE
 
 ENV PORT=8080
 

@@ -24,7 +24,7 @@ lsd_notify_auth:
 
 # LCP Server
 
-profile: "basic"
+profile: "${PROFILE}"
 lcp:
     host: "${LCP_HOST}"
     port: ${LCP_PORT}
