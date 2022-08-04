@@ -75,8 +75,7 @@ COPY /docker/init.sh /init.sh
 
 COPY /docker/inittab /etc/inittab
 
-RUN apk add gettext sed
-RUN apk add --no-cache ca-certificates && update-ca-certificates
+RUN apk --update add --no-cache gettext sed ca-certificates openssl && update-ca-certificates
 
 ENV LCP_PORT=8081
 ENV LCP_HOST=127.0.0.1
