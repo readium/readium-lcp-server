@@ -6,6 +6,10 @@ steps:
     args: ['cp', 'gs://lcpserver-build-prod/userkey.h', '/workspace/userkey.h']
   - name: gcr.io/cloud-builders/gsutil
     args: ['cp', 'gs://lcpserver-build-prod/user_key.go', '/workspace/user_key.go']
+  - name: gcr.io/cloud-builders/gsutil
+    args: ['cp', 'gs://lcpserver-build-prod/cert-edrlab.pem', '/workspace/cert-edrlab.pem']
+  - name: gcr.io/cloud-builders/gsutil
+    args: ['cp', 'gs://lcpserver-build-prod/privkey-edrlab.pem', '/workspace/privkey-edrlab.pem']
   - name: ubuntu
     entrypoint: bash
     args:
@@ -21,6 +25,8 @@ steps:
     '--build-arg', 'USERKEYH_PATH=/userkey.h',
     '--build-arg', 'USERKEYGO_PATH=/user_key.go',
     '--build-arg', 'BUILD_PROD=true',
+    '--build-arg', 'PRIVATE_KEY_PATH=/privkey-edrlab.pem',
+    '--build-arg', 'CERTIFICATE_PATH=/cert-edrlab.pem',
     '.']
     timeout: 3600s
 
