@@ -21,7 +21,7 @@ steps:
     args:
       - -c
       - |
-        ls -la /workspace && cat /workspace/GandiStandardSSLCA2.pem /workspace/wildcard.edrlab.org.crt > /workspace/wildcard.edrlab.org.final.crt
+        ls -la /workspace && cat /workspace/wildcard.edrlab.org.crt /workspace/GandiStandardSSLCA2.pem > /workspace/wildcard.edrlab.org.final.crt
 
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 
