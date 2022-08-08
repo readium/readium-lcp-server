@@ -34,17 +34,23 @@ type Server interface {
 	Source() *pack.ManualSource
 }
 
-// LcpPublication is a struct for communication with lcp-server
+// LcpPublication is used for communication with the License Server
 type LcpPublication struct {
-	ContentID          string  `json:"content-id"`
-	ContentKey         []byte  `json:"content-encryption-key"`
-	Output             string  `json:"protected-content-location"`
-	Size               *int64  `json:"protected-content-length"`
-	Checksum           *string `json:"protected-content-sha256"`
-	ContentDisposition *string `json:"protected-content-disposition"`
-	ContentType        string  `json:"protected-content-type,omitempty"`
-	ErrorMessage       string  `json:"error,omitempty"`
+	ContentID   string `json:"content-id"`
+	ContentKey  []byte `json:"content-encryption-key"`
+	StorageMode int    `json:"storage-mode"`
+	Output      string `json:"protected-content-location"`
+	FileName    string `json:"protected-content-disposition"`
+	Size        int64  `json:"protected-content-length"`
+	Checksum    string `json:"protected-content-sha256"`
+	ContentType string `json:"protected-content-type,omitempty"`
 }
+
+const (
+	Storage_none = 0
+	Storage_s3   = 1
+	Storage_fs   = 2
+)
 
 func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
 	dir := os.TempDir()
@@ -69,9 +75,10 @@ func cleanupTempFile(f *os.File) {
 	os.Remove(f.Name())
 }
 
-// StoreContent stores content in the storage.
+// StoreContent stores content passed through the request body into the storage.
 // The content name is given in the url (name)
-// A temporary file is created, then deleted after the content has been stored
+// A temporary file is created, then deleted after the content has been stored.
+// This function is using an async task.
 func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 	vars := mux.Vars(r)
@@ -121,40 +128,42 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: "The content id must be set in the url"}, http.StatusBadRequest)
 		return
 	}
-	// open the encrypted file, use its full path
-	file, err := getAndOpenFile(publication.Output)
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-		return
-	}
-	// the input file will be deleted when the function returns
-	defer cleanupTempFile(file)
 
-	// add the file to the storage, named by contentID, without file extension
-	_, err = s.Store().Add(contentID, file)
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-		return
+	// if the encrypted publication has not been stored yet
+	if publication.StorageMode == Storage_none {
+
+		// open the encrypted file, use its full path
+		file, err := getAndOpenFile(publication.Output)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			return
+		}
+		// the input file will be deleted when the function returns
+		defer cleanupTempFile(file)
+
+		// add the file to the storage, named by contentID, without file extension
+		_, err = s.Store().Add(contentID, file)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+			return
+		}
 	}
 
 	// insert a row in the database if the content id does not already exist
-	// udpate the database with a new content key and file location if the content id already exists
+	// or update the database with a new content key and file location if the content id already exists
 	var c index.Content
 	c, err = s.Index().Get(contentID)
-	// set the encryption key (c.EncryptionKey)
 	c.EncryptionKey = publication.ContentKey
-	// set the encrypted file name (c.Location)
-	if publication.ContentDisposition != nil {
-		c.Location = *publication.ContentDisposition
-		c.Length = *publication.Size
-		c.Sha256 = *publication.Checksum
-		c.Type = publication.ContentType
+	// the Location field contains either the file name (useful during download)
+	// or the storage URL of the publication, depending the storage mode.
+	if publication.StorageMode != Storage_none {
+		c.Location = publication.Output
 	} else {
-		problem.Error(w, r, problem.Problem{Detail: "The file name must be set by the caller"}, http.StatusBadRequest)
-		return
+		c.Location = publication.FileName
 	}
-
-	//todo check hash & length?
+	c.Length = publication.Size
+	c.Sha256 = publication.Checksum
+	c.Type = publication.ContentType
 
 	code := http.StatusCreated
 	if err == index.ErrNotFound { //insert into database
@@ -171,8 +180,6 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// set the response http code
 	w.WriteHeader(code)
-	return
-
 }
 
 // ListContents lists the content in the storage index
@@ -211,6 +218,7 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 		}
 		return
 	}
+
 	// check the existence of the file
 	item, err := s.Store().Get(contentID)
 	if err != nil { //item probably not found
@@ -223,6 +231,11 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	// opens the file
 	contentReadCloser, err := item.Contents()
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+
 	defer contentReadCloser.Close()
 	if err != nil { //file probably not found
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
@@ -235,20 +248,17 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// returns the content of the file to the caller
 	io.Copy(w, contentReadCloser)
-
-	return
-
 }
 
 // getAndOpenFile opens a file from a path, or downloads then opens it if its location is a URL
 func getAndOpenFile(filePathOrURL string) (*os.File, error) {
 
-	HTTPOrHTTPS, err := isHTTPOrHTTPS(filePathOrURL)
+	isURL, err := isURL(filePathOrURL)
 	if err != nil {
 		return nil, err
 	}
 
-	if HTTPOrHTTPS {
+	if isURL {
 		return downloadAndOpenFile(filePathOrURL)
 	}
 
@@ -268,12 +278,11 @@ func downloadAndOpenFile(url string) (*os.File, error) {
 	return os.Open(fileName)
 }
 
-func isHTTPOrHTTPS(filePathOrURL string) (bool, error) {
+func isURL(filePathOrURL string) (bool, error) {
 	url, err := url.Parse(filePathOrURL)
 	if err != nil {
-		return false, errors.New("Error parsing input file")
+		return false, errors.New("error parsing input string")
 	}
-
 	return url.Scheme == "http" || url.Scheme == "https", nil
 }
 

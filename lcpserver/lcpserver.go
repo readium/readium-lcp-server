@@ -76,9 +76,6 @@ func main() {
 	if dbURI = config.Config.LcpServer.Database; dbURI == "" {
 		dbURI = "sqlite3://file:lcp.sqlite?cache=shared&mode=rwc"
 	}
-	if storagePath = config.Config.Storage.FileSystem.Directory; storagePath == "" {
-		storagePath = "files"
-	}
 	if certFile = config.Config.Certificate.Cert; certFile == "" {
 		panic("Must specify a certificate")
 	}
@@ -111,16 +108,22 @@ func main() {
 		panic(err)
 	}
 
-	// move config
-	license.CreateDefaultLinks()
-	var store storage.Store
+	err = license.CreateDefaultLinks()
+	if err != nil {
+		panic(err)
+	}
 
+	var store storage.Store
 	if mode := config.Config.Storage.Mode; mode == "s3" {
 		s3Conf := s3ConfigFromYAML()
 		store, _ = storage.S3(s3Conf)
-	} else {
+	} else if config.Config.Storage.FileSystem.Directory != "" {
+		storagePath = config.Config.Storage.FileSystem.Directory
 		os.MkdirAll(storagePath, os.ModePerm) //ignore the error, the folder can already exist
-		store = storage.NewFileSystem(storagePath, config.Config.LcpServer.PublicBaseUrl+"/files")
+		store = storage.NewFileSystem(storagePath, config.Config.Storage.FileSystem.URL)
+		log.Println("Storage created, path", storagePath, ", URL", config.Config.Storage.FileSystem.URL)
+	} else {
+		log.Println("No storage created")
 	}
 
 	packager := pack.NewPackager(store, idx, 4)
@@ -146,10 +149,6 @@ func main() {
 	}
 	log.Println("Using database " + dbURI)
 	log.Println("Public base URL=" + config.Config.LcpServer.PublicBaseUrl)
-	log.Println("License links:")
-	for nameOfLink, link := range config.Config.License.Links {
-		log.Println("  " + nameOfLink + " => " + link)
-	}
 
 	if err := s.ListenAndServe(); err != nil {
 		log.Println("Error " + err.Error())

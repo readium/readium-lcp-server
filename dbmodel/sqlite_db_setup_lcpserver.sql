@@ -2,8 +2,8 @@ CREATE TABLE content (
   id varchar(255) PRIMARY KEY NOT NULL,
   encryption_key varchar(64) NOT NULL,
   location text NOT NULL, 
-  length bigint,
-  sha256 varchar(64),
+  length bigint,
+  sha256 varchar(64),
   "type" varchar(255) NOT NULL DEFAULT 'application/epub+zip'
 );
 
