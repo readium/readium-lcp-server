@@ -127,4 +127,4 @@ COPY /docker/nginx.conf.template /etc/nginx/templates/
 
 CMD ["init"]
 
-EXPOSE 8080
+EXPOSE $PORT
