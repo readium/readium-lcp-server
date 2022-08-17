@@ -92,6 +92,7 @@ type Certificate struct {
 
 type FileSystem struct {
 	Directory string `yaml:"directory"`
+	URL       string `yaml:"url,omitempty"`
 }
 
 type Storage struct {
