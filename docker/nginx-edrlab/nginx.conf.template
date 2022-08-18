@@ -10,7 +10,7 @@ server {
   ssl_certificate_key /ssl.key;
 
   location / {
-    proxy_pass $FRONT_PROD/;
+    proxy_pass http://$FRONT_PROD/;
   }
 
 }
@@ -25,7 +25,7 @@ server {
   ssl_certificate_key /ssl.key;
 
   location / {
-    proxy_pass $FRONT_TEST/;
+    proxy_pass http://$FRONT_TEST/;
   }
 
 }
