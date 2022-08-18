@@ -28,6 +28,7 @@ manage/config.js
 
 !docker/**/config.yaml
 !docker/cloudbuild.yaml
+!docker/nginx-edrlab/cloudbuild.yaml
 build/
 .*.swp
 docker/private/

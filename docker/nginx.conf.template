@@ -6,8 +6,10 @@ server {
 
   listen ${PORT};
   server_name         $SERVER_NAME;
-  ssl_certificate     /ssl.crt;
-  ssl_certificate_key /ssl.key;
+
+  location / {
+    return 302 /frontend;
+  }
 
   location /lcpserver/ {
     proxy_pass http://127.0.0.1:${LCP_PORT}/;
