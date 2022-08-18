@@ -7,6 +7,6 @@ ARG SSL_CERTIFICATE_PATH=/
 COPY $SSL_PRIVATE_KEY_PATH /ssl.key
 COPY $SSL_CERTIFICATE_PATH /ssl.crt
 
-COPY /docker/nginx-edrlab/nginx.conf.template /etc/nginx/templates/
+COPY /docker/nginx-edrlab/nginx.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 443

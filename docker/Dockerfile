@@ -119,7 +119,7 @@ ENV PORT=8080
 
 ENV BASE_URL=http://127.0.0.1:8080/frontend/
 
-COPY /docker/nginx.conf.template /etc/nginx/templates/
+COPY /docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 
 CMD ["init"]
 
