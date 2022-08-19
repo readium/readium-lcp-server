@@ -53,11 +53,25 @@ Quickstart
 make clean && PATH=/Users/edrlab/Downloads/node-v6.9.2-darwin-x64/bin:$PATH make && make run
 ```
 
-## docker-compose
+Docker
+=======
+
+
+To build the master container (lcp+lsd+frontend) :
 
 ```
-docker-compose -f docker/docker-compose.yml up
+./docker/dockerbuild.sh `pwd` master
 ```
+
+To run it :
+
+```
+./docker/dockerrun.sh
+```
+
+
+go to http://127.0.0.1:8080/frontend
+
 
 Executables
 ===========
