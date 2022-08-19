@@ -3,7 +3,7 @@ Readium LCP Server
 
 Documentation
 ============
-As a retailer, public library or specialized e-distributor, you are distributing EPUB or PDF ebooks, LPF or RPF packaged audiobooks or comics. You want them protected by the Readium LCP DRM. Your CMS (Content Management system) already handles publications, users, purchases or loans, your technical team is able to integrate this CMS with a License server by creating a new endpoint in the CMS and requesting the License Server via its REST interface. If you are in this situation, this open-source codebase is made for you. 
+As a retailer, public library or specialized e-distributor, you are distributing EPUB or PDF ebooks, LPF or RPF (.webpub) packaged audiobooks or comics. You want them protected by the Readium LCP DRM. Your CMS (Content Management system) already handles publications, users, purchases or loans, your technical team is able to integrate this CMS with a License server by creating a new endpoint in the CMS and requesting the License Server via its REST interface. If you are in this situation, this open-source codebase is made for you. 
 
 Using the Readium LCP Server you can:
 * Encrypt your entire catalog of publications and store these encrypted files in a file system or S3 bucket, ready for download from any LCP compliant reading application;
@@ -20,7 +20,7 @@ Prerequisites
 Binaries are not yet pre-built, so you need to get a working Golang installation. 
 Please refer to the official GO documentation for installation procedures at https://golang.org/.
 
-This software is working with *go 1.13* or higher.
+This software is working with *go 1.13* or higher. It is currently maintained using *go 1.18* (July 2022). 
 
 The servers require the setup of an SQL Database. 
 
@@ -84,13 +84,13 @@ A command line utility for content encryption. This utility can be included in a
 lcpencrypt can:
 * Take an unprotected publication as input and generates an encrypted file as output
 * Optionally, store the encrypted file into a file system or S3 bucket
-* Notifie the License server of the generation of the encrypted file
+* Notify the License server of the generation of the encrypted file
 
 ## [lcpserver]
 
 A License server implements [Readium Licensed Content Protection 1.0](https://readium.org/lcp-specs/releases/lcp/latest).
 
-Private functionalities (authentication required) are:
+Its private functionalities (authentication required) are:
 * Store the data resulting from an external encryption, if the encryption utility did not already store it
 * Generate a license or returns an up-to-date license
 * Generate a protected publication (i.e. an encrypted publication in which a license is embedded)
@@ -102,25 +102,27 @@ Private functionalities (authentication required) are:
 
 A License Status server implements [Readium License Status Document 1.0](https://readium.org/lcp-specs/releases/lsd/latest).
 
-Public functionalities (accessible from the web) are:
+Its public functionalities are:
 * Return a license status document
 * Process a device registration request
 * Process a lending return request
 * Process a lending renewal request
 
-Private functionalities (authentication required) are:
+Its private functionalities (authentication required) are:
 * Be notified of the generation of a new license
 * Filter licenses by count of registered devices
-* List all registered devices for a given licence
+* List all registered devices for a given license
 * Revoke or cancel a license
 
 ## [frontend]
 
-A Test Frontend server is also provided, which mimics your own CMS, with a GUI and its own REST API. Its sole goal is to help you test the License and License Status servers. It should never be used in production.  
+A Test Frontend server is also provided, which mimics your own distriubution platform (i.e. content management system, library platform ...). It provides a web user interface for managing publications, users and licenses. It also provides a REST API which is mimics the way you will [connect your distribution platform to the license server](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#connect-your-distribution-platform-to-the-license-server). 
 
-Public functionalities (accessible from the web) are:
-* Fetch a license from its id
-* Fetch a licensed publication from the license id
+Its sole goal is to help you testing the License and License Status servers. It should never be used in production.  
+
+Its public functionalities are:
+* Fetch a license by id
+* Fetch a licensed publication by license id
 
 
 Install
@@ -128,55 +130,80 @@ Install
 
 Assuming a working Go installation ...
 
-On Linux and MacOS:
+The project supports Go modules (introduced in Go 1.13). Developers can therefore put the codebase in their chosen directory.   
 
-If you want to use the master branch:
+### On Linux and MacOS:
+
+If you are installing from the master branch:
+
+#### Without using Go modules
 ```sh
-# from the go workspace
-cd $GOPATH
+# disable go modules
+export GO111MODULE=off
 # fetch, build and install the different packages and their dependencies
-go get -v github.com/readium/readium-lcp-server/...
+go install -v github.com/readium/readium-lcp-server/...
 ```
 
 Warning: Go has a funny 3-dots syntax, and you really have to type "/..." at the end of the line. 
 
+#### Using Go modules
+```sh
+# fetch, build and install the different packages and their dependencies
+go install github.com/readium/readium-lcp-server/...@latest
+```
+
+"@latest" can be replaced by a specific version, e.g. "@V1.6.0" (warning: use a capital V).
+
+#### From a feature branch (using go modules)
+Alternatively, if you want to use a feature branch:
+```sh
+# from you projects root directory
+cd <projects>
+# clone the repo, selecting the feature branch you want to test
+git clone -b <feature-branch> https://github.com/readium/readium-lcp-server.git
+cd readium-lcp-server
+# then build from the current codebase and install the different packages and their dependencies
+go install ./...
+```
+
+#### Check the binaries
 You should now find the generated Go binaries in $GOPATH/bin: 
 
 - `lcpencrypt`: the command line encryption tool,
 - `lcpserver`: the license server,
 - `lsdserver`: the status document server,
-- `frontend`: a test application (Test Frontend Server) which mimics your content management system. 
+- `frontend`: a test application (Test Frontend Server) which mimics your distribution platform. 
 
-Alternatively, if you want to use a feature branch:
-```sh
-# from the go workspace
-cd $GOPATH
-# clone the repo, selecting the feature/F branch
-git clone -b <feature-branch> https://github.com/readium/readium-lcp-server.git src/github.com/readium/readium-lcp-server
-# then fetch, build and install the different packages and their dependencies
-go get -v github.com/readium/readium-lcp-server/...
-````
-
+#### Install selected binaries
 You may prefer to install only some of the executables. 
-In such a case, the "go get" command should be called once for each package, e.g. for the lcpserver from the master branch:
+In such a case, the "go install" command should be called once for each package, e.g. for the lcpserver from the master branch:
 ```sh
 cd $GOPATH
-go get -v github.com/readium/readium-lcp-server/lcpserver
+go install github.com/readium/readium-lcp-server/lcpserver
 ```
 
-To install properly the Test Frontend Server, you must also install several npm packages.
+#### Install the Test Frontend Server
+To install properly the Test Frontend Server, you must clone the project and install several npm packages.
 
-Note: use a modern version of npm, e.g. npm 6.12.0 or higher. 
+Note: You will have to use an old version of npm, e.g. npm 6.12.0. 
 
-To install the npm packages, type:
+In the following example, we'll use GOPATH (not a specific project directory). 
+To install and test the npm packages, type:
+
 ```sh
-cd $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage
+cd $GOPATH
+# clone the project
+git clone https://github.com/readium/readium-lcp-server.git src/github.com/readium/readium-lcp-server
+cd src/github.com/readium/readium-lcp-server/frontend/manage
+# override the use of the deprecated git protocol (if needed)
+git config --global url."https://github".insteadOf git://github
+# the following command takes a while; don't mind warnings
 npm install
-````
+```
 
-On Windows 10:
+### On Windows 10
 
-You must first install a GCC compiler in order to compile the SQLite module and to move later to "production mode". [TDM-GCC](http://tdm-gcc.tdragon.net/download) gives great results. 
+You must first install a GCC compiler in order to compile the SQLite module and to later move to "production mode". [TDM-GCC](http://tdm-gcc.tdragon.net/download) gives great results. 
 
 Also, in the previous instructions, replace: 
 
@@ -343,7 +370,10 @@ lsd_notify_auth:
 - `renew_days`: default number of additional days allowed during a renewal.
 - `return`: boolean; if `true`, an early return is possible.  
 - `register`: boolean; if `true`, registering a device is possible.
-- `renew_page_url`: URL; if set, the renew feature is implemented as an HTML page, using this URL. This is mostly useful for testing client applications.
+- `renew_page_url`: URL; if set, the renew feature is implemented as an HTML page. 
+- `renew_manager_url`: URL; if set, the renew feature is managed by the license provider. 
+
+Detailed explanations about the use of `renew_page_url` and `renew_manager_url` are found in a [specific section of the wiki](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#option-manage-renew-requests-using-your-own-rules). 
 
 #### lcp_update_auth section 
 `lcp_update_auth`: authentication parameters used by the License Status Server for updating a license via the License Server. The notification endpoint is configured in the `lcp` section.
@@ -455,9 +485,22 @@ Each server must be launched in a different context (i.e. a different terminal f
 - `lsdserver`
 - `frontend`
 
-After the frontend server has been launched, you can access the server GUI via its base url, e.g. http://127.0.0.1:8991
+Starting the frontend UI requires an initial configuration, as it must read the dynamically created "config.js" file:
 
-NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended, as you won't be able to access the modules from e.g. a mobile app. It is much better to use the WiFi IPv4 address of your computer and access the server from a mobile device via WiFi.  
+```sh
+#start the frontend server, this creates config.js
+frontend
+# stop
+<ctrl-C>
+# compile the typescript files, check that the frontend UI is launched
+npm start
+# when the frontend UI has appeared, stop
+<ctrl-C>
+```
+
+After the frontend server has been launched, you can access the server GUI via its base url, as configured in the LCP server config file.
+
+NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended as you won't be able to access the modules from e.g. a mobile app. It is much better to use the WiFi IPv4 address of your computer and access the server from a mobile device via WiFi.  
 
 Contributing
 ============

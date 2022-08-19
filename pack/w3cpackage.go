@@ -29,6 +29,7 @@ const W3CEntryPageName = "index.html"
 const RWPManifestName = "manifest.json"
 
 // displayW3CMan displays a serialized W3C Manifest (debug purposes only)
+/*
 func displayW3CMan(w3cman rwpm.W3CPublication) error {
 
 	json, err := json.MarshalIndent(w3cman, "", " ")
@@ -38,6 +39,7 @@ func displayW3CMan(w3cman rwpm.W3CPublication) error {
 	fmt.Println(string(json))
 	return nil
 }
+*/
 
 // mapXlanglProperty maps a multilingual property (e.g. name)
 // from a W3C manifest to a Readium manifest.
@@ -222,9 +224,10 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 				return err
 			}
 			found = true
+			break
 		}
 	}
-	// return an error if the W3C manifest missing
+	// return an error if the W3C manifest is missing
 	if !found {
 		return fmt.Errorf("W3C LPF %s: missing publication.json", lpfPath)
 	}
@@ -246,6 +249,10 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 
 	// create the rwpp file
 	rwppFile, err := os.Create(rwppPath)
+	if err != nil {
+		return err
+	}
+
 	defer rwppFile.Close()
 
 	// create a zip writer on the rwpp
@@ -258,6 +265,9 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 		return err
 	}
 	_, err = man.Write(rwpJSON)
+	if err != nil {
+		return err
+	}
 
 	// Append every lpf resource to the rwpp
 	for _, file := range lpfFile.File {
@@ -268,7 +278,6 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 		}
 		// keep the original compression value (store vs deflate)
 		writer, err := zipWriter.CreateHeader(&file.FileHeader)
-		// writer, err := zipWriter.Create(file.Name)
 		if err != nil {
 			return err
 		}

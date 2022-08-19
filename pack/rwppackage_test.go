@@ -5,24 +5,24 @@
 package pack
 
 import (
-	"archive/zip"
 	"bytes"
-	"io/ioutil"
 	"testing"
 	"time"
 
+	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/rwpm"
 )
 
-func TestOpenRPFackage(t *testing.T) {
-	if _, err := OpenRPF("path-does-not-exist.lcpdf"); err == nil {
+func TestOpenRPFPackage(t *testing.T) {
+	if _, err := OpenRPF("path-does-not-exist.webpub"); err == nil {
 		t.Errorf("Expected to receive an error on missing file, got %s", err)
 	}
 
-	reader, err := OpenRPF("./samples/basic.lcpdf")
+	reader, err := OpenRPF("./samples/basic.webpub")
 	if err != nil {
-		t.Fatalf("Expected to be able to open basic.lcpdf, got %s", err)
+		t.Fatalf("Expected to be able to open basic.webpub, got %s", err)
 	}
+	defer reader.Close()
 
 	resources := reader.Resources()
 	if l := len(resources); l != 1 {
@@ -34,8 +34,45 @@ func TestOpenRPFackage(t *testing.T) {
 	}
 }
 
+func TestEncryptRPF(t *testing.T) {
+	// define an AES encrypter
+	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
+
+	// create a reader on the un-encrypted readium package
+	reader, err := OpenRPF("./samples/basic.webpub")
+	if err != nil {
+		t.Fatalf("Expected to be able to open basic.webpub, got %s", err)
+	}
+	defer reader.Close()
+
+	// create the encrypted package file
+	/*
+		outputFile, err := os.Create(outputPath)
+		if err != nil {
+			return err
+		}
+		defer outputFile.Close()
+	*/
+	var b bytes.Buffer
+	// create a writer on the encrypted package
+	writer, err := reader.NewWriter(&b)
+	if err != nil {
+		t.Fatalf("Could not build a writer, %s", err)
+	}
+	// encrypt resources from the input package, return the encryption key
+	_, err = Process(encrypter, "", reader, writer)
+	if err != nil {
+		t.Fatalf("Could not encrypt the publication, %s", err)
+	}
+
+	err = writer.Close()
+	if err != nil {
+		t.Fatalf("Could not close the writer, %s", err)
+	}
+}
+
 func TestWriteRPFackage(t *testing.T) {
-	reader, err := OpenRPF("./samples/basic.lcpdf")
+	reader, err := OpenRPF("./samples/basic.webpub")
 	if err != nil {
 		t.Fatalf("Expected to be able to open basic.lcpdf, got %s", err)
 	}
@@ -46,65 +83,28 @@ func TestWriteRPFackage(t *testing.T) {
 		t.Fatalf("Could not build a writer, %s", err)
 	}
 
-	file, err := writer.NewFile("test.pdf", "application/pdf", Deflate)
+	file, err := writer.NewFile("test.txt", "text/plain", Deflate)
 	if err != nil {
 		t.Fatalf("Could not create a new file, %s", err)
 	}
 
-	file.Write([]byte("test"))
+	file.Write([]byte("test content"))
 
 	err = file.Close()
 	if err != nil {
 		t.Fatalf("Could not close file, %s", err)
 	}
 
-	writer.MarkAsEncrypted("test.pdf", 4, "http://www.w3.org/2001/04/xmlenc#aes256-cbc")
+	writer.MarkAsEncrypted("test.txt", 12, "http://www.w3.org/2001/04/xmlenc#aes256-cbc")
 
 	err = writer.Close()
 	if err != nil {
 		t.Fatalf("Could not close packageWriter, %s", err)
 	}
 
-	r := bytes.NewReader(b.Bytes())
-	zr, err := zip.NewReader(r, int64(b.Len()))
-	if err != nil {
-		t.Fatalf("Could not reopen written archive, %s", err)
-	}
-
-	reader, err = NewRPFReader(zr)
-	if err != nil {
-		t.Fatalf("Could not read archive, %s", err)
-	}
-
-	resources := reader.Resources()
-	if l := len(resources); l != 2 {
-		t.Fatalf("Expected to get %d resources, got %d", 2, l)
-	}
-
-	if path := resources[1].Path(); path != "test.pdf" {
-		t.Errorf("Expected resource to be named test.pdf, got %s", path)
-	}
-
-	if !resources[1].Encrypted() {
-		t.Errorf("Expected resource to be encrypted")
-	}
-
-	rc, err := resources[1].Open()
-	if err != nil {
-		t.Fatalf("Could not open file: %s", err)
-	}
-
-	data, err := ioutil.ReadAll(rc)
-	if err != nil {
-		t.Fatalf("Could not read data from file: %s", err)
-	}
-
-	if !bytes.Equal(data, []byte("test")) {
-		t.Errorf("Bytes were not equal")
-	}
 }
 
-func TestRWPM(t *testing.T) {
+func TestSetMetadata(t *testing.T) {
 	var manifest rwpm.Publication
 
 	manifest.Metadata.Identifier = "id1"

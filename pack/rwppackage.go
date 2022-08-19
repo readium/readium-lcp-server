@@ -18,7 +18,7 @@ import (
 // RPFReader is a Readium Package reader
 type RPFReader struct {
 	manifest   rwpm.Publication
-	zipArchive *zip.Reader
+	zipArchive *zip.ReadCloser
 }
 
 // RPFWriter is a Readium Package writer
@@ -32,7 +32,7 @@ type NopWriteCloser struct {
 	io.Writer
 }
 
-// NewWriter returns a new PackageWriter writing a RWP to the output file
+// NewWriter returns a new PackageWriter writing a RPF file to the output file
 func (reader *RPFReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 
 	zipWriter := zip.NewWriter(writer)
@@ -43,31 +43,25 @@ func (reader *RPFReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 	}
 
 	// copy immediately the W3C manifest if it exists in the source package
-	// FIXME: this doesn't seem to be the best location for such zip to zip copy
 	if w3cmanFile, ok := files[W3CManifestName]; ok {
 		fw, err := zipWriter.Create(W3CManifestName)
 		if err != nil {
 			return nil, err
 		}
 		file, err := w3cmanFile.Open()
-		_, err = io.Copy(fw, file)
-		file.Close()
-	}
-
-	// copy immediately the W3C entry page if it exists in the source package
-	// FIXME: this doesn't seem to be the best location for such zip to zip copy
-	if w3centryFile, ok := files[W3CEntryPageName]; ok {
-		fw, err := zipWriter.Create(W3CEntryPageName)
 		if err != nil {
 			return nil, err
 		}
-		file, err := w3centryFile.Open()
 		_, err = io.Copy(fw, file)
+		if err != nil {
+			return nil, err
+		}
 		file.Close()
 	}
 
-	// copy immediately all ancilliary resources from the source manifest as they should not be encrypted
-	// FIXME: this doesn't seem to be the best location for such zip to zip copy
+	// copy immediately all ancilliary resources from the source manifest
+	// as they will not be encrypted in the current implementation
+	// FIXME: work on the encryption of ancilliary resources (except the W3C Entry Page?).
 	for _, manifestResource := range reader.manifest.Resources {
 		sourceFile := files[manifestResource.Href]
 		fw, err := zipWriter.Create(sourceFile.Name)
@@ -75,13 +69,32 @@ func (reader *RPFReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 			return nil, err
 		}
 		file, err := sourceFile.Open()
+		if err != nil {
+			return nil, err
+		}
 		_, err = io.Copy(fw, file)
+		if err != nil {
+			return nil, err
+		}
 		file.Close()
 	}
 
-	// copy immediately all links from the source manifest as they should not be encrypted
-	// FIXME: this doesn't seem to be the best location for such zip to zip copy
+	// copy immediately all linked resources, except the manifest itself (self link),
+	// from the source manifest as they should not be encrypted.
 	for _, manifestLink := range reader.manifest.Links {
+		if manifestLink.Href == ManifestLocation {
+			continue
+		}
+		isSelf := false
+		for _, rel := range manifestLink.Rel {
+			if rel == "self" {
+				isSelf = true
+				continue
+			}
+		}
+		if isSelf {
+			continue
+		}
 		sourceFile := files[manifestLink.Href]
 		if sourceFile == nil {
 			continue
@@ -91,7 +104,13 @@ func (reader *RPFReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 			return nil, err
 		}
 		file, err := sourceFile.Open()
+		if err != nil {
+			return nil, err
+		}
 		_, err = io.Copy(fw, file)
+		if err != nil {
+			return nil, err
+		}
 		file.Close()
 	}
 
@@ -122,6 +141,10 @@ func (reader *RPFReader) Resources() []Resource {
 	}
 
 	return resources
+}
+
+func (reader *RPFReader) Close() error {
+	return reader.zipArchive.Close()
 }
 
 type rwpResource struct {
@@ -236,6 +259,7 @@ func (writer *RPFWriter) writeManifest() error {
 }
 
 // Close closes a Readium Package Writer
+// Writes the updated manifest in the zip archive.
 func (writer *RPFWriter) Close() error {
 	err := writer.writeManifest()
 	if err != nil {
@@ -245,13 +269,18 @@ func (writer *RPFWriter) Close() error {
 	return writer.zipWriter.Close()
 }
 
-// NewRPFReader creates a new Readium Package reader
-func NewRPFReader(zipReader *zip.Reader) (*RPFReader, error) {
+// OpenRPF opens a Readium Package and returns a zip reader + a manifest
+func OpenRPF(name string) (*RPFReader, error) {
+
+	zipArchive, err := zip.OpenReader(name)
+	if err != nil {
+		return nil, err
+	}
 
 	// find and parse the manifest
 	var manifest rwpm.Publication
 	var found bool
-	for _, file := range zipReader.File {
+	for _, file := range zipArchive.File {
 		if file.Name == ManifestLocation {
 			found = true
 
@@ -271,22 +300,10 @@ func NewRPFReader(zipReader *zip.Reader) (*RPFReader, error) {
 	}
 
 	if !found {
-		return nil, errors.New("Could not find manifest")
+		return nil, errors.New("could not find manifest")
 	}
 
-	return &RPFReader{zipArchive: zipReader, manifest: manifest}, nil
-
-}
-
-// OpenRPF opens a Readium Package and returns a zip reader + a manifest
-func OpenRPF(name string) (*RPFReader, error) {
-
-	zipArchive, err := zip.OpenReader(name)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewRPFReader(&zipArchive.Reader)
+	return &RPFReader{zipArchive: zipArchive, manifest: manifest}, nil
 }
 
 // BuildRPFFromPDF builds a Readium Package (rwpp) which embeds a PDF file
@@ -300,11 +317,11 @@ func BuildRPFFromPDF(title string, inputPath string, outputPath string) error {
 	defer f.Close()
 
 	// copy the content of the pdf input file into the zip output, as 'publication.pdf'.
-	// the pdf content is stored uncompressed (and will stay uncompressed once encrypted).
+	// the pdf content is stored compressed so that the encryption performance on Windows is better (!).
 	zipWriter := zip.NewWriter(f)
 	writer, err := zipWriter.CreateHeader(&zip.FileHeader{
 		Name:   "publication.pdf",
-		Method: zip.Store,
+		Method: zip.Deflate,
 	})
 	if err != nil {
 		return err
