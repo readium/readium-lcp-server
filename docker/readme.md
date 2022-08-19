@@ -1,23 +1,21 @@
 
-## build
+## QuickStart
 
+To build and run you have to go to the root directory
 ```
-./docker/dockerbuild.sh `pwd`
-```
+cd ..
+``
 
-```
-DOCKER_BUILDKIT=1 sudo ./docker/dockerbuild.sh `pwd`
-```
-
-
-to build only the master container (lcp+lsd+frontend) : 
+to build the master container (lcp+lsd+frontend) : 
 ```
 ./docker/dockerbuild.sh `pwd` master
 ```
 
-## RUN
-
+To run it
 ```
 ./docker/dockerrun.sh
 ```
+
+
+go to http://localhost:8080
 
