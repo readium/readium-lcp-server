@@ -9,17 +9,12 @@ import (
 	"os"
 	"strings"
 
-	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/storage"
 )
 
-// StorePublication stores an encrypted file into its definitive storage.
+// StoreS3Publication stores an encrypted file into its definitive storage.
 // Only called for S3 buckets.
-func StorePublication(pub *apilcp.LcpPublication, inputPath string, storagePath string) error {
-
-	if pub.StorageMode != apilcp.Storage_s3 {
-		return errors.New("only S3 storage is processed in StorePublication")
-	}
+func StoreS3Publication(inputPath, storagePath, name string) error {
 
 	s3Split := strings.Split(storagePath, ":")
 
@@ -41,8 +36,8 @@ func StorePublication(pub *apilcp.LcpPublication, inputPath string, storagePath 
 	}
 	defer cleanupTempFile(file)
 
-	// add the file to the storage, named by contentID, without file extension
-	_, err = store.Add(pub.ContentID, file)
+	// add the file to the storage with the name passed as parameter
+	_, err = store.Add(name, file)
 	if err != nil {
 		return err
 	}

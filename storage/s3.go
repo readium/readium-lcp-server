@@ -140,5 +140,6 @@ func S3(config S3Config) (Store, error) {
 		awsConfig.Credentials = credentials.NewStaticCredentials(config.ID, config.Secret, config.Token)
 	}
 
-	return &s3store{client: s3.New(session.New(awsConfig)), bucket: config.Bucket}, nil
+	s3session, err := session.NewSession(awsConfig)
+	return &s3store{client: s3.New(s3session), bucket: config.Bucket}, err
 }

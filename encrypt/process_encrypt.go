@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
@@ -26,9 +27,13 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// ProcessPublication encrypts a publication
+// ProcessEncryption encrypts a publication
 // inputPath must contain a processable file extension (EPUB, PDF, LPF or RPF)
-func ProcessPublication(contentID, inputPath, tempRepo, outputRepo, storageRepo, storageURL string) (*apilcp.LcpPublication, error) {
+func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, storageRepo, storageURL, storageFilename string) (*apilcp.LcpPublication, error) {
+
+	if inputPath == "" {
+		return nil, errors.New("ProcessEncryption, parameter error")
+	}
 
 	var pub apilcp.LcpPublication
 
@@ -42,12 +47,23 @@ func ProcessPublication(contentID, inputPath, tempRepo, outputRepo, storageRepo,
 	}
 	pub.ContentID = contentID
 
+	// create a temp folder if declared, or use the current dir
+	if tempRepo != "" {
+		err := os.MkdirAll(tempRepo, os.ModePerm)
+		if err != nil && !os.IsExist(err) {
+			return nil, err
+		}
+	} else {
+		tempRepo, _ = os.Getwd()
+	}
+
 	// if the input file is stored on a remote server, fetch it and store it into a temp folder
 	tempPath, err := fetchInputFile(inputPath, tempRepo, contentID)
 	if err != nil {
 		return nil, err
 	}
 	deleteTemp := false
+	// if a temp file has been fetched, it will be deleted later
 	if tempPath != "" {
 		deleteTemp = true
 		inputPath = tempPath
@@ -55,36 +71,40 @@ func ProcessPublication(contentID, inputPath, tempRepo, outputRepo, storageRepo,
 
 	// select a storage mode
 	pub.StorageMode = apilcp.Storage_none
+	// if the storage repo is set, set storage mode and output repository
+	// note: the -storage parameter takes precedence over -output
 	if storageRepo != "" {
-		// S3 storage
+		// S3 storage is specified by the presence of "s3:" at the start of the -storage param
 		if strings.HasPrefix(storageRepo, "s3:") {
 			pub.StorageMode = apilcp.Storage_s3
-			// fs storage (not http)
+			outputRepo = tempRepo // before move to s3
+			// file system storage
 		} else {
 			pub.StorageMode = apilcp.Storage_fs
 			// create the storage folder
-			os.MkdirAll(storageRepo, os.ModePerm) //ignore the error, the folder can already exist
+			err := os.MkdirAll(storageRepo, os.ModePerm)
+			if err != nil && !os.IsExist(err) {
+				return nil, err
+			}
 			// the encrypted file will be directly generated inside the storage path
 			outputRepo = storageRepo
 		}
 	}
-
-	var outputPath string
-	// if the output repo is not set, the target file will be created
-	// inside the current working directory with the content id as file name.
+	// if the output repo is still not set, use the temp directory.
 	if outputRepo == "" {
-		workingDir, _ := os.Getwd()
-		outputPath = filepath.Join(workingDir, pub.ContentID)
-		// replace any file name found in the output path by the content id
-	} else if filepath.Ext(outputRepo) != "" {
-		outputPath = filepath.Join(filepath.Dir(outputRepo), pub.ContentID)
-		// use the output repo as-is
-	} else {
-		outputPath = filepath.Join(outputRepo, pub.ContentID)
+		outputRepo = tempRepo
 	}
 
 	// set target file info
-	targetFileInfo(&pub, inputPath)
+	targetFileInfo(&pub, inputPath, storageFilename)
+
+	// set the target file name; use the content id by default
+	if storageFilename == "" {
+		storageFilename = pub.ContentID
+	}
+
+	// set the output path
+	outputPath := filepath.Join(outputRepo, storageFilename)
 
 	// define an AES encrypter
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
@@ -95,13 +115,13 @@ func ProcessPublication(contentID, inputPath, tempRepo, outputRepo, storageRepo,
 
 	switch inputExt {
 	case ".epub":
-		err = processEPUB(&pub, inputPath, outputPath, encrypter)
+		err = processEPUB(&pub, inputPath, outputPath, encrypter, contentKey)
 	case ".pdf":
-		err = processPDF(&pub, inputPath, outputPath, encrypter)
+		err = processPDF(&pub, inputPath, outputPath, encrypter, contentKey)
 	case ".lpf":
-		err = processLPF(&pub, inputPath, outputPath, encrypter)
-	case ".audiobook", ".divina", ".rpf":
-		err = processRPF(&pub, inputPath, outputPath, encrypter)
+		err = processLPF(&pub, inputPath, outputPath, encrypter, contentKey)
+	case ".audiobook", ".divina", ".webpub", ".rpf":
+		err = processRPF(&pub, inputPath, outputPath, encrypter, contentKey)
 	}
 	if err != nil {
 		return nil, err
@@ -122,15 +142,22 @@ func ProcessPublication(contentID, inputPath, tempRepo, outputRepo, storageRepo,
 		pub.Output = outputPath
 	case apilcp.Storage_fs:
 		// url of the publication
-		pub.Output, err = setPubURL(storageURL, pub.ContentID)
+		pub.Output, err = setPubURL(storageURL, storageFilename)
 	case apilcp.Storage_s3:
-		// store the encrypted file in its definitive S3 storage.
-		err = StorePublication(&pub, outputPath, storageRepo)
+		// store the encrypted file in its definitive S3 storage, delete the temp file
+		// use the filename parameter is provided; use the unique id by default
+		var name string
+		if storageFilename != "" {
+			name = storageFilename
+		} else {
+			name = pub.ContentID
+		}
+		err = StoreS3Publication(outputPath, storageRepo, name)
 		if err != nil {
 			return nil, err
 		}
 		// url of the publication
-		pub.Output, err = setPubURL(storageURL, pub.ContentID)
+		pub.Output, err = setPubURL(storageURL, storageFilename)
 	}
 	if err != nil {
 		return nil, err
@@ -140,6 +167,10 @@ func ProcessPublication(contentID, inputPath, tempRepo, outputRepo, storageRepo,
 
 // fetchInputFile fetches the input file from a remote server
 func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
+
+	if inputPath == "" || tempRepo == "" || contentID == "" {
+		return "", errors.New("fetchInputFile, parameter error")
+	}
 
 	url, err := url.Parse(inputPath)
 	if err != nil {
@@ -151,10 +182,6 @@ func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
 		return "", nil
 	}
 
-	// create a temp repo if needed
-	if tempRepo == "" {
-		tempRepo, _ = os.Getwd()
-	}
 	// the temp file has the same extension as the remote file
 	inputExt := filepath.Ext(inputPath)
 	tempPath := filepath.Join(tempRepo, contentID+inputExt)
@@ -172,6 +199,7 @@ func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
 			return "", err
 		}
 		defer res.Body.Close()
+		defer out.Close()
 		_, err = io.Copy(out, res.Body)
 		if err != nil {
 			return "", err
@@ -183,42 +211,53 @@ func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
 	return tempPath, nil
 }
 
-// targetFileInfo set the content type and
-// the file name which will be used during future downloads
-// from the extension of the source file.
-func targetFileInfo(pub *apilcp.LcpPublication, inputPath string) error {
+// targetFileInfo sets the file name and content type
+// which will be used during future downloads
+func targetFileInfo(pub *apilcp.LcpPublication, inputPath, storageFilename string) error {
 
-	inputFile := filepath.Base(inputPath)
-	inputExt := filepath.Ext(inputPath)
-	fileNameNoExt := inputFile[:len(inputFile)-len(inputExt)]
+	// if the storage filename was imposed, use it
+	if storageFilename != "" {
+		pub.FileName = storageFilename
+	} else {
+		//  generate a filename from the input filename and a target extension
+		inputFile := filepath.Base(inputPath)
+		inputExt := filepath.Ext(inputPath)
+		fileNameNoExt := inputFile[:len(inputFile)-len(inputExt)]
 
-	var ext, contentType string
-	switch inputExt {
-	case ".epub":
-		ext = inputExt
-		contentType = epub.ContentType_EPUB
-	case ".pdf":
-		ext = "lcpdf"
-		contentType = "application/pdf+lcp"
-	case ".audiobook":
-		ext = "lcpau"
-		contentType = "application/audiobook+lcp"
-	case ".divina":
-		ext = "lcpdi"
-		contentType = "application/divina+lcp"
-	case ".lpf":
-		// short term solution. We'll need to inspect the manifest and check conformsTo,
-		// to be certain this is an audiobook (vs another profile of Web Publication)
-		ext = "lcpau"
-		contentType = "application/audiobook+lcp"
-	case ".rpf":
-		// short term solution. We'll need to inspect the manifest and check conformsTo,
-		// to be certain this package contains a pdf
-		ext = "lcpdf"
-		contentType = "application/pdf+lcp"
+		var ext string
+		switch inputExt {
+		case ".epub":
+			ext = inputExt
+		case ".pdf":
+			ext = ".lcpdf"
+		case ".audiobook", ".rpf":
+			ext = ".lcpau"
+		case ".divina":
+			ext = ".lcpdi"
+		case ".lpf":
+			// short term solution. We'll need to inspect the W3C manifest and check conformsTo,
+			// to be certain this is an audiobook (vs another profile of Web Publication)
+			ext = ".lcpau"
+		case ".webpub":
+			// short term solution. We'll need to inspect the RWP manifest and check conformsTo,
+			// to be certain this package contains a pdf
+			ext = ".lcpdf"
+		}
+		pub.FileName = fileNameNoExt + ext
 	}
-	pub.FileName = fileNameNoExt + ext
-	pub.ContentType = contentType
+
+	// find the target mime type
+	outputExt := filepath.Ext(pub.FileName)
+	switch outputExt {
+	case ".epub":
+		pub.ContentType = epub.ContentType_EPUB
+	case ".lcpdf":
+		pub.ContentType = "application/pdf+lcp"
+	case ".lcpau":
+		pub.ContentType = "application/audiobook+lcp"
+	case ".lcpdi":
+		pub.ContentType = "application/divina+lcp"
+	}
 	return nil
 }
 
@@ -226,15 +265,19 @@ func targetFileInfo(pub *apilcp.LcpPublication, inputPath string) error {
 func setPubURL(base, id string) (pubURL string, err error) {
 
 	if base != "" {
-		base, err := url.Parse(base)
+		baseURL, err := url.Parse(base)
 		if err != nil {
 			return "", err
 		}
-		u, err := base.Parse(id)
+		// adds a slash if missing
+		if !strings.HasSuffix(baseURL.Path, "/") {
+			baseURL.Path = baseURL.Path + "/"
+		}
+		url, err := baseURL.Parse(id)
 		if err != nil {
 			return "", err
 		}
-		pubURL = u.String()
+		pubURL = url.String()
 	}
 	return pubURL, nil
 }
@@ -251,7 +294,7 @@ func checksum(file *os.File) string {
 }
 
 // processEPUB encrypts resources in an EPUB
-func processEPUB(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter) error {
+func processEPUB(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// create a zip reader from the input path
 	zr, err := zip.OpenReader(inputPath)
@@ -274,7 +317,7 @@ func processEPUB(pub *apilcp.LcpPublication, inputPath string, outputPath string
 	defer outputFile.Close()
 	// encrypt the content of the publication,
 	// write  into the output file
-	_, encryptionKey, err := pack.Do(encrypter, epub, outputFile)
+	_, encryptionKey, err := pack.Do(encrypter, contentKey, epub, outputFile)
 	if err != nil {
 		return err
 	}
@@ -294,7 +337,7 @@ func processEPUB(pub *apilcp.LcpPublication, inputPath string, outputPath string
 }
 
 // processPDF wraps a PDF file inside a Readium Package and encrypts its resources
-func processPDF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter) error {
+func processPDF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// generate a temp Readium Package (rwpp) which embeds the PDF file; its title is the PDF file name
 	tmpPackagePath := outputPath + ".tmp"
@@ -307,11 +350,11 @@ func processPDF(pub *apilcp.LcpPublication, inputPath string, outputPath string,
 	}
 
 	// build an encrypted package
-	return buildEncryptedRPF(pub, tmpPackagePath, outputPath, encrypter)
+	return buildEncryptedRPF(pub, tmpPackagePath, outputPath, encrypter, contentKey)
 }
 
 // processLPF transforms a W3C LPF file into a Readium Package and encrypts its resources
-func processLPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter) error {
+func processLPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// generate a tmp Readium Package (rwpp) out of a W3C Package (lpf)
 	tmpPackagePath := outputPath + ".tmp"
@@ -324,25 +367,26 @@ func processLPF(pub *apilcp.LcpPublication, inputPath string, outputPath string,
 	}
 
 	// build an encrypted package
-	return buildEncryptedRPF(pub, tmpPackagePath, outputPath, encrypter)
+	return buildEncryptedRPF(pub, tmpPackagePath, outputPath, encrypter, contentKey)
 }
 
 // processRPF encrypts the source Readium Package
-func processRPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter) error {
+func processRPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// build an encrypted package
-	return buildEncryptedRPF(pub, inputPath, outputPath, encrypter)
+	return buildEncryptedRPF(pub, inputPath, outputPath, encrypter, contentKey)
 }
 
 // buildEncryptedRPF builds an encrypted Readium package out of an un-encrypted one
 // FIXME: it cannot be used for EPUB as long as Do() and Process() are not merged
-func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter) error {
+func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// create a reader on the un-encrypted readium package
 	reader, err := pack.OpenRPF(inputPath)
 	if err != nil {
 		return err
 	}
+	defer reader.Close()
 	// create the encrypted package file
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
@@ -355,7 +399,7 @@ func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, outputPath 
 		return err
 	}
 	// encrypt resources from the input package, return the encryption key
-	encryptionKey, err := pack.Process(encrypter, reader, writer)
+	encryptionKey, err := pack.Process(encrypter, contentKey, reader, writer)
 	if err != nil {
 		return err
 	}
@@ -403,7 +447,9 @@ func NotifyLcpServer(pub *apilcp.LcpPublication, licenseServerURL string, userna
 		return err
 	}
 	req.SetBasicAuth(username, password)
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 15 * time.Second,
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err

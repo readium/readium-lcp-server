@@ -147,7 +147,7 @@ func (p Packager) encrypt(r *Result, ep epub.Epub) (*EncryptedFileInfo, []byte) 
 		return nil, nil
 	}
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
-	_, key, err := Do(encrypter, ep, tmpFile)
+	_, key, err := Do(encrypter, "", ep, tmpFile)
 	r.Error = err
 	var encryptedFileInfo EncryptedFileInfo
 	encryptedFileInfo.File = tmpFile
