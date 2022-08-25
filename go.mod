@@ -22,5 +22,6 @@ require (
 	github.com/urfave/negroni v1.0.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129
+	golang.org/x/text v0.3.7
 	gopkg.in/yaml.v2 v2.4.0
 )

@@ -24,6 +24,8 @@ import (
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/sign"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type Key struct {
@@ -347,7 +349,8 @@ func encryptFields(encrypter crypto.Encrypter, l *License, key []byte) error {
 
 func getField(u *UserInfo, field string) reflect.Value {
 	v := reflect.ValueOf(u).Elem()
-	return v.FieldByName(strings.Title(field))
+	c := cases.Title(language.Und, cases.NoLower)
+	return v.FieldByName(c.String(field))
 }
 
 // buildKeyCheck
