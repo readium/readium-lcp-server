@@ -100,12 +100,12 @@ type Storage struct {
 	AccessId   string     `yaml:"access_id"`
 	DisableSSL bool       `yaml:"disable_ssl"`
 	PathStyle  bool       `yaml:"path_style"`
-	Mode       string
-	Secret     string
-	Endpoint   string
-	Bucket     string
-	Region     string
-	Token      string
+	Mode       string     `yaml:"mode"`
+	Secret     string     `yaml:"secret"`
+	Endpoint   string     `yaml:"endpoint"`
+	Bucket     string     `yaml:"bucket"`
+	Region     string     `yaml:"region"`
+	Token      string     `yaml:"token"`
 }
 
 type License struct {
