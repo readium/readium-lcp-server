@@ -343,7 +343,7 @@ lsd_notify_auth:
 - `renew_page_url`: URL; if set, the renew feature is implemented as an HTML page. 
 - `renew_custom_url`: URL template; if set, the renew feature is managed by the license provider. This url template supports a `{license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
 
-Detailed explanations about the use of `renew_page_url` and `renew_manager_url` are found in a [specific section of the wiki](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#option-manage-renew-requests-using-your-own-rules). 
+Detailed explanations about the use of `renew_page_url` and `renew_custom_url` are found in a [specific section of the wiki](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#option-manage-renew-requests-using-your-own-rules). 
 
 #### lcp_update_auth section 
 `lcp_update_auth`: authentication parameters used by the License Status Server for updating a license via the License Server. The notification endpoint is configured in the `lcp` section.
