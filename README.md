@@ -86,9 +86,9 @@ Its private functionalities (authentication required) are:
 
 ## [frontend]
 
-A Test Frontend server is also provided, which mimics your own distriubution platform (i.e. content management system, library platform ...). It provides a web user interface for managing publications, users and licenses. It also provides a REST API which is mimics the way you will [connect your distribution platform to the license server](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#connect-your-distribution-platform-to-the-license-server). 
+A Test Frontend server is also provided, which mimics your own distribution platform (i.e. content management system, library platform ...). It provides a web user interface for managing publications, users and licenses. It also provides a REST API which mimics the way you will [connect your distribution platform to the license server](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#connect-your-distribution-platform-to-the-license-server). 
 
-Its sole goal is to help you testing the License and License Status servers. It should never be used in production.  
+Its sole goal is to help you testing the License and License Status servers. **It should never be used in production**.  
 
 Its public functionalities are:
 * Fetch a license by id
