@@ -100,12 +100,12 @@ type Storage struct {
 	AccessId   string     `yaml:"access_id"`
 	DisableSSL bool       `yaml:"disable_ssl"`
 	PathStyle  bool       `yaml:"path_style"`
-	Mode       string
-	Secret     string
-	Endpoint   string
-	Bucket     string
-	Region     string
-	Token      string
+	Mode       string     `yaml:"mode"`
+	Secret     string     `yaml:"secret"`
+	Endpoint   string     `yaml:"endpoint"`
+	Bucket     string     `yaml:"bucket"`
+	Region     string     `yaml:"region"`
+	Token      string     `yaml:"token"`
 }
 
 type License struct {
@@ -113,13 +113,13 @@ type License struct {
 }
 
 type LicenseStatus struct {
-	Renew           bool   `yaml:"renew"`
-	Register        bool   `yaml:"register"`
-	Return          bool   `yaml:"return"`
-	RentingDays     int    `yaml:"renting_days"`
-	RenewDays       int    `yaml:"renew_days"`
-	RenewPageUrl    string `yaml:"renew_page_url,omitempty"`
-	RenewManagerUrl string `yaml:"renew_manager_url,omitempty"`
+	Renew          bool   `yaml:"renew"`
+	Register       bool   `yaml:"register"`
+	Return         bool   `yaml:"return"`
+	RentingDays    int    `yaml:"renting_days"`
+	RenewDays      int    `yaml:"renew_days"`
+	RenewPageUrl   string `yaml:"renew_page_url,omitempty"`
+	RenewCustomUrl string `yaml:"renew_custom_url,omitempty"`
 }
 
 type Localization struct {

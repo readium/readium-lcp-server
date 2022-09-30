@@ -116,9 +116,9 @@ Its private functionalities (authentication required) are:
 
 ## [frontend]
 
-A Test Frontend server is also provided, which mimics your own distriubution platform (i.e. content management system, library platform ...). It provides a web user interface for managing publications, users and licenses. It also provides a REST API which is mimics the way you will [connect your distribution platform to the license server](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#connect-your-distribution-platform-to-the-license-server). 
+A Test Frontend server is also provided, which mimics your own distribution platform (i.e. content management system, library platform ...). It provides a web user interface for managing publications, users and licenses. It also provides a REST API which mimics the way you will [connect your distribution platform to the license server](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#connect-your-distribution-platform-to-the-license-server). 
 
-Its sole goal is to help you testing the License and License Status servers. It should never be used in production.  
+Its sole goal is to help you testing the License and License Status servers. **It should never be used in production**.  
 
 Its public functionalities are:
 * Fetch a license by id
@@ -361,7 +361,7 @@ lsd_notify_auth:
 - `database`: the URI formatted connection string to the database, `sqlite3://file:lsd.sqlite?cache=shared&mode=rwc` by default. `mysql://login:password@/dbname?parseTime=true` if your using MySQL.
 - `auth_file`: mandatory; the path to the password file introduced above. 
 
-- `license_link_url`: mandatory; the url template representing the url from which a license can be fetched from the provider's frontend server. This url will be inserted in the 'license' link of every status document. It must be the url of a server acting as a proxy between the user request and the License Server. Such proxy is mandatory, as the License Server  does not possess user information needed to craft a license from its identifier. If the test frontend server is used as a proxy, the url must be of the form "http://<frontend-server-url>/api/v1/licenses/{license_id}" (note the /api/v1 section).
+- `license_link_url`: URL template, mandatory; this is the url from which a fresh license can be fetched from the provider's frontend server. This url template supports a `{license_id}` parameter. The final url will be inserted in the 'license' link of every status document. It must be the url of a server acting as a proxy between the user request and the License Server. Such proxy is mandatory, as the License Server  does not possess user information needed to craft a license from its identifier. If the test frontend server is used as a proxy (for tests only), the url template must be of the form "http://<frontend-server-url>/api/v1/licenses/{license_id}" (note the /api/v1 section).
 
 #### license_status section
 `license_status`: parameters related to the interactions implemented by the License Status server, if any:
@@ -371,9 +371,9 @@ lsd_notify_auth:
 - `return`: boolean; if `true`, an early return is possible.  
 - `register`: boolean; if `true`, registering a device is possible.
 - `renew_page_url`: URL; if set, the renew feature is implemented as an HTML page. 
-- `renew_manager_url`: URL; if set, the renew feature is managed by the license provider. 
+- `renew_custom_url`: URL template; if set, the renew feature is managed by the license provider. This url template supports a `{license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
 
-Detailed explanations about the use of `renew_page_url` and `renew_manager_url` are found in a [specific section of the wiki](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#option-manage-renew-requests-using-your-own-rules). 
+Detailed explanations about the use of `renew_page_url` and `renew_custom_url` are found in a [specific section of the wiki](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#option-manage-renew-requests-using-your-own-rules). 
 
 #### lcp_update_auth section 
 `lcp_update_auth`: authentication parameters used by the License Status Server for updating a license via the License Server. The notification endpoint is configured in the `lcp` section.

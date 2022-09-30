@@ -12,16 +12,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/jtacoma/uritemplates"
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/sign"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type Key struct {
@@ -243,7 +247,7 @@ func SetLicenseLinks(l *License, c index.Content) error {
 				l.Links[i].Title = l.ContentID
 				hasPubLink = false
 			} else {
-				l.Links[i].Href = strings.Replace(l.Links[i].Href, "{publication_id}", l.ContentID, 1)
+				l.Links[i].Href = expandUriTemplate(l.Links[i].Href, "publication_id", l.ContentID)
 				l.Links[i].Title = c.Location
 			}
 			l.Links[i].Type = c.Type
@@ -252,13 +256,13 @@ func SetLicenseLinks(l *License, c index.Content) error {
 		}
 		// set the status link
 		if l.Links[i].Rel == "status" {
-			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{license_id}", l.ID, 1)
+			l.Links[i].Href = expandUriTemplate(l.Links[i].Href, "license_id", l.ID)
 			l.Links[i].Type = api.ContentType_LSD_JSON
 		}
 
 		// set the hint page link, which may be associated with a specific license
 		if l.Links[i].Rel == "hint" {
-			l.Links[i].Href = strings.Replace(l.Links[i].Href, "{license_id}", l.ID, 1)
+			l.Links[i].Href = expandUriTemplate(l.Links[i].Href, "license_id", l.ID)
 			l.Links[i].Type = api.ContentType_TEXT_HTML
 		}
 	}
@@ -277,6 +281,19 @@ func SetLicenseLinks(l *License, c index.Content) error {
 	}
 
 	return nil
+}
+
+// expandUriTemplate resolves a url template from the configuration to a url the system can embed in a status document
+func expandUriTemplate(uriTemplate, variable, value string) string {
+	template, _ := uritemplates.Parse(uriTemplate)
+	values := make(map[string]interface{})
+	values[variable] = value
+	expanded, err := template.Expand(values)
+	if err != nil {
+		log.Printf("failed to expand an uri template: %s", uriTemplate)
+		return uriTemplate
+	}
+	return expanded
 }
 
 // EncryptLicenseFields sets the content key, encrypted user info and key check
@@ -332,7 +349,8 @@ func encryptFields(encrypter crypto.Encrypter, l *License, key []byte) error {
 
 func getField(u *UserInfo, field string) reflect.Value {
 	v := reflect.ValueOf(u).Elem()
-	return v.FieldByName(strings.Title(field))
+	c := cases.Title(language.Und, cases.NoLower)
+	return v.FieldByName(c.String(field))
 }
 
 // buildKeyCheck

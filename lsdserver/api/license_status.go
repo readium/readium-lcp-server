@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-
+	"github.com/jtacoma/uritemplates"
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
 	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
@@ -38,7 +38,6 @@ type Server interface {
 
 // CreateLicenseStatusDocument creates a license status and adds it to database
 // It is triggered by a notification from the license server
-//
 func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
 	var lic license.License
 	err := apilcp.DecodeJSONLicense(r, &lic)
@@ -63,7 +62,6 @@ func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Serve
 
 // GetLicenseStatusDocument gets a license status from the db by license id
 // checks potential_rights_end and fill it
-//
 func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 
@@ -254,7 +252,6 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 
 // LendingReturn checks that the calling device is activated, then modifies
 // the end date associated with the given license & returns updated and filled license status
-//
 func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
 	vars := mux.Vars(r)
@@ -290,10 +287,8 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	switch licenseStatus.Status {
 	case status.STATUS_READY:
 		licenseStatus.Status = status.STATUS_CANCELLED
-		break
 	case status.STATUS_ACTIVE:
 		licenseStatus.Status = status.STATUS_RETURNED
-		break
 	default:
 		msg = "The current license status is " + licenseStatus.Status + "; return forbidden"
 		problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusForbidden)
@@ -368,7 +363,6 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 // the 'end' parameter is optional; if absent, the end date is computed from
 // the current end date plus a configuration parameter.
 // Note: as per the spec, a non-registered device can renew a loan.
-//
 func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
 	vars := mux.Vars(r)
@@ -433,8 +427,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 			return
 		}
 		// compute a suggested duration from the config value
-		var suggestedDuration time.Duration
-		suggestedDuration = 24 * time.Hour * time.Duration(renewDays) // nanoseconds
+		suggestedDuration := 24 * time.Hour * time.Duration(renewDays) // nanoseconds
 
 		// compute the suggested end date from the current end date
 		suggestedEnd = currentEnd.Add(time.Duration(suggestedDuration))
@@ -530,7 +523,6 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 
 // FilterLicenseStatuses returns a sequence of license statuses, in their id order
 // function for detecting licenses which used a lot of devices
-//
 func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", api.ContentType_JSON)
 
@@ -616,7 +608,6 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 }
 
 // ListRegisteredDevices returns data about the use of a given license
-//
 func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", api.ContentType_JSON)
 
@@ -655,7 +646,6 @@ func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 //	key: license id
 //	partial license status: the new status and a message indicating why the status is being changed
 //	The new status can be either STATUS_CANCELLED or STATUS_REVOKED
-//
 func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the license id
 	vars := mux.Vars(r)
@@ -769,7 +759,6 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 
 // makeLicenseStatus sets fields of license status according to the config file
 // and creates needed inner objects of license status
-//
 func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatus) {
 	ls.LicenseRef = license.ID
 
@@ -815,7 +804,6 @@ func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatu
 }
 
 // getEvents gets the events from database for the license status
-//
 func getEvents(ls *licensestatuses.LicenseStatus, s Server) error {
 	events := make([]transactions.Event, 0)
 
@@ -835,26 +823,25 @@ func getEvents(ls *licensestatuses.LicenseStatus, s Server) error {
 }
 
 // makeLinks creates and adds links to the license status
-//
 func makeLinks(ls *licensestatuses.LicenseStatus) {
 	lsdBaseURL := config.Config.LsdServer.PublicBaseUrl
 	licenseLinkURL := config.Config.LsdServer.LicenseLinkUrl
 	lcpBaseURL := config.Config.LcpServer.PublicBaseUrl
 
 	usableLicense := (ls.Status == status.STATUS_READY || ls.Status == status.STATUS_ACTIVE)
-	registerAvailable := config.Config.LicenseStatus.Register
+	registerAvailable := config.Config.LicenseStatus.Register && usableLicense
 	licenseHasRightsEnd := ls.CurrentEndLicense != nil && !(*ls.CurrentEndLicense).IsZero()
 	returnAvailable := config.Config.LicenseStatus.Return && licenseHasRightsEnd && usableLicense
 	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd && usableLicense
 	renewPageUrl := config.Config.LicenseStatus.RenewPageUrl
-	renewManagerUrl := config.Config.LicenseStatus.RenewManagerUrl
+	renewCustomUrl := config.Config.LicenseStatus.RenewCustomUrl
 
 	links := new([]licensestatuses.Link)
 
 	// if the link template to the license is set
 	if licenseLinkURL != "" {
-		licenseLinkURLReal := strings.Replace(licenseLinkURL, "{license_id}", ls.LicenseRef, -1)
-		link := licensestatuses.Link{Href: licenseLinkURLReal, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
+		licenseLinkURLFinal := expandUriTemplate(licenseLinkURL, "license_id", ls.LicenseRef)
+		link := licensestatuses.Link{Href: licenseLinkURLFinal, Rel: "license", Type: api.ContentType_LCP_JSON, Templated: false}
 		*links = append(*links, link)
 		// default template
 	} else {
@@ -878,11 +865,19 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 		if renewPageUrl != "" {
 			// renewal is managed via a web page
 			link = licensestatuses.Link{Href: renewPageUrl, Rel: "renew", Type: api.ContentType_TEXT_HTML}
-		} else if renewManagerUrl != "" {
-			// renewal is managed via a specific service handled by the provider. It's a templated url, conformant with the LSD specification
-			link = licensestatuses.Link{Href: renewManagerUrl, Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}
+		} else if renewCustomUrl != "" {
+      // renewal is managed via a specific service handled by the provider. 
+      // The expanded renew url is itself a templated Url, which may of may not contain query parameters.
+      // Warning: {&end,id,name} (note the '&') may not be properly processed by most clients. 
+      expandedUrl := expandUriTemplate(renewCustomUrl, "license_id", ls.LicenseRef)
+      if strings.Contains(renewCustomUrl, "?") {
+        expandedUrl = expandedUrl + "{&end,id,name}"
+      } else {
+        expandedUrl = expandedUrl + "{?end,id,name}"
+      }
+      link = licensestatuses.Link{Href: expandedUrl, Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}
 		} else {
-			// this is the usual case, i.e. a simple renew link
+			// this is the most usual case, i.e. a simple renew link
 			link = licensestatuses.Link{Href: lsdBaseURL + "/licenses/" + ls.LicenseRef + "/renew{?end,id,name}", Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}
 		}
 		*links = append(*links, link)
@@ -891,8 +886,20 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 	ls.Links = *links
 }
 
+// expandUriTemplate resolves a url template from the configuration to a url the system can embed in a status document
+func expandUriTemplate(uriTemplate, variable, value string) string {
+	template, _ := uritemplates.Parse(uriTemplate)
+	values := make(map[string]interface{})
+	values[variable] = value
+	expanded, err := template.Expand(values)
+	if err != nil {
+		log.Printf("failed to expand an uri template: %s", uriTemplate)
+		return uriTemplate
+	}
+	return expanded
+}
+
 // makeEvent creates an event and fill it
-//
 func makeEvent(status string, deviceName string, deviceID string, licenseStatusFk int) *transactions.Event {
 	event := transactions.Event{}
 	event.DeviceId = deviceID
@@ -905,7 +912,6 @@ func makeEvent(status string, deviceName string, deviceID string, licenseStatusF
 }
 
 // decodeJsonLicenseStatus decodes license status json to the object
-//
 func decodeJsonLicenseStatus(r *http.Request, ls *licensestatuses.LicenseStatus) error {
 	var dec *json.Decoder
 
@@ -923,12 +929,11 @@ func decodeJsonLicenseStatus(r *http.Request, ls *licensestatuses.LicenseStatus)
 
 // updateLicense updates a license by calling the License Server
 // called from return, renew and cancel/revoke actions
-//
 func updateLicense(timeEnd time.Time, licenseID string) (int, error) {
 	// get the lcp server url
 	lcpBaseURL := config.Config.LcpServer.PublicBaseUrl
 	if len(lcpBaseURL) <= 0 {
-		return 0, errors.New("Undefined Config.LcpServer.PublicBaseUrl")
+		return 0, errors.New("undefined Config.LcpServer.PublicBaseUrl")
 	}
 	// create a minimum license object, limited to the license id plus rights
 	// FIXME: remove the id (here and in the lcpserver license.go)
@@ -975,7 +980,6 @@ func updateLicense(timeEnd time.Time, licenseID string) (int, error) {
 }
 
 // fillLicenseStatus fills the localized 'message' field, the 'links' and 'event' objects in the license status
-//
 func fillLicenseStatus(ls *licensestatuses.LicenseStatus, r *http.Request, s Server) error {
 	// add the localized message
 	acceptLanguages := r.Header.Get("Accept-Language")
