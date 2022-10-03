@@ -68,7 +68,7 @@ prepare:
 	mkdir -p $(BUILD_DIR)/log
 	mkdir -p $(BUILD_DIR)/frontend/manage
 	sed 's~<LCP_HOME>~$(BUILD_DIR)~g' < $(ROOT_DIR)/test/config.yaml > $(BUILD_DIR)/config.yaml
-	echo "adm_username:$$apr1$$bxwn8jim$$kbfYFRgbBlKDWpAvd2tHW." > $(BUILD_DIR)/htpasswd
+	echo "adm_username:\$$apr1\$$bxwn8jim\$$kbfYFRgbBlKDWpAvd2tHW." > $(BUILD_DIR)/htpasswd
 	@if [ "$(BUILD_PROD)" = "true" ]; then\
 		echo "COPY $(LIBUSERKEY_PATH)"; 																			\
 		cp $(LIBUSERKEY_PATH) license/.; 																			\
