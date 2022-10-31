@@ -34,7 +34,6 @@ func DecodeJSONPurchase(r *http.Request) (webpurchase.Purchase, error) {
 // GetPurchases searches all purchases for a client
 //
 func GetPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
-	var err error
 
 	pagination, err := ExtractPaginationFromRequest(r)
 	if err != nil {
@@ -47,10 +46,10 @@ func GetPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	fn := s.PurchaseAPI().List(pagination.PerPage, pagination.Page)
 
 	var purchase webpurchase.Purchase
-	for purchase, err = fn(); err == nil && purchase.ID != 0; purchase, err = fn() {
+	for purchase, err = fn(); err == nil; purchase, err = fn() {
 		purchases = append(purchases, purchase)
 	}
-	if err != nil {
+	if err != webpurchase.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
