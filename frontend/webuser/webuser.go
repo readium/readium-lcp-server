@@ -107,7 +107,7 @@ func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
 	var rows *sql.Rows
 	var err error
 	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		rows, err = user.dbList.Query(pageNum*page, page)
 	} else {
 		rows, err = user.dbList.Query(page, pageNum*page)
@@ -149,7 +149,7 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	}
 
 	var dbGetByEmail *sql.Stmt
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		dbGetByEmail, err = db.Prepare("SELECT TOP 1 id, uuid, name, email, password, hint FROM user WHERE email = ?")
 	} else {
 		dbGetByEmail, err = db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE email = ? LIMIT 1")
@@ -159,7 +159,7 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	}
 
 	var dbList *sql.Stmt
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		dbList, err = db.Prepare("SELECT id, uuid, name, email, password, hint	FROM user ORDER BY email desc OFFSET ? ROWS FETCH ? ROWS ONLY")
 	} else {
 		dbList, err = db.Prepare("SELECT id, uuid, name, email, password, hint	FROM user ORDER BY email desc LIMIT ? OFFSET ?")

@@ -221,7 +221,7 @@ func (pubManager PublicationManager) List(page, pageNum int) func() (Publication
 	var rows *sql.Rows
 	var err error
 	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		rows, err = pubManager.dbList.Query(pageNum*page, page)
 	} else {
 		rows, err = pubManager.dbList.Query(page, pageNum*page)
@@ -283,7 +283,7 @@ func Init(db *sql.DB) (i WebPublication, err error) {
 	}
 
 	var dbList *sql.Stmt
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		dbList, err = db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc OFFSET ? ROWS FETCH ? ROWS ONLY")
 	} else {
 		dbList, err = db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc LIMIT ? OFFSET ?")

@@ -97,7 +97,7 @@ func Init(db *sql.DB) (i WebDashboard, err error) {
 	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
 	var dbGetBestSellers *sql.Stmt
 
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		dbGetBestSellers, err = db.Prepare(
 			`SELECT TOP 5 pub.title, count(pub.id)
 				FROM purchase pur 

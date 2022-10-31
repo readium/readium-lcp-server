@@ -94,7 +94,7 @@ func (i dbLicenseStatuses) List(deviceLimit int64, limit int64, offset int64) fu
 	var rows *sql.Rows
 	var err error
 	driver, _ := config.GetDatabase(config.Config.LsdServer.Database)
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		rows, err = i.dbList.Query(deviceLimit, offset, limit)
 	} else {
 		rows, err = i.dbList.Query(deviceLimit, limit, offset)
@@ -151,7 +151,7 @@ func (i dbLicenseStatuses) GetByLicenseID(licenseID string) (*LicenseStatus, err
 		}
 	} else {
 		if err == sql.ErrNoRows {
-			return nil, err
+			return nil, ErrNotFound
 		}
 	}
 
@@ -205,7 +205,7 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 	}
 
 	var dbList *sql.Stmt
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		dbList, err = db.Prepare(`SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ?
 		ORDER BY id DESC OFFSET ? ROWS FETCH ? ROWS ONLY`)
 	} else {

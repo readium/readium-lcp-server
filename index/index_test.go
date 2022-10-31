@@ -16,10 +16,8 @@ import (
 
 func TestCRUD(t *testing.T) {
 
-	//config.Config.LcpServer.Database = "sqlite3://:memory:"
-	config.Config.LcpServer.Database = "sqlserver://lcp:edrlab@192.168.0.40/SQLEXPRESS"
+	config.Config.LcpServer.Database = "sqlite3://:memory:"
 	driver, cnxn := config.GetDatabase(config.Config.LcpServer.Database)
-	cnxn = "server=192.168.0.40\\SQLEXPRESS;user id=lcp;password=edrlab;database=lcpserver"
 	db, err := sql.Open(driver, cnxn)
 	if err != nil {
 		t.Fatal(err)
@@ -35,7 +33,7 @@ func TestCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := Content{ID: "test",
+	c := Content{ID: "test20",
 		EncryptionKey: []byte("1234"),
 		Location:      "test.epub",
 		Length:        1000,
@@ -46,7 +44,7 @@ func TestCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cbis, err := idx.Get("test")
+	cbis, err := idx.Get(c.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,13 +52,13 @@ func TestCRUD(t *testing.T) {
 		t.Fatal("Failed to Get back the record")
 	}
 
-	c.Location = "location.epub"
+	c.Location = "test.epub"
 	err = idx.Update(c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	c2 := Content{ID: "test2",
+	c2 := Content{ID: "test21",
 		EncryptionKey: []byte("1234"),
 		Location:      "test2.epub",
 		Length:        2000,

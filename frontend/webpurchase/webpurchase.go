@@ -404,7 +404,7 @@ func (pManager PurchaseManager) List(page int, pageNum int) func() (Purchase, er
 
 	var rows *sql.Rows
 	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		rows, _ = pManager.dbList.Query(pageNum*page, page)
 	} else {
 		rows, _ = pManager.dbList.Query(page, pageNum*page)
@@ -417,7 +417,7 @@ func (pManager PurchaseManager) ListByUser(userID int64, page int, pageNum int) 
 
 	var rows *sql.Rows
 	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		rows, _ = pManager.dbListByUser.Query(userID, pageNum*page, page)
 	} else {
 		rows, _ = pManager.dbListByUser.Query(userID, page, pageNum*page)
@@ -574,7 +574,7 @@ func Init(db *sql.DB) (i WebPurchase, err error) {
 	}
 
 	var dbList *sql.Stmt
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		dbList, err = db.Prepare(selectQuery + ` ORDER BY p.transaction_date desc OFFSET ? ROWS FETCH ? ROWS ONLY`)
 	} else {
 		dbList, err = db.Prepare(selectQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`)
@@ -584,7 +584,7 @@ func Init(db *sql.DB) (i WebPurchase, err error) {
 	}
 
 	var dbListByUser *sql.Stmt
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		dbListByUser, err = db.Prepare(selectQuery + ` WHERE u.id = ? ORDER BY p.transaction_date desc OFFSET ? ROWS FETCH ? ROWS ONLY`)
 	} else {
 		dbListByUser, err = db.Prepare(selectQuery + ` WHERE u.id = ? ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`)

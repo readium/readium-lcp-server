@@ -40,7 +40,7 @@ func (s *sqlStore) ListAll(pageSize int, pageNum int) func() (LicenseReport, err
 	var rows *sql.Rows
 	var err error
 	driver, _ := config.GetDatabase(config.Config.LcpServer.Database)
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		rows, err = s.dbList.Query(pageNum*pageSize, pageSize)
 	} else {
 		rows, err = s.dbList.Query(pageSize, pageNum*pageSize)
@@ -71,7 +71,7 @@ func (s *sqlStore) ListByContentID(contentID string, pageSize int, pageNum int) 
 	var rows *sql.Rows
 	var err error
 	driver, _ := config.GetDatabase(config.Config.LcpServer.Database)
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		rows, err = s.dbListByContentID.Query(contentID, pageNum*pageSize, pageSize)
 	} else {
 		rows, err = s.dbListByContentID.Query(contentID, pageSize, pageNum*pageSize)
@@ -173,7 +173,7 @@ func Open(db *sql.DB) (store Store, err error) {
 	}
 
 	var dbList *sql.Stmt
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		dbList, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, rights_start, rights_end, content_fk
 	FROM license ORDER BY issued desc OFFSET ? ROWS FETCH ? ROWS ONLY`)
 	} else {
@@ -186,7 +186,7 @@ func Open(db *sql.DB) (store Store, err error) {
 	}
 
 	var dbListByContentID *sql.Stmt
-	if driver == "sqlserver" {
+	if driver == "mssql" {
 		dbListByContentID, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, 
 		rights_print, rights_copy, rights_start, rights_end, content_fk
 		FROM license WHERE content_fk = ? ORDER BY issued desc OFFSET ? ROWS FETCH ? ROWS ONLY`)

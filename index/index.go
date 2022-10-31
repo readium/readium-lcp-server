@@ -44,6 +44,9 @@ func (i dbIndex) Get(id string) (Content, error) {
 	row := i.dbGetByID.QueryRow(id)
 	var c Content
 	err := row.Scan(&c.ID, &c.EncryptionKey, &c.Location, &c.Length, &c.Sha256, &c.Type)
+	if err != nil {
+		err = ErrNotFound
+	}
 	return c, err
 }
 
