@@ -130,7 +130,7 @@ func convertRecordToPurchase(rows *sql.Rows) (Purchase, error) {
 	// Load relations
 	purchase.User = user
 	purchase.Publication = pub
-	return purchase, err
+	return purchase, nil
 }
 
 // Get a purchase using its id
