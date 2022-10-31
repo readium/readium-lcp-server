@@ -76,9 +76,9 @@ func TestFetchLicense(t *testing.T) {
 		PassphraseHash: "faeb00ca518bea7cb11sdf434b6183b489b1b6eadb792bec64a03b3f6ff80a8",
 	}
 
-	plic, err := initPartialLicense(LicenseID, userData)
+	plic, _ := initPartialLicense(LicenseID, userData)
 
-	_, err = fetchLicense(plic)
+	_, err := fetchLicense(plic)
 	if err != nil {
 		t.Error(err.Error())
 		t.FailNow()

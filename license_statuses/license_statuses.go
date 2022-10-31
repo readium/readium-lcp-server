@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"errors"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/readium/readium-lcp-server/config"
@@ -16,11 +15,11 @@ import (
 )
 
 // ErrNotFound is license status not found
-var ErrNotFound = errors.New("License Status not found")
+var ErrNotFound = errors.New("license Status not found")
 
 // LicenseStatuses is an interface
 type LicenseStatuses interface {
-	getByID(id int) (*LicenseStatus, error)
+	GetByID(id int) (*LicenseStatus, error)
 	Add(ls LicenseStatus) error
 	List(deviceLimit int64, limit int64, offset int64) func() (LicenseStatus, error)
 	GetByLicenseID(id string) (*LicenseStatus, error)
@@ -28,20 +27,14 @@ type LicenseStatuses interface {
 }
 
 type dbLicenseStatuses struct {
-	db             *sql.DB
-	get            *sql.Stmt
-	add            *sql.Stmt
-	list           *sql.Stmt
-	getbylicenseid *sql.Stmt
-	update         *sql.Stmt
+	db               *sql.DB
+	dbGet            *sql.Stmt
+	dbList           *sql.Stmt
+	dbGetByLicenseID *sql.Stmt
 }
 
-//Get gets license status by id
-//
-// Removed in 94722fcb4a0a38bd5f765e67b0538f2042192ac4 but breaks the test,
-// so putting it back as unexported.
-// FIXME: check if could be useful; delete if not, be careful about tests
-func (i dbLicenseStatuses) getByID(id int) (*LicenseStatus, error) {
+// Get retrieves a license status by id
+func (i dbLicenseStatuses) GetByID(id int) (*LicenseStatus, error) {
 	var statusDB int64
 	ls := LicenseStatus{}
 
@@ -49,7 +42,7 @@ func (i dbLicenseStatuses) getByID(id int) (*LicenseStatus, error) {
 	var licenseUpdate *time.Time
 	var statusUpdate *time.Time
 
-	row := i.get.QueryRow(id)
+	row := i.dbGet.QueryRow(id)
 	err := row.Scan(&ls.ID, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef, &ls.CurrentEndLicense)
 
 	if err == nil {
@@ -75,41 +68,47 @@ func (i dbLicenseStatuses) getByID(id int) (*LicenseStatus, error) {
 	return &ls, err
 }
 
-//Add adds license status to database
+// Add adds license status to database
 func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
-	add, err := i.db.Prepare("INSERT INTO license_status (status, license_updated, status_updated, device_count, potential_rights_end, license_ref,  rights_end) VALUES (?, ?, ?, ?, ?, ?, ?)")
-	if err != nil {
-		return err
-	}
-	defer add.Close()
 
 	statusDB, err := status.SetStatus(ls.Status)
-
 	if err == nil {
 		var end *time.Time
 		end = nil
 		if ls.PotentialRights != nil && ls.PotentialRights.End != nil && !(*ls.PotentialRights.End).IsZero() {
 			end = ls.PotentialRights.End
 		}
-		_, err = add.Exec(statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, end, ls.LicenseRef, ls.CurrentEndLicense)
+		_, err = i.db.Exec(`INSERT INTO license_status 
+		(status, license_updated, status_updated, device_count, potential_rights_end, license_ref,  rights_end)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, end, ls.LicenseRef, ls.CurrentEndLicense)
 	}
 
 	return err
 }
 
 // List gets license statuses which have devices count more than devices limit
-// input parameters: limit - how much license statuses need to get, offset - from what position need to start
+// input parameters: limit - how many license statuses need to get, offset - from what position need to start
 func (i dbLicenseStatuses) List(deviceLimit int64, limit int64, offset int64) func() (LicenseStatus, error) {
-	rows, err := i.list.Query(deviceLimit, limit, offset)
+
+	var rows *sql.Rows
+	var err error
+	driver, _ := config.GetDatabase(config.Config.LsdServer.Database)
+	if driver == "sqlserver" {
+		rows, err = i.dbList.Query(deviceLimit, offset, limit)
+	} else {
+		rows, err = i.dbList.Query(deviceLimit, limit, offset)
+	}
 	if err != nil {
 		return func() (LicenseStatus, error) { return LicenseStatus{}, err }
 	}
+
 	return func() (LicenseStatus, error) {
 		var statusDB int64
+		var err error
+
 		ls := LicenseStatus{}
 		ls.Updated = new(Updated)
-
-		var err error
 		if rows.Next() {
 			err = rows.Scan(&ls.ID, &statusDB, &ls.Updated.License, &ls.Updated.Status, &ls.DeviceCount, &ls.LicenseRef)
 
@@ -118,6 +117,7 @@ func (i dbLicenseStatuses) List(deviceLimit int64, limit int64, offset int64) fu
 			}
 		} else {
 			rows.Close()
+			err = ErrNotFound
 		}
 		return ls, err
 	}
@@ -132,7 +132,7 @@ func (i dbLicenseStatuses) GetByLicenseID(licenseID string) (*LicenseStatus, err
 	var licenseUpdate *time.Time
 	var statusUpdate *time.Time
 
-	row := i.getbylicenseid.QueryRow(licenseID)
+	row := i.dbGetByLicenseID.QueryRow(licenseID)
 	err := row.Scan(&ls.ID, &statusDB, &licenseUpdate, &statusUpdate, &ls.DeviceCount, &potentialRightsEnd, &ls.LicenseRef, &ls.CurrentEndLicense)
 
 	if err == nil {
@@ -173,7 +173,8 @@ func (i dbLicenseStatuses) Update(ls LicenseStatus) error {
 	}
 
 	var result sql.Result
-	result, err = i.db.Exec("UPDATE license_status SET status=?, license_updated=?, status_updated=?, device_count=?,potential_rights_end=?,  rights_end=?  WHERE id=?",
+	result, err = i.db.Exec(`UPDATE license_status SET status=?, license_updated=?, status_updated=?, 
+	device_count=?,potential_rights_end=?, rights_end=?  WHERE id=?`,
 		statusInt, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, potentialRightsEnd, ls.CurrentEndLicense, ls.ID)
 
 	if err == nil {
@@ -186,8 +187,11 @@ func (i dbLicenseStatuses) Update(ls LicenseStatus) error {
 
 // Open defines scripts for queries & create table license_status if it does not exist
 func Open(db *sql.DB) (l LicenseStatuses, err error) {
-	// if sqlite, create the license_status table in the lsd db if it does not exist
-	if strings.HasPrefix(config.Config.LsdServer.Database, "sqlite") {
+
+	driver, _ := config.GetDatabase(config.Config.LsdServer.Database)
+
+	// if sqlite, create the license table if it does not exist
+	if driver == "sqlite3" {
 		_, err = db.Exec(tableDef)
 		if err != nil {
 			log.Println("Error creating license_status table")
@@ -195,20 +199,30 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 		}
 	}
 
-	get, err := db.Prepare("SELECT * FROM license_status WHERE id = ? LIMIT 1")
+	dbGet, err := db.Prepare("SELECT * FROM license_status WHERE id = ?")
 	if err != nil {
 		return
 	}
 
-	list, err := db.Prepare(`SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ?
+	var dbList *sql.Stmt
+	if driver == "sqlserver" {
+		dbList, err = db.Prepare(`SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ?
+		ORDER BY id DESC OFFSET ? ROWS FETCH ? ROWS ONLY`)
+	} else {
+		dbList, err = db.Prepare(`SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ?
 		ORDER BY id DESC LIMIT ? OFFSET ?`)
 
-	getbylicenseid, err := db.Prepare("SELECT * FROM license_status where license_ref = ?")
-
+	}
 	if err != nil {
 		return
 	}
-	l = dbLicenseStatuses{db, get, nil, list, getbylicenseid, nil}
+
+	dbGetByLicenseID, err := db.Prepare("SELECT * FROM license_status where license_ref = ?")
+	if err != nil {
+		return
+	}
+
+	l = dbLicenseStatuses{db, dbGet, dbList, dbGetByLicenseID}
 	return
 }
 

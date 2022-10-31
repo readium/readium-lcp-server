@@ -90,6 +90,9 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 		if (diff > 0) && ((licenseStatus.Status == status.STATUS_ACTIVE) || (licenseStatus.Status == status.STATUS_READY)) {
 			// the license has expired
 			licenseStatus.Status = status.STATUS_EXPIRED
+			// set the updated status time
+			currentTime := time.Now().UTC().Truncate(time.Second)
+			licenseStatus.Updated.Status = &currentTime
 			// update the db
 			err = s.LicenseStatuses().Update(*licenseStatus)
 			if err != nil {
@@ -814,7 +817,7 @@ func getEvents(ls *licensestatuses.LicenseStatus, s Server) error {
 		events = append(events, event)
 	}
 
-	if err == transactions.NotFound {
+	if err == transactions.ErrNotFound {
 		ls.Events = events
 		err = nil
 	}
@@ -866,16 +869,16 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 			// renewal is managed via a web page
 			link = licensestatuses.Link{Href: renewPageUrl, Rel: "renew", Type: api.ContentType_TEXT_HTML}
 		} else if renewCustomUrl != "" {
-      // renewal is managed via a specific service handled by the provider. 
-      // The expanded renew url is itself a templated Url, which may of may not contain query parameters.
-      // Warning: {&end,id,name} (note the '&') may not be properly processed by most clients. 
-      expandedUrl := expandUriTemplate(renewCustomUrl, "license_id", ls.LicenseRef)
-      if strings.Contains(renewCustomUrl, "?") {
-        expandedUrl = expandedUrl + "{&end,id,name}"
-      } else {
-        expandedUrl = expandedUrl + "{?end,id,name}"
-      }
-      link = licensestatuses.Link{Href: expandedUrl, Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}
+			// renewal is managed via a specific service handled by the provider.
+			// The expanded renew url is itself a templated Url, which may of may not contain query parameters.
+			// Warning: {&end,id,name} (note the '&') may not be properly processed by most clients.
+			expandedUrl := expandUriTemplate(renewCustomUrl, "license_id", ls.LicenseRef)
+			if strings.Contains(renewCustomUrl, "?") {
+				expandedUrl = expandedUrl + "{&end,id,name}"
+			} else {
+				expandedUrl = expandedUrl + "{?end,id,name}"
+			}
+			link = licensestatuses.Link{Href: expandedUrl, Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}
 		} else {
 			// this is the most usual case, i.e. a simple renew link
 			link = licensestatuses.Link{Href: lsdBaseURL + "/licenses/" + ls.LicenseRef + "/renew{?end,id,name}", Rel: "renew", Type: api.ContentType_LSD_JSON, Templated: true}

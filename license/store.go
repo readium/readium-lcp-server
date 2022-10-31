@@ -9,7 +9,6 @@ import (
 	"database/sql"
 	"errors"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/readium/readium-lcp-server/config"
@@ -18,9 +17,8 @@ import (
 var ErrNotFound = errors.New("License not found")
 
 type Store interface {
-	//List() func() (License, error)
-	List(ContentID string, page int, pageNum int) func() (LicenseReport, error)
 	ListAll(page int, pageNum int) func() (LicenseReport, error)
+	ListByContentID(ContentID string, page int, pageNum int) func() (LicenseReport, error)
 	UpdateRights(l License) error
 	Update(l License) error
 	UpdateLsdStatus(id string, status int32) error
@@ -29,64 +27,68 @@ type Store interface {
 }
 
 type sqlStore struct {
-	db *sql.DB
+	db                *sql.DB
+	dbGetByID         *sql.Stmt
+	dbList            *sql.Stmt
+	dbListByContentID *sql.Stmt
 }
 
 // ListAll lists all licenses in ante-chronological order
 // pageNum starts at 0
-//
-func (s *sqlStore) ListAll(page int, pageNum int) func() (LicenseReport, error) {
-	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated,
-	rights_print, rights_copy, rights_start, rights_end, content_fk
-	FROM license
-	ORDER BY issued desc LIMIT ? OFFSET ? `, page, pageNum*page)
+func (s *sqlStore) ListAll(pageSize int, pageNum int) func() (LicenseReport, error) {
+
+	var rows *sql.Rows
+	var err error
+	driver, _ := config.GetDatabase(config.Config.LcpServer.Database)
+	if driver == "sqlserver" {
+		rows, err = s.dbList.Query(pageNum*pageSize, pageSize)
+	} else {
+		rows, err = s.dbList.Query(pageSize, pageNum*pageSize)
+	}
 	if err != nil {
 		return func() (LicenseReport, error) { return LicenseReport{}, err }
 	}
 	return func() (LicenseReport, error) {
 		var l LicenseReport
+		var err error
 		l.User = UserInfo{}
 		l.Rights = new(UserRights)
-		if listLicenses.Next() {
-			err := listLicenses.Scan(&l.ID, &l.User.ID, &l.Provider, &l.Issued, &l.Updated,
+		if rows.Next() {
+			err = rows.Scan(&l.ID, &l.User.ID, &l.Provider, &l.Issued, &l.Updated,
 				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End, &l.ContentID)
-
-			if err != nil {
-				return l, err
-			}
-
 		} else {
-			listLicenses.Close()
+			rows.Close()
 			err = ErrNotFound
 		}
 		return l, err
 	}
 }
 
-// List lists licenses for a given ContentID
+// ListByContentID lists licenses for a given ContentID
 // pageNum starting at 0
-//
-func (s *sqlStore) List(contentID string, page int, pageNum int) func() (LicenseReport, error) {
-	listLicenses, err := s.db.Query(`SELECT id, user_id, provider, issued, updated,
-	rights_print, rights_copy, rights_start, rights_end, content_fk
-	FROM license
-	WHERE content_fk=? LIMIT ? OFFSET ? `, contentID, page, pageNum*page)
+func (s *sqlStore) ListByContentID(contentID string, pageSize int, pageNum int) func() (LicenseReport, error) {
+
+	var rows *sql.Rows
+	var err error
+	driver, _ := config.GetDatabase(config.Config.LcpServer.Database)
+	if driver == "sqlserver" {
+		rows, err = s.dbListByContentID.Query(contentID, pageNum*pageSize, pageSize)
+	} else {
+		rows, err = s.dbListByContentID.Query(contentID, pageSize, pageNum*pageSize)
+	}
 	if err != nil {
 		return func() (LicenseReport, error) { return LicenseReport{}, err }
 	}
 	return func() (LicenseReport, error) {
 		var l LicenseReport
+		var err error
 		l.User = UserInfo{}
 		l.Rights = new(UserRights)
-		if listLicenses.Next() {
-
-			err := listLicenses.Scan(&l.ID, &l.User.ID, &l.Provider, &l.Issued, &l.Updated,
+		if rows.Next() {
+			err = rows.Scan(&l.ID, &l.User.ID, &l.Provider, &l.Issued, &l.Updated,
 				&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End, &l.ContentID)
-			if err != nil {
-				return l, err
-			}
 		} else {
-			listLicenses.Close()
+			rows.Close()
 			err = ErrNotFound
 		}
 		return l, err
@@ -94,9 +96,9 @@ func (s *sqlStore) List(contentID string, page int, pageNum int) func() (License
 }
 
 // UpdateRights
-//
 func (s *sqlStore) UpdateRights(l License) error {
-	result, err := s.db.Exec("UPDATE license SET rights_print=?, rights_copy=?, rights_start=?, rights_end=?,updated=?  WHERE id=?",
+
+	result, err := s.db.Exec("UPDATE license SET rights_print=?, rights_copy=?, rights_start=?, rights_end=?, updated=? WHERE id=?",
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End, time.Now().UTC().Truncate(time.Second), l.ID)
 
 	if err == nil {
@@ -108,8 +110,8 @@ func (s *sqlStore) UpdateRights(l License) error {
 }
 
 // Add creates a new record in the license table
-//
 func (s *sqlStore) Add(l License) error {
+
 	_, err := s.db.Exec(`INSERT INTO license (id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end, content_fk) 
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?,  ?, ?)`,
@@ -120,8 +122,8 @@ func (s *sqlStore) Add(l License) error {
 }
 
 // Update updates a record in the license table
-//
 func (s *sqlStore) Update(l License) error {
+
 	_, err := s.db.Exec(`UPDATE license SET user_id=?,provider=?,updated=?,
 				rights_print=?,	rights_copy=?,	rights_start=?,	rights_end=?, content_fk =?
 				WHERE id=?`,
@@ -135,54 +137,81 @@ func (s *sqlStore) Update(l License) error {
 }
 
 // UpdateLsdStatus
-//
 func (s *sqlStore) UpdateLsdStatus(id string, status int32) error {
-	_, err := s.db.Exec(`UPDATE license SET lsd_status =?
-				WHERE id=?`,
-		status,
-		id)
+
+	_, err := s.db.Exec(`UPDATE license SET lsd_status =? WHERE id=?`,
+		status, id)
 
 	return err
 }
 
 // Get a license from the db
-//
 func (s *sqlStore) Get(id string) (License, error) {
-	// create an empty license, add user rights
+
+	row := s.dbGetByID.QueryRow(id)
 	var l License
 	l.Rights = new(UserRights)
-
-	row := s.db.QueryRow(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy,
-	rights_start, rights_end, content_fk FROM license
-	where id = ?`, id)
-
 	err := row.Scan(&l.ID, &l.User.ID, &l.Provider, &l.Issued, &l.Updated,
-		&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End,
-		&l.ContentID)
+		&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End, &l.ContentID)
 
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return l, ErrNotFound
-		} else {
-			return l, err
-		}
-	}
-
-	return l, nil
+	return l, err
 }
 
-// NewSqlStore
-//
-func NewSqlStore(db *sql.DB) (Store, error) {
+// Open
+func Open(db *sql.DB) (store Store, err error) {
+
+	driver, _ := config.GetDatabase(config.Config.LcpServer.Database)
+	log.Println("Database driver " + driver)
+
 	// if sqlite, create the license table if it does not exist
-	if strings.HasPrefix(config.Config.LcpServer.Database, "sqlite") {
+	if driver == "sqlite3" {
 		_, err := db.Exec(tableDef)
 		if err != nil {
 			log.Println("Error creating sqlite license table")
 			return nil, err
 		}
 	}
-	return &sqlStore{db}, nil
+
+	var dbList *sql.Stmt
+	if driver == "sqlserver" {
+		dbList, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, rights_start, rights_end, content_fk
+	FROM license ORDER BY issued desc OFFSET ? ROWS FETCH ? ROWS ONLY`)
+	} else {
+		dbList, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, rights_start, rights_end, content_fk
+	FROM license ORDER BY issued desc LIMIT ? OFFSET ?`)
+	}
+	if err != nil {
+		log.Println("Error preparing dbList")
+		return
+	}
+
+	var dbListByContentID *sql.Stmt
+	if driver == "sqlserver" {
+		dbListByContentID, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, 
+		rights_print, rights_copy, rights_start, rights_end, content_fk
+		FROM license WHERE content_fk = ? ORDER BY issued desc OFFSET ? ROWS FETCH ? ROWS ONLY`)
+	} else {
+		dbListByContentID, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, 
+		rights_print, rights_copy, rights_start, rights_end, content_fk
+		FROM license WHERE content_fk = ?  ORDER BY issued desc LIMIT ? OFFSET ?`)
+
+	}
+	if err != nil {
+		log.Println("Error preparing dbListByContentID")
+		return
+	}
+
+	var dbGetByID *sql.Stmt
+	dbGetByID, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy,
+	rights_start, rights_end, content_fk 
+	FROM license WHERE id = ?`)
+	if err != nil {
+		log.Println("Error preparing dbGetByID")
+		return
+	}
+
+	store = &sqlStore{db, dbGetByID, dbList, dbListByContentID}
+	return
 }
 
 const tableDef = "CREATE TABLE IF NOT EXISTS license (" +

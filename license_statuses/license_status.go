@@ -23,7 +23,7 @@ type Link struct {
 	Type      string `json:"type,omitempty"`
 	Title     string `json:"title,omitempty"`
 	Profile   string `json:"profile,omitempty"`
-	Templated bool   `json:"templated,omitempty" "default false"`
+	Templated bool   `json:"templated,omitempty"`
 }
 
 // PotentialRights represents the maximal extension time of a loan

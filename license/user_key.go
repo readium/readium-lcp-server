@@ -7,7 +7,6 @@ package license
 
 // GenerateUserKey function prepares the user key
 func GenerateUserKey(key UserKey) []byte {
-	var userKey []byte
-	userKey = key.Value
+	userKey := key.Value
 	return userKey
 }

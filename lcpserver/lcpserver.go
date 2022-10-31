@@ -13,13 +13,13 @@ import (
 	"os/signal"
 	"runtime"
 	"strconv"
-	"strings"
 	"syscall"
 
 	auth "github.com/abbot/go-http-auth"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/microsoft/go-mssqldb"
 
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/index"
@@ -29,13 +29,8 @@ import (
 	"github.com/readium/readium-lcp-server/storage"
 )
 
-func dbFromURI(uri string) (string, string) {
-	parts := strings.Split(uri, "://")
-	return parts[0], parts[1]
-}
-
 func main() {
-	var config_file, dbURI, storagePath, certFile, privKeyFile string
+	var config_file, storagePath, certFile, privKeyFile string
 	var readonly bool = false
 	var err error
 
@@ -43,17 +38,13 @@ func main() {
 		config_file = "config.yaml"
 	}
 	config.ReadConfig(config_file)
-	log.Println("Reading config " + config_file)
+	log.Println("Config from " + config_file)
 
 	readonly = config.Config.LcpServer.ReadOnly
 
 	err = config.SetPublicUrls()
 	if err != nil {
 		panic(err)
-	}
-	// use a sqlite db by default
-	if dbURI = config.Config.LcpServer.Database; dbURI == "" {
-		dbURI = "sqlite3://file:lcp.sqlite?cache=shared&mode=rwc"
 	}
 	if certFile = config.Config.Certificate.Cert; certFile == "" {
 		panic("Must specify a certificate")
@@ -66,23 +57,25 @@ func main() {
 		panic(err)
 	}
 
-	driver, cnxn := dbFromURI(dbURI)
+	driver, cnxn := config.GetDatabase(config.Config.LcpServer.Database)
 	db, err := sql.Open(driver, cnxn)
 	if err != nil {
 		panic(err)
 	}
+
 	if driver == "sqlite3" {
 		_, err = db.Exec("PRAGMA journal_mode = WAL")
 		if err != nil {
 			panic(err)
 		}
 	}
+
 	idx, err := index.Open(db)
 	if err != nil {
 		panic(err)
 	}
 
-	lst, err := license.NewSqlStore(db)
+	lst, err := license.Open(db)
 	if err != nil {
 		panic(err)
 	}
@@ -100,7 +93,7 @@ func main() {
 		storagePath = config.Config.Storage.FileSystem.Directory
 		os.MkdirAll(storagePath, os.ModePerm) //ignore the error, the folder can already exist
 		store = storage.NewFileSystem(storagePath, config.Config.Storage.FileSystem.URL)
-		log.Println("Storage created, path", storagePath, ", URL", config.Config.Storage.FileSystem.URL)
+		log.Println("Storage in", storagePath, " at URL", config.Config.Storage.FileSystem.URL)
 	} else {
 		store = storage.NoStorage()
 		log.Println("No storage created")
@@ -127,7 +120,6 @@ func main() {
 	} else {
 		log.Println("License server running on port " + parsedPort)
 	}
-	log.Println("Using database " + dbURI)
 	log.Println("Public base URL=" + config.Config.LcpServer.PublicBaseUrl)
 
 	if err := s.ListenAndServe(); err != nil {

@@ -13,7 +13,6 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/encrypt"
@@ -54,78 +53,51 @@ type Publication struct {
 
 // PublicationManager helper
 type PublicationManager struct {
-	config config.Configuration
-	db     *sql.DB
+	db              *sql.DB
+	dbGetByID       *sql.Stmt
+	dbGetByUUID     *sql.Stmt
+	dbCheckByTitle  *sql.Stmt
+	dbGetMasterFile *sql.Stmt
+	dbList          *sql.Stmt
 }
 
 // Get gets a publication by its ID
 func (pubManager PublicationManager) Get(id int64) (Publication, error) {
 
-	dbGetByID, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication WHERE id = ? LIMIT 1")
-	if err != nil {
-		return Publication{}, err
-	}
-	defer dbGetByID.Close()
-
-	records, _ := dbGetByID.Query(id)
-	if records.Next() {
-		var pub Publication
-		err = records.Scan(
-			&pub.ID,
-			&pub.UUID,
-			&pub.Title,
-			&pub.Status)
-		records.Close()
-		return pub, err
-	}
-
-	return Publication{}, ErrNotFound
+	row := pubManager.dbGetByID.QueryRow(id)
+	var pub Publication
+	err := row.Scan(
+		&pub.ID,
+		&pub.UUID,
+		&pub.Title,
+		&pub.Status)
+	return pub, err
 }
 
 // GetByUUID returns a publication by its uuid
 func (pubManager PublicationManager) GetByUUID(uuid string) (Publication, error) {
 
-	dbGetByUUID, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication WHERE uuid = ? LIMIT 1")
-	if err != nil {
-		return Publication{}, err
-	}
-	defer dbGetByUUID.Close()
-
-	records, _ := dbGetByUUID.Query(uuid)
-	if records.Next() {
-		var pub Publication
-		err = records.Scan(
-			&pub.ID,
-			&pub.UUID,
-			&pub.Title,
-			&pub.Status)
-		records.Close()
-		return pub, err
-	}
-
-	return Publication{}, ErrNotFound
+	row := pubManager.dbGetByUUID.QueryRow(uuid)
+	var pub Publication
+	err := row.Scan(
+		&pub.ID,
+		&pub.UUID,
+		&pub.Title,
+		&pub.Status)
+	return pub, err
 }
 
 // CheckByTitle checks if the title of a publication exists or not in the db
 func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
 
-	dbGetByTitle, err := pubManager.db.Prepare("SELECT COUNT(1) FROM publication WHERE title = ?")
+	row := pubManager.dbCheckByTitle.QueryRow(title)
+	var res int64
+	err := row.Scan(&res)
 	if err != nil {
-		return -1, err
+		return -1, ErrNotFound
 	}
-	defer dbGetByTitle.Close()
-
-	records, _ := dbGetByTitle.Query(title)
-	if records.Next() {
-		var res int64
-		err = records.Scan(&res)
-		records.Close()
-
-		// returns 1 or 0
-		return res, err
-	}
-	// only if the db query fails
-	return -1, ErrNotFound
+	// returns 1 or 0
+	return res, err
 }
 
 // encryptPublication encrypts a publication, notifies the License Server
@@ -136,7 +108,7 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 
 	// encrypt the publication
 	// FIXME: work on a direct storage of the output file.
-	outputRepo := pubManager.config.FrontendServer.EncryptedRepository
+	outputRepo := config.Config.FrontendServer.EncryptedRepository
 	empty := ""
 	notification, err := encrypt.ProcessEncryption(empty, empty, inputPath, empty, outputRepo, empty, empty, empty)
 	if err != nil {
@@ -146,9 +118,9 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	// send a notification to the License server
 	err = encrypt.NotifyLcpServer(
 		notification,
-		pubManager.config.LcpServer.PublicBaseUrl,
-		pubManager.config.LcpUpdateAuth.Username,
-		pubManager.config.LcpUpdateAuth.Password)
+		config.Config.LcpServer.PublicBaseUrl,
+		config.Config.LcpUpdateAuth.Username,
+		config.Config.LcpUpdateAuth.Password)
 	if err != nil {
 		return err
 	}
@@ -157,16 +129,8 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	// the publication uuid is the lcp db content id.
 	pub.UUID = notification.ContentID
 	pub.Status = StatusOk
-	dbAdd, err := pubManager.db.Prepare("INSERT INTO publication (uuid, title, status) VALUES ( ?, ?, ?)")
-	if err != nil {
-		return err
-	}
-	defer dbAdd.Close()
-
-	_, err = dbAdd.Exec(
-		pub.UUID,
-		pub.Title,
-		pub.Status)
+	_, err = pubManager.db.Exec("INSERT INTO publication (uuid, title, status) VALUES ( ?, ?, ?)",
+		pub.UUID, pub.Title, pub.Status)
 
 	return err
 }
@@ -177,7 +141,7 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 
 	// get the path to the master file
 	inputPath := filepath.Join(
-		pubManager.config.FrontendServer.MasterRepository, pub.MasterFilename)
+		config.Config.FrontendServer.MasterRepository, pub.MasterFilename)
 
 	if _, err := os.Stat(inputPath); err != nil {
 		// the master file does not exist
@@ -192,11 +156,7 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 
 	// delete the master file
 	err = os.Remove(inputPath)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // Upload creates a new publication, named after a POST form parameter.
@@ -228,18 +188,8 @@ func (pubManager PublicationManager) Upload(file multipart.File, extension strin
 // Only the title is updated
 func (pubManager PublicationManager) Update(pub Publication) error {
 
-	dbUpdate, err := pubManager.db.Prepare("UPDATE publication SET title=?, status=? WHERE id = ?")
-	if err != nil {
-		return err
-	}
-	defer dbUpdate.Close()
-	_, err = dbUpdate.Exec(
-		pub.Title,
-		pub.Status,
-		pub.ID)
-	if err != nil {
-		return err
-	}
+	_, err := pubManager.db.Exec("UPDATE publication SET title=?, status=? WHERE id = ?",
+		pub.Title, pub.Status, pub.ID)
 	return err
 }
 
@@ -247,73 +197,46 @@ func (pubManager PublicationManager) Update(pub Publication) error {
 func (pubManager PublicationManager) Delete(id int64) error {
 
 	var title string
-
-	dbGetMasterFile, err := pubManager.db.Prepare("SELECT title FROM publication WHERE id = ?")
+	row := pubManager.dbGetMasterFile.QueryRow(id)
+	err := row.Scan(&title)
 	if err != nil {
 		return err
 	}
-
-	defer dbGetMasterFile.Close()
-	result, err := dbGetMasterFile.Query(id)
-	if err != nil {
-		return err
-	}
-
-	if result.Next() {
-		err = result.Scan(&title)
-		if err != nil {
-			return err
-		}
-	}
-	result.Close()
 
 	// delete all purchases relative to this publication
-	delPurchases, err := pubManager.db.Prepare(`DELETE FROM purchase WHERE publication_id=?`)
+	_, err = pubManager.db.Exec(`DELETE FROM purchase WHERE publication_id=?`, id)
 	if err != nil {
-		return err
-	}
-	defer delPurchases.Close()
-	if _, err := delPurchases.Exec(id); err != nil {
 		return err
 	}
 
 	// delete the publication
-	dbDelete, err := pubManager.db.Prepare("DELETE FROM publication WHERE id = ?")
-	if err != nil {
-		return err
-	}
-	defer dbDelete.Close()
-	_, err = dbDelete.Exec(id)
+	_, err = pubManager.db.Exec("DELETE FROM publication WHERE id = ?", id)
 	return err
 }
 
 // List lists publications within a given range
 // Parameters: page = number of items per page; pageNum = page offset (0 for the first page)
-func (pubManager PublicationManager) List(page int, pageNum int) func() (Publication, error) {
+func (pubManager PublicationManager) List(page, pageNum int) func() (Publication, error) {
 
-	dbList, err := pubManager.db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc LIMIT ? OFFSET ?")
+	var rows *sql.Rows
+	var err error
+	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
+	if driver == "sqlserver" {
+		rows, err = pubManager.dbList.Query(pageNum*page, page)
+	} else {
+		rows, err = pubManager.dbList.Query(page, pageNum*page)
+	}
 	if err != nil {
 		return func() (Publication, error) { return Publication{}, err }
 	}
-	defer dbList.Close()
-	records, err := dbList.Query(page, pageNum*page)
-	if err != nil {
-		return func() (Publication, error) { return Publication{}, err }
-	}
+
 	return func() (Publication, error) {
 		var pub Publication
-		if records.Next() {
-			err := records.Scan(
-				&pub.ID,
-				&pub.UUID,
-				&pub.Title,
-				&pub.Status)
-			if err != nil {
-				return pub, err
-			}
-
+		var err error
+		if rows.Next() {
+			err = rows.Scan(&pub.ID, &pub.UUID, &pub.Title, &pub.Status)
 		} else {
-			records.Close()
+			rows.Close()
 			err = ErrNotFound
 		}
 		return pub, err
@@ -322,10 +245,12 @@ func (pubManager PublicationManager) List(page int, pageNum int) func() (Publica
 
 // Init initializes the publication manager
 // Creates the publication db table.
-func Init(config config.Configuration, db *sql.DB) (i WebPublication, err error) {
+func Init(db *sql.DB) (i WebPublication, err error) {
+
+	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
 
 	// if sqlite, create the content table in the frontend db if it does not exist
-	if strings.HasPrefix(config.FrontendServer.Database, "sqlite") {
+	if driver == "sqlite3" {
 		_, err = db.Exec(tableDef)
 		if err != nil {
 			log.Println("Error creating publication table")
@@ -333,7 +258,42 @@ func Init(config config.Configuration, db *sql.DB) (i WebPublication, err error)
 		}
 	}
 
-	i = PublicationManager{config, db}
+	var dbGetByID *sql.Stmt
+	dbGetByID, err = db.Prepare("SELECT id, uuid, title, status FROM publication WHERE id = ?")
+	if err != nil {
+		return
+	}
+
+	var dbGetByUUID *sql.Stmt
+	dbGetByUUID, err = db.Prepare("SELECT id, uuid, title, status FROM publication WHERE uuid = ?")
+	if err != nil {
+		return
+	}
+
+	var dbCheckByTitle *sql.Stmt
+	dbCheckByTitle, err = db.Prepare("SELECT COUNT(1) FROM publication WHERE title = ?")
+	if err != nil {
+		return
+	}
+
+	var dbGetMasterFile *sql.Stmt
+	dbGetMasterFile, err = db.Prepare("SELECT title FROM publication WHERE id = ?")
+	if err != nil {
+		return
+	}
+
+	var dbList *sql.Stmt
+	if driver == "sqlserver" {
+		dbList, err = db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc OFFSET ? ROWS FETCH ? ROWS ONLY")
+	} else {
+		dbList, err = db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc LIMIT ? OFFSET ?")
+
+	}
+	if err != nil {
+		return
+	}
+
+	i = PublicationManager{db, dbGetByID, dbGetByUUID, dbCheckByTitle, dbGetMasterFile, dbList}
 	return
 }
 

@@ -6,7 +6,6 @@
 package staticapi
 
 import (
-	"bytes"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -15,7 +14,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
-	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/problem"
 
 	"github.com/Machiel/slugify"
@@ -239,21 +237,8 @@ func GetPurchaseByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-// getLicenseInfo decodes a license in data (bytes, response.body)
-// FIXME : seems unused
-//
-func getLicenseInfo(data []byte, lic *license.License) error {
-	var dec *json.Decoder
-	dec = json.NewDecoder(bytes.NewReader(data))
-	if err := dec.Decode(&lic); err != nil {
-		return err
-	}
-	return nil
-}
-
 // UpdatePurchase updates a purchase in the database
 // Only updates the license id (uuid), start and end date, status
-//
 func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	var newPurchase webpurchase.Purchase
 	vars := mux.Vars(r)
