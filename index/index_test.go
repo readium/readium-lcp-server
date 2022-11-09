@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"testing"
 
-	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/readium/readium-lcp-server/config"
