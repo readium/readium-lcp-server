@@ -74,7 +74,7 @@ func (user dbUser) Add(newUser User) error {
 	}
 	newUser.UUID = uid.String()
 
-	_, err := user.db.Exec("INSERT INTO user (uuid, name, email, password, hint) VALUES (?, ?, ?, ?, ?)",
+	_, err := user.db.Exec("INSERT INTO \"user\" (uuid, name, email, password, hint) VALUES (?, ?, ?, ?, ?)",
 		newUser.UUID, newUser.Name, newUser.Email, newUser.Password, newUser.Hint)
 	return err
 }
@@ -82,7 +82,7 @@ func (user dbUser) Add(newUser User) error {
 // Update updates a user
 func (user dbUser) Update(changedUser User) error {
 
-	_, err := user.db.Exec("UPDATE user SET name=? , email=?, password=?, hint=? WHERE id=?",
+	_, err := user.db.Exec("UPDATE \"user\" SET name=? , email=?, password=?, hint=? WHERE id=?",
 		changedUser.Name, changedUser.Email, changedUser.Password, changedUser.Hint, changedUser.ID)
 	return err
 }
@@ -97,7 +97,7 @@ func (user dbUser) DeleteUser(userID int64) error {
 	}
 
 	// delete user
-	_, err = user.db.Exec("DELETE FROM user WHERE id=?", userID)
+	_, err = user.db.Exec("DELETE FROM \"user\" WHERE id=?", userID)
 	return err
 }
 
@@ -143,16 +143,16 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	}
 
 	var dbGetUser *sql.Stmt
-	dbGetUser, err = db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE id = ?")
+	dbGetUser, err = db.Prepare("SELECT id, uuid, name, email, password, hint FROM \"user\" WHERE id = ?")
 	if err != nil {
 		return
 	}
 
 	var dbGetByEmail *sql.Stmt
 	if driver == "mssql" {
-		dbGetByEmail, err = db.Prepare("SELECT TOP 1 id, uuid, name, email, password, hint FROM user WHERE email = ?")
+		dbGetByEmail, err = db.Prepare("SELECT TOP 1 id, uuid, name, email, password, hint FROM \"user\" WHERE email = ?")
 	} else {
-		dbGetByEmail, err = db.Prepare("SELECT id, uuid, name, email, password, hint FROM user WHERE email = ? LIMIT 1")
+		dbGetByEmail, err = db.Prepare("SELECT id, uuid, name, email, password, hint FROM \"user\" WHERE email = ? LIMIT 1")
 	}
 	if err != nil {
 		return
@@ -160,9 +160,9 @@ func Open(db *sql.DB) (i WebUser, err error) {
 
 	var dbList *sql.Stmt
 	if driver == "mssql" {
-		dbList, err = db.Prepare("SELECT id, uuid, name, email, password, hint	FROM user ORDER BY email desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY")
+		dbList, err = db.Prepare("SELECT id, uuid, name, email, password, hint	FROM \"user\" ORDER BY email desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY")
 	} else {
-		dbList, err = db.Prepare("SELECT id, uuid, name, email, password, hint	FROM user ORDER BY email desc LIMIT ? OFFSET ?")
+		dbList, err = db.Prepare("SELECT id, uuid, name, email, password, hint	FROM \"user\" ORDER BY email desc LIMIT ? OFFSET ?")
 	}
 	if err != nil {
 		return
@@ -172,7 +172,7 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	return
 }
 
-const tableDef = "CREATE TABLE IF NOT EXISTS user (" +
+const tableDef = "CREATE TABLE IF NOT EXISTS \"user\" (" +
 	"id integer NOT NULL PRIMARY KEY," +
 	"uuid varchar(255) NOT NULL," +
 	"name varchar(64) NOT NULL," +

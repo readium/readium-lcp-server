@@ -56,7 +56,7 @@ func (dashManager DashboardManager) GetDashboardInfos() (Dashboard, error) {
 	row := dashManager.db.QueryRow("SELECT COUNT(*) FROM publication")
 	row.Scan(&dash.PublicationCount)
 
-	row = dashManager.db.QueryRow("SELECT COUNT(*) FROM user")
+	row = dashManager.db.QueryRow("SELECT COUNT(*) FROM \"user\"")
 	row.Scan(&dash.UserCount)
 
 	row = dashManager.db.QueryRow(`SELECT COUNT(*) FROM purchase WHERE type="BUY"`)
@@ -99,19 +99,19 @@ func Init(db *sql.DB) (i WebDashboard, err error) {
 
 	if driver == "mssql" {
 		dbGetBestSellers, err = db.Prepare(
-			`SELECT TOP 5 pub.title, count(pub.id)
+			`SELECT TOP 5 pub.title, count(pur.id)
 				FROM purchase pur 
 				JOIN publication pub 
 				ON pur.publication_id = pub.id
-				GROUP BY pub.id
+				GROUP BY pub.title
 				ORDER BY  Count(pur.id) DESC`)
 	} else {
 		dbGetBestSellers, err = db.Prepare(
-			`SELECT pub.title, count(pub.id)
+			`SELECT pub.title, count(pur.id)
 				FROM purchase pur 
 				JOIN publication pub 
 				ON pur.publication_id = pub.id
-				 GROUP BY pub.id
+				 GROUP BY pub.title
 				 ORDER BY  Count(pur.id) DESC LIMIT 5`)
 	}
 
