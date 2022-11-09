@@ -19,6 +19,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/microsoft/go-mssqldb"
 
 	"github.com/readium/readium-lcp-server/config"
 	frontend "github.com/readium/readium-lcp-server/frontend/server"
@@ -120,7 +121,7 @@ func main() {
 	configJs += "\tlcp: {url: '" + config.Config.LcpServer.PublicBaseUrl + "', user: '" + config.Config.LcpUpdateAuth.Username + "', password: '" + config.Config.LcpUpdateAuth.Password + "'},\n"
 	configJs += "\tlsd: {url: '" + config.Config.LsdServer.PublicBaseUrl + "', user: '" + config.Config.LsdNotifyAuth.Username + "', password: '" + config.Config.LsdNotifyAuth.Password + "'}\n}"
 
-	log.Println("manage/index.html config.js:")
+	// log.Println("manage/index.html config.js:")
 	// log.Println(configJs)
 
 	fileConfigJs.WriteString(configJs)

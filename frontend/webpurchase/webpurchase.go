@@ -575,7 +575,7 @@ func Init(db *sql.DB) (i WebPurchase, err error) {
 
 	var dbList *sql.Stmt
 	if driver == "mssql" {
-		dbList, err = db.Prepare(selectQuery + ` ORDER BY p.transaction_date desc OFFSET ? ROWS FETCH ? ROWS ONLY`)
+		dbList, err = db.Prepare(selectQuery + ` ORDER BY p.transaction_date desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
 	} else {
 		dbList, err = db.Prepare(selectQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`)
 	}
@@ -585,7 +585,7 @@ func Init(db *sql.DB) (i WebPurchase, err error) {
 
 	var dbListByUser *sql.Stmt
 	if driver == "mssql" {
-		dbListByUser, err = db.Prepare(selectQuery + ` WHERE u.id = ? ORDER BY p.transaction_date desc OFFSET ? ROWS FETCH ? ROWS ONLY`)
+		dbListByUser, err = db.Prepare(selectQuery + ` WHERE u.id = ? ORDER BY p.transaction_date desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
 	} else {
 		dbListByUser, err = db.Prepare(selectQuery + ` WHERE u.id = ? ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`)
 	}

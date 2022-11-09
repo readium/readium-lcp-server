@@ -160,7 +160,7 @@ func Open(db *sql.DB) (i WebUser, err error) {
 
 	var dbList *sql.Stmt
 	if driver == "mssql" {
-		dbList, err = db.Prepare("SELECT id, uuid, name, email, password, hint	FROM user ORDER BY email desc OFFSET ? ROWS FETCH ? ROWS ONLY")
+		dbList, err = db.Prepare("SELECT id, uuid, name, email, password, hint	FROM user ORDER BY email desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY")
 	} else {
 		dbList, err = db.Prepare("SELECT id, uuid, name, email, password, hint	FROM user ORDER BY email desc LIMIT ? OFFSET ?")
 	}

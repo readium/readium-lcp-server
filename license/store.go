@@ -175,7 +175,7 @@ func Open(db *sql.DB) (store Store, err error) {
 	var dbList *sql.Stmt
 	if driver == "mssql" {
 		dbList, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, rights_start, rights_end, content_fk
-	FROM license ORDER BY issued desc OFFSET ? ROWS FETCH ? ROWS ONLY`)
+	FROM license ORDER BY issued desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
 	} else {
 		dbList, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, rights_start, rights_end, content_fk
 	FROM license ORDER BY issued desc LIMIT ? OFFSET ?`)
@@ -189,7 +189,7 @@ func Open(db *sql.DB) (store Store, err error) {
 	if driver == "mssql" {
 		dbListByContentID, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, 
 		rights_print, rights_copy, rights_start, rights_end, content_fk
-		FROM license WHERE content_fk = ? ORDER BY issued desc OFFSET ? ROWS FETCH ? ROWS ONLY`)
+		FROM license WHERE content_fk = ? ORDER BY issued desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
 	} else {
 		dbListByContentID, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, 
 		rights_print, rights_copy, rights_start, rights_end, content_fk

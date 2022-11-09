@@ -207,7 +207,7 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 	var dbList *sql.Stmt
 	if driver == "mssql" {
 		dbList, err = db.Prepare(`SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ?
-		ORDER BY id DESC OFFSET ? ROWS FETCH ? ROWS ONLY`)
+		ORDER BY id DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
 	} else {
 		dbList, err = db.Prepare(`SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ?
 		ORDER BY id DESC LIMIT ? OFFSET ?`)

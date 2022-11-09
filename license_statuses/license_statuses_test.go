@@ -44,8 +44,12 @@ func TestCRUD(t *testing.T) {
 		t.Errorf("Failed getting a non null list function")
 	}
 	statusList := make([]LicenseStatus, 0)
-	for it, err := fn(); err == nil; it, err = fn() {
+	var it LicenseStatus
+	for it, err = fn(); err == nil; it, err = fn() {
 		statusList = append(statusList, it)
+	}
+	if err != ErrNotFound {
+		t.Error(err)
 	}
 	if len(statusList) != 1 {
 		t.Errorf("Failed getting a list with one item, got %d instead", len(statusList))

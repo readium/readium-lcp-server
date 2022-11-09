@@ -19,6 +19,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/microsoft/go-mssqldb"
 
 	"github.com/readium/readium-lcp-server/config"
 	licensestatuses "github.com/readium/readium-lcp-server/license_statuses"

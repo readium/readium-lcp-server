@@ -162,8 +162,14 @@ func Open(db *sql.DB) (t Transactions, err error) {
 	}
 
 	// the status of a device corresponds to the latest event stored in the db.
-	dbCheckDeviceStatus, err := db.Prepare(`SELECT type FROM event WHERE license_status_fk = ?
-	AND device_id = ? ORDER BY timestamp DESC LIMIT 1`)
+	var dbCheckDeviceStatus *sql.Stmt
+	if driver == "mssql" {
+		dbCheckDeviceStatus, err = db.Prepare(`SELECT TOP 1 type FROM event WHERE license_status_fk = ?
+		AND device_id = ? ORDER BY timestamp DESC`)
+	} else {
+		dbCheckDeviceStatus, err = db.Prepare(`SELECT type FROM event WHERE license_status_fk = ?
+		AND device_id = ? ORDER BY timestamp DESC LIMIT 1`)
+	}
 	if err != nil {
 		return
 	}

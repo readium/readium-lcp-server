@@ -1,5 +1,5 @@
 CREATE TABLE publication (
-  id integer NOT NULL PRIMARY KEY,
+  id integer IDENTITY PRIMARY KEY,
   uuid varchar(255) NOT NULL,
   title varchar(255) NOT NULL,
   status varchar(255) NOT NULL
@@ -8,7 +8,7 @@ CREATE TABLE publication (
 CREATE INDEX uuid_index ON publication (uuid);
 
 CREATE TABLE "user" (
-  id integer NOT NULL PRIMARY KEY,
+  id integer IDENTITY PRIMARY KEY,
   uuid varchar(255) NOT NULL,
   name varchar(64) NOT NULL,
   email varchar(64) NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE "user" (
 );
 
 CREATE TABLE purchase (
-  id integer NOT NULL PRIMARY KEY,
+  id integer IDENTITY PRIMARY KEY,
   uuid varchar(255) NOT NULL,
   publication_id integer NOT NULL,
   user_id integer NOT NULL,
@@ -35,7 +35,7 @@ CREATE INDEX idx_purchase ON purchase (license_uuid);
 
 
 CREATE TABLE license_view (
-  id integer NOT NULL PRIMARY KEY,
+  id integer IDENTITY PRIMARY KEY,
   uuid varchar(255) NOT NULL,
   device_count smallint NOT NULL,
   status varchar(255) NOT NULL,

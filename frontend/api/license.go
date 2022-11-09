@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/api"
@@ -91,5 +90,5 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 		return
 	}
 	// message to the console
-	log.Println("Get license / id " + licenseID + " / " + purchase.Publication.Title + " / purchase " + strconv.FormatInt(purchase.ID, 10))
+	//log.Println("Get license / id " + licenseID + " / " + purchase.Publication.Title + " / purchase " + strconv.FormatInt(purchase.ID, 10))
 }

@@ -573,12 +573,8 @@ func FilterLicenseStatuses(w http.ResponseWriter, r *http.Request, s Server) {
 	licenseStatuses := make([]licensestatuses.LicenseStatus, 0)
 
 	fn := s.LicenseStatuses().List(devicesLimit, perPage, page*perPage)
-	for it, err := fn(); err == nil && it.ID != 0; it, err = fn() {
+	for it, err := fn(); err == nil; it, err = fn() {
 		licenseStatuses = append(licenseStatuses, it)
-	}
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
 	}
 
 	devices := strconv.Itoa(int(devicesLimit))

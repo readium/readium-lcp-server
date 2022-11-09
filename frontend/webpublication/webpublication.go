@@ -284,7 +284,7 @@ func Init(db *sql.DB) (i WebPublication, err error) {
 
 	var dbList *sql.Stmt
 	if driver == "mssql" {
-		dbList, err = db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc OFFSET ? ROWS FETCH ? ROWS ONLY")
+		dbList, err = db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY")
 	} else {
 		dbList, err = db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc LIMIT ? OFFSET ?")
 

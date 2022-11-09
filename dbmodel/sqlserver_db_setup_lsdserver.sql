@@ -1,5 +1,5 @@
 CREATE TABLE license_status (
-  id INTEGER PRIMARY KEY,
+  id integer IDENTITY PRIMARY KEY,
   status tinyint NOT NULL,
   license_updated datetime NOT NULL,
   status_updated datetime NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE license_status (
 CREATE INDEX license_ref_index ON license_status (license_ref);
 
 CREATE TABLE event (
-	id integer PRIMARY KEY,
+	id integer IDENTITY PRIMARY KEY,
 	device_name varchar(255) DEFAULT NULL,
 	timestamp datetime NOT NULL,
 	type int NOT NULL,
