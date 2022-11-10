@@ -5,7 +5,17 @@
 
 package license
 
+import (
+	"log"
+
+	"github.com/readium/readium-lcp-server/config"
+)
+
 // GenerateUserKey function prepares the user key
 func GenerateUserKey(key UserKey) []byte {
+	if config.Config.Profile != "basic" {
+		log.Println("Incompatible LCP profile")
+		return nil
+	}
 	return key.Value
 }
