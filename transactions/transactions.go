@@ -8,14 +8,13 @@ import (
 	"database/sql"
 	"errors"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/status"
 )
 
-var NotFound = errors.New("Event not found")
+var ErrNotFound = errors.New("Event not found")
 
 type Transactions interface {
 	Get(id int) (Event, error)
@@ -46,52 +45,39 @@ type Event struct {
 }
 
 type dbTransactions struct {
-	db                    *sql.DB
-	get                   *sql.Stmt
-	add                   *sql.Stmt
-	getbylicensestatusid  *sql.Stmt
-	checkdevicestatus     *sql.Stmt
-	listregistereddevices *sql.Stmt
+	db                      *sql.DB
+	dbGet                   *sql.Stmt
+	dbGetByStatusID         *sql.Stmt
+	dbCheckDeviceStatus     *sql.Stmt
+	dbListRegisteredDevices *sql.Stmt
 }
 
 // Get returns an event by its id
-//
 func (i dbTransactions) Get(id int) (Event, error) {
-	records, err := i.get.Query(id)
+
+	row := i.dbGet.QueryRow(id)
+	var e Event
 	var typeInt int
-
-	defer records.Close()
-	if records.Next() {
-		var e Event
-		err = records.Scan(&e.ID, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
-		if err == nil {
-			e.Type = status.EventTypes[typeInt]
-		}
-		return e, err
+	err := row.Scan(&e.ID, &e.DeviceName, &e.Timestamp, &typeInt, &e.DeviceId, &e.LicenseStatusFk)
+	if err != nil {
+		return Event{}, err
 	}
-
-	return Event{}, NotFound
+	e.Type = status.EventTypes[typeInt]
+	return e, err
 }
 
 // Add adds an event in the database,
 // The parameter eventType corresponds to the field 'type' in table 'event'
-//
 func (i dbTransactions) Add(e Event, eventType int) error {
-	add, err := i.db.Prepare("INSERT INTO event (device_name, timestamp, type, device_id, license_status_fk) VALUES (?, ?, ?, ?, ?)")
 
-	if err != nil {
-		return err
-	}
-
-	defer add.Close()
-	_, err = add.Exec(e.DeviceName, e.Timestamp, eventType, e.DeviceId, e.LicenseStatusFk)
+	_, err := i.db.Exec("INSERT INTO event (device_name, timestamp, type, device_id, license_status_fk) VALUES (?, ?, ?, ?, ?)",
+		e.DeviceName, e.Timestamp, eventType, e.DeviceId, e.LicenseStatusFk)
 	return err
 }
 
 // GetByLicenseStatusId returns all events by license status id
-//
 func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event, error) {
-	rows, err := i.getbylicensestatusid.Query(licenseStatusFk)
+	rows, err := i.dbGetByStatusID.Query(licenseStatusFk)
 	if err != nil {
 		return func() (Event, error) { return Event{}, err }
 	}
@@ -107,16 +93,16 @@ func (i dbTransactions) GetByLicenseStatusId(licenseStatusFk int) func() (Event,
 			}
 		} else {
 			rows.Close()
-			err = NotFound
+			err = ErrNotFound
 		}
 		return e, err
 	}
 }
 
 // ListRegisteredDevices returns all devices which have an 'active' status by licensestatus id
-//
 func (i dbTransactions) ListRegisteredDevices(licenseStatusFk int) func() (Device, error) {
-	rows, err := i.listregistereddevices.Query(licenseStatusFk)
+
+	rows, err := i.dbListRegisteredDevices.Query(licenseStatusFk)
 	if err != nil {
 		return func() (Device, error) { return Device{}, err }
 	}
@@ -127,38 +113,36 @@ func (i dbTransactions) ListRegisteredDevices(licenseStatusFk int) func() (Devic
 			err = rows.Scan(&d.DeviceId, &d.DeviceName, &d.Timestamp)
 		} else {
 			rows.Close()
-			err = NotFound
+			err = ErrNotFound
 		}
 		return d, err
 	}
 }
 
-// CheckDeviceStatus gets the current status of a device
-// if the device has not been recorded in the 'event' table, typeString is empty.
-//
+// CheckDeviceStatus gets the current status of a device as a string
+// if the device has not been recorded in the 'event' table, returns an empty string.
 func (i dbTransactions) CheckDeviceStatus(licenseStatusFk int, deviceId string) (string, error) {
 	var typeString string
 	var typeInt int
 
-	row := i.checkdevicestatus.QueryRow(licenseStatusFk, deviceId)
+	row := i.dbCheckDeviceStatus.QueryRow(licenseStatusFk, deviceId)
 	err := row.Scan(&typeInt)
-
-	if err == nil {
-		typeString = status.EventTypes[typeInt]
-	} else {
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return typeString, nil
 		}
 	}
-
+	typeString = status.EventTypes[typeInt]
 	return typeString, err
 }
 
 // Open defines scripts for queries & create the 'event' table if it does not exist
-//
 func Open(db *sql.DB) (t Transactions, err error) {
+
+	driver, _ := config.GetDatabase(config.Config.LsdServer.Database)
+
 	// if sqlite, create the event table in the lsd db if it does not exist
-	if strings.HasPrefix(config.Config.LsdServer.Database, "sqlite") {
+	if driver == "sqlite3" {
 		_, err = db.Exec(tableDef)
 		if err != nil {
 			log.Println("Error creating sqlite event table")
@@ -167,25 +151,36 @@ func Open(db *sql.DB) (t Transactions, err error) {
 	}
 
 	// select an event by its id
-	get, err := db.Prepare("SELECT * FROM event WHERE id = ? LIMIT 1")
+	dbGet, err := db.Prepare("SELECT * FROM event WHERE id = ?")
 	if err != nil {
 		return
 	}
 
-	getbylicensestatusid, err := db.Prepare("SELECT * FROM event WHERE license_status_fk = ?")
+	dbGetByStatusID, err := db.Prepare("SELECT * FROM event WHERE license_status_fk = ?")
+	if err != nil {
+		return
+	}
 
 	// the status of a device corresponds to the latest event stored in the db.
-	checkdevicestatus, err := db.Prepare(`SELECT type FROM event WHERE license_status_fk = ?
-	AND device_id = ? ORDER BY timestamp DESC LIMIT 1`)
-
-	listregistereddevices, err := db.Prepare(`SELECT device_id,
-	device_name, timestamp  FROM event  WHERE license_status_fk = ? AND type = 1`)
-
+	var dbCheckDeviceStatus *sql.Stmt
+	if driver == "mssql" {
+		dbCheckDeviceStatus, err = db.Prepare(`SELECT TOP 1 type FROM event WHERE license_status_fk = ?
+		AND device_id = ? ORDER BY timestamp DESC`)
+	} else {
+		dbCheckDeviceStatus, err = db.Prepare(`SELECT type FROM event WHERE license_status_fk = ?
+		AND device_id = ? ORDER BY timestamp DESC LIMIT 1`)
+	}
 	if err != nil {
 		return
 	}
 
-	t = dbTransactions{db, get, nil, getbylicensestatusid, checkdevicestatus, listregistereddevices}
+	dbListRegisteredDevices, err := db.Prepare(`SELECT device_id,
+	device_name, timestamp  FROM event  WHERE license_status_fk = ? AND type = 1`)
+	if err != nil {
+		return
+	}
+
+	t = dbTransactions{db, dbGet, dbGetByStatusID, dbCheckDeviceStatus, dbListRegisteredDevices}
 	return
 }
 

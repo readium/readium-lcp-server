@@ -1,27 +1,6 @@
-// Copyright (c) 2016 Readium Foundation
-//
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation and/or
-//    other materials provided with the distribution.
-// 3. Neither the name of the organization nor the names of its contributors may be
-//    used to endorse or promote products derived from this software without specific
-//    prior written permission
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2020 Readium Foundation. All rights reserved.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
 package license
 
@@ -37,41 +16,45 @@ import (
 	"github.com/readium/readium-lcp-server/sign"
 )
 
-func TestStoreInit(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
+func TestCRUD(t *testing.T) {
+
+	config.Config.LcpServer.Database = "sqlite3://:memory:"
+	driver, cnxn := config.GetDatabase(config.Config.LcpServer.Database)
+	db, err := sql.Open(driver, cnxn)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	st, err := NewSqlStore(db)
+	st, err := Open(db)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// FIXME: complete this test
-	fct := st.ListAll(0, 0)
-	if fct == nil {
-		t.Errorf("List error")
+	fn := st.ListAll(10, 0)
+	licenses := make([]LicenseReport, 0)
+	for it, err := fn(); err == nil; it, err = fn() {
+		licenses = append(licenses, it)
 	}
-
-}
-
-func TestStoreAdd(t *testing.T) {
-	config.Config.LcpServer.Database = "sqlite" // FIXME
-
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	st, err := NewSqlStore(db)
-	if err != nil {
-		t.Fatal(err)
+	if len(licenses) > 0 {
+		t.Errorf("Failed getting an empty list")
 	}
 
 	l := License{}
 	contentID := "1234-1234-1234-1234"
 	Initialize(contentID, &l)
-	setRights(&l)
+
+	l.User.ID = "me"
+	l.Provider = "my.org"
+	l.Rights = new(UserRights)
+	rstart := time.Now().UTC().Truncate(time.Second)
+	l.Rights.Start = &rstart
+	rend := rstart.Add(time.Hour * 100)
+	l.Rights.End = &rend
+	rprint := int32(100)
+	l.Rights.Print = &rprint
+	rcopy := int32(1000)
+	l.Rights.Copy = &rcopy
+
 	err = st.Add(l)
 	if err != nil {
 		t.Fatal(err)
@@ -79,7 +62,7 @@ func TestStoreAdd(t *testing.T) {
 
 	l2, err := st.Get(l.ID)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	js1, err := sign.Canon(l)
@@ -87,22 +70,73 @@ func TestStoreAdd(t *testing.T) {
 	if err != nil || err2 != nil || !bytes.Equal(js1, js2) {
 		t.Error("Difference between Add and Get")
 	}
-}
 
-// a rights object is needed before adding a record to the db
-// this is copied from lcpserver/api/license.go
-// probably this was done in this package and then refactored out, but the test is now broken because of this.
-func setRights(lic *License) {
+	// initializes another license with the same data
+	Initialize(contentID, &l)
+	err = st.Add(l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// and another with a different content id
+	contentID2 := "5678-5678-5678-5678"
+	Initialize(contentID2, &l)
+	err = st.Add(l)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if lic.Rights == nil {
-		lic.Rights = new(UserRights)
+	// list all
+	fn = st.ListAll(10, 0)
+	for it, err := fn(); err == nil; it, err = fn() {
+		licenses = append(licenses, it)
 	}
-	if lic.Rights.Start != nil {
-		start := lic.Rights.Start.UTC().Truncate(time.Second)
-		lic.Rights.Start = &start
+	if len(licenses) != 3 {
+		t.Errorf("Failed getting three licenses; got %d licenses instead", len(licenses))
 	}
-	if lic.Rights.End != nil {
-		end := lic.Rights.End.UTC().Truncate(time.Second)
-		lic.Rights.End = &end
+
+	// list by content id
+	licenses = make([]LicenseReport, 0)
+	fn = st.ListByContentID(contentID, 10, 0)
+	for it, err := fn(); err == nil; it, err = fn() {
+		licenses = append(licenses, it)
 	}
+	if len(licenses) != 2 {
+		t.Errorf("Failed getting two licenses by contentID")
+	}
+
+	// update rights
+	rstart = time.Now().UTC().Truncate(time.Second)
+	l.Rights.Start = &rstart
+	rend = rstart.Add(time.Hour * 100)
+	l.Rights.End = &rend
+	rprint = int32(200)
+	l.Rights.Print = &rprint
+	rcopy = int32(2000)
+	l.Rights.Copy = &rcopy
+
+	err = st.UpdateRights(l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l2, err = st.Get(l.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *l2.Rights.Print != *l.Rights.Print {
+		t.Errorf("Failed getting updated print right")
+	}
+
+	// update
+	l.Provider = "him.org"
+	err = st.Update(l)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// update the status (revoke)
+	err = st.UpdateLsdStatus(l.ID, int32(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 }

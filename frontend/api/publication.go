@@ -112,8 +112,7 @@ func GetPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 // CheckPublicationByTitle checks if a publication with this title exists
 func CheckPublicationByTitle(w http.ResponseWriter, r *http.Request, s IServer) {
 
-	var title string
-	title = r.URL.Query()["title"][0]
+	title := r.URL.Query()["title"][0]
 
 	log.Println("Check the existence of a publication named " + string(title))
 

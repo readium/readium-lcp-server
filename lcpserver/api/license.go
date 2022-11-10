@@ -699,7 +699,7 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	licenses := make([]license.LicenseReport, 0)
 	//log.Println("List(" + contentId + "," + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
-	fn := s.Licenses().List(contentID, int(perPage), int(page))
+	fn := s.Licenses().ListByContentID(contentID, int(perPage), int(page))
 	for it, err := fn(); err == nil; it, err = fn() {
 		licenses = append(licenses, it)
 	}
