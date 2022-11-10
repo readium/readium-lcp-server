@@ -205,7 +205,7 @@ func Init(db *sql.DB) (i WebLicense, err error) {
 		FROM license_view AS l 
 		INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 		INNER JOIN publication as pu ON p.publication_id = pu.id
-		INNER JOIN user as u ON p.user_id = u.id
+		INNER JOIN "user" as u ON p.user_id = u.id
 		WHERE l.id = ?`)
 	if err != nil {
 		log.Println("Error preparing dbGetByID")
@@ -217,7 +217,7 @@ func Init(db *sql.DB) (i WebLicense, err error) {
 		`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license_view AS l 
 		INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 		INNER JOIN publication as pu ON p.publication_id = pu.id
-		INNER JOIN user as u ON p.user_id = u.id
+		INNER JOIN "user" as u ON p.user_id = u.id
 		WHERE l.device_count >= ?`)
 	if err != nil {
 		log.Println("Error preparing dbGetFiltered")

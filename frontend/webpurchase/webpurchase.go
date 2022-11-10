@@ -85,6 +85,9 @@ func convertRecordsToPurchases(rows *sql.Rows) func() (Purchase, error) {
 	return func() (Purchase, error) {
 		var err error
 		var purchase Purchase
+		if rows == nil {
+			return purchase, ErrNotFound
+		}
 		if rows.Next() {
 			purchase, err = convertRecordToPurchase(rows)
 			if err != nil {
@@ -403,11 +406,15 @@ func (pManager PurchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 func (pManager PurchaseManager) List(page int, pageNum int) func() (Purchase, error) {
 
 	var rows *sql.Rows
+	var err error
 	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
 	if driver == "mssql" {
-		rows, _ = pManager.dbList.Query(pageNum*page, page)
+		rows, err = pManager.dbList.Query(pageNum*page, page)
 	} else {
-		rows, _ = pManager.dbList.Query(page, pageNum*page)
+		rows, err = pManager.dbList.Query(page, pageNum*page)
+	}
+	if err != nil {
+		log.Printf("Failed to get the full list of purchases: %s", err.Error())
 	}
 	return convertRecordsToPurchases(rows)
 }
@@ -416,11 +423,15 @@ func (pManager PurchaseManager) List(page int, pageNum int) func() (Purchase, er
 func (pManager PurchaseManager) ListByUser(userID int64, page int, pageNum int) func() (Purchase, error) {
 
 	var rows *sql.Rows
+	var err error
 	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
 	if driver == "mssql" {
-		rows, _ = pManager.dbListByUser.Query(userID, pageNum*page, page)
+		rows, err = pManager.dbListByUser.Query(userID, pageNum*page, page)
 	} else {
-		rows, _ = pManager.dbListByUser.Query(userID, page, pageNum*page)
+		rows, err = pManager.dbListByUser.Query(userID, page, pageNum*page)
+	}
+	if err != nil {
+		log.Printf("Failed to get the user list of purchases: %s", err.Error())
 	}
 	return convertRecordsToPurchases(rows)
 }
@@ -559,7 +570,7 @@ func Init(db *sql.DB) (i WebPurchase, err error) {
 	selectQuery := `SELECT p.id, p.uuid, p.type, p.transaction_date, p.license_uuid, p.start_date, p.end_date, p.status,
 	u.id, u.uuid, u.name, u.email, u.password, u.hint,
 	pu.id, pu.uuid, pu.title, pu.status
-	FROM purchase p JOIN user u ON (p.user_id=u.id) JOIN publication pu ON (p.publication_id=pu.id)`
+	FROM purchase p JOIN "user" u ON (p.user_id=u.id) JOIN publication pu ON (p.publication_id=pu.id)`
 
 	var dbGetByID *sql.Stmt
 	dbGetByID, err = db.Prepare(selectQuery + `WHERE p.id = ?`)
