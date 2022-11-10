@@ -211,7 +211,7 @@ Here are the details about the configuration properties of each server. In the s
 - `host`: the public server hostname, `hostname` by default.
 - `port`: the listening port, `8989` by default.
 - `public_base_url`: the URL used by the Status Server and the Frontend Test Server to communicate with this License server; combination of the host and port values on http by default.
-- `database`: the URI formatted connection string to the database, see the models below.
+- `database`: the URI formatted connection string to the database, see models below.
 - `auth_file`: mandatory; the path to the password file introduced above. 
 
 Here are models for the database property (variables in curly brackets):
@@ -257,10 +257,11 @@ If `mode` value is NOT `s3`, the following paremeters are expected:
   If no value is present in the configuration file and no value is inserted in the partial license, 
   the License server will reply with a 500 Server Error at license creation.
   The sub-properties of the `links` section are:
-  - `status`: required, templated URL; location of the Status Document associated with a License Document.
+  - `status`: required, URL template; location of the Status Document associated with a License Document.
     The license identifier is inserted via the `{license_id}` variable.
+    The License Status Server is expecting the following form: `https://<url>/licenses/{license_id}/status`
   - `hint`: required; location where a Reading System can redirect a user looking for additional information about the User Passphrase. 
-  - `publication`: *deprecated in favor of the storage / filesystem / url parameter*, templated URL; 
+  - `publication`: *deprecated in favor of the storage / filesystem / url parameter*, URL template; 
     Absolute http or https url of the storage volume in which all encrypted publications are stored.
     The publication identifier is inserted via the `{publication_id}` variable.
 
@@ -306,7 +307,7 @@ lsd_notify_auth:
 `lsd`: parameters associated with the Status Server. 
 - `host`: the public server hostname, `hostname` by default.
 - `port`: the listening port, `8990` by default.
-- `public_base_url`: the URL used by the License Server and the Frontend Test Server to communicate with this Status Server; combination of the host and port values on http by default.
+- `public_base_url`: the URL used by the License Server to communicate with this Status Server; combination of the host and port values on http by default.
 - `database`: the URI formatted connection string to the database, see above for the format.
 - `auth_file`: mandatory; the path to the password file introduced above. 
 
@@ -319,8 +320,8 @@ lsd_notify_auth:
 - `renew_days`: default number of additional days allowed during a renewal.
 - `return`: boolean; if `true`, an early return is possible.  
 - `register`: boolean; if `true`, registering a device is possible.
-- `renew_page_url`: URL; if set, the renew feature is implemented as an HTML page. 
-- `renew_custom_url`: URL template; if set, the renew feature is managed by the license provider. This url template supports a `{license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
+- `renew_page_url`: URL template; if set, the renew feature is implemented as an HTML page. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
+- `renew_custom_url`: URL template; if set, the renew feature is managed by the license provider. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
 
 Detailed explanations about the use of `renew_page_url` and `renew_custom_url` are found in a [specific section of the wiki](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#option-manage-renew-requests-using-your-own-rules). 
 

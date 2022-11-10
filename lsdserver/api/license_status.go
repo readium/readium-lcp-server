@@ -863,7 +863,8 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 		var link licensestatuses.Link
 		if renewPageUrl != "" {
 			// renewal is managed via a web page
-			link = licensestatuses.Link{Href: renewPageUrl, Rel: "renew", Type: api.ContentType_TEXT_HTML}
+			expandedUrl := expandUriTemplate(renewPageUrl, "license_id", ls.LicenseRef)
+			link = licensestatuses.Link{Href: expandedUrl, Rel: "renew", Type: api.ContentType_TEXT_HTML}
 		} else if renewCustomUrl != "" {
 			// renewal is managed via a specific service handled by the provider.
 			// The expanded renew url is itself a templated Url, which may of may not contain query parameters.
