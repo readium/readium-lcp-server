@@ -140,7 +140,7 @@ func main() {
 		authenticator = auth.NewBasicAuthenticator("Basic Realm", htpasswd)
 	}
 
-	s := frontend.New(config.Config.FrontendServer.Host+":"+strconv.Itoa(config.Config.FrontendServer.Port), static, repoManager, publicationDB, userDB, dashboardDB, licenseDB, purchaseDB, authenticator)
+	s := frontend.New(":"+strconv.Itoa(config.Config.FrontendServer.Port), static, repoManager, publicationDB, userDB, dashboardDB, licenseDB, purchaseDB, authenticator)
 	log.Println("Frontend webserver for LCP running on " + config.Config.FrontendServer.Host + ":" + strconv.Itoa(config.Config.FrontendServer.Port))
 
 	if err := s.ListenAndServe(); err != nil {
