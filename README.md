@@ -135,8 +135,8 @@ You should now find the generated Go binaries in $GOPATH/bin:
 - `lsdserver`: the status document server.
 
 #### Install selected binaries
-You may prefer to install only some of the executables. 
-In such a case, the "go install" command should be called once for each package, e.g. for the lcpserver from the master branch:
+You may prefer installing some of the executables only. In such a case, the "go install" command should be called once for each package, e.g. for the lcpserver from the master branch:
+
 ```sh
 cd $GOPATH
 go install github.com/readium/readium-lcp-server/lcpserver
