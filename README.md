@@ -219,7 +219,7 @@ Here are models for the database property (variables in curly brackets):
 - MySQL: `mysql://{login}:{password}@/{dbname}?parseTime=true`
 - MS SQL Server: `mssql://server={server-address};user id={login};password={password};database={dbname}` 
 
-Note 1 relative to MS SQL Server: when using SQL Server Express, the server-address is of type `{ip-address}\SQLEXPRESS)`.
+Note 1 relative to MS SQL Server: when using SQL Server Express, the server-address is of type `{ip-address}\\SQLEXPRESS)`.
 
 Note 2 relative to MS SQL Server: we've seen installs with the additional parameters `;connection timeout=30;encrypt=disable`.
 
