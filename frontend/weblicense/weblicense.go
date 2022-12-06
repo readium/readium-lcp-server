@@ -29,9 +29,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
-	"strings"
 
 	"github.com/readium/readium-lcp-server/config"
 )
@@ -82,60 +80,42 @@ type Licenses []struct {
 
 // LicenseManager helper
 type LicenseManager struct {
-	config config.Configuration
-	db     *sql.DB
+	db            *sql.DB
+	dbGetByID     *sql.Stmt
+	dbGetFiltered *sql.Stmt
 }
 
 // Get a license for a given ID
-//
 func (licManager LicenseManager) Get(id int64) (License, error) {
-	dbGetByID, err := licManager.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license_view AS l 
-											INNER JOIN purchase as p ON l.uuid = p.license_uuid 
-											INNER JOIN publication as pu ON p.publication_id = pu.id
-											INNER JOIN user as u ON p.user_id = u.id
-											WHERE id = ?`)
-	if err != nil {
-		return License{}, err
-	}
-	defer dbGetByID.Close()
 
-	records, err := dbGetByID.Query(id)
-	if records.Next() {
-		var lic License
-		err = records.Scan(
-			&lic.ID,
-			&lic.PublicationTitle,
-			&lic.UserName,
-			&lic.Type,
-			&lic.DeviceCount,
-			&lic.Status,
-			&lic.PurchaseID,
-			&lic.Message)
-		records.Close()
-		return lic, err
-	}
-
-	return License{}, ErrNotFound
+	row := licManager.dbGetByID.QueryRow(id)
+	var lic License
+	err := row.Scan(
+		&lic.ID,
+		&lic.PublicationTitle,
+		&lic.UserName,
+		&lic.Type,
+		&lic.DeviceCount,
+		&lic.Status,
+		&lic.PurchaseID,
+		&lic.Message)
+	return lic, err
 }
 
-// GetFiltered give a license with more than the filtered number
-//
-func (licManager LicenseManager) GetFiltered(filter string) ([]License, error) {
-	dbGetByID, err := licManager.db.Prepare(`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license_view AS l 
-											INNER JOIN purchase as p ON l.uuid = p.license_uuid 
-											INNER JOIN publication as pu ON p.publication_id = pu.id
-											INNER JOIN user as u ON p.user_id = u.id
-											WHERE l.device_count >= ?`)
+// GetFiltered returns licenses with a number of registered devices higher than the parameter
+func (licManager LicenseManager) GetFiltered(deviceLimit string) ([]License, error) {
+
+	rows, err := licManager.dbGetFiltered.Query(deviceLimit)
 	if err != nil {
 		return []License{}, err
 	}
-	defer dbGetByID.Close()
-	records, err := dbGetByID.Query(filter)
+	defer rows.Close()
+
 	licences := make([]License, 0, 20)
 
-	for records.Next() {
+	for rows.Next() {
 		var lic License
-		err = records.Scan(
+		err = rows.Scan(
 			&lic.ID,
 			&lic.PublicationTitle,
 			&lic.UserName,
@@ -145,45 +125,36 @@ func (licManager LicenseManager) GetFiltered(filter string) ([]License, error) {
 			&lic.PurchaseID,
 			&lic.Message)
 		if err != nil {
-			fmt.Println(err)
+			return licences, err
 		}
 		licences = append(licences, lic)
 	}
-	records.Close()
 	return licences, nil
 }
 
 // Add adds a new license
-//
 func (licManager LicenseManager) Add(licenses License) error {
-	add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)")
-	if err != nil {
-		return err
-	}
-	defer add.Close()
 
-	_, err = add.Exec(licenses.UUID, licenses.DeviceCount, licenses.Status, licenses.Message)
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err := licManager.db.Exec("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)",
+		licenses.UUID, licenses.DeviceCount, licenses.Status, licenses.Message)
+	return err
 }
 
 // AddFromJSON adds a new license from a JSON string
-//
 func (licManager LicenseManager) AddFromJSON(licensesJSON []byte) error {
 	var licenses Licenses
 	err := json.Unmarshal(licensesJSON, &licenses)
 	if err != nil {
 		return err
 	}
-	for _, l := range licenses {
-		add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)")
-		if err != nil {
-			return err
-		}
-		defer add.Close()
 
+	add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)")
+	if err != nil {
+		return err
+	}
+	defer add.Close()
+
+	for _, l := range licenses {
 		_, err = add.Exec(l.UUID, l.DeviceCount, l.Status, l.Message)
 		if err != nil {
 			return err
@@ -193,66 +164,67 @@ func (licManager LicenseManager) AddFromJSON(licensesJSON []byte) error {
 }
 
 // PurgeDataBase erases all the content of the license_view table
-//
 func (licManager LicenseManager) PurgeDataBase() error {
-	dbPurge, err := licManager.db.Prepare("DELETE FROM license_view")
-	if err != nil {
-		return err
-	}
-	defer dbPurge.Close()
 
-	_, err = dbPurge.Exec()
-
+	_, err := licManager.db.Exec("DELETE FROM license_view")
 	return err
 }
 
 // Update updates a license
-//
 func (licManager LicenseManager) Update(lic License) error {
-	dbUpdate, err := licManager.db.Prepare("UPDATE license_view SET device_count=?, uuid=?, status=? , message=? WHERE id = ?")
-	if err != nil {
-		return err
-	}
-	defer dbUpdate.Close()
-	_, err = dbUpdate.Exec(
-		lic.DeviceCount,
-		lic.Status,
-		lic.UUID,
-		lic.ID,
-		lic.Message)
-	if err != nil {
-		return err
-	}
+
+	_, err := licManager.db.Exec("UPDATE license_view SET device_count=?, uuid=?, status=? , message=? WHERE id = ?",
+		lic.DeviceCount, lic.Status, lic.UUID, lic.ID, lic.Message)
 	return err
 }
 
 // Delete deletes a license
-//
 func (licManager LicenseManager) Delete(id int64) error {
 
-	// delete a license
-	dbDelete, err := licManager.db.Prepare("DELETE FROM license_view WHERE id = ?")
-	if err != nil {
-		log.Println("Error deleting license_view table")
-		return err
-	}
-	defer dbDelete.Close()
-	_, err = dbDelete.Exec(id)
+	_, err := licManager.db.Exec("DELETE FROM license_view WHERE id = ?", id)
 	return err
 }
 
 // Init inits the license manager
-//
-func Init(config config.Configuration, db *sql.DB) (i WebLicense, err error) {
+func Init(db *sql.DB) (i WebLicense, err error) {
+
+	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
+
 	// if sqlite, create the content table in the frontend db if it does not exist
-	if strings.HasPrefix(config.FrontendServer.Database, "sqlite") {
+	if driver == "sqlite3" {
 		_, err = db.Exec(tableDef)
 		if err != nil {
 			log.Println("Error creating license_view table")
 			return
 		}
 	}
-	i = LicenseManager{config, db}
+
+	var dbGetByID *sql.Stmt
+	dbGetByID, err = db.Prepare(
+		`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message 
+		FROM license_view AS l 
+		INNER JOIN purchase as p ON l.uuid = p.license_uuid 
+		INNER JOIN publication as pu ON p.publication_id = pu.id
+		INNER JOIN "user" as u ON p.user_id = u.id
+		WHERE l.id = ?`)
+	if err != nil {
+		log.Println("Error preparing dbGetByID")
+		return
+	}
+
+	var dbGetFiltered *sql.Stmt
+	dbGetFiltered, err = db.Prepare(
+		`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license_view AS l 
+		INNER JOIN purchase as p ON l.uuid = p.license_uuid 
+		INNER JOIN publication as pu ON p.publication_id = pu.id
+		INNER JOIN "user" as u ON p.user_id = u.id
+		WHERE l.device_count >= ?`)
+	if err != nil {
+		log.Println("Error preparing dbGetFiltered")
+		return
+	}
+
+	i = LicenseManager{db, dbGetByID, dbGetFiltered}
 	return
 }
 

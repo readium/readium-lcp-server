@@ -200,6 +200,10 @@ func fetchLicenseStatusesTask(s *Server) {
 
 	// get all licence status documents from the lsd server
 	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Println("Failed to read from the http connection - no fetch this time")
+		return
+	}
 	defer res.Body.Close()
 
 	// clear the db
@@ -211,7 +215,7 @@ func fetchLicenseStatusesTask(s *Server) {
 	// fill the db
 	err = s.license.AddFromJSON(body)
 	if err != nil {
-		panic(err)
+		log.Printf("Unable to process JSON - no fetch this time - err %s\n", err.Error())
 	}
 }
 

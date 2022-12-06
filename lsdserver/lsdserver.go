@@ -13,29 +13,24 @@ import (
 	"os/signal"
 	"runtime"
 	"strconv"
-	"strings"
 	"syscall"
 
-	"github.com/abbot/go-http-auth"
+	auth "github.com/abbot/go-http-auth"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/microsoft/go-mssqldb"
 
 	"github.com/readium/readium-lcp-server/config"
-	"github.com/readium/readium-lcp-server/license_statuses"
+	licensestatuses "github.com/readium/readium-lcp-server/license_statuses"
 	"github.com/readium/readium-lcp-server/localization"
 	"github.com/readium/readium-lcp-server/logging"
-	"github.com/readium/readium-lcp-server/lsdserver/server"
+	lsdserver "github.com/readium/readium-lcp-server/lsdserver/server"
 	"github.com/readium/readium-lcp-server/transactions"
 )
 
-func dbFromURI(uri string) (string, string) {
-	parts := strings.Split(uri, "://")
-	return parts[0], parts[1]
-}
-
 func main() {
-	var config_file, dbURI string
+	var config_file string
 	var readonly bool = false
 	var err error
 
@@ -44,6 +39,7 @@ func main() {
 	}
 
 	config.ReadConfig(config_file)
+	log.Println("Config from " + config_file)
 
 	err = localization.InitTranslations()
 	if err != nil {
@@ -57,12 +53,9 @@ func main() {
 		panic(err)
 	}
 
-	// use a sqlite db by default
-	if dbURI = config.Config.LsdServer.Database; dbURI == "" {
-		dbURI = "sqlite3://file:lsd.sqlite?cache=shared&mode=rwc"
-	}
+	driver, cnxn := config.GetDatabase(config.Config.LsdServer.Database)
+	log.Println("Database driver " + driver)
 
-	driver, cnxn := dbFromURI(dbURI)
 	db, err := sql.Open(driver, cnxn)
 	if err != nil {
 		panic(err)
@@ -117,7 +110,6 @@ func main() {
 	} else {
 		log.Println("License status server running on port " + parsedPort)
 	}
-	log.Println("Using database " + dbURI)
 	log.Println("Public base URL=" + config.Config.LsdServer.PublicBaseUrl)
 
 	if err := s.ListenAndServe(); err != nil {

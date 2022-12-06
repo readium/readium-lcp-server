@@ -47,19 +47,21 @@ const (
 )
 
 type Problem struct {
-	Type string `json:"type,omitempty"`
-	//optionnal
-	Title    string `json:"title,omitempty"`
+	Type  string `json:"type,omitempty"`
+	Title string `json:"title,omitempty"`
+	//optional
 	Status   int    `json:"status,omitempty"` //if present = http response code
 	Detail   string `json:"detail,omitempty"`
 	Instance string `json:"instance,omitempty"`
-	//Additional members
 }
 
 const ERROR_BASE_URL = "http://readium.org/license-status-document/error/"
+const LICENSE_NOT_FOUND = ERROR_BASE_URL + "notfound"
 const SERVER_INTERNAL_ERROR = ERROR_BASE_URL + "server"
 const REGISTRATION_BAD_REQUEST = ERROR_BASE_URL + "registration"
 const RETURN_BAD_REQUEST = ERROR_BASE_URL + "return"
+const RETURN_EXPIRED = ERROR_BASE_URL + "return/expired"
+const RETURN_ALREADY = ERROR_BASE_URL + "return/already"
 const RENEW_BAD_REQUEST = ERROR_BASE_URL + "renew"
 const RENEW_REJECT = ERROR_BASE_URL + "renew/date"
 const CANCEL_BAD_REQUEST = ERROR_BASE_URL + "cancel"
@@ -76,12 +78,19 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 
 	problem.Status = status
 
-	if problem.Type == "about:blank" || problem.Type == "" { // lookup Title  statusText should match http status
+	if problem.Type == "" && status == http.StatusInternalServerError {
+		problem.Type = SERVER_INTERNAL_ERROR
+	}
+
+	if problem.Title == "" { // Title matches http status by default
 		localization.LocalizeMessage(acceptLanguages, &problem.Title, http.StatusText(status))
 	} else {
 		localization.LocalizeMessage(acceptLanguages, &problem.Title, problem.Title)
+	}
+	if problem.Detail != "" {
 		localization.LocalizeMessage(acceptLanguages, &problem.Detail, problem.Detail)
 	}
+
 	jsonError, e := json.Marshal(problem)
 	if e != nil {
 		http.Error(w, "{}", problem.Status)
@@ -114,7 +123,10 @@ func PrintStack() {
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
 	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path, "status": "404"})
-	Error(w, r, Problem{}, http.StatusNotFound)
+	var problem Problem
+	problem.Type = LICENSE_NOT_FOUND
+	problem.Title = "Failed to find the license ID"
+	Error(w, r, problem, http.StatusNotFound)
 }
 
 func PanicReport(err interface{}) {

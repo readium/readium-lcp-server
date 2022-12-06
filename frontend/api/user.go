@@ -69,7 +69,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request, s IServer) {
 		return
 	}
 	users := make([]webuser.User, 0)
-	//log.Println("ListAll(" + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
+
 	fn := s.UserAPI().ListUsers(int(perPage), int(page))
 	for it, err := fn(); err == nil; it, err = fn() {
 		users = append(users, it)
@@ -118,7 +118,6 @@ func GetUser(w http.ResponseWriter, r *http.Request, s IServer) {
 			}
 		}
 	}
-	return
 }
 
 // GetLicenseOwner retrieves a user by a license uuid he owns
@@ -173,7 +172,6 @@ func GetLicenseOwner(w http.ResponseWriter, r *http.Request, s IServer) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
-	return
 }
 
 //DecodeJSONUser transforms a json string to a User struct

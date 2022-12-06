@@ -1,5 +1,4 @@
-// Copyright 2017 European Digital Reading Lab. All rights reserved.
-// Licensed to the Readium Foundation under one or more contributor license agreements.
+// Copyright 2020 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -13,7 +12,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/readium/readium-lcp-server/api"
@@ -26,23 +24,12 @@ import (
 )
 
 //ErrNotFound Error is thrown when a purchase is not found
-var ErrNotFound = errors.New("Purchase not found")
+var ErrNotFound = errors.New("purchase not found")
 
 //ErrNoChange is thrown when an update action does not change any rows (not found)
-var ErrNoChange = errors.New("No lines were updated")
+var ErrNoChange = errors.New("no lines were updated")
 
-const purchaseManagerQuery = `select
-p.id, p.uuid,
-p.type, p.transaction_date,
-p.license_uuid,
-p.start_date, p.end_date, p.status,
-u.id, u.uuid, u.name, u.email, u.password, u.hint,
-pu.id, pu.uuid, pu.title, pu.status
-from purchase p
-join user u on (p.user_id=u.id)
-join publication pu on (p.publication_id=pu.id)`
-
-//WebPurchase defines possible interactions with DB
+// WebPurchase defines possible interactions with the db
 type WebPurchase interface {
 	Get(id int64) (Purchase, error)
 	GenerateOrGetLicense(purchase Purchase) (license.License, error)
@@ -86,33 +73,40 @@ type Purchase struct {
 }
 
 type PurchaseManager struct {
-	config config.Configuration
-	db     *sql.DB
+	db               *sql.DB
+	dbGetByID        *sql.Stmt
+	dbGetByLicenseID *sql.Stmt
+	dbList           *sql.Stmt
+	dbListByUser     *sql.Stmt
 }
 
-func convertRecordsToPurchases(records *sql.Rows) func() (Purchase, error) {
+func convertRecordsToPurchases(rows *sql.Rows) func() (Purchase, error) {
+
 	return func() (Purchase, error) {
 		var err error
 		var purchase Purchase
-		if records.Next() {
-			purchase, err = convertRecordToPurchase(records)
+		if rows == nil {
+			return purchase, ErrNotFound
+		}
+		if rows.Next() {
+			purchase, err = convertRecordToPurchase(rows)
 			if err != nil {
 				return purchase, err
 			}
 		} else {
-			records.Close()
+			rows.Close()
+			err = ErrNotFound
 		}
-
 		return purchase, err
 	}
 }
 
-func convertRecordToPurchase(records *sql.Rows) (Purchase, error) {
+func convertRecordToPurchase(rows *sql.Rows) (Purchase, error) {
 	purchase := Purchase{}
 	user := webuser.User{}
 	pub := webpublication.Publication{}
 
-	err := records.Scan(
+	err := rows.Scan(
 		&purchase.ID,
 		&purchase.UUID,
 		&purchase.Type,
@@ -139,31 +133,27 @@ func convertRecordToPurchase(records *sql.Rows) (Purchase, error) {
 	// Load relations
 	purchase.User = user
 	purchase.Publication = pub
-	return purchase, err
+	return purchase, nil
 }
 
 // Get a purchase using its id
-//
 func (pManager PurchaseManager) Get(id int64) (Purchase, error) {
-	dbGetQuery := purchaseManagerQuery + ` WHERE p.id = ? LIMIT 1`
-	dbGet, err := pManager.db.Prepare(dbGetQuery)
+
+	// note: does not use QueryRow here, as converRecordToPurchase used in converRecordsToPurchase.
+	rows, err := pManager.dbGetByID.Query(id)
 	if err != nil {
 		return Purchase{}, err
 	}
-	defer dbGet.Close()
+	defer rows.Close()
 
-	records, err := dbGet.Query(id)
-	defer records.Close()
-
-	if records.Next() {
-		purchase, err := convertRecordToPurchase(records)
-
+	if rows.Next() {
+		purchase, err := convertRecordToPurchase(rows)
 		if err != nil {
 			return Purchase{}, err
 		}
 
 		if purchase.LicenseUUID != nil {
-			// Query LSD to retrieve max end date (PotentialRights.End)
+			// Query LSD Server to retrieve max end date (PotentialRights.End)
 			// FIXME: calling the lsd server at this point is too heavy: the max end date should be in the db.
 			statusDocument, err := pManager.GetLicenseStatusDocument(purchase)
 
@@ -175,24 +165,38 @@ func (pManager PurchaseManager) Get(id int64) (Purchase, error) {
 				purchase.MaxEndDate = statusDocument.PotentialRights.End
 			}
 		}
-
 		return purchase, nil
 	}
+	return Purchase{}, ErrNotFound
+}
 
+// GetByLicenseID gets a purchase by the associated license id
+func (pManager PurchaseManager) GetByLicenseID(licenseID string) (Purchase, error) {
+
+	// note: does not use QueryRow here, as convertRecordToPurchase used in converRecordsToPurchase.
+	rows, err := pManager.dbGetByLicenseID.Query(licenseID)
+	if err != nil {
+		return Purchase{}, err
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		return convertRecordToPurchase(rows)
+		// FIXME: difference with Get(), we don't retrieve the potential end date from the LSD server
+	}
 	return Purchase{}, ErrNotFound
 }
 
 // GenerateOrGetLicense generates a new license associated with a purchase,
 // or gets an existing license,
 // depending on the value of the license id in the purchase.
-//
 func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license.License, error) {
 	// create a partial license
 	partialLicense := license.License{}
 
 	// set the mandatory provider URI
 	if config.Config.FrontendServer.ProviderUri == "" {
-		return license.License{}, errors.New("Mandatory provider URI missing in the configuration")
+		return license.License{}, errors.New("mandatory provider URI missing in the configuration")
 	}
 	partialLicense.Provider = config.Config.FrontendServer.ProviderUri
 
@@ -242,7 +246,7 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 	}
 
 	// get the url of the lcp server
-	lcpServerConfig := pManager.config.LcpServer
+	lcpServerConfig := config.Config.LcpServer
 	var lcpURL string
 
 	if purchase.LicenseUUID == nil {
@@ -261,8 +265,8 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 	if err != nil {
 		return license.License{}, err
 	}
-	lcpUpdateAuth := pManager.config.LcpUpdateAuth
-	if pManager.config.LcpUpdateAuth.Username != "" {
+	lcpUpdateAuth := config.Config.LcpUpdateAuth
+	if config.Config.LcpUpdateAuth.Username != "" {
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
 	}
 	// the body is a partial license in json format
@@ -283,17 +287,16 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 	// is neither 201 Created or 200 ok, return an internal error
 	if (purchase.LicenseUUID == nil && resp.StatusCode != 201) ||
 		(purchase.LicenseUUID != nil && resp.StatusCode != 200) {
-		return license.License{}, errors.New("The License Server returned an error")
+		return license.License{}, errors.New("the License Server returned an error")
 	}
 
 	// decode the full license
 	fullLicense := license.License{}
-	var dec *json.Decoder
-	dec = json.NewDecoder(resp.Body)
+	dec := json.NewDecoder(resp.Body)
 	err = dec.Decode(&fullLicense)
 
 	if err != nil {
-		return license.License{}, errors.New("Unable to decode license")
+		return license.License{}, errors.New("unable to decode license")
 	}
 
 	// store the license id if it was not already set
@@ -301,7 +304,7 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 		purchase.LicenseUUID = &fullLicense.ID
 		pManager.Update(purchase)
 		if err != nil {
-			return license.License{}, errors.New("Unable to update the license id")
+			return license.License{}, errors.New("unable to update the license id")
 		}
 	}
 
@@ -309,14 +312,13 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 }
 
 // GetPartialLicense gets the license associated with a purchase, from the license server
-//
 func (pManager PurchaseManager) GetPartialLicense(purchase Purchase) (license.License, error) {
 
 	if purchase.LicenseUUID == nil {
-		return license.License{}, errors.New("No license has been yet delivered")
+		return license.License{}, errors.New("no license has been yet delivered")
 	}
 
-	lcpServerConfig := pManager.config.LcpServer
+	lcpServerConfig := config.Config.LcpServer
 	lcpURL := lcpServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID
 	// message to the console
 	log.Println("GET " + lcpURL)
@@ -326,8 +328,8 @@ func (pManager PurchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 		return license.License{}, err
 	}
 	// set credentials
-	lcpUpdateAuth := pManager.config.LcpUpdateAuth
-	if pManager.config.LcpUpdateAuth.Username != "" {
+	lcpUpdateAuth := config.Config.LcpUpdateAuth
+	if config.Config.LcpUpdateAuth.Username != "" {
 		req.SetBasicAuth(lcpUpdateAuth.Username, lcpUpdateAuth.Password)
 	}
 	// send the request
@@ -343,29 +345,27 @@ func (pManager PurchaseManager) GetPartialLicense(purchase Purchase) (license.Li
 	// the call must return 206 (partial content) because there is no input partial license
 	if resp.StatusCode != 206 {
 		// bad status code
-		return license.License{}, errors.New("The License Server returned an error")
+		return license.License{}, errors.New("the License Server returned an error")
 	}
 	// decode the license
 	partialLicense := license.License{}
-	var dec *json.Decoder
-	dec = json.NewDecoder(resp.Body)
+	dec := json.NewDecoder(resp.Body)
 	err = dec.Decode(&partialLicense)
 
 	if err != nil {
-		return license.License{}, errors.New("Unable to decode the license")
+		return license.License{}, errors.New("unable to decode the license")
 	}
 
 	return partialLicense, nil
 }
 
 // GetLicenseStatusDocument gets a license status document associated with a purchase
-//
 func (pManager PurchaseManager) GetLicenseStatusDocument(purchase Purchase) (licensestatuses.LicenseStatus, error) {
 	if purchase.LicenseUUID == nil {
-		return licensestatuses.LicenseStatus{}, errors.New("No license has been yet delivered")
+		return licensestatuses.LicenseStatus{}, errors.New("no license has been yet delivered")
 	}
 
-	lsdServerConfig := pManager.config.LsdServer
+	lsdServerConfig := config.Config.LsdServer
 	lsdURL := lsdServerConfig.PublicBaseUrl + "/licenses/" + *purchase.LicenseUUID + "/status"
 	log.Println("GET " + lsdURL)
 	req, err := http.NewRequest("GET", lsdURL, nil)
@@ -385,13 +385,12 @@ func (pManager PurchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 
 	if resp.StatusCode != 200 {
 		// Bad status code
-		return licensestatuses.LicenseStatus{}, errors.New("The License Status Document server returned an error")
+		return licensestatuses.LicenseStatus{}, errors.New("the License Status Document server returned an error")
 	}
 
 	// Decode status document
 	statusDocument := licensestatuses.LicenseStatus{}
-	var dec *json.Decoder
-	dec = json.NewDecoder(resp.Body)
+	dec := json.NewDecoder(resp.Body)
 	err = dec.Decode(&statusDocument)
 
 	if err != nil {
@@ -403,66 +402,42 @@ func (pManager PurchaseManager) GetLicenseStatusDocument(purchase Purchase) (lic
 	return statusDocument, nil
 }
 
-// GetByLicenseID gets a purchase by the associated license id
-//
-func (pManager PurchaseManager) GetByLicenseID(licenseID string) (Purchase, error) {
-	dbGetByLicenseIDQuery := purchaseManagerQuery + ` WHERE p.license_uuid = ? LIMIT 1`
-	dbGetByLicenseID, err := pManager.db.Prepare(dbGetByLicenseIDQuery)
-	if err != nil {
-		return Purchase{}, err
-	}
-	defer dbGetByLicenseID.Close()
-
-	records, err := dbGetByLicenseID.Query(licenseID)
-	defer records.Close()
-	if records.Next() {
-		return convertRecordToPurchase(records)
-	}
-	// no purchase found
-	return Purchase{}, ErrNotFound
-}
-
 // List all purchases, with pagination
-//
 func (pManager PurchaseManager) List(page int, pageNum int) func() (Purchase, error) {
-	dbListQuery := purchaseManagerQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
-	dbList, err := pManager.db.Prepare(dbListQuery)
-	if err != nil {
-		return func() (Purchase, error) { return Purchase{}, err }
-	}
-	defer dbList.Close()
 
-	records, err := dbList.Query(page, pageNum*page)
-	return convertRecordsToPurchases(records)
+	var rows *sql.Rows
+	var err error
+	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
+	if driver == "mssql" {
+		rows, err = pManager.dbList.Query(pageNum*page, page)
+	} else {
+		rows, err = pManager.dbList.Query(page, pageNum*page)
+	}
+	if err != nil {
+		log.Printf("Failed to get the full list of purchases: %s", err.Error())
+	}
+	return convertRecordsToPurchases(rows)
 }
 
 // ListByUser lists the purchases of a given user, with pagination
-//
 func (pManager PurchaseManager) ListByUser(userID int64, page int, pageNum int) func() (Purchase, error) {
-	dbListByUserQuery := purchaseManagerQuery + ` WHERE u.id = ?
-ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`
-	dbListByUser, err := pManager.db.Prepare(dbListByUserQuery)
-	if err != nil {
-		return func() (Purchase, error) { return Purchase{}, err }
-	}
-	defer dbListByUser.Close()
 
-	records, err := dbListByUser.Query(userID, page, pageNum*page)
-	return convertRecordsToPurchases(records)
+	var rows *sql.Rows
+	var err error
+	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
+	if driver == "mssql" {
+		rows, err = pManager.dbListByUser.Query(userID, pageNum*page, page)
+	} else {
+		rows, err = pManager.dbListByUser.Query(userID, page, pageNum*page)
+	}
+	if err != nil {
+		log.Printf("Failed to get the user list of purchases: %s", err.Error())
+	}
+	return convertRecordsToPurchases(rows)
 }
 
 // Add a purchase
-//
 func (pManager PurchaseManager) Add(p Purchase) error {
-	add, err := pManager.db.Prepare(`INSERT INTO purchase
-	(uuid, publication_id, user_id,
-	type, transaction_date,
-	start_date, end_date, status)
-	VALUES (?, ?, ?, ?, ?, ?, ?, 'ok')`)
-	if err != nil {
-		return err
-	}
-	defer add.Close()
 
 	// Fill default values
 	if p.TransactionDate.IsZero() {
@@ -480,11 +455,10 @@ func (pManager PurchaseManager) Add(p Purchase) error {
 	}
 	p.UUID = uid.String()
 
-	_, err = add.Exec(
-		p.UUID,
-		p.Publication.ID, p.User.ID,
-		string(p.Type), p.TransactionDate,
-		p.StartDate, p.EndDate)
+	_, err := pManager.db.Exec(`INSERT INTO purchase
+	(uuid, publication_id, user_id, type, transaction_date, start_date, end_date, status)
+	VALUES (?, ?, ?, ?, ?, ?, ?, 'ok')`,
+		p.UUID, p.Publication.ID, p.User.ID, string(p.Type), p.TransactionDate, p.StartDate, p.EndDate)
 
 	return err
 }
@@ -492,7 +466,6 @@ func (pManager PurchaseManager) Add(p Purchase) error {
 // Update modifies a purchase on a renew or return request
 // parameters: a Purchase structure withID,	LicenseUUID, StartDate,	EndDate, Status
 // EndDate may be undefined (nil), in which case the lsd server will choose the renew period
-//
 func (pManager PurchaseManager) Update(p Purchase) error {
 	// Get the original purchase from the db
 	origPurchase, err := pManager.Get(p.ID)
@@ -501,16 +474,16 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 		return ErrNotFound
 	}
 	if origPurchase.Status != StatusOk {
-		return errors.New("Cannot update an invalid purchase")
+		return errors.New("cannot update an invalid purchase")
 	}
 	if p.Status == StatusToBeRenewed ||
 		p.Status == StatusToBeReturned {
 
 		if p.LicenseUUID == nil {
-			return errors.New("Cannot return or renew a purchase when no license has been delivered")
+			return errors.New("cannot return or renew a purchase when no license has been delivered")
 		}
 
-		lsdServerConfig := pManager.config.LsdServer
+		lsdServerConfig := config.Config.LsdServer
 		lsdURL := lsdServerConfig.PublicBaseUrl + "/licenses/" + *p.LicenseUUID
 
 		if p.Status == StatusToBeRenewed {
@@ -536,7 +509,7 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 			return err
 		}
 		// set credentials
-		lsdAuth := pManager.config.LsdNotifyAuth
+		lsdAuth := config.Config.LsdNotifyAuth
 		if lsdAuth.Username != "" {
 			req.SetBasicAuth(lsdAuth.Username, lsdAuth.Password)
 		}
@@ -567,13 +540,11 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 		p.Status = StatusOk
 	}
 	// update the db with the updated license id, start date, end date, status
-	update, err := pManager.db.Prepare(`UPDATE purchase
-	SET license_uuid=?, start_date=?, end_date=?, status=? WHERE id=?`)
+	result, err := pManager.db.Exec(`UPDATE purchase SET license_uuid=?, start_date=?, end_date=?, status=? WHERE id=?`,
+		p.LicenseUUID, p.StartDate, p.EndDate, p.Status, p.ID)
 	if err != nil {
 		return err
 	}
-	defer update.Close()
-	result, err := update.Exec(p.LicenseUUID, p.StartDate, p.EndDate, p.Status, p.ID)
 	if changed, err := result.RowsAffected(); err == nil {
 		if changed != 1 {
 			return ErrNoChange
@@ -583,17 +554,57 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 }
 
 // Init initializes the PurchaseManager
-//
-func Init(config config.Configuration, db *sql.DB) (i WebPurchase, err error) {
+func Init(db *sql.DB) (i WebPurchase, err error) {
+
+	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
+
 	// if sqlite, create the content table in the frontend db if it does not exist
-	if strings.HasPrefix(config.FrontendServer.Database, "sqlite") {
+	if driver == "sqlite3" {
 		_, err = db.Exec(tableDef)
 		if err != nil {
 			log.Println("Error creating purchase table")
 			return
 		}
 	}
-	i = PurchaseManager{config, db}
+
+	selectQuery := `SELECT p.id, p.uuid, p.type, p.transaction_date, p.license_uuid, p.start_date, p.end_date, p.status,
+	u.id, u.uuid, u.name, u.email, u.password, u.hint,
+	pu.id, pu.uuid, pu.title, pu.status
+	FROM purchase p JOIN "user" u ON (p.user_id=u.id) JOIN publication pu ON (p.publication_id=pu.id)`
+
+	var dbGetByID *sql.Stmt
+	dbGetByID, err = db.Prepare(selectQuery + `WHERE p.id = ?`)
+	if err != nil {
+		return
+	}
+
+	var dbGetByLicenseID *sql.Stmt
+	dbGetByLicenseID, err = db.Prepare(selectQuery + ` WHERE p.license_uuid = ?`)
+	if err != nil {
+		return
+	}
+
+	var dbList *sql.Stmt
+	if driver == "mssql" {
+		dbList, err = db.Prepare(selectQuery + ` ORDER BY p.transaction_date desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
+	} else {
+		dbList, err = db.Prepare(selectQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`)
+	}
+	if err != nil {
+		return
+	}
+
+	var dbListByUser *sql.Stmt
+	if driver == "mssql" {
+		dbListByUser, err = db.Prepare(selectQuery + ` WHERE u.id = ? ORDER BY p.transaction_date desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
+	} else {
+		dbListByUser, err = db.Prepare(selectQuery + ` WHERE u.id = ? ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`)
+	}
+	if err != nil {
+		return
+	}
+
+	i = PurchaseManager{db, dbGetByID, dbGetByLicenseID, dbList, dbListByUser}
 	return
 }
 

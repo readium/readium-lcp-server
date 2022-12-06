@@ -17,23 +17,24 @@ Using the Readium LCP Server you can:
 Prerequisites
 =============
 
-Binaries are not yet pre-built, so you need to get a working Golang installation. 
+Binaries are only pre-built on demande and for a service fee, therefore in the general case you'll need to get a working Golang installation. 
 Please refer to the official GO documentation for installation procedures at https://golang.org/.
 
 This software is working with *go 1.13* or higher. It is currently maintained using *go 1.18* (July 2022). 
 
 The servers require the setup of an SQL Database. 
 
-- SQLite is sufficient for most needs. If the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. SQLite database creation scripts are provided in the "dbmodel" folder in case they are useful. 
-- MySQL database creation scripts are provided as well in the "dbmodel" folder. These scripts should be applied before launching the servers for the first time. 
+- SQLite is sufficient for most needs. If the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. SQLite database creation scripts are also provided in the "dbmodel" folder in case they are useful. 
+- MySQL database creation scripts are provided in the "dbmodel" folder. These scripts must be applied before launching the servers for the first time. 
+- MS SQL Server database creation scripts are provided as well in the "dbmodel" folder. These scripts must be applied before launching the servers for the first time. 
 
-We expect other drivers (PostgresQL ...) to be provided by the community. Some implementers have deployed MS SQL Server, but the corresponding scripts were not provided so far. More db connectors will be provided in a future major revision of the application. 
+A PostgresQL integration has been provided by a user of the LCP Server as a branch of the codebase, but is not fully integrated in the up-to-date codebase. Contact EDRLab if you want to sponsor its full integration. 
 
 Your platform must be able to handle:
 
 1/ the License Server, active in your intranet, not accessible from the Web, only accessible from your CMS via a REST API. 
 
-2/ the License Status Server, accessible from the Web via a REST API.
+2/ the Status Server, accessible from the Web via a REST API, using https (you'll need to install a reverse proxy).
 
 3/ a large storage volume for encrypted publications (file system or S3 bucket), accessible from the Web via HTTP URLs. Note that publications are encrypted once: every license generated for such publication is pointing at the same encrypted file. Because these publications are stronlgy encrypted and the decryption key is secured in your SQL database, public access to these files is not problematic.   
 
@@ -100,7 +101,7 @@ Its private functionalities (authentication required) are:
 
 ## [lsdserver]
 
-A License Status server implements [Readium License Status Document 1.0](https://readium.org/lcp-specs/releases/lsd/latest).
+A Status Server implements [Readium License Status Document 1.0](https://readium.org/lcp-specs/releases/lsd/latest).
 
 Its public functionalities are:
 * Return a license status document
@@ -113,16 +114,6 @@ Its private functionalities (authentication required) are:
 * Filter licenses by count of registered devices
 * List all registered devices for a given license
 * Revoke or cancel a license
-
-## [frontend]
-
-A Test Frontend server is also provided, which mimics your own distribution platform (i.e. content management system, library platform ...). It provides a web user interface for managing publications, users and licenses. It also provides a REST API which mimics the way you will [connect your distribution platform to the license server](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#connect-your-distribution-platform-to-the-license-server). 
-
-Its sole goal is to help you testing the License and License Status servers. **It should never be used in production**.  
-
-Its public functionalities are:
-* Fetch a license by id
-* Fetch a licensed publication by license id
 
 
 Install
@@ -171,34 +162,14 @@ You should now find the generated Go binaries in $GOPATH/bin:
 
 - `lcpencrypt`: the command line encryption tool,
 - `lcpserver`: the license server,
-- `lsdserver`: the status document server,
-- `frontend`: a test application (Test Frontend Server) which mimics your distribution platform. 
+- `lsdserver`: the status document server.
 
 #### Install selected binaries
-You may prefer to install only some of the executables. 
-In such a case, the "go install" command should be called once for each package, e.g. for the lcpserver from the master branch:
+You may prefer installing some of the executables only. In such a case, the "go install" command should be called once for each package, e.g. for the lcpserver from the master branch:
+
 ```sh
 cd $GOPATH
 go install github.com/readium/readium-lcp-server/lcpserver
-```
-
-#### Install the Test Frontend Server
-To install properly the Test Frontend Server, you must clone the project and install several npm packages.
-
-Note: You will have to use an old version of npm, e.g. npm 6.12.0. 
-
-In the following example, we'll use GOPATH (not a specific project directory). 
-To install and test the npm packages, type:
-
-```sh
-cd $GOPATH
-# clone the project
-git clone https://github.com/readium/readium-lcp-server.git src/github.com/readium/readium-lcp-server
-cd src/github.com/readium/readium-lcp-server/frontend/manage
-# override the use of the deprecated git protocol (if needed)
-git config --global url."https://github".insteadOf git://github
-# the following command takes a while; don't mind warnings
-npm install
 ```
 
 ### On Windows 10
@@ -217,13 +188,12 @@ Configuration
 
 The server is controlled by a yaml configuration file (e.g. "config.yaml") stored in a convenient folder, eg. `/usr/local/var/lcp`.  
 
-The License Server, License Status Server and Frontend test server will search their configuration file in the go bin directory by default; but the path to the file should be changed using an environment variable:
+The License Server and Status Server will search their configuration file in the go bin directory by default; but the path to the file should be changed using an environment variable:
 
 * `READIUM_LCPSERVER_CONFIG` for the License server
-* `READIUM_LSDSERVER_CONFIG` for the License Status server
-* `READIUM_FRONTEND_CONFIG` for the Frontend test server
+* `READIUM_LSDSERVER_CONFIG` for the Status server
 
-The value of the each global variable is an absolute path to the configuration file for the given server. The three servers may share the same configuration file (useful if they are executed on the same server) or each server may get its own configuration file; this is your choice. 
+The value of the each global variable is an absolute path to the configuration file for the given server. The two servers may share the same configuration file (useful if they are executed on the same server) or each server may get its own configuration file; this is your choice. 
 
 ## Password file
 
@@ -239,7 +209,7 @@ The password file may be shared between the LCP and LSD servers if the same cred
 
 ## Certificate
 
-The LCP server requires an X509 certificate and its associated private key. The exact location and name of these files have no importance, as they will be referenced from the configuration file; but we recommand to keep the file name of the file provided by EDRLAb and place these files in a subfolder of the previous one, eg. `/usr/local/var/lcp/cert`.
+The License server requires an X509 certificate and its associated private key. The exact location and name of these files have no importance, as they will be referenced from the configuration file; but we recommand to keep the file name of the file provided by EDRLab and place these files in a subfolder of the previous one, eg. `/usr/local/var/lcp/cert`.
 
 A test certificate (`cert-edrlab-test.pem`) and private key (`privkey-edrlab-test.pem`) are provided in the `test/cert` directory of the project. These files are be used as long as the LCP server is configured in test mode (`profile` = `basic`). They are replaced by a provider specific certificate and private key when the server is moved to its production mode. 
 
@@ -270,9 +240,18 @@ Here are the details about the configuration properties of each server. In the s
 `lcp`: parameters associated with the License Server.
 - `host`: the public server hostname, `hostname` by default.
 - `port`: the listening port, `8989` by default.
-- `public_base_url`: the URL used by the License Status Server and the Frontend Test Server to communicate with this License server; combination of the host and port values on http by default.
-- `database`: the URI formatted connection string to the database, `sqlite3://file:lcp.sqlite?cache=shared&mode=rwc` by default. `mysql://login:password@/dbname?parseTime=true` if your using MySQL.
+- `public_base_url`: the URL used by the Status Server and the Frontend Test Server to communicate with this License server; combination of the host and port values on http by default.
+- `database`: the URI formatted connection string to the database, see models below.
 - `auth_file`: mandatory; the path to the password file introduced above. 
+
+Here are models for the database property (variables in curly brackets):
+- sqlite: `sqlite3://file:{path-to-dot-sqlite-file}?cache=shared&mode=rwc`
+- MySQL: `mysql://{login}:{password}@/{dbname}?parseTime=true`
+- MS SQL Server: `mssql://server={server-address};user id={login};password={password};database={dbname}` 
+
+Note 1 relative to MS SQL Server: when using SQL Server Express, the server-address is of type `{ip-address}\\SQLEXPRESS)`.
+
+Note 2 relative to MS SQL Server: we've seen installs with the additional parameters `;connection timeout=30;encrypt=disable`.
 
 #### storage section
 This section should be empty if the storage location of encrypted publications is managed by the lcpencrypt utility.
@@ -308,15 +287,16 @@ If `mode` value is NOT `s3`, the following paremeters are expected:
   If no value is present in the configuration file and no value is inserted in the partial license, 
   the License server will reply with a 500 Server Error at license creation.
   The sub-properties of the `links` section are:
-  - `status`: required, templated URL; location of the Status Document associated with a License Document.
+  - `status`: required, URL template; location of the Status Document associated with a License Document.
     The license identifier is inserted via the `{license_id}` variable.
+    The License Status Server is expecting the following form: `https://<url>/licenses/{license_id}/status`
   - `hint`: required; location where a Reading System can redirect a user looking for additional information about the User Passphrase. 
-  - `publication`: *deprecated in favor of the storage / filesystem / url parameter*, templated URL; 
+  - `publication`: *deprecated in favor of the storage / filesystem / url parameter*, URL template; 
     Absolute http or https url of the storage volume in which all encrypted publications are stored.
     The publication identifier is inserted via the `{publication_id}` variable.
 
 #### lsd and lsd_notify_auth section 
-`lsd_notify_auth`: authentication parameters used by the License Server for notifying the License Status Server 
+`lsd_notify_auth`: authentication parameters used by the License Server for notifying the Status Server 
 of the generation of a new license. The notification endpoint is configured in the `lsd` section.
 - `username`: required, authentication username
 - `password`: required, authentication password
@@ -351,37 +331,37 @@ lsd_notify_auth:
 
 ```
 
-### License Status Server
+### Status Server
 
 #### lsd section
-`lsd`: parameters associated with the License Status Server. 
+`lsd`: parameters associated with the Status Server. 
 - `host`: the public server hostname, `hostname` by default.
 - `port`: the listening port, `8990` by default.
-- `public_base_url`: the URL used by the License Server and the Frontend Test Server to communicate with this License Status Server; combination of the host and port values on http by default.
-- `database`: the URI formatted connection string to the database, `sqlite3://file:lsd.sqlite?cache=shared&mode=rwc` by default. `mysql://login:password@/dbname?parseTime=true` if your using MySQL.
+- `public_base_url`: the URL used by the License Server to communicate with this Status Server; combination of the host and port values on http by default.
+- `database`: the URI formatted connection string to the database, see above for the format.
 - `auth_file`: mandatory; the path to the password file introduced above. 
 
 - `license_link_url`: URL template, mandatory; this is the url from which a fresh license can be fetched from the provider's frontend server. This url template supports a `{license_id}` parameter. The final url will be inserted in the 'license' link of every status document. It must be the url of a server acting as a proxy between the user request and the License Server. Such proxy is mandatory, as the License Server  does not possess user information needed to craft a license from its identifier. If the test frontend server is used as a proxy (for tests only), the url template must be of the form "http://<frontend-server-url>/api/v1/licenses/{license_id}" (note the /api/v1 section).
 
 #### license_status section
-`license_status`: parameters related to the interactions implemented by the License Status server, if any:
+`license_status`: parameters related to the interactions implemented by the Status server, if any:
 - `renting_days`: maximum number of days allowed for a loan, from the date the loan starts. If set to 0 or absent, no loan renewal is possible. 
 - `renew`: boolean; if `true`, the renewal of a loan is possible. 
 - `renew_days`: default number of additional days allowed during a renewal.
 - `return`: boolean; if `true`, an early return is possible.  
 - `register`: boolean; if `true`, registering a device is possible.
-- `renew_page_url`: URL; if set, the renew feature is implemented as an HTML page. 
-- `renew_custom_url`: URL template; if set, the renew feature is managed by the license provider. This url template supports a `{license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
+- `renew_page_url`: URL template; if set, the renew feature is implemented as an HTML page. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
+- `renew_custom_url`: URL template; if set, the renew feature is managed by the license provider. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
 
 Detailed explanations about the use of `renew_page_url` and `renew_custom_url` are found in a [specific section of the wiki](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#option-manage-renew-requests-using-your-own-rules). 
 
 #### lcp_update_auth section 
-`lcp_update_auth`: authentication parameters used by the License Status Server for updating a license via the License Server. The notification endpoint is configured in the `lcp` section.
+`lcp_update_auth`: authentication parameters used by the Status Server for updating a license via the License Server. The notification endpoint is configured in the `lcp` section.
 - `username`: mandatory, authentication username
 - `password`: mandatory, authentication password
 
 #### Sample config
-Here is a License Status Server sample config:
+Here is a Status Server sample config:
 
 ```yaml
 lsd:
@@ -405,67 +385,7 @@ lcp_update_auth:
     password: "adm_password"
 ```
 
-### Frontend Server
-
-#### frontend section
-`frontend`: parameters associated with the Test Frontend Server. 
-- `host`: the public server hostname, `hostname` by default
-- `port`: the listening port, `8991` by default
-- `public_base_url`: the URL used by the Frontend node.js software to communicate with this  Frontend Test Server; combination of the host and port values on http by default.
-- `database`: the URI formatted connection string to the database, `sqlite3://file:frontend.sqlite?cache=shared&mode=rwc` by default. `mysql://login:password@/dbname?parseTime=true` if your using MySQL.
-- `master_repository`: repository where the uploaded EPUB files are stored before encryption. 
-- `encrypted_repository`: repository where the encrypted EPUB files are stored after upload. The LCP server must have access to the path declared here, as it will move each encrypted file to its final storage folder on notification of encryption from the Frontend Server. 
-- `directory`: the directory containing the client web app; by default $GOPATH/src/github.com/readium/readium-lcp-server/frontend/manage.
-- `provider_uri`: provider uri, which will be inserted in all licenses produced via this test frontend.
-- `right_print`: allowed number of printed pages, which will be inserted in all licenses produced via this test frontend.
-- `right_copy`: allowed number of copied characters, which will be inserted in all licenses produced via this test frontend.
-
-The config file of a Test Frontend Server must also define the following properties: 
-
-#### other required sections
-The Test Frontend Server must communicate with the License Server and the License Status Server. This is why it must contain the following sections, with the values defined above. 
-
-`lcp`
-- `public_base_url`
-
-`lsd`
-- `public_base_url`
-
-`lcp_update_auth`
-- `username`
-- `password`
-
-`lsd_notify_auth`
-- `username`
-- `password`
-
-#### Sample config
-Here is a Test Frontend Server sample config:
-
-```yaml
-frontend:
-    host: "192.168.0.1"
-    port: 8991
-    database: "sqlite3://file:/usr/local/var/lcp/db/frontend.sqlite?cache=shared&mode=rwc"
-    master_repository: "/usr/local/var/lcp/files/master"
-    encrypted_repository: "/usr/local/var/lcp/files/encrypted"
-    provider_uri: "https://www.example.net"
-    right_print: 10
-    right_copy: 2000
-
-lcp:
-  public_base_url:  "http://192.168.0.1:8989"
-lsd:
-  public_base_url:  "http://192.168.0.1:8990"
-lcp_update_auth: 
-    username: "adm_username"
-    password: "adm_password"
-lsd_notify_auth: 
-    username: "adm_username"
-    password: "adm_password"
-```
-
-### And for all servers
+### And for each server
 
 `localization` section: parameters related to the localization of the messages sent by all three servers.
 - `languages`: array of supported localization languages
@@ -474,31 +394,12 @@ lsd_notify_auth:
 
 NOTE: the localization file names (ex: 'en-US.json, de-DE.json') must match the set of supported localization languages.
 
-NOTE: a CBC / GCM configurable property has been DISABLED, see https://github.com/readium/readium-lcp-server/issues/109
-"aes256_cbc_or_gcm": either "GCM" or "CBC" (which is the default value). This is used only for encrypting publication resources, not the content key, not the user key check, not the LCP license fields.
-
 Execution
 ==========
 Each server must be launched in a different context (i.e. a different terminal for local use). If the path to the generated Go binaries ($GOPATH/bin) is properly set, each server can launched from any location:
 
 - `lcpserver`
 - `lsdserver`
-- `frontend`
-
-Starting the frontend UI requires an initial configuration, as it must read the dynamically created "config.js" file:
-
-```sh
-#start the frontend server, this creates config.js
-frontend
-# stop
-<ctrl-C>
-# compile the typescript files, check that the frontend UI is launched
-npm start
-# when the frontend UI has appeared, stop
-<ctrl-C>
-```
-
-After the frontend server has been launched, you can access the server GUI via its base url, as configured in the LCP server config file.
 
 NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended as you won't be able to access the modules from e.g. a mobile app. It is much better to use the WiFi IPv4 address of your computer and access the server from a mobile device via WiFi.  
 

@@ -99,7 +99,7 @@ func getUserData(licenseID string) (userData UserData, err error) {
 	// get the url of the CMS
 	userURL := strings.Replace(config.Config.LsdServer.UserDataUrl, "{license_id}", licenseID, -1)
 	if userURL == "" {
-		err = errors.New("Get User Data from License ID: UserDataUrl missing from the server configuration")
+		err = errors.New("get User Data from License ID: UserDataUrl missing from the server configuration")
 		return
 	}
 

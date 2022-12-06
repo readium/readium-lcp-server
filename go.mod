@@ -7,12 +7,14 @@ require (
 	github.com/abbot/go-http-auth v0.4.0
 	github.com/aws/aws-sdk-go v1.44.60
 	github.com/claudiu/gocron v0.0.0-20151103142354-980c96bf412b
+	github.com/denisenkom/go-mssqldb v0.12.3
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gorilla/mux v1.8.0
 	github.com/jeffbmartinez/delay v0.0.0-20150608194421-e1b689d78b33
 	github.com/jtacoma/uritemplates v1.0.0
 	github.com/lib/pq v1.10.6
 	github.com/mattn/go-sqlite3 v1.14.14
+	github.com/microsoft/go-mssqldb v0.17.0
 	github.com/nicksnyder/go-i18n v1.10.1
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/rickb777/date v1.19.1
@@ -20,7 +22,6 @@ require (
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	github.com/technoweenie/grohl v0.0.0-20140924204239-f4613feb389e
 	github.com/urfave/negroni v1.0.0
-	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129
 	golang.org/x/text v0.3.7
 	gopkg.in/yaml.v2 v2.4.0

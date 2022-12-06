@@ -301,6 +301,9 @@ func EncryptLicenseFields(l *License, c index.Content) error {
 
 	// generate the user key
 	encryptionKey := GenerateUserKey(l.Encryption.UserKey)
+	if encryptionKey == nil {
+		return errors.New("incompatible LCP profile; error generating a user key")
+	}
 
 	// empty the passphrase hash to avoid sending it back to the user
 	l.Encryption.UserKey.Value = nil

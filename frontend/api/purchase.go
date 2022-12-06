@@ -6,7 +6,6 @@
 package staticapi
 
 import (
-	"bytes"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -15,7 +14,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/frontend/webpurchase"
-	"github.com/readium/readium-lcp-server/license"
 	"github.com/readium/readium-lcp-server/problem"
 
 	"github.com/Machiel/slugify"
@@ -36,7 +34,6 @@ func DecodeJSONPurchase(r *http.Request) (webpurchase.Purchase, error) {
 // GetPurchases searches all purchases for a client
 //
 func GetPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
-	var err error
 
 	pagination, err := ExtractPaginationFromRequest(r)
 	if err != nil {
@@ -49,10 +46,10 @@ func GetPurchases(w http.ResponseWriter, r *http.Request, s IServer) {
 	fn := s.PurchaseAPI().List(pagination.PerPage, pagination.Page)
 
 	var purchase webpurchase.Purchase
-	for purchase, err = fn(); err == nil && purchase.ID != 0; purchase, err = fn() {
+	for purchase, err = fn(); err == nil; purchase, err = fn() {
 		purchases = append(purchases, purchase)
 	}
-	if err != nil {
+	if err != webpurchase.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
@@ -239,21 +236,8 @@ func GetPurchaseByLicenseID(w http.ResponseWriter, r *http.Request, s IServer) {
 	}
 }
 
-// getLicenseInfo decodes a license in data (bytes, response.body)
-// FIXME : seems unused
-//
-func getLicenseInfo(data []byte, lic *license.License) error {
-	var dec *json.Decoder
-	dec = json.NewDecoder(bytes.NewReader(data))
-	if err := dec.Decode(&lic); err != nil {
-		return err
-	}
-	return nil
-}
-
 // UpdatePurchase updates a purchase in the database
 // Only updates the license id (uuid), start and end date, status
-//
 func UpdatePurchase(w http.ResponseWriter, r *http.Request, s IServer) {
 	var newPurchase webpurchase.Purchase
 	vars := mux.Vars(r)
