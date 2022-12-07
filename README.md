@@ -48,10 +48,10 @@ Quickstart
 ==========
 
 
-> You have to download node [v6.9.2](https://nodejs.org/dist/v6.9.2/) to compile the frontend webapp
+> You have to download node [v18.12.1](https://nodejs.org/dist/v18.12.1/) to compile the frontend webapp
 
 ```
-make clean && PATH=/Users/edrlab/Downloads/node-v6.9.2-darwin-x64/bin:$PATH make && make run
+make clean && PATH=/Users/edrlab/Downloads/node-v18.12.1-darwin-arm64/bin:$PATH make && make run
 ```
 
 Docker

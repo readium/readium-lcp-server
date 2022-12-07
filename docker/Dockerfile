@@ -1,5 +1,5 @@
+FROM ubuntu:20.04 as box
 
-FROM golang:alpine as lcpserver
 WORKDIR /lcp
 COPY . /lcp/.
 
@@ -12,46 +12,56 @@ COPY $LIBUSERKEY_PATH $LIBUSERKEY_PATH
 COPY $USERKEYH_PATH $USERKEYH_PATH
 COPY $USERKEYGO_PATH $USERKEYGO_PATH
 
-RUN apk add build-base
+# RUN apk add build-base
+
+RUN arch && echo _cache_invalidate_2
+RUN uname && echo _cache_invalidate_2
+
+RUN apt-get -y update
+RUN apt-get -y upgrade
+
+RUN echo $CONTAINER_TIMEZONE
+RUN ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+
+RUN apt-get install -y make curl git python build-essential golang bsdmainutils
+
 RUN make BUILD_PROD=${BUILD_PROD} LIBUSERKEY_PATH=${LIBUSERKEY_PATH} USERKEYH_PATH=${USERKEYH_PATH} USERKEYGO_PATH=${USERKEYGO_PATH} lcpserver
 
+RUN ls -als -R /lcp/build/bin
 
-FROM golang:alpine as lsdserver
-WORKDIR /lcp
-COPY . /lcp/.
-
-RUN apk add build-base
 RUN make lsdserver
 
-# FROM node:6.9.2 doesn't works npm failed to download librairies
-FROM ubuntu:20.04 as frontend-manage
+RUN ls -als -R /lcp/build/bin
 
-WORKDIR /lcp
-COPY . /lcp/.
-
-RUN apt-get update \
-    && apt-get install -y make curl git \
-    && curl -O https://nodejs.org/dist/v6.9.2/node-v6.9.2-linux-x64.tar.gz \
-    && tar -xzf node-v6.9.2-linux-x64.tar.gz
-
-RUN PATH=/lcp/node-v6.9.2-linux-x64/bin:$PATH make "frontend/manage"
-
-FROM golang:alpine as frontendserver
-WORKDIR /lcp
-COPY . /lcp/.
-
-RUN apk add build-base
 RUN make frontend
 
+RUN ls -als -R /lcp/build/bin
 
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash
+RUN apt-get install -y nodejs
 
+RUN make "frontend/manage"
+
+RUN ls -als -R /lcp/build/bin
+RUN ls -als /lcp/build/frontend/manage
 
 FROM nginx:stable-alpine
 
-COPY --from=lcpserver /lcp/build/bin/lcpserver /usr/bin/lcpserver
-COPY --from=lsdserver /lcp/build/bin/lsdserver /usr/bin/lsdserver
-COPY --from=frontendserver /lcp/build/bin/frontend /usr/bin/frontend
-COPY --from=frontend-manage /lcp/build/frontend/manage/. /frontend/manage/.
+COPY --from=box /lcp/build/bin/lcpserver /usr/bin/lcpserver
+RUN ls -als /usr/bin/lcpserver
+#RUN ldd /usr/bin/lcpserver
+
+COPY --from=box /lcp/build/bin/lsdserver /usr/bin/lsdserver
+RUN ls -als /usr/bin/lsdserver
+#RUN ldd /usr/bin/lsdserver
+
+COPY --from=box /lcp/build/bin/frontend /usr/bin/frontend
+RUN ls -als /usr/bin/frontend
+#RUN ldd /usr/bin/frontend
+
+COPY --from=box /lcp/build/frontend/manage/. /frontend/manage/.
+RUN ls -als /frontend/manage/
 
 ARG I18N=/messages
 ARG AUTH_FILE=/test/htpasswd 
@@ -71,7 +81,7 @@ COPY /docker/init.sh /init.sh
 
 COPY /docker/inittab /etc/inittab
 
-RUN apk --update add --no-cache gettext sed ca-certificates openssl && update-ca-certificates
+RUN apk --update add --no-cache libc6-compat gettext sed ca-certificates openssl && update-ca-certificates
 
 ENV LCP_PORT=8081
 ENV LCP_HOST=127.0.0.1
@@ -120,6 +130,9 @@ ENV PORT=8080
 ENV BASE_URL=http://127.0.0.1:8080/frontend/
 
 COPY /docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+
+RUN ls -als /usr/bin/
+RUN ls -als /frontend/manage/
 
 CMD ["init"]
 

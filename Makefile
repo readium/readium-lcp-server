@@ -21,22 +21,24 @@ lsdserver=lsdserver
 frontend=frontend
 frontend_manage=frontend/manage
 
-NODE_VERSION=6.9.2
-
+# NODE_VERSION=18.12.1
 ifeq ($(UNAME_S), Linux)
-	NODE_URL="https://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION)-linux-x64.tar.xz"
+# NODE_URL="https://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION)-linux-arm64.tar.xz"
 	SED_I=sed -i
 else
-	NODE_URL="https://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION)-darwin-x64.tar.xz"
+# NODE_URL="https://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION)-darwin-arm64.tar.xz"
 	SED_I=sed -i ''
 endif
 
 #LDFLAGS=-extldflags=-static
 LDFLAGS=
 
-CC=GOARCH=amd64 go install -x #-ldflags="$(LDFLAGS)"
+#amd64
+CC=GOARCH=arm64 go install -x -ldflags '-linkmode external -w -extldflags "-static"'
+ #-ldflags="$(LDFLAGS)"
 
-.PHONY: all node run prepare clean
+#node
+.PHONY: all run prepare clean
 
 all: $(lcpencrypt) $(lcpserver) $(lsdserver) $(frontend) $(frontend_manage)
 
@@ -54,8 +56,8 @@ clean:
 	@rm -rf $(ROOT_DIR)/$(frontend_manage)/node_modules
 	@rm -rf $(ROOT_DIR)/$(frontend_manage)/dist
 
-node:
-	open $(NODE_URL)
+# node:
+# 	open $(NODE_URL)
 
 prepare:
 	mkdir -p $(BUILD_DIR)
@@ -96,7 +98,7 @@ $(frontend_manage): prepare
 		&& cp package.json package.json.backup \
 		&& $(SED_I) '/\"lite-server\"\:/d' package.json \
 		&& $(SED_I) 's/git\:/https\:/g' package.json \
-		&& npm install \
+		&& npm install --legacy-peer-deps \
 		&& npm update \
 		&& npm run clean \
 		&& npm run build-css \

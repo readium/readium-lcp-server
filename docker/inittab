@@ -2,6 +2,9 @@
 ::once:/bin/sh /init.sh /frontend/manage
 
 
+::once:/bin/sh -c 'ls -als /usr/bin'
+::once:/bin/sh -c 'ls -als /frontend/manage/'
+
 # LCP suit
 ::respawn:/usr/bin/lcpserver
 
