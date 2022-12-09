@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 
 	"github.com/readium/readium-lcp-server/config"
+	"github.com/readium/readium-lcp-server/dbutils"
 	"github.com/readium/readium-lcp-server/encrypt"
 	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
 )
@@ -129,7 +130,8 @@ func encryptPublication(inputPath string, pub Publication, pubManager Publicatio
 	// the publication uuid is the lcp db content id.
 	pub.UUID = notification.ContentID
 	pub.Status = StatusOk
-	_, err = pubManager.db.Exec("INSERT INTO publication (uuid, title, status) VALUES ( ?, ?, ?)",
+	_, err = pubManager.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database,
+		"INSERT INTO publication (uuid, title, status) VALUES ( ?, ?, ?)"),
 		pub.UUID, pub.Title, pub.Status)
 
 	return err
@@ -188,7 +190,8 @@ func (pubManager PublicationManager) Upload(file multipart.File, extension strin
 // Only the title is updated
 func (pubManager PublicationManager) Update(pub Publication) error {
 
-	_, err := pubManager.db.Exec("UPDATE publication SET title=?, status=? WHERE id = ?",
+	_, err := pubManager.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database,
+		"UPDATE publication SET title=?, status=? WHERE id = ?"),
 		pub.Title, pub.Status, pub.ID)
 	return err
 }
@@ -204,13 +207,13 @@ func (pubManager PublicationManager) Delete(id int64) error {
 	}
 
 	// delete all purchases relative to this publication
-	_, err = pubManager.db.Exec(`DELETE FROM purchase WHERE publication_id=?`, id)
+	_, err = pubManager.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database, `DELETE FROM purchase WHERE publication_id=?`), id)
 	if err != nil {
 		return err
 	}
 
 	// delete the publication
-	_, err = pubManager.db.Exec("DELETE FROM publication WHERE id = ?", id)
+	_, err = pubManager.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database, "DELETE FROM publication WHERE id = ?"), id)
 	return err
 }
 
@@ -259,25 +262,25 @@ func Init(db *sql.DB) (i WebPublication, err error) {
 	}
 
 	var dbGetByID *sql.Stmt
-	dbGetByID, err = db.Prepare("SELECT id, uuid, title, status FROM publication WHERE id = ?")
+	dbGetByID, err = db.Prepare(dbutils.GetParamQuery(config.Config.FrontendServer.Database, "SELECT id, uuid, title, status FROM publication WHERE id = ?"))
 	if err != nil {
 		return
 	}
 
 	var dbGetByUUID *sql.Stmt
-	dbGetByUUID, err = db.Prepare("SELECT id, uuid, title, status FROM publication WHERE uuid = ?")
+	dbGetByUUID, err = db.Prepare(dbutils.GetParamQuery(config.Config.FrontendServer.Database, "SELECT id, uuid, title, status FROM publication WHERE uuid = ?"))
 	if err != nil {
 		return
 	}
 
 	var dbCheckByTitle *sql.Stmt
-	dbCheckByTitle, err = db.Prepare("SELECT COUNT(1) FROM publication WHERE title = ?")
+	dbCheckByTitle, err = db.Prepare(dbutils.GetParamQuery(config.Config.FrontendServer.Database, "SELECT COUNT(1) FROM publication WHERE title = ?"))
 	if err != nil {
 		return
 	}
 
 	var dbGetMasterFile *sql.Stmt
-	dbGetMasterFile, err = db.Prepare("SELECT title FROM publication WHERE id = ?")
+	dbGetMasterFile, err = db.Prepare(dbutils.GetParamQuery(config.Config.FrontendServer.Database, "SELECT title FROM publication WHERE id = ?"))
 	if err != nil {
 		return
 	}
@@ -286,7 +289,7 @@ func Init(db *sql.DB) (i WebPublication, err error) {
 	if driver == "mssql" {
 		dbList, err = db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY")
 	} else {
-		dbList, err = db.Prepare("SELECT id, uuid, title, status FROM publication ORDER BY id desc LIMIT ? OFFSET ?")
+		dbList, err = db.Prepare(dbutils.GetParamQuery(config.Config.FrontendServer.Database, "SELECT id, uuid, title, status FROM publication ORDER BY id desc LIMIT ? OFFSET ?"))
 
 	}
 	if err != nil {
