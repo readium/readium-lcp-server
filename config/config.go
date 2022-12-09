@@ -135,6 +135,10 @@ func GetDatabase(uri string) (string, string) {
 	}
 
 	parts := strings.Split(uri, "://")
+	if parts[0] == "postgres" {
+		return parts[0], uri
+	}
+
 	return parts[0], parts[1]
 }
 

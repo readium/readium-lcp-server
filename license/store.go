@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/readium/readium-lcp-server/config"
+	"github.com/readium/readium-lcp-server/dbutils"
 )
 
 var ErrNotFound = errors.New("License not found")
@@ -98,7 +99,7 @@ func (s *sqlStore) ListByContentID(contentID string, pageSize int, pageNum int) 
 // UpdateRights
 func (s *sqlStore) UpdateRights(l License) error {
 
-	result, err := s.db.Exec("UPDATE license SET rights_print=?, rights_copy=?, rights_start=?, rights_end=?, updated=? WHERE id=?",
+	result, err := s.db.Exec(dbutils.GetParamQuery(config.Config.LcpServer.Database, "UPDATE license SET rights_print=?, rights_copy=?, rights_start=?, rights_end=?, updated=? WHERE id=?"),
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End, time.Now().UTC().Truncate(time.Second), l.ID)
 
 	if err == nil {
@@ -112,9 +113,9 @@ func (s *sqlStore) UpdateRights(l License) error {
 // Add creates a new record in the license table
 func (s *sqlStore) Add(l License) error {
 
-	_, err := s.db.Exec(`INSERT INTO license (id, user_id, provider, issued, updated,
+	_, err := s.db.Exec(dbutils.GetParamQuery(config.Config.LcpServer.Database, `INSERT INTO license (id, user_id, provider, issued, updated,
 	rights_print, rights_copy, rights_start, rights_end, content_fk) 
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?,  ?, ?)`,
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?,  ?, ?)`),
 		l.ID, l.User.ID, l.Provider, l.Issued, nil,
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End,
 		l.ContentID)
@@ -124,9 +125,9 @@ func (s *sqlStore) Add(l License) error {
 // Update updates a record in the license table
 func (s *sqlStore) Update(l License) error {
 
-	_, err := s.db.Exec(`UPDATE license SET user_id=?,provider=?,updated=?,
+	_, err := s.db.Exec(dbutils.GetParamQuery(config.Config.LcpServer.Database, `UPDATE license SET user_id=?,provider=?,updated=?,
 				rights_print=?,	rights_copy=?,	rights_start=?,	rights_end=?, content_fk =?
-				WHERE id=?`,
+				WHERE id=?`),
 		l.User.ID, l.Provider,
 		time.Now().UTC().Truncate(time.Second),
 		l.Rights.Print, l.Rights.Copy, l.Rights.Start, l.Rights.End,
@@ -139,7 +140,7 @@ func (s *sqlStore) Update(l License) error {
 // UpdateLsdStatus
 func (s *sqlStore) UpdateLsdStatus(id string, status int32) error {
 
-	_, err := s.db.Exec(`UPDATE license SET lsd_status =? WHERE id=?`,
+	_, err := s.db.Exec(dbutils.GetParamQuery(config.Config.LcpServer.Database, `UPDATE license SET lsd_status =? WHERE id=?`),
 		status, id)
 
 	return err
@@ -174,11 +175,11 @@ func Open(db *sql.DB) (store Store, err error) {
 
 	var dbList *sql.Stmt
 	if driver == "mssql" {
-		dbList, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, rights_start, rights_end, content_fk
-	FROM license ORDER BY issued desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
+		dbList, err = db.Prepare(dbutils.GetParamQuery(config.Config.LcpServer.Database, `SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, rights_start, rights_end, content_fk
+	FROM license ORDER BY issued desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`))
 	} else {
-		dbList, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, rights_start, rights_end, content_fk
-	FROM license ORDER BY issued desc LIMIT ? OFFSET ?`)
+		dbList, err = db.Prepare(dbutils.GetParamQuery(config.Config.LcpServer.Database, `SELECT id, user_id, provider, issued, updated, rights_print, rights_copy, rights_start, rights_end, content_fk
+	FROM license ORDER BY issued desc LIMIT ? OFFSET ?`))
 	}
 	if err != nil {
 		log.Println("Error preparing dbList")
@@ -187,13 +188,13 @@ func Open(db *sql.DB) (store Store, err error) {
 
 	var dbListByContentID *sql.Stmt
 	if driver == "mssql" {
-		dbListByContentID, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, 
+		dbListByContentID, err = db.Prepare(dbutils.GetParamQuery(config.Config.LcpServer.Database, `SELECT id, user_id, provider, issued, updated, 
 		rights_print, rights_copy, rights_start, rights_end, content_fk
-		FROM license WHERE content_fk = ? ORDER BY issued desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
+		FROM license WHERE content_fk = ? ORDER BY issued desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`))
 	} else {
-		dbListByContentID, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, 
+		dbListByContentID, err = db.Prepare(dbutils.GetParamQuery(config.Config.LcpServer.Database, `SELECT id, user_id, provider, issued, updated, 
 		rights_print, rights_copy, rights_start, rights_end, content_fk
-		FROM license WHERE content_fk = ?  ORDER BY issued desc LIMIT ? OFFSET ?`)
+		FROM license WHERE content_fk = ?  ORDER BY issued desc LIMIT ? OFFSET ?`))
 
 	}
 	if err != nil {
@@ -202,9 +203,9 @@ func Open(db *sql.DB) (store Store, err error) {
 	}
 
 	var dbGetByID *sql.Stmt
-	dbGetByID, err = db.Prepare(`SELECT id, user_id, provider, issued, updated, rights_print, rights_copy,
+	dbGetByID, err = db.Prepare(dbutils.GetParamQuery(config.Config.LcpServer.Database, `SELECT id, user_id, provider, issued, updated, rights_print, rights_copy,
 	rights_start, rights_end, content_fk 
-	FROM license WHERE id = ?`)
+	FROM license WHERE id = ?`))
 	if err != nil {
 		log.Println("Error preparing dbGetByID")
 		return
