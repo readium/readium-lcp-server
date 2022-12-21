@@ -42,6 +42,7 @@ type ServerInfo struct {
 	PublicBaseUrl string `yaml:"public_base_url,omitempty"`
 	Database      string `yaml:"database,omitempty"`
 	Directory     string `yaml:"directory,omitempty"`
+	CertDate      string `yaml:"cert_date,omitempty"`
 }
 
 type LsdServerInfo struct {
