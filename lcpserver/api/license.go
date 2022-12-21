@@ -306,6 +306,21 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+	// fix an issue with clients which test that the date of last update of the license
+	// is after the date of creation of the X509 certificate.
+	// Because of this, when a cert is replaced, fresh licenses are not accepted by such clients
+	// when they have been created / updated before the cert update.
+	if config.Config.LcpServer.CertDate != "" {
+		certDate, err := time.Parse(time.RFC3339, config.Config.LcpServer.CertDate)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			return
+		}
+		if licOut.Issued.Before(certDate) && (licOut.Updated == nil || licOut.Updated.Before(certDate)) {
+			licOut.Updated = &certDate
+		}
+	}
+
 	// set the http headers
 	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 	w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
