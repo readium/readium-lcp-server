@@ -61,7 +61,7 @@ func (i dbLicenseStatuses) GetByID(id int) (*LicenseStatus, error) {
 		// is after the date of creation of the X509 certificate.
 		// Associated with a fix to the license server.
 		if config.Config.LcpServer.CertDate != "" {
-			certDate, err := time.Parse(time.RFC3339, config.Config.LcpServer.CertDate)
+			certDate, err := time.Parse("2006-01-02", config.Config.LcpServer.CertDate)
 			if err == nil {
 				if ls.Updated.License == nil || ls.Updated.License.Before(certDate) {
 					ls.Updated.License = &certDate
@@ -160,7 +160,7 @@ func (i dbLicenseStatuses) GetByLicenseID(licenseID string) (*LicenseStatus, err
 		// is after the date of creation of the X509 certificate.
 		// Associated with a fix to the license server.
 		if config.Config.LcpServer.CertDate != "" {
-			certDate, err := time.Parse(time.RFC3339, config.Config.LcpServer.CertDate)
+			certDate, err := time.Parse("2006-01-02", config.Config.LcpServer.CertDate)
 			if err == nil {
 				if ls.Updated.License == nil || ls.Updated.License.Before(certDate) {
 					ls.Updated.License = &certDate

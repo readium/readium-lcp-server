@@ -311,7 +311,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	// Because of this, when a cert is replaced, fresh licenses are not accepted by such clients
 	// when they have been created / updated before the cert update.
 	if config.Config.LcpServer.CertDate != "" {
-		certDate, err := time.Parse(time.RFC3339, config.Config.LcpServer.CertDate)
+		certDate, err := time.Parse("2006-01-02", config.Config.LcpServer.CertDate)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 			return
