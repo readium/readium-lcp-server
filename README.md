@@ -211,8 +211,9 @@ Here are the details about the configuration properties of each server. In the s
 - `host`: the public server hostname, `hostname` by default.
 - `port`: the listening port, `8989` by default.
 - `public_base_url`: the URL used by the Status Server and the Frontend Test Server to communicate with this License server; combination of the host and port values on http by default.
+- `auth_file`: mandatory; the path to the password file introduced in a preceding section. 
+- `cert_date`: new in v1.8, a date formatted as "yyyy-mm-dd", which corresponds to the date on which a new X509 certificate has been installed on the server. This is a patch related to a temporary flaw found in several LCP compliant reading applications.
 - `database`: the URI formatted connection string to the database, see models below.
-- `auth_file`: mandatory; the path to the password file introduced above. 
 
 Here are models for the database property (variables in curly brackets):
 - sqlite: `sqlite3://file:{path-to-dot-sqlite-file}?cache=shared&mode=rwc`
@@ -308,8 +309,8 @@ lsd_notify_auth:
 - `host`: the public server hostname, `hostname` by default.
 - `port`: the listening port, `8990` by default.
 - `public_base_url`: the URL used by the License Server to communicate with this Status Server; combination of the host and port values on http by default.
+- `auth_file`: mandatory; the path to the password file introduced in a preceding section.. 
 - `database`: the URI formatted connection string to the database, see above for the format.
-- `auth_file`: mandatory; the path to the password file introduced above. 
 
 - `license_link_url`: URL template, mandatory; this is the url from which a fresh license can be fetched from the provider's frontend server. This url template supports a `{license_id}` parameter. The final url will be inserted in the 'license' link of every status document. It must be the url of a server acting as a proxy between the user request and the License Server. Such proxy is mandatory, as the License Server  does not possess user information needed to craft a license from its identifier. If the test frontend server is used as a proxy (for tests only), the url template must be of the form "http://<frontend-server-url>/api/v1/licenses/{license_id}" (note the /api/v1 section).
 
