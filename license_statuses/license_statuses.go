@@ -55,9 +55,18 @@ func (i dbLicenseStatuses) GetByID(id int) (*LicenseStatus, error) {
 			ls.PotentialRights.End = potentialRightsEnd
 		}
 
-		if licenseUpdate != nil || statusUpdate != nil {
-			ls.Updated.Status = statusUpdate
-			ls.Updated.License = licenseUpdate
+		ls.Updated.Status = statusUpdate
+		ls.Updated.License = licenseUpdate
+		// fix an issue with clients which test that the date of last update of the license
+		// is after the date of creation of the X509 certificate.
+		// Associated with a fix to the license server.
+		if config.Config.LcpServer.CertDate != "" {
+			certDate, err := time.Parse("2006-01-02", config.Config.LcpServer.CertDate)
+			if err == nil {
+				if ls.Updated.License == nil || ls.Updated.License.Before(certDate) {
+					ls.Updated.License = &certDate
+				}
+			}
 		}
 	} else {
 		if err == sql.ErrNoRows {
@@ -145,9 +154,18 @@ func (i dbLicenseStatuses) GetByLicenseID(licenseID string) (*LicenseStatus, err
 			ls.PotentialRights.End = potentialRightsEnd
 		}
 
-		if licenseUpdate != nil || statusUpdate != nil {
-			ls.Updated.Status = statusUpdate
-			ls.Updated.License = licenseUpdate
+		ls.Updated.Status = statusUpdate
+		ls.Updated.License = licenseUpdate
+		// fix an issue with clients which test that the date of last update of the license
+		// is after the date of creation of the X509 certificate.
+		// Associated with a fix to the license server.
+		if config.Config.LcpServer.CertDate != "" {
+			certDate, err := time.Parse("2006-01-02", config.Config.LcpServer.CertDate)
+			if err == nil {
+				if ls.Updated.License == nil || ls.Updated.License.Before(certDate) {
+					ls.Updated.License = &certDate
+				}
+			}
 		}
 	} else {
 		if err == sql.ErrNoRows {
