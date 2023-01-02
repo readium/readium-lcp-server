@@ -7,12 +7,11 @@ package license
 
 import (
 	"log"
-	"regexp"
 )
 
 // GenerateUserKey function prepares the user key
 func GenerateUserKey(key UserKey, profile string) []byte {
-	if match, _ := regexp.MatchString("^http://readium.org/lcp/profile-2.[0-9]$", profile); !match && profile != "http://readium.org/lcp/basic-profile" && profile != "http://readium.org/lcp/profile-1.0" {
+	if profile != "http://readium.org/lcp/basic-profile" {
 		log.Printf("Incompatible LCP profile, got %s", profile)
 		return nil
 	}
