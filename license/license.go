@@ -13,8 +13,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -102,41 +104,40 @@ type LicenseReport struct {
 	ContentID string      `json:"-"`
 }
 
-// EncryptionProfile is an enum of possible encryption profiles
-type EncryptionProfile int
-
-// Declare typed constants for Encryption Profile
-const (
-	BasicProfile EncryptionProfile = iota
-	V1Profile
-)
-
-func (profile EncryptionProfile) String() string {
-
-	var profileURL string
-	switch profile {
-	case BasicProfile:
-		profileURL = "http://readium.org/lcp/basic-profile"
-	case V1Profile:
-		profileURL = "http://readium.org/lcp/profile-1.0"
-	default:
-		profileURL = "unknown-profile"
-	}
-
-	return profileURL
+var profileMap = map[string]string{
+	"basic": "http://readium.org/lcp/basic-profile",
+	"1.0":   "http://readium.org/lcp/profile-1.0",
+	"2.0":   "http://readium.org/lcp/profile-2.0",
+	"2.1":   "http://readium.org/lcp/profile-2.1",
+	"2.2":   "http://readium.org/lcp/profile-2.2",
+	"2.3":   "http://readium.org/lcp/profile-2.3",
+	"2.4":   "http://readium.org/lcp/profile-2.4",
+	"2.5":   "http://readium.org/lcp/profile-2.5",
+	"2.6":   "http://readium.org/lcp/profile-2.6",
+	"2.7":   "http://readium.org/lcp/profile-2.7",
+	"2.8":   "http://readium.org/lcp/profile-2.8",
+	"2.9":   "http://readium.org/lcp/profile-2.9",
 }
 
 // SetLicenseProfile sets the license profile from config
 func SetLicenseProfile(l *License) {
 
-	// possible profiles are basic and 1.0
-	var ep EncryptionProfile
-	if config.Config.Profile == "1.0" {
-		ep = V1Profile
+	var profile = config.Config.Profile
+	if profile == "2.x" {
+		// profile rotation
+		if n, err := rand.Int(rand.Reader, big.NewInt(10)); err == nil {
+			l.Encryption.Profile = "http://readium.org/lcp/profile-2." + strconv.Itoa(int(n.Int64()))
+		} else {
+			fmt.Println(err)
+			l.Encryption.Profile = "http://readium.org/lcp/profile-2.0"
+		}
 	} else {
-		ep = BasicProfile
+		if name, ok := profileMap[profile]; ok {
+			l.Encryption.Profile = name
+		} else {
+			l.Encryption.Profile = "http://readium.org/lcp/basic-profile"
+		}
 	}
-	l.Encryption.Profile = ep.String()
 }
 
 // newUUID generates a random UUID according to RFC 4122
