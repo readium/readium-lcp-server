@@ -33,3 +33,4 @@ manage/config.js
 build/
 .*.swp
 docker/private/
+_/
