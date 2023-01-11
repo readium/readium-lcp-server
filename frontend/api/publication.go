@@ -206,8 +206,9 @@ func UploadPublication(w http.ResponseWriter, r *http.Request, s IServer) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+	w.Header().Add("Content-Type", "application/json")
 
-	res := fmt.Sprintf("{uuid:\"%s\"}", pub.UUID)
+	res := fmt.Sprintf("{\"id\":\"%s\"}", pub.UUID)
 	w.Write([]byte(res))
 }
 
