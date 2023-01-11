@@ -54,7 +54,7 @@ then
     --build-arg BUILD_PROD=true \
     --build-arg PRIVATE_KEY_PATH="./_/privkey-edrlab.pem" \
     --build-arg CERTIFICATE_PATH="./_/cert-edrlab.pem" \
-    --build-arg PROFILE=2.0 \
+    --build-arg PROFILE="2.x" \
     -t lcpmasterserver:latest $PLATFORM $1
 
 else
