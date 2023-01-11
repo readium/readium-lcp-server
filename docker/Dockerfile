@@ -14,54 +14,22 @@ COPY $USERKEYGO_PATH $USERKEYGO_PATH
 
 # RUN apk add build-base
 
-RUN arch && echo _cache_invalidate_2
-RUN uname && echo _cache_invalidate_2
+RUN arch && uname && apt-get -y update && apt-get -y upgrade && echo $CONTAINER_TIMEZONE && ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata && apt-get install -y make curl git python build-essential golang bsdmainutils && curl -fsSL https://deb.nodesource.com/setup_18.x | bash && apt-get install -y nodejs
 
-RUN apt-get -y update
-RUN apt-get -y upgrade
+RUN make BUILD_PROD=${BUILD_PROD} LIBUSERKEY_PATH=${LIBUSERKEY_PATH} USERKEYH_PATH=${USERKEYH_PATH} USERKEYGO_PATH=${USERKEYGO_PATH} lcpserver && ls -als -R /lcp/build/bin
 
-RUN echo $CONTAINER_TIMEZONE
-RUN ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+RUN make lsdserver && ls -als -R /lcp/build/bin
 
-RUN apt-get install -y make curl git python build-essential golang bsdmainutils
+RUN make frontend && ls -als -R /lcp/build/bin
 
-RUN make BUILD_PROD=${BUILD_PROD} LIBUSERKEY_PATH=${LIBUSERKEY_PATH} USERKEYH_PATH=${USERKEYH_PATH} USERKEYGO_PATH=${USERKEYGO_PATH} lcpserver
-
-RUN ls -als -R /lcp/build/bin
-
-RUN make lsdserver
-
-RUN ls -als -R /lcp/build/bin
-
-RUN make frontend
-
-RUN ls -als -R /lcp/build/bin
-
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash
-RUN apt-get install -y nodejs
-
-RUN make "frontend/manage"
-
-RUN ls -als -R /lcp/build/bin
-RUN ls -als /lcp/build/frontend/manage
+RUN make "frontend/manage" && ls -als -R /lcp/build/bin && ls -als /lcp/build/frontend/manage
 
 FROM nginx:stable-alpine
 
 COPY --from=box /lcp/build/bin/lcpserver /usr/bin/lcpserver
-RUN ls -als /usr/bin/lcpserver
-#RUN ldd /usr/bin/lcpserver
-
 COPY --from=box /lcp/build/bin/lsdserver /usr/bin/lsdserver
-RUN ls -als /usr/bin/lsdserver
-#RUN ldd /usr/bin/lsdserver
-
 COPY --from=box /lcp/build/bin/frontend /usr/bin/frontend
-RUN ls -als /usr/bin/frontend
-#RUN ldd /usr/bin/frontend
-
 COPY --from=box /lcp/build/frontend/manage/. /frontend/manage/.
-RUN ls -als /frontend/manage/
 
 ARG I18N=/messages
 ARG AUTH_FILE=/test/htpasswd 
@@ -80,8 +48,6 @@ COPY $CONFIG_PATH /tmp/config.yaml
 COPY /docker/init.sh /init.sh
 
 COPY /docker/inittab /etc/inittab
-
-RUN apk --update add --no-cache libc6-compat gettext sed ca-certificates openssl && update-ca-certificates
 
 ENV LCP_PORT=8081
 ENV LCP_HOST=127.0.0.1
@@ -131,8 +97,10 @@ ENV BASE_URL=http://127.0.0.1:8080/frontend/
 
 COPY /docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 
-RUN ls -als /usr/bin/
-RUN ls -als /frontend/manage/
+RUN apk --update add --no-cache libc6-compat gettext sed ca-certificates openssl && update-ca-certificates && ls -als /usr/bin/lcpserver && ls -als /usr/bin/lsdserver && ls -als /usr/bin/frontend && ls -als /frontend/manage/ && ls -als /usr/bin/
+#RUN ldd /usr/bin/lcpserver
+#RUN ldd /usr/bin/lsdserver
+#RUN ldd /usr/bin/frontend
 
 CMD ["init"]
 
