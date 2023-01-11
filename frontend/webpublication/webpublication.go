@@ -38,7 +38,7 @@ type WebPublication interface {
 	Update(publication Publication) error
 	Delete(id int64) error
 	List(page int, pageNum int) func() (Publication, error)
-	Upload(multipart.File, string, Publication) error
+	Upload(multipart.File, string, *Publication) error
 	CheckByTitle(title string) (int64, error)
 }
 
@@ -102,7 +102,7 @@ func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
 
 // encryptPublication encrypts a publication, notifies the License Server
 // and inserts a record in the database.
-func encryptPublication(inputPath string, pub Publication, pubManager PublicationManager) error {
+func encryptPublication(inputPath string, pub *Publication, pubManager PublicationManager) error {
 
 	var notification *apilcp.LcpPublication
 
@@ -149,7 +149,7 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 	}
 
 	// encrypt the publication and send a notification to the License server
-	err := encryptPublication(inputPath, pub, pubManager)
+	err := encryptPublication(inputPath, &pub, pubManager)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (pubManager PublicationManager) Add(pub Publication) error {
 
 // Upload creates a new publication, named after a POST form parameter.
 // Encrypts a master File and notifies the License server
-func (pubManager PublicationManager) Upload(file multipart.File, extension string, pub Publication) error {
+func (pubManager PublicationManager) Upload(file multipart.File, extension string, pub *Publication) error {
 
 	// create a temp file in the default directory
 	tmpfile, err := ioutil.TempFile("", "uploaded-*"+extension)
