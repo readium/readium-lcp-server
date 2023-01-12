@@ -18,7 +18,5 @@ docker run \
   --name $NAME \
   --publish $PORT:$PORT \
   --env PORT=$PORT \
-  # --env FRONTEND_BASE_URL="http://127.0.0.1:9090/frontend" \
-  # --env BASE_URL="http://127.0.0.1:9090/frontend/" \
   --volume $VOLUME_NAME:/lcp \
   $CONTAINER_NAME
