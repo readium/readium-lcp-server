@@ -14,7 +14,7 @@ COPY $USERKEYGO_PATH $USERKEYGO_PATH
 
 # RUN apk add build-base
 
-RUN arch && uname && apt-get -y update && apt-get -y upgrade && echo $CONTAINER_TIMEZONE && ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata && apt-get install -y make curl git python build-essential golang bsdmainutils && curl -fsSL https://deb.nodesource.com/setup_18.x | bash && apt-get install -y nodejs
+RUN echo $CONTAINER_TIMEZONE && arch && uname && apt-get -y update && apt-get -y upgrade && ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata && apt-get install -y make curl git python build-essential golang bsdmainutils && curl -fsSL https://deb.nodesource.com/setup_18.x | bash && apt-get install -y nodejs
 
 RUN make BUILD_PROD=${BUILD_PROD} LIBUSERKEY_PATH=${LIBUSERKEY_PATH} USERKEYH_PATH=${USERKEYH_PATH} USERKEYGO_PATH=${USERKEYGO_PATH} lcpserver && ls -als -R /lcp/build/bin
 

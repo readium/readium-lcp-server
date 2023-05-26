@@ -25,16 +25,29 @@ frontend_manage=frontend/manage
 ifeq ($(UNAME_S), Linux)
 # NODE_URL="https://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION)-linux-arm64.tar.xz"
 	SED_I=sed -i
+	GOSTATIC=-x -ldflags '-linkmode external -w -extldflags -static'
 else
 # NODE_URL="https://nodejs.org/dist/v$(NODE_VERSION)/node-v$(NODE_VERSION)-darwin-arm64.tar.xz"
 	SED_I=sed -i ''
+	GOSTATIC=
 endif
 
 #LDFLAGS=-extldflags=-static
 LDFLAGS=
 
-#amd64
-CC=GOARCH=arm64 go install -x -ldflags '-linkmode external -w -extldflags "-static"'
+MYARCH:=$(shell arch)
+ifeq ($(MYARCH), arm64)
+	GOARCH=arm64
+else
+ifeq ($(MYARCH), aarch64)
+	GOARCH=arm64
+else
+#i386
+	GOARCH=amd64
+endif
+endif
+
+CC=GOPATH=$(GOPATH) GOARCH=$(GOARCH) go install $(GOSTATIC)
  #-ldflags="$(LDFLAGS)"
 
 #node
@@ -60,11 +73,16 @@ clean:
 # 	open $(NODE_URL)
 
 prepare:
+	echo "UNAME $(UNAME_S)"
+	echo "ARCH $(MYARCH)"
+	echo "GOARCH $(GOARCH)"
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(BUILD_DIR)/cert
 	mkdir -p $(BUILD_DIR)/db
-	mkdir -p $(BUILD_DIR)/files
+#	mkdir -p $(BUILD_DIR)/files
 	mkdir -p $(BUILD_DIR)/files/storage
+	mkdir -p $(BUILD_DIR)/files/encrypted
+	mkdir -p $(BUILD_DIR)/files/master
 	cp $(ROOT_DIR)/test/cert/cert-edrlab-test.pem $(BUILD_DIR)/cert/.
 	cp $(ROOT_DIR)/test/cert/privkey-edrlab-test.pem $(BUILD_DIR)/cert/.
 	mkdir -p $(BUILD_DIR)/log
@@ -82,16 +100,16 @@ prepare:
 	fi
 
 $(lcpencrypt): prepare
-	GOPATH=$(GOPATH) $(CC) ./$@
+	$(CC) ./$@
 
 $(lcpserver): prepare
-	GOPATH=$(GOPATH) CGO_ENABLED=1 $(CC) ./$@
+	CGO_ENABLED=1 $(CC) ./$@
 
 $(lsdserver): prepare
-	GOPATH=$(GOPATH) $(CC) ./$@
+	$(CC) ./$@
 
 $(frontend): prepare
-	GOPATH=$(GOPATH) $(CC) ./$@
+	$(CC) ./$@
 
 $(frontend_manage): prepare
 		cd ./$@ \
@@ -107,7 +125,6 @@ $(frontend_manage): prepare
 		&& node_modules/.bin/tsc \
 		&& mv package.json.backup package.json \
 		&& cp -r . $(BUILD_DIR)/frontend/manage/.
-		
 
 run:
 	rm -f $(BUILD_DIR)/run.sh
