@@ -1,4 +1,4 @@
-
+profile: "${PROFILE}"
 lcp:
   host: "${LSD_HOST}"
   port: ${LSD_PORT}

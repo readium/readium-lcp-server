@@ -306,7 +306,7 @@ of the generation of a new license. The notification endpoint is configured in t
 Here is a License Server sample config:
 
 ```yaml
-profile: "basic"
+profile: "basic" # can be 1.0 or 2.x
 lcp:
     host: "192.168.0.1"
     port: 8989

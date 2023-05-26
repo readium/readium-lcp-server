@@ -87,7 +87,8 @@ prepare:
 	cp $(ROOT_DIR)/test/cert/privkey-edrlab-test.pem $(BUILD_DIR)/cert/.
 	mkdir -p $(BUILD_DIR)/log
 	mkdir -p $(BUILD_DIR)/frontend/manage
-	sed 's~<LCP_HOME>~$(BUILD_DIR)~g' < $(ROOT_DIR)/test/config.yaml > $(BUILD_DIR)/config.yaml
+	sed 's~<LCP_HOME>~$(BUILD_DIR)~g' < $(ROOT_DIR)/test/config.yaml > $(BUILD_DIR)/config_BASIC.yaml
+	sed 's~basic~2.x~g' < $(BUILD_DIR)/config_BASIC.yaml > $(BUILD_DIR)/config.yaml && rm $(BUILD_DIR)/config_BASIC.yaml
 	echo "adm_username:\$$apr1\$$bxwn8jim\$$kbfYFRgbBlKDWpAvd2tHW." > $(BUILD_DIR)/htpasswd
 	@if [ "$(BUILD_PROD)" = "true" ]; then\
 		echo "COPY $(LIBUSERKEY_PATH)"; 																			\
