@@ -114,7 +114,7 @@ func setRights(lic *license.License) {
 }
 
 // build a license, common to get and generate license, get and generate licensed publication
-func buildLicense(lic *license.License, s Server) error {
+func buildLicense(lic *license.License, s Server, updatefix bool) error {
 
 	// set the LCP profile
 	license.SetLicenseProfile(lic)
@@ -139,6 +139,21 @@ func buildLicense(lic *license.License, s Server) error {
 	if err != nil {
 		return err
 	}
+
+	// fix an issue with clients which test that the date of last update of the license
+	// is after the date of creation of the X509 certificate.
+	// Because of this, when a cert is replaced, fresh licenses are not accepted by such clients
+	// when they have been created / updated before the cert update.
+	if updatefix && config.Config.LcpServer.CertDate != "" {
+		certDate, err := time.Parse("2006-01-02", config.Config.LcpServer.CertDate)
+		if err != nil {
+			return err
+		}
+		if lic.Issued.Before(certDate) && (lic.Updated == nil || lic.Updated.Before(certDate)) {
+			lic.Updated = &certDate
+		}
+	}
+
 	// sign the license
 	err = license.SignLicense(lic, s.Certificate())
 	if err != nil {
@@ -300,25 +315,10 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	// copy useful data from licIn to LicOut
 	copyInputToLicense(&licIn, &licOut)
 	// build the license
-	err = buildLicense(&licOut, s)
+	err = buildLicense(&licOut, s, true)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
-	}
-
-	// fix an issue with clients which test that the date of last update of the license
-	// is after the date of creation of the X509 certificate.
-	// Because of this, when a cert is replaced, fresh licenses are not accepted by such clients
-	// when they have been created / updated before the cert update.
-	if config.Config.LcpServer.CertDate != "" {
-		certDate, err := time.Parse("2006-01-02", config.Config.LcpServer.CertDate)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-			return
-		}
-		if licOut.Issued.Before(certDate) && (licOut.Updated == nil || licOut.Updated.Before(certDate)) {
-			licOut.Updated = &certDate
-		}
 	}
 
 	// set the http headers
@@ -363,7 +363,7 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	setRights(&lic)
 
 	// build the license
-	err = buildLicense(&lic, s)
+	err = buildLicense(&lic, s, false)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -430,7 +430,7 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 	// copy useful data from licIn to LicOut
 	copyInputToLicense(&licIn, &licOut)
 	// build the license
-	err = buildLicense(&licOut, s)
+	err = buildLicense(&licOut, s, true)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -493,7 +493,7 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 	setRights(&lic)
 
 	// build the license
-	err = buildLicense(&lic, s)
+	err = buildLicense(&lic, s, false)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
