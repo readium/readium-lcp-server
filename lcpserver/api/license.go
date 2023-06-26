@@ -327,18 +327,53 @@ func GenerateLicense(contentID string, lic *license.License, s Server) error {
 	return nil
 }
 
-// DecodeJSONLicense decodes a license formatted in json and returns a license object
-func DecodeJSONLicense(r *http.Request, lic *license.License) error {
-
-	var dec *json.Decoder
-
-	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_FORM_URL_ENCODED {
-		buf := bytes.NewBufferString(r.PostFormValue("data"))
-		dec = json.NewDecoder(buf)
-	} else {
-		dec = json.NewDecoder(r.Body)
+func UpdateLicense(licenseID string, licIn *license.License, s Server) error {
+	// initialize the license from the info stored in the db.
+	var licOut license.License
+	licOut, err := s.Licenses().Get(licenseID)
+	if err != nil {
+		return err
 	}
 
+	// update licOut using information found in licIn
+	if licIn.User.ID != "" {
+		log.Println("new user id: ", licIn.User.ID)
+		licOut.User.ID = licIn.User.ID
+	}
+	if licIn.Provider != "" {
+		log.Println("new provider: ", licIn.Provider)
+		licOut.Provider = licIn.Provider
+	}
+	if licIn.ContentID != "" {
+		log.Println("new content id: ", licIn.ContentID)
+		licOut.ContentID = licIn.ContentID
+	}
+	if licIn.Rights.Print != nil {
+		log.Println("new right, print: ", *licIn.Rights.Print)
+		licOut.Rights.Print = licIn.Rights.Print
+	}
+	if licIn.Rights.Copy != nil {
+		log.Println("new right, copy: ", *licIn.Rights.Copy)
+		licOut.Rights.Copy = licIn.Rights.Copy
+	}
+	if licIn.Rights.Start != nil {
+		log.Println("new right, start: ", *licIn.Rights.Start)
+		licOut.Rights.Start = licIn.Rights.Start
+	}
+	if licIn.Rights.End != nil {
+		log.Println("new right, end: ", *licIn.Rights.End)
+		licOut.Rights.End = licIn.Rights.End
+	}
+	// update the license in the database
+	err = s.Licenses().Update(licOut)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// DecodeJSONLicense decodes a license formatted in json and returns a license object
+func DecodeJSONLicense(dec *json.Decoder, lic *license.License) error {
 	err := dec.Decode(&lic)
 
 	if err != nil && err.Error() != "EOF" {

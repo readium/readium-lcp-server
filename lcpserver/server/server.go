@@ -133,7 +133,7 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 	s.handlePrivateFunc(licenseRoutes, "/{license_id}/publication", apilcp.GetLicensedPublication, basicAuth).Methods("POST")
 	if !readonly {
 		// update a license
-		s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.UpdateLicense, basicAuth).Methods("PATCH")
+		s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.UpdateLicenseHandler, basicAuth).Methods("PATCH")
 	}
 
 	s.source.Feed(packager.Incoming)

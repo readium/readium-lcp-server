@@ -5,6 +5,7 @@
 package apilcp
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,7 +31,7 @@ func GetLicenseHandler(w http.ResponseWriter, r *http.Request, s Server) {
 	// It contains the hashed passphrase, user hint
 	// and other optional user data the provider wants to see embedded in the license
 	var licIn license.License
-	err := DecodeJSONLicense(r, &licIn)
+	err := DecodeJSONLicenseFromReq(r, &licIn)
 	// error parsing the input body
 	if err != nil {
 		// if there was no partial license given as payload, return a partial license.
@@ -72,6 +73,20 @@ func writeResponseLicense(w http.ResponseWriter, r *http.Request, licIn *license
 	}
 }
 
+func DecodeJSONLicenseFromReq(r *http.Request, lic *license.License) error {
+
+	var dec *json.Decoder
+
+	if ctype := r.Header["Content-Type"]; len(ctype) > 0 && ctype[0] == api.ContentType_FORM_URL_ENCODED {
+		buf := bytes.NewBufferString(r.PostFormValue("data"))
+		dec = json.NewDecoder(buf)
+	} else {
+		dec = json.NewDecoder(r.Body)
+	}
+
+	return DecodeJSONLicense(dec, lic)
+}
+
 func getExistingLicense(w http.ResponseWriter, r *http.Request, licIn *license.License, s Server) *license.License {
 	vars := mux.Vars(r)
 	// get the license id from the request URL
@@ -104,7 +119,7 @@ func GenerateLicenseHandler(w http.ResponseWriter, r *http.Request, s Server) {
 	// note: no need to create licIn / licOut here, as the input body contains
 	// info that we want to keep in the full license.
 	var lic license.License
-	err := DecodeJSONLicense(r, &lic)
+	err := DecodeJSONLicenseFromReq(r, &lic)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
@@ -142,29 +157,23 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// get the input body
 	var licIn license.License
-	err := DecodeJSONLicense(r, &licIn)
+	err := DecodeJSONLicenseFromReq(r, &licIn)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
 
 	licOut, err := GetLicense(licenseID, &licIn, s)
+	// handle bad input from user
 	if _, ok := err.(*ErrBadLicenseInput); ok {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-
-	// TODO: Licenses().get(licenseID) failures
 	// process license not found etc.
-	/*if e == license.ErrNotFound {
-		problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusNotFound)
+	if err == license.ErrNotFound {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		return
-	} else if e != nil {
-		problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusBadRequest)
-		return
-	}*/
-
-	if err != nil {
+	} else if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
@@ -192,7 +201,7 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 
 	// get the input body
 	var lic license.License
-	err := DecodeJSONLicense(r, &lic)
+	err := DecodeJSONLicenseFromReq(r, &lic)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
@@ -240,7 +249,7 @@ func writeLicensedPublication(lic *license.License, w http.ResponseWriter, s Ser
 	return nil
 }
 
-// UpdateLicense updates an existing license.
+// UpdateLicenseHandler updates an existing license.
 // parameters:
 //
 //	{license_id} in the calling URL
@@ -249,7 +258,7 @@ func writeLicensedPublication(lic *license.License, w http.ResponseWriter, s Ser
 // return: an http status code (200, 400 or 404)
 // Usually called from the License Status Server after a renew, return or cancel/revoke action
 // -> updates the end date.
-func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
+func UpdateLicenseHandler(w http.ResponseWriter, r *http.Request, s Server) {
 
 	vars := mux.Vars(r)
 	// get the license id from the request URL
@@ -258,57 +267,23 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	log.Println("Update License with id", licenseID)
 
 	var licIn license.License
-	err := DecodeJSONLicense(r, &licIn)
+	err := DecodeJSONLicenseFromReq(r, &licIn)
 	if err != nil { // no or incorrect (json) partial license found in the body
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-	// initialize the license from the info stored in the db.
-	var licOut license.License
-	licOut, e := s.Licenses().Get(licenseID)
+
+	err = UpdateLicense(licenseID, &licIn, s)
 	// process license not found etc.
-	if e == license.ErrNotFound {
-		problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusNotFound)
+	if err == license.ErrNotFound {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		return
-	} else if e != nil {
-		problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusBadRequest)
-		return
-	}
-	// update licOut using information found in licIn
-	if licIn.User.ID != "" {
-		log.Println("new user id: ", licIn.User.ID)
-		licOut.User.ID = licIn.User.ID
-	}
-	if licIn.Provider != "" {
-		log.Println("new provider: ", licIn.Provider)
-		licOut.Provider = licIn.Provider
-	}
-	if licIn.ContentID != "" {
-		log.Println("new content id: ", licIn.ContentID)
-		licOut.ContentID = licIn.ContentID
-	}
-	if licIn.Rights.Print != nil {
-		log.Println("new right, print: ", *licIn.Rights.Print)
-		licOut.Rights.Print = licIn.Rights.Print
-	}
-	if licIn.Rights.Copy != nil {
-		log.Println("new right, copy: ", *licIn.Rights.Copy)
-		licOut.Rights.Copy = licIn.Rights.Copy
-	}
-	if licIn.Rights.Start != nil {
-		log.Println("new right, start: ", *licIn.Rights.Start)
-		licOut.Rights.Start = licIn.Rights.Start
-	}
-	if licIn.Rights.End != nil {
-		log.Println("new right, end: ", *licIn.Rights.End)
-		licOut.Rights.End = licIn.Rights.End
-	}
-	// update the license in the database
-	err = s.Licenses().Update(licOut)
-	if err != nil {
+	} else if err != nil {
+		// TODO: I changed the error code here and a couple other places to ISE
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
+
 }
 
 // ListLicenses returns a JSON struct with information about the existing licenses

@@ -40,7 +40,7 @@ type Server interface {
 // It is triggered by a notification from the license server
 func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
 	var lic license.License
-	err := apilcp.DecodeJSONLicense(r, &lic)
+	err := apilcp.DecodeJSONLicenseFromReq(r, &lic)
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
@@ -131,7 +131,6 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 // RegisterDevice registers a device for a given license,
 // using the device id &  name as  parameters;
 // returns the updated license status
-//
 func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 
 	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
@@ -646,6 +645,7 @@ func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 
 // LendingCancellation cancels (before use) or revokes (after use)  a license.
 // parameters:
+//
 //	key: license id
 //	partial license status: the new status and a message indicating why the status is being changed
 //	The new status can be either STATUS_CANCELLED or STATUS_REVOKED
