@@ -18,7 +18,9 @@ func TestLicense(t *testing.T) {
 
 	SetLicenseProfile(&l)
 
-	if l.Encryption.Profile != "1.0" && l.Encryption.Profile != "basic" {
-		t.Errorf("Expected '1.0' or 'basic', got %s", l.Encryption.Profile)
+	basic := "http://readium.org/lcp/basic-profile"
+	one := "http://readium.org/lcp/profile-1.0"
+	if l.Encryption.Profile != one && l.Encryption.Profile != basic {
+		t.Errorf("Expected '%s' or '%s', got %s", basic, one, l.Encryption.Profile)
 	}
 }

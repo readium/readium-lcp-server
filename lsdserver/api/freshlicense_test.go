@@ -17,7 +17,7 @@ var LicenseID string = "812bbfe8-9a57-4b14-b8f3-4e0fc6e841c0"
 func TestGetUserData(t *testing.T) {
 
 	// enter here a valid URL
-	config.Config.LsdServer.UserDataUrl = "http://xx.xx.xx.xx:pppp/aaaaa/{license_id}/aaaa"
+	config.Config.LsdServer.UserDataUrl = "http://xx.xx.xx.xx:9999/aaaaa/{license_id}/aaaa"
 	// enter here valid credentials
 	config.Config.CMSAccessAuth.Username = "xxxxx"
 	config.Config.CMSAccessAuth.Password = "xxxxx"
@@ -63,7 +63,7 @@ func TestInitPartialLicense(t *testing.T) {
 func TestFetchLicense(t *testing.T) {
 
 	// enter here a valid URL
-	config.Config.LcpServer.PublicBaseUrl = "http://xx.xx.xx.xx:pppp"
+	config.Config.LcpServer.PublicBaseUrl = "http://xx.xx.xx.xx:9999"
 	// enter here valid credentials
 	config.Config.LcpUpdateAuth.Username = "xxxx"
 	config.Config.LcpUpdateAuth.Password = "xxxx"
