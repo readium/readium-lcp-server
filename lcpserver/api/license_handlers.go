@@ -110,25 +110,14 @@ func GenerateLicenseHandler(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	GenerateLicense(contentID, &lic, s)
-	// TODO: handles errors from checkGeneratedLIcenseInput
-	/*if err != nil {
+	err = GenerateLicense(contentID, &lic, s)
+	if _, ok := err.(*ErrBadLicenseInput); ok {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
-	}*/
-
-	// TODO: handle license build error
-	/*if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
-	}*/
-
-	// TODO: handle license store error
-	/*if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		//problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: contentID}, http.StatusInternalServerError)
-		return
-	}*/
+	}
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: contentID}, http.StatusInternalServerError)
+	}
 
 	// set http headers
 	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
@@ -151,7 +140,6 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 
 	log.Println("Get a Licensed publication for license id", licenseID)
 
-	// TODO: could be a  get input license helper
 	// get the input body
 	var licIn license.License
 	err := DecodeJSONLicense(r, &licIn)
@@ -161,11 +149,10 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	licOut, err := GetLicense(licenseID, &licIn, s)
-	// TODO: handle bad request error
-	/*if err != nil {
+	if _, ok := err.(*ErrBadLicenseInput); ok {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
-	}*/
+	}
 
 	// TODO: Licenses().get(licenseID) failures
 	// process license not found etc.
@@ -177,11 +164,10 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}*/
 
-	// TODO: build license failures
-	/*if err != nil {
+	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
-	}*/
+	}
 
 	// build a licensed publication
 	err = writeLicensedPublication(licOut, w, s)
@@ -214,23 +200,14 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 	}
 
 	err = GenerateLicense(contentID, &lic, s)
-	// TODO: handle badInput error
-	/*if err != nil {
+	if _, ok := err.(*ErrBadLicenseInput); ok {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
-	}*/
-
-	// TODO: handle buildLicense error
-	/*if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
-	}*/
-
-	// TODO: handle add error
-	/*if err != nil {
+	}
+	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: contentID}, http.StatusInternalServerError)
 		return
-	}*/
+	}
 
 	// notify the lsd server of the creation of the license
 	go notifyLsdServer(lic, s)
@@ -409,7 +386,7 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 	var err error
 	contentID := vars["content_id"]
 
-	//check if the license exists
+	// check if the license exists
 	_, err = s.Index().Get(contentID)
 	if err == index.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)

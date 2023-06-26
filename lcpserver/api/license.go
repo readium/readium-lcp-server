@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -22,15 +22,24 @@ import (
 	"github.com/readium/readium-lcp-server/license"
 )
 
-// TODO: could have another ErrBadInputLicense etc
-// ErrMandatoryInfoMissing sets an error message returned to the caller
-var ErrMandatoryInfoMissing = errors.New("mandatory info missing in the input body")
+// ErrBadInputLicense sets an error message returned to the caller and indicating the user-supplied
+// input license is invalid for the called function
+type ErrBadLicenseInput struct {
+	msg string
+}
 
-// ErrBadHexValue sets an error message returned to the caller
-var ErrBadHexValue = errors.New("erroneous user_key.hex_value can't be decoded")
+func (e ErrBadLicenseInput) Error() string {
+	return fmt.Sprintf("bad license input: %s", e.msg)
+}
 
-// ErrBadValue sets an error message returned to the caller
-var ErrBadValue = errors.New("erroneous user_key.value, can't be decoded")
+// MandatoryInfoMissingMsg sets an error message returned to the caller
+var MandatoryInfoMissingMsg = "mandatory info missing in the input body"
+
+// BadHexValueMsg sets an error message returned to the caller
+var BadHexValueMsg = "erroneous user_key.hex_value can't be decoded"
+
+// BadUserKeyValueMsg sets an error message returned to the caller
+var BadUserKeyValueMsg = "erroneous user_key.value, can't be decoded"
 
 // checkGetLicenseInput: if we generate or get a license, check mandatory information in the input body
 // and compute request parameters
@@ -39,7 +48,7 @@ func checkGetLicenseInput(l *license.License) error {
 	// the user hint is mandatory
 	if l.Encryption.UserKey.Hint == "" {
 		log.Println("User hint is missing")
-		return ErrMandatoryInfoMissing
+		return ErrBadLicenseInput{MandatoryInfoMissingMsg}
 	}
 	// Value or HexValue are mandatory
 	// HexValue (hex encoded passphrase hash) takes precedence over Value (kept for backward compatibility)
@@ -48,16 +57,16 @@ func checkGetLicenseInput(l *license.License) error {
 		// compute a byte array from a string
 		value, err := hex.DecodeString(l.Encryption.UserKey.HexValue)
 		if err != nil {
-			return ErrBadHexValue
+			return ErrBadLicenseInput{BadHexValueMsg}
 		}
 		l.Encryption.UserKey.Value = value
 	} else if l.Encryption.UserKey.Value == nil {
 		log.Println("User hashed passphrase is missing")
-		return ErrMandatoryInfoMissing
+		return ErrBadLicenseInput{MandatoryInfoMissingMsg}
 	}
 	// check the size of Value (32 bytes), to avoid weird errors in the crypto code
 	if len(l.Encryption.UserKey.Value) != 32 {
-		return ErrBadValue
+		return ErrBadLicenseInput{BadUserKeyValueMsg}
 	}
 
 	return nil
@@ -68,11 +77,14 @@ func checkGenerateLicenseInput(l *license.License) error {
 
 	if l.User.ID == "" {
 		log.Println("User identification is missing")
-		return ErrMandatoryInfoMissing
+		return ErrBadLicenseInput{MandatoryInfoMissingMsg}
 	}
 	// check user hint, passphrase hash and hash algorithm
 	err := checkGetLicenseInput(l)
-	return err
+	if err != nil {
+		return ErrBadLicenseInput{err.Error()}
+	}
+	return nil
 }
 
 // get license, copy useful data from licIn to LicOut
@@ -261,7 +273,7 @@ func GetLicense(licenseID string, licIn *license.License, s Server) (*license.Li
 	// check mandatory information in the partial license
 	err := checkGetLicenseInput(licIn)
 	if err != nil {
-		return nil, err
+		return nil, ErrBadLicenseInput{err.Error()}
 	}
 
 	// initialize the license from the info stored in the db.
@@ -285,8 +297,7 @@ func GenerateLicense(contentID string, lic *license.License, s Server) error {
 	// check mandatory information in the input body
 	err := checkGenerateLicenseInput(lic)
 	if err != nil {
-		// TODO: return new bad request error
-		return err
+		return ErrBadLicenseInput{err.Error()}
 	}
 	// init the license with an id and issue date
 	license.Initialize(contentID, lic)
