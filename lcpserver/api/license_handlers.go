@@ -7,6 +7,7 @@ package apilcp
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -25,7 +26,7 @@ import (
 // GetLicenseHandler returns an existing license,
 // selected by a license id and a partial license both given as input.
 // The input partial license is optional: if absent, a partial license
-// is returned to the caller, with the info stored in the db.
+// is returned to the caller, containing the info stored in the db.
 func GetLicenseHandler(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the input body.
 	// It contains the hashed passphrase, user hint
@@ -43,7 +44,7 @@ func GetLicenseHandler(w http.ResponseWriter, r *http.Request, s Server) {
 			w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
 			w.WriteHeader(http.StatusPartialContent)
 			// send back the partial license
-			writeResponseLicense(w, r, &licIn, s)
+			writeExistingLicense(w, r, &licIn, s)
 			return
 		}
 		// unknown error
@@ -56,15 +57,31 @@ func GetLicenseHandler(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
 	w.WriteHeader(http.StatusOK)
 
-	writeResponseLicense(w, r, &licIn, s)
+	writeExistingLicense(w, r, &licIn, s)
 }
 
-func writeResponseLicense(w http.ResponseWriter, r *http.Request, licIn *license.License, s Server) {
+func writeExistingLicense(w http.ResponseWriter, r *http.Request, licIn *license.License, s Server) {
 	// send back the license
 	// do not escape characters in the json payload
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
-	licOut := getExistingLicense(w, r, licIn, s)
+
+	vars := mux.Vars(r)
+	// get the license id from the request URL
+	licenseID := vars["license_id"]
+
+	log.Println("Get License with id", licenseID)
+	// initialize the license from the info stored in the db.
+	licOut, err := GetLicense(licenseID, licIn, s)
+	// process license not found etc.
+	if err == license.ErrNotFound {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+		return
+	} else if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+
 	if licOut != nil {
 		err := enc.Encode(licOut)
 		if err != nil {
@@ -85,25 +102,6 @@ func DecodeJSONLicenseFromReq(r *http.Request, lic *license.License) error {
 	}
 
 	return DecodeJSONLicense(dec, lic)
-}
-
-func getExistingLicense(w http.ResponseWriter, r *http.Request, licIn *license.License, s Server) *license.License {
-	vars := mux.Vars(r)
-	// get the license id from the request URL
-	licenseID := vars["license_id"]
-
-	log.Println("Get License with id", licenseID)
-	// initialize the license from the info stored in the db.
-	licOut, err := GetLicense(licenseID, licIn, s)
-	// process license not found etc.
-	if err == license.ErrNotFound {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
-		return nil
-	} else if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-		return nil
-	}
-	return licOut
 }
 
 // GenerateLicenseHandler generates and returns a new license,
@@ -145,10 +143,10 @@ func GenerateLicenseHandler(w http.ResponseWriter, r *http.Request, s Server) {
 	enc.Encode(lic)
 }
 
-// GetLicensedPublication returns a licensed publication
+// GetLicensedPublicationHandler returns a licensed publication
 // for a given license identified by its id
 // plus a partial license given as input
-func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
+func GetLicensedPublicationHandler(w http.ResponseWriter, r *http.Request, s Server) {
 
 	vars := mux.Vars(r)
 	licenseID := vars["license_id"]
@@ -286,41 +284,19 @@ func UpdateLicenseHandler(w http.ResponseWriter, r *http.Request, s Server) {
 
 }
 
-// ListLicenses returns a JSON struct with information about the existing licenses
+// ListLicensesHandler returns a JSON struct with information about the existing licenses
 // parameters:
 //
 //	page: page number
 //	per_page: number of items par page
-func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
+func ListLicensesHandler(w http.ResponseWriter, r *http.Request, s Server) {
 
-	var page int64
-	var perPage int64
-	var err error
-	if r.FormValue("page") != "" {
-		page, err = strconv.ParseInt((r).FormValue("page"), 10, 32)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-			return
-		}
-	} else {
-		page = 1
-	}
-	if r.FormValue("per_page") != "" {
-		perPage, err = strconv.ParseInt((r).FormValue("per_page"), 10, 32)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-			return
-		}
-	} else {
-		perPage = 30
-	}
-	if page > 0 { //pagenum starting at 0 in code, but user interface starting at 1
-		page--
-	}
-	if page < 0 {
-		problem.Error(w, r, problem.Problem{Detail: "page must be positive integer"}, http.StatusBadRequest)
+	page, perPage, err := getPaginationFormValues(r)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
+
 	licenses := make([]license.LicenseReport, 0)
 	//log.Println("ListAll(" + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
 	fn := s.Licenses().ListAll(int(perPage), int(page))
@@ -347,52 +323,31 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 }
 
-// ListLicensesForContent lists all licenses associated with a given content
+// ListLicensesForContentHandler lists all licenses associated with a given content
 // parameters:
 //
 //	content_id: content identifier
 //	page: page number (default 1)
 //	per_page: number of items par page (default 30)
-func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
+func ListLicensesForContentHandler(w http.ResponseWriter, r *http.Request, s Server) {
 
 	vars := mux.Vars(r)
-	var page int64
-	var perPage int64
-	var err error
 	contentID := vars["content_id"]
 
 	// check if the license exists
-	_, err = s.Index().Get(contentID)
+	_, err := s.Index().Get(contentID)
 	if err == index.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
 		return
 	} //other errors pass, but will probably reoccur
-	if r.FormValue("page") != "" {
-		page, err = strconv.ParseInt(r.FormValue("page"), 10, 32)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-			return
-		}
-	} else {
-		page = 1
-	}
 
-	if r.FormValue("per_page") != "" {
-		perPage, err = strconv.ParseInt((r).FormValue("per_page"), 10, 32)
-		if err != nil {
-			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
-			return
-		}
-	} else {
-		perPage = 30
-	}
-	if page > 0 {
-		page-- //pagenum starting at 0 in code, but user interface starting at 1
-	}
-	if page < 0 {
-		problem.Error(w, r, problem.Problem{Detail: "page must be positive integer"}, http.StatusBadRequest)
+	page, perPage, err := getPaginationFormValues(r)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
+
+	// TODO: duplicated?
 	licenses := make([]license.LicenseReport, 0)
 	//log.Println("List(" + contentId + "," + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
 	fn := s.Licenses().ListByContentID(contentID, int(perPage), int(page))
@@ -417,4 +372,34 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+}
+
+func getPaginationFormValues(r *http.Request) (int64, int64, error) {
+	var page int64
+	var perPage int64
+	if r.FormValue("page") != "" {
+		page, err := strconv.ParseInt((r).FormValue("page"), 10, 32)
+		if err != nil {
+			return page, perPage, err
+		}
+	} else {
+		page = 1
+	}
+
+	if r.FormValue("per_page") != "" {
+		perPage, err := strconv.ParseInt((r).FormValue("per_page"), 10, 32)
+		if err != nil {
+			return page, perPage, err
+		}
+	} else {
+		perPage = 30
+	}
+	if page > 0 {
+		page-- //pagenum starting at 0 in code, but user interface starting at 1
+	}
+	if page < 0 {
+		return page, perPage, errors.New("page must be positive integer")
+	}
+
+	return page, perPage, nil
 }

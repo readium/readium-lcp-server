@@ -308,14 +308,12 @@ func GenerateLicense(contentID string, lic *license.License, s Server) error {
 	// build the license
 	err = buildLicense(lic, s, false)
 	if err != nil {
-		// TODO: should return ISE
 		return err
 	}
 
 	// store the license in the db
 	err = s.Licenses().Add(*lic)
 	if err != nil {
-		// TODO: should return ISE
 		return err
 	}
 	log.Println("New License:", lic.ID, ". Content:", contentID, "User:", lic.User.ID)
