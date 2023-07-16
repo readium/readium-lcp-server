@@ -5,7 +5,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,7 +18,7 @@ import (
 // showHelpAndExit displays some help and exits.
 func showHelpAndExit() {
 
-	fmt.Println("lcpencrypt protects a publication using the LCP DRM")
+	fmt.Println("lcpencrypt encrypts a publication using the LCP DRM")
 	fmt.Println("-input        source epub/pdf/lpf file locator (file system or http GET)")
 	fmt.Println("[-contentid]  optional, content identifier; if omitted a uuid is generated")
 	fmt.Println("[-storage]    optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
@@ -31,6 +30,7 @@ func showHelpAndExit() {
 	fmt.Println("[-lcpsv]      optional, http endpoint, notification of the License server")
 	fmt.Println("[-login]      login (License server) ")
 	fmt.Println("[-password]   password (License server)")
+	fmt.Println("[-v2sv]       optional, indicates that the license server is in v2, values 0 (default) or 1")
 	fmt.Println("[-help] :     help information")
 	os.Exit(0)
 }
@@ -43,23 +43,25 @@ func exitWithError(context string, err error) {
 }
 
 func main() {
-	var inputPath = flag.String("input", "", "source epub/pdf/lpf file locator (file system or http GET)")
-	var contentid = flag.String("contentid", "", "optional, content identifier; if omitted, a uuid is generated")
-	var storageRepo = flag.String("storage", "", "optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
-	var storageURL = flag.String("url", "", "optional, base url associated with the storage, without filename")
-	var storageFilename = flag.String("filename", "", "optional, file name of the encrypted publication; if omitted, contentid is used")
-	var outputRepo = flag.String("output", "", "optional, target folder of encrypted publications")
-	var tempRepo = flag.String("temp", "", "optional, working folder for temporary files")
-	var contentkey = flag.String("contentkey", "", "optional, base64 encoded content key; if omitted a random content key is generated")
-	var lcpsv = flag.String("lcpsv", "", "optional, http endpoint, notification of the License server")
-	var username = flag.String("login", "", "login (License server)")
-	var password = flag.String("password", "", "password (License server)")
+	inputPath := flag.String("input", "", "source epub/pdf/lpf file locator (file system or http GET)")
+	contentid := flag.String("contentid", "", "optional, content identifier; if omitted, a uuid is generated")
+	storageRepo := flag.String("storage", "", "optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
+	storageURL := flag.String("url", "", "optional, base url associated with the storage, without filename")
+	storageFilename := flag.String("filename", "", "optional, file name of the encrypted publication; if omitted, contentid is used")
+	outputRepo := flag.String("output", "", "optional, target folder of encrypted publications")
+	tempRepo := flag.String("temp", "", "optional, working folder for temporary files")
+	contentkey := flag.String("contentkey", "", "optional, base64 encoded content key; if omitted a random content key is generated")
+	lcpsv := flag.String("lcpsv", "", "optional, http endpoint, notification of the License server")
+	username := flag.String("login", "", "login (License server)")
+	password := flag.String("password", "", "password (License server)")
+	v2sv := flag.Bool("v2sv", false, "optional, compatibility with the License Server v2")
 
-	var help = flag.Bool("help", false, "shows information")
+	help := flag.Bool("help", false, "shows information")
 
 	if !flag.Parsed() {
 		flag.Parse()
 	}
+
 	if *help || *inputPath == "" {
 		showHelpAndExit()
 	}
@@ -82,25 +84,18 @@ func main() {
 	// encrypt the publication
 	pub, err := encrypt.ProcessEncryption(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename)
 	if err != nil {
-		exitWithError("Process the encryption of a publication", err)
+		exitWithError("Error processing a publication", err)
 	}
 
 	elapsed := time.Since(start)
 	fmt.Println("Encryption took ", elapsed)
 
 	// notify the license server
-	err = encrypt.NotifyLcpServer(pub, *lcpsv, *username, *password)
+	err = encrypt.NotifyLcpServer(pub, *lcpsv, *username, *password, *v2sv)
 	if err != nil {
 		exitWithError("Notify the LCP Server", err)
 	}
 
-	// write a json message to stdout for debug purpose
-	jsonBody, err := json.MarshalIndent(pub, " ", "  ")
-	if err != nil {
-		exitWithError("Debug Message", errors.New("JSON error"))
-	}
-	fmt.Println("Encryption message:")
-	os.Stdout.Write(jsonBody)
 	fmt.Println("\nEncryption was successful.")
 	os.Exit(0)
 }

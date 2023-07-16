@@ -6,10 +6,8 @@ package encrypt
 
 import (
 	"archive/zip"
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -18,7 +16,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
@@ -105,12 +102,14 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 
 	// set the output path
 	outputPath := filepath.Join(outputRepo, storageFilename)
+	fmt.Println("Output path:", outputPath)
 
 	// define an AES encrypter
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
 
 	// select the encryption process from the input file extension
 	err = nil
+
 	inputExt := filepath.Ext(inputPath)
 
 	switch inputExt {
@@ -122,6 +121,8 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 		err = processLPF(&pub, inputPath, outputPath, encrypter, contentKey)
 	case ".audiobook", ".divina", ".webpub", ".rpf":
 		err = processRPF(&pub, inputPath, outputPath, encrypter, contentKey)
+	default:
+		return nil, errors.New("unprocessable extension " + inputExt)
 	}
 	if err != nil {
 		return nil, err
@@ -421,42 +422,5 @@ func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, outputPath 
 	if stats.Size() == 0 {
 		return errors.New("empty output file")
 	}
-	return nil
-}
-
-// NotifyLcpServer notifies the License Server of the encryption of newly added publication
-func NotifyLcpServer(pub *apilcp.LcpPublication, licenseServerURL string, username string, password string) error {
-
-	// No license server URL is not an error, simply a silent encryption
-	if licenseServerURL == "" {
-		fmt.Println("No notification sent to the License Server")
-		return nil
-	}
-	// prepare the call to service/content/<id>,
-	var urlBuffer bytes.Buffer
-	urlBuffer.WriteString(licenseServerURL)
-	urlBuffer.WriteString("/contents/")
-	urlBuffer.WriteString(pub.ContentID)
-
-	jsonBody, err := json.Marshal(*pub)
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest("PUT", urlBuffer.String(), bytes.NewReader(jsonBody))
-	if err != nil {
-		return err
-	}
-	req.SetBasicAuth(username, password)
-	client := &http.Client{
-		Timeout: 15 * time.Second,
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
-		return fmt.Errorf("lcp server error %d", resp.StatusCode)
-	}
-
 	return nil
 }
