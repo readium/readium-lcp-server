@@ -27,10 +27,10 @@ func showHelpAndExit() {
 	fmt.Println("[-output]     optional, target folder of encrypted publications")
 	fmt.Println("[-temp]       optional, working folder for temporary files")
 	fmt.Println("[-contentkey]  optional, base64 encoded content key; if omitted a random content key is generated")
-	fmt.Println("[-lcpsv]      optional, http endpoint, notification of the License server")
+	fmt.Println("[-lcpsv]      optional, URL, notification endpoint for the License server v1")
+	fmt.Println("[-notify]     optional, URL, notification endpoint for the PubStore or License server v2")
 	fmt.Println("[-login]      login (License server) ")
 	fmt.Println("[-password]   password (License server)")
-	fmt.Println("[-v2sv]       optional, indicates that the license server is in v2, values 0 (default) or 1")
 	fmt.Println("[-help] :     help information")
 	os.Exit(0)
 }
@@ -52,9 +52,9 @@ func main() {
 	tempRepo := flag.String("temp", "", "optional, working folder for temporary files")
 	contentkey := flag.String("contentkey", "", "optional, base64 encoded content key; if omitted a random content key is generated")
 	lcpsv := flag.String("lcpsv", "", "optional, http endpoint, notification of the License server")
+	notify := flag.String("notify", "", "optional, notification endpoint")
 	username := flag.String("login", "", "login (License server)")
 	password := flag.String("password", "", "password (License server)")
-	v2sv := flag.Bool("v2sv", false, "optional, compatibility with the License Server v2")
 
 	help := flag.Bool("help", false, "shows information")
 
@@ -88,14 +88,20 @@ func main() {
 	}
 
 	elapsed := time.Since(start)
-	fmt.Println("Encryption took ", elapsed)
 
-	// notify the license server
-	err = encrypt.NotifyLcpServer(pub, *lcpsv, *username, *password, *v2sv)
+	// notify the license server or PubStore
+	// lcpsv has priority
+	v2 := false
+	if *lcpsv != "" {
+		notify = lcpsv
+	} else if *notify != "" {
+		v2 = true
+	}
+	err = encrypt.NotifyLcpServer(pub, *notify, *username, *password, v2)
 	if err != nil {
-		exitWithError("Notify the LCP Server", err)
+		exitWithError("Notification error", err)
 	}
 
-	fmt.Println("\nEncryption was successful.")
+	fmt.Println("The encryption took", elapsed)
 	os.Exit(0)
 }

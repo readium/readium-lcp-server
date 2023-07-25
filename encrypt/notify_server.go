@@ -24,12 +24,12 @@ type PublicationV2 struct {
 	Checksum      string `json:"checksum"`
 }
 
-// NotifyLcpServer notifies the License Server of the encryption of newly added publication
-func NotifyLcpServer(pub *apilcp.LcpPublication, licenseServerURL string, username string, password string, v2sv bool) error {
+// NotifyLcpServer notifies the License Server or PubStore of the encryption of newly added publication
+func NotifyLcpServer(pub *apilcp.LcpPublication, notifyURL string, username string, password string, v2 bool) error {
 
-	// An empty license server URL is not an error, simply a silent encryption
-	if licenseServerURL == "" {
-		fmt.Println("No notification sent to the License Server")
+	// An empty notify URL is not an error, simply a silent encryption
+	if notifyURL == "" {
+		fmt.Println("No notification sent")
 		return nil
 	}
 
@@ -38,9 +38,9 @@ func NotifyLcpServer(pub *apilcp.LcpPublication, licenseServerURL string, userna
 	// prepare the call to the endpoint /contents/<id>
 	var jsonBody []byte
 	var err error
-	if !v2sv {
+	if !v2 {
 		var urlBuffer bytes.Buffer
-		urlBuffer.WriteString(licenseServerURL)
+		urlBuffer.WriteString(notifyURL)
 		urlBuffer.WriteString("/contents/")
 		urlBuffer.WriteString(pub.ContentID)
 
@@ -55,7 +55,7 @@ func NotifyLcpServer(pub *apilcp.LcpPublication, licenseServerURL string, userna
 
 		// prepare the call to the endpoint /publications/<id>
 	} else {
-		url := licenseServerURL + "/publications/"
+		url := notifyURL + "/publications/"
 
 		var publication PublicationV2
 		publication.UUID = pub.ContentID
@@ -93,8 +93,8 @@ func NotifyLcpServer(pub *apilcp.LcpPublication, licenseServerURL string, userna
 		return err
 	}
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
-		return fmt.Errorf("lcp server error %d", resp.StatusCode)
+		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}
-
+	fmt.Println("The server was notified")
 	return nil
 }
