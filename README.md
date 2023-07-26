@@ -99,6 +99,8 @@ If you are installing from the master branch:
 
 #### Without using Go modules
 ```sh
+# move to the GOPATH directory
+cd $GOPATH
 # disable go modules
 export GO111MODULE=off
 # fetch, build and install the different packages and their dependencies
