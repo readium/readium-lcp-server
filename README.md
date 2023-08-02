@@ -20,7 +20,17 @@ Prerequisites
 Binaries are only pre-built on demande and for a service fee, therefore in the general case you'll need to get a working Golang installation. 
 Please refer to the official GO documentation for installation procedures at https://golang.org/.
 
-This software is working with *go 1.13* or higher. It is currently maintained using *go 1.18* (July 2022). 
+This software is working with *go 1.13* or higher. It is currently maintained using *go 1.20* (July 2023). 
+
+You must put in place:
+
+1/ the License Server, active in your intranet, not accessible from the Web, only accessible from your CMS via a REST API. 
+
+2/ the Status Server, accessible from the Web via a REST API, using https (you'll need to install a reverse proxy).
+
+3/ a License Gateway, i.e. a piece of sofware you'll have to develop, which takes a request for an existing LCP license from a reading app, interrogates your database in order to get user information relative to this license, calls the License Server endpoint and returns this fresh LCP license back to the caller app (more information in the project Wiki).
+
+4/ a large storage volume for encrypted publications (file system or S3 bucket), accessible from the Web via HTTP URLs. Note that publications are encrypted once: every license generated for such publication is pointing at the same encrypted file. Because these publications are stronlgy encrypted and the decryption key is secured in your SQL database, public access to these files is not problematic.   
 
 The servers require the setup of an SQL Database. 
 
@@ -29,14 +39,6 @@ The servers require the setup of an SQL Database.
 - MS SQL Server database creation scripts are provided as well in the "dbmodel" folder. These scripts must be applied before launching the servers for the first time. 
 
 A PostgresQL integration has been provided by a user of the LCP Server as a branch of the codebase, but is not fully integrated in the up-to-date codebase. Contact EDRLab if you want to sponsor its full integration. 
-
-Your platform must be able to handle:
-
-1/ the License Server, active in your intranet, not accessible from the Web, only accessible from your CMS via a REST API. 
-
-2/ the Status Server, accessible from the Web via a REST API, using https (you'll need to install a reverse proxy).
-
-3/ a large storage volume for encrypted publications (file system or S3 bucket), accessible from the Web via HTTP URLs. Note that publications are encrypted once: every license generated for such publication is pointing at the same encrypted file. Because these publications are stronlgy encrypted and the decryption key is secured in your SQL database, public access to these files is not problematic.   
 
 Encryption Profiles
 ===================
@@ -85,48 +87,59 @@ Its private functionalities (authentication required) are:
 * List all registered devices for a given license
 * Revoke or cancel a license
 
+## [frontend]
+
+A Frontend Test Server is also provided in the project. This is a demo server we developed to provide a micro-CMS and a user interface for testing LCP licenses. It is active on https://front-prod.edrlab.org/frontend/. We do not consider it production ready, we don't update it (despite evolutions in node, npm, and many node modules used here) and it will disappear in the next major version of the codebase. The Frontend Test Server MUST NOT be used in production.
 
 Install
 =======
 
 Assuming a working Go installation ...
 
-The project supports Go modules (introduced in Go 1.13). Developers can therefore put the codebase in their chosen directory.   
+The project supports Go modules. Developers can therefore clone the codebase in the directory of their choice.   
 
 ### On Linux and MacOS:
 
 If you are installing from the master branch:
 
-#### Without using Go modules
-```sh
-# move to the GOPATH directory
-cd $GOPATH
-# disable go modules
-export GO111MODULE=off
-# fetch, build and install the different packages and their dependencies
-go install -v github.com/readium/readium-lcp-server/...
-```
-
-Warning: Go has a funny 3-dots syntax, and you really have to type "/..." at the end of the line. 
-
 #### Using Go modules
 ```sh
 # fetch, build and install the different packages and their dependencies
-go install github.com/readium/readium-lcp-server/...@latest
+go install github.com/readium/readium-lcp-server/lcpencrypt@latest
+go install github.com/readium/readium-lcp-server/lcpserver@latest
+go install github.com/readium/readium-lcp-server/lsdserver@latest
 ```
 
 "@latest" can be replaced by a specific version, e.g. "@V1.6.0" (warning: use a capital V).
 
+#### If you do no wish to use Go modules
+```sh
+# move to your GOPATH directory
+cd $GOPATH
+# disable go modules
+export GO111MODULE=off
+# download the different packages and their dependencies
+go get -d github.com/readium/readium-lcp-server/lcpencrypt
+go get -d github.com/readium/readium-lcp-server/lcpserver
+go get -d github.com/readium/readium-lcp-server/lsdserver
+# build and install the different packages and their dependencies
+go install github.com/readium/readium-lcp-server/lcpencrypt
+go install github.com/readium/readium-lcp-server/lcpserver
+go install github.com/readium/readium-lcp-server/lsdserver
+```
+
 #### From a feature branch (using go modules)
 Alternatively, if you want to use a feature branch:
 ```sh
-# from you projects root directory
-cd <projects>
+# from your project root directory
+cd <project>
 # clone the repo, selecting the feature branch you want to test
 git clone -b <feature-branch> https://github.com/readium/readium-lcp-server.git
 cd readium-lcp-server
 # then build from the current codebase and install the different packages and their dependencies
-go install ./...
+go install ./lcpencrypt@latest
+go install ./lcpserver@latest
+go install ./lsdserver@latest
 ```
 
 #### Check the binaries
@@ -135,14 +148,6 @@ You should now find the generated Go binaries in $GOPATH/bin:
 - `lcpencrypt`: the command line encryption tool,
 - `lcpserver`: the license server,
 - `lsdserver`: the status document server.
-
-#### Install selected binaries
-You may prefer installing some of the executables only. In such a case, the "go install" command should be called once for each package, e.g. for the lcpserver from the master branch:
-
-```sh
-cd $GOPATH
-go install github.com/readium/readium-lcp-server/lcpserver
-```
 
 ### On Windows 10
 
@@ -358,15 +363,6 @@ lcp_update_auth:
     password: "adm_password"
 ```
 
-### And for each server
-
-`localization` section: parameters related to the localization of the messages sent by all three servers.
-- `languages`: array of supported localization languages
-- `folder`: point to localization file (a .json)
-- `default_language`: default language for localization
-
-NOTE: the localization file names (ex: 'en-US.json, de-DE.json') must match the set of supported localization languages.
-
 Execution
 ==========
 Each server must be launched in a different context (i.e. a different terminal for local use). If the path to the generated Go binaries ($GOPATH/bin) is properly set, each server can launched from any location:
@@ -378,4 +374,6 @@ NOTE: even if you deploy the server locally, using 127.0.0.1 is not recommended 
 
 Contributing
 ============
+Contributions are welcome. 
+
 Please make a Pull Request with tests at github.com/readium/readium-lcp-server

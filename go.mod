@@ -14,8 +14,6 @@ require (
 	github.com/lib/pq v1.10.6
 	github.com/mattn/go-sqlite3 v1.14.14
 	github.com/microsoft/go-mssqldb v1.3.0
-	github.com/nicksnyder/go-i18n v1.10.1
-	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/rickb777/date v1.19.1
 	github.com/rs/cors v1.8.2
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b

@@ -24,7 +24,6 @@ import (
 
 	"github.com/readium/readium-lcp-server/config"
 	licensestatuses "github.com/readium/readium-lcp-server/license_statuses"
-	"github.com/readium/readium-lcp-server/localization"
 	"github.com/readium/readium-lcp-server/logging"
 	lsdserver "github.com/readium/readium-lcp-server/lsdserver/server"
 	"github.com/readium/readium-lcp-server/transactions"
@@ -41,11 +40,6 @@ func main() {
 
 	config.ReadConfig(config_file)
 	log.Println("Config from " + config_file)
-
-	err = localization.InitTranslations()
-	if err != nil {
-		panic(err)
-	}
 
 	readonly = config.Config.LsdServer.ReadOnly
 
