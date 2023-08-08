@@ -36,8 +36,6 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
-
-	"github.com/technoweenie/grohl"
 )
 
 const (
@@ -114,26 +112,8 @@ func PrintStack() {
 }
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
-	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path, "status": "404"})
 	var problem Problem
 	problem.Type = LICENSE_NOT_FOUND
 	problem.Title = "Failed to find the license ID"
 	Error(w, r, problem, http.StatusNotFound)
-}
-
-func PanicReport(err interface{}) {
-	switch t := err.(type) {
-	case error:
-		errorr, found := err.(error)
-		if found { // should always be true
-			grohl.Log(grohl.Data{"panic recovery (error)": errorr.Error()})
-		}
-	case string:
-		errorr, found := err.(string)
-		if found { // should always be true
-			grohl.Log(grohl.Data{"panic recovery (string)": errorr})
-		}
-	default:
-		grohl.Log(grohl.Data{"panic recovery (other type)": t})
-	}
 }

@@ -30,11 +30,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/abbot/go-http-auth"
+	auth "github.com/abbot/go-http-auth"
 	"github.com/gorilla/mux"
 	"github.com/jeffbmartinez/delay"
 	"github.com/rs/cors"
-	"github.com/technoweenie/grohl"
 	"github.com/urfave/negroni"
 
 	"github.com/readium/readium-lcp-server/problem"
@@ -80,7 +79,6 @@ func CreateServerRouter(tplPath string) ServerRouter {
 	//https://github.com/urfave/negroni#recovery
 	recovery := negroni.NewRecovery()
 	recovery.PrintStack = true
-	recovery.ErrorHandlerFunc = problem.PanicReport
 	n.Use(recovery)
 
 	//https://github.com/urfave/negroni#logger
@@ -125,7 +123,7 @@ func ExtraLogger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc)
 
 	fmt.Printf("%s => %s (%s)\n", r.RemoteAddr, r.URL.String(), r.RequestURI)
 
-	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path, "query": r.URL.RawQuery})
+	log.Println("method: ", r.Method, " path: ", r.URL.Path, " query: ", r.URL.RawQuery)
 
 	log.Printf("REQUEST headers: %#v", r.Header)
 
@@ -145,7 +143,6 @@ func ExtraLogger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc)
 
 func CORSHeaders(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 
-	grohl.Log(grohl.Data{"CORS": "yes"})
 	rw.Header().Add("Access-Control-Allow-Methods", "PATCH, HEAD, POST, GET, OPTIONS, PUT, DELETE")
 	rw.Header().Add("Access-Control-Allow-Credentials", "true")
 	rw.Header().Add("Access-Control-Allow-Origin", "*")
@@ -161,11 +158,9 @@ func CORSHeaders(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc)
 func CheckAuth(authenticator *auth.BasicAuth, w http.ResponseWriter, r *http.Request) bool {
 	var username string
 	if username = authenticator.CheckAuth(r); username == "" {
-		grohl.Log(grohl.Data{"error": "Unauthorized", "method": r.Method, "path": r.URL.Path})
 		w.Header().Set("WWW-Authenticate", `Basic realm="`+authenticator.Realm+`"`)
 		problem.Error(w, r, problem.Problem{Detail: "User or password do not match!"}, http.StatusUnauthorized)
 		return false
 	}
-	grohl.Log(grohl.Data{"user": username})
 	return true
 }
