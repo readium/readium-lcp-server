@@ -91,6 +91,8 @@ Its private functionalities (authentication required) are:
 
 A Frontend Test Server is also provided in the project. This is a demo server we developed to provide a micro-CMS and a user interface for testing LCP licenses. It is active on https://front-prod.edrlab.org/frontend/. We do not consider it production ready, we don't update it (despite evolutions in node, npm, and many node modules used here) and it will disappear in the next major version of the codebase. The Frontend Test Server MUST NOT be used in production.
 
+This is why the installation of the Frontend Test Server is not described in the following instructions.
+
 Install
 =======
 
@@ -102,7 +104,6 @@ The project supports Go modules. Developers can therefore clone the codebase in 
 
 If you are installing from the master branch:
 
-#### Using Go modules
 ```sh
 # fetch, build and install the different packages and their dependencies
 go install github.com/readium/readium-lcp-server/lcpencrypt@latest
@@ -112,37 +113,6 @@ go install github.com/readium/readium-lcp-server/lsdserver@latest
 
 "@latest" can be replaced by a specific version, e.g. "@V1.6.0" (warning: use a capital V).
 
-#### If you do no wish to use Go modules
-```sh
-# move to your GOPATH directory
-cd $GOPATH
-# disable go modules
-export GO111MODULE=off
-# download the different packages and their dependencies
-go get -d github.com/readium/readium-lcp-server/lcpencrypt
-go get -d github.com/readium/readium-lcp-server/lcpserver
-go get -d github.com/readium/readium-lcp-server/lsdserver
-# build and install the different packages and their dependencies
-go install github.com/readium/readium-lcp-server/lcpencrypt
-go install github.com/readium/readium-lcp-server/lcpserver
-go install github.com/readium/readium-lcp-server/lsdserver
-```
-
-#### From a feature branch (using go modules)
-Alternatively, if you want to use a feature branch:
-```sh
-# from your project root directory
-cd <project>
-# clone the repo, selecting the feature branch you want to test
-git clone -b <feature-branch> https://github.com/readium/readium-lcp-server.git
-cd readium-lcp-server
-# then build from the current codebase and install the different packages and their dependencies
-go install ./lcpencrypt@latest
-go install ./lcpserver@latest
-go install ./lsdserver@latest
-```
-
-#### Check the binaries
 You should now find the generated Go binaries in $GOPATH/bin: 
 
 - `lcpencrypt`: the command line encryption tool,
