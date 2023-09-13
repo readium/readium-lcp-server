@@ -120,7 +120,8 @@ func encryptPublication(inputPath string, pub *Publication, pubManager Publicati
 		notification,
 		config.Config.LcpServer.PublicBaseUrl,
 		config.Config.LcpUpdateAuth.Username,
-		config.Config.LcpUpdateAuth.Password)
+		config.Config.LcpUpdateAuth.Password,
+		false)
 	if err != nil {
 		return err
 	}

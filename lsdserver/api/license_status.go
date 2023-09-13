@@ -22,7 +22,6 @@ import (
 	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
 	licensestatuses "github.com/readium/readium-lcp-server/license_statuses"
-	"github.com/readium/readium-lcp-server/localization"
 	"github.com/readium/readium-lcp-server/logging"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/status"
@@ -131,7 +130,6 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 // RegisterDevice registers a device for a given license,
 // using the device id &  name as  parameters;
 // returns the updated license status
-//
 func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 
 	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
@@ -646,6 +644,7 @@ func ListRegisteredDevices(w http.ResponseWriter, r *http.Request, s Server) {
 
 // LendingCancellation cancels (before use) or revokes (after use)  a license.
 // parameters:
+//
 //	key: license id
 //	partial license status: the new status and a message indicating why the status is being changed
 //	The new status can be either STATUS_CANCELLED or STATUS_REVOKED
@@ -983,11 +982,10 @@ func updateLicense(timeEnd time.Time, licenseID string) (int, error) {
 	return 0, err
 }
 
-// fillLicenseStatus fills the localized 'message' field, the 'links' and 'event' objects in the license status
+// fillLicenseStatus fills the 'message' field, the 'links' and 'event' objects in the license status
 func fillLicenseStatus(ls *licensestatuses.LicenseStatus, r *http.Request, s Server) error {
-	// add the localized message
-	acceptLanguages := r.Header.Get("Accept-Language")
-	localization.LocalizeMessage(acceptLanguages, &ls.Message, ls.Status)
+	// add the message
+	ls.Message = "The license is in " + ls.Status + " state"
 	// add the links
 	makeLinks(ls)
 	// add the events
