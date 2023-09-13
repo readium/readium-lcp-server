@@ -36,10 +36,6 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
-
-	"github.com/technoweenie/grohl"
-
-	"github.com/readium/readium-lcp-server/localization"
 )
 
 const (
@@ -68,7 +64,6 @@ const CANCEL_BAD_REQUEST = ERROR_BASE_URL + "cancel"
 const FILTER_BAD_REQUEST = ERROR_BASE_URL + "filter"
 
 func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) {
-	acceptLanguages := r.Header.Get("Accept-Language")
 
 	w.Header().Set("Content-Type", ContentType_PROBLEM_JSON)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -82,13 +77,8 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 		problem.Type = SERVER_INTERNAL_ERROR
 	}
 
-	if problem.Title == "" { // Title matches http status by default
-		localization.LocalizeMessage(acceptLanguages, &problem.Title, http.StatusText(status))
-	} else {
-		localization.LocalizeMessage(acceptLanguages, &problem.Title, problem.Title)
-	}
-	if problem.Detail != "" {
-		localization.LocalizeMessage(acceptLanguages, &problem.Detail, problem.Detail)
+	if problem.Title == "" { // Title (required) matches http status by default
+		problem.Title = http.StatusText(status)
 	}
 
 	jsonError, e := json.Marshal(problem)
@@ -122,26 +112,8 @@ func PrintStack() {
 }
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
-	grohl.Log(grohl.Data{"method": r.Method, "path": r.URL.Path, "status": "404"})
 	var problem Problem
 	problem.Type = LICENSE_NOT_FOUND
 	problem.Title = "Failed to find the license ID"
 	Error(w, r, problem, http.StatusNotFound)
-}
-
-func PanicReport(err interface{}) {
-	switch t := err.(type) {
-	case error:
-		errorr, found := err.(error)
-		if found { // should always be true
-			grohl.Log(grohl.Data{"panic recovery (error)": errorr.Error()})
-		}
-	case string:
-		errorr, found := err.(string)
-		if found { // should always be true
-			grohl.Log(grohl.Data{"panic recovery (string)": errorr})
-		}
-	default:
-		grohl.Log(grohl.Data{"panic recovery (other type)": t})
-	}
 }

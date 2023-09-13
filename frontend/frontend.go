@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 
 	auth "github.com/abbot/go-http-auth"
@@ -56,7 +57,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if driver == "sqlite3" {
+	if driver == "sqlite3" && !strings.Contains(cnxn, "_journal") {
 		_, err = db.Exec("PRAGMA journal_mode = WAL")
 		if err != nil {
 			panic(err)
