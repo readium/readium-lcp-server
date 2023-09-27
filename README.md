@@ -244,8 +244,14 @@ If `mode` value is NOT `s3`, the following paremeters are expected:
     The publication identifier is inserted via the `{publication_id}` variable.
 
 #### lsd and lsd_notify_auth section 
+The License Server must be able to notify the Status Server of the generation of a new license. 
+
+The configuration of the License Server must therefore include:
+
+`lsd` containing `public_base_url`: the public URL of the Status Server. 
+
 `lsd_notify_auth`: authentication parameters used by the License Server for notifying the Status Server 
-of the generation of a new license. The notification endpoint is configured in the `lsd` section.
+of the generation of a new license. This section contains:
 - `username`: required, authentication username
 - `password`: required, authentication password
 
@@ -304,7 +310,13 @@ lsd_notify_auth:
 Detailed explanations about the use of `renew_page_url` and `renew_custom_url` are found in a [specific section of the wiki](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#option-manage-renew-requests-using-your-own-rules). 
 
 #### lcp_update_auth section 
-`lcp_update_auth`: authentication parameters used by the Status Server for updating a license via the License Server. The notification endpoint is configured in the `lcp` section.
+The Status Server must be able to get information from the License Server. 
+
+The configuration of the Status Server must therefore contain:
+
+`lcp` containing `public_base_url`: the public URL of the License Server. 
+
+`lcp_update_auth`: authentication parameters used by the Status Server for updating a license via the License Server. This section contains:
 - `username`: mandatory, authentication username
 - `password`: mandatory, authentication password
 
@@ -315,7 +327,7 @@ Here is a Status Server sample config:
 lsd:
     host: "192.168.0.1"
     port: 8990
-    public_base_url: "http://127.0.0.1:8990"
+    public_base_url: "http://192.168.0.1:8990"
     database: "sqlite3://file:/usr/local/var/lcp/db/lsd.sqlite?cache=shared&mode=rwc"
     auth_file: "/usr/local/var/lcp/htpasswd"
     license_link_url: "https://www.example.net/lcp/licenses/{license_id}"
@@ -327,7 +339,7 @@ license_status:
     renew_days: 7
 
 lcp:
-  public_base_url:  "http://127.0.0.1:8989"
+  public_base_url:  "http://192.168.0.1:8989"
 lcp_update_auth: 
     username: "adm_username"
     password: "adm_password"
