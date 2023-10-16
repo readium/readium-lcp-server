@@ -3,11 +3,11 @@ Readium LCP Server
 
 Documentation
 ============
-As a retailer, public library or specialized e-distributor, you are distributing EPUB or PDF ebooks, LPF or RPF (.webpub) packaged audiobooks or comics. You want them protected by the Readium LCP DRM. Your CMS (Content Management system) already handles publications, users, purchases or loans, your technical team is able to integrate this CMS with a License server by creating a new endpoint in the CMS and requesting the License Server via its REST interface. If you are in this situation, this open-source codebase is made for you. 
+As a retailer, public library or specialized e-distributor, you are distributing EPUB or PDF ebooks, audiobooks packaged using the LPF or RPF (.audiobook) formats, or comics packaged using the RPF (.divina) format. You want them protected by the Readium LCP DRM. Your CMS (Content Management system) already handles publications, users, purchases or loans, your technical team is able to integrate this CMS with a License server by creating a new http endpoint in the CMS and requesting the License Server via its REST interface, and this team is also able to compile and deploy a Go open-source codebase. If you are in this situation, this open-source codebase is made for you. 
 
-Using the Readium LCP Server you can:
+Using the tools provided in this project you can:
 * Encrypt your entire catalog of publications and store these encrypted files in a file system or S3 bucket, ready for download from any LCP compliant reading application;
-* Generate LCP licenses and get up-to-date licenses;
+* Generate LCP licenses;
 * Let users request a loan extension or an early return;
 * Cancel a license in case a user has declared he wasn't able to use it;
 * Revoke a license in case of oversharing. 
@@ -17,10 +17,10 @@ Using the Readium LCP Server you can:
 Prerequisites
 =============
 
-Binaries are only pre-built on demande and for a service fee, therefore in the general case you'll need to get a working Golang installation. 
-Please refer to the official GO documentation for installation procedures at https://golang.org/.
+Binaries are only pre-built on demand and for a service fee, therefore in the general case you'll need to get a working Golang installation. 
+Please refer to the official Go documentation for installation procedures at https://golang.org/.
 
-This software is working with *go 1.13* or higher. It is currently maintained using *go 1.20* (July 2023). 
+This software is working with *go 1.16* or higher. It is currently maintained using *go 1.20* (July 2023). 
 
 You must put in place:
 
@@ -30,7 +30,7 @@ You must put in place:
 
 3/ a License Gateway, i.e. a piece of sofware you'll have to develop, which takes a request for an existing LCP license from a reading app, interrogates your database in order to get user information relative to this license, calls the License Server endpoint and returns this fresh LCP license back to the caller app (more information in the project Wiki).
 
-4/ a large storage volume for encrypted publications (file system or S3 bucket), accessible from the Web via HTTP URLs. Note that publications are encrypted once: every license generated for such publication is pointing at the same encrypted file. Because these publications are stronlgy encrypted and the decryption key is secured in your SQL database, public access to these files is not problematic.   
+4/ a large storage volume for encrypted publications. It can be either a file system accessible from the Web via HTTP URLs, or an S3 bucket. Note that publications are encrypted once: every license generated for such publication is pointing at the same encrypted file. Because these publications are stronlgy encrypted and the decryption key is secured in your SQL database, public access to these files is not problematic.   
 
 The servers require the setup of an SQL Database. 
 
@@ -42,9 +42,9 @@ A PostgresQL integration has been provided by a user of the LCP Server as a bran
 
 Encryption Profiles
 ===================
-Out of the box, this open-source software is using what we call the "basic" LCP profile, i.e. a testing mode provided by the [LCP open standard](https://readium.org/lcp-specs/). Licenses generated with this "basic" profile are perfectly handled by reading applications based on [Readium Mobile](https://www.edrlab.org/software/readium-mobile/), as well as by [Thorium Reader](https://www.edrlab.org/software/thorium-reader/).
+Out of the box, this open-source software is using what we call the "basic" (or "test") LCP profile, i.e. a testing mode provided by the [LCP open standard](https://readium.org/lcp-specs/). Licenses generated with this "basic" profile are perfectly handled by reading applications based on [Readium Mobile](https://www.edrlab.org/software/readium-mobile/), as well as by [Thorium Reader](https://www.edrlab.org/software/thorium-reader/).
 
-But this profile, because it is open, does not offer any security. Security is provided by a "production" profile, i.e. confidential crypto information and a personal X.509 certificate delivered to trusted implementers by [EDRLab](mailto:contact@edrlab.org), the wordwide LCP Certificcation Authority. Licenses generated with the "production" profile are handled by any LCP compliant Reading System.
+But this profile, because it is open, does not offer any security. Security is provided by a "production" profile, i.e. confidential crypto information and a personal X.509 certificate delivered to trusted implementers by [EDRLab](mailto:contact@edrlab.org). EDRLab is the wordwide LCP Certification Authority. Licenses generated with the "production" profile are handled by any LCP compliant Reading System.
 
 Executables
 ===========
@@ -55,21 +55,21 @@ The server software is composed of several independant parts:
 A command line utility for content encryption. This utility can be included in any processing pipeline. 
 
 lcpencrypt can:
-* Take an unprotected publication as input and generates an encrypted file as output
-* Optionally, store the encrypted file into a file system or S3 bucket
-* Notify the License server of the generation of the encrypted file
+* Take an unprotected publication as input and generates an encrypted file as output.
+* Store the encrypted file into a file system or S3 bucket.
+* Notify the License server of the generation of the encrypted file.
+* Optionnaly, notify the CMS of the generation of the encrypted file.
 
 ## [lcpserver]
 
 A License server implements [Readium Licensed Content Protection 1.0](https://readium.org/lcp-specs/releases/lcp/latest).
 
-Its private functionalities (authentication required) are:
-* Store the data resulting from an external encryption, if the encryption utility did not already store it
-* Generate a license or returns an up-to-date license
-* Generate a protected publication (i.e. an encrypted publication in which a license is embedded)
+Its functionalities can only be accessed after client authentication.
+
+Its private functionalities are:
+* Generate a license or returns a fresh license
 * Update the rights associated with a license
-* Get a set of licenses
-* Get a license
+* Get a list of licenses (optionally filtered by publication)
 
 ## [lsdserver]
 
@@ -89,16 +89,26 @@ Its private functionalities (authentication required) are:
 
 ## [frontend]
 
-A Frontend Test Server is also provided in the project. This is a demo server we developed to provide a micro-CMS and a user interface for testing LCP licenses. It is active on https://front-prod.edrlab.org/frontend/. We do not consider it production ready, we don't update it (despite evolutions in node, npm, and many node modules used here) and it will disappear in the next major version of the codebase. The Frontend Test Server MUST NOT be used in production.
+A Frontend Test Server is also provided in the project. This is a demo server we developed to provide a micro-CMS and a user interface for testing LCP licenses. It is active on https://front-prod.edrlab.org/frontend/. We do not consider it production ready, we don't update it (despite evolutions in node, npm, and the multiple node modules used a dependencies) and it will disappear in the next major version of the codebase. The Frontend Test Server MUST NOT be used in production.
 
 This is why the installation of the Frontend Test Server is not described in the following instructions.
 
 Install
 =======
 
-Assuming a working Go installation ...
+Assuming a working Go installation (*go 1.16* or higher) ...
 
-The project supports Go modules. Developers can therefore clone the codebase in the directory of their choice.   
+The project supports Go modules. Developers can therefore clone the codebase in the directory of their choice. Our recommendation is to use a structure like the one below: 
+
+```
+|- <some root dir>
+ |-readium
+   |- readium-lcp-server  // where the codebase is cloned
+   |- config          // where the configuration files and X509 certificates are maintained 
+   |- db              // where the sqlite database files are stored (if sqlite is used) 
+   |- tmp             // where temporary files are created
+```
+
 
 ### On Linux and MacOS:
 
@@ -111,13 +121,13 @@ go install github.com/readium/readium-lcp-server/lcpserver@latest
 go install github.com/readium/readium-lcp-server/lsdserver@latest
 ```
 
-"@latest" can be replaced by a specific version, e.g. "@V1.6.0" (warning: use a capital V).
+"@latest" can be replaced by a specific version, e.g. "@V1.9.0" (warning: use a capital V).
 
-You should now find the generated Go binaries in $GOPATH/bin: 
+You should now find the generated Go binaries in $GOPATH/bin (or $GOBIN if this environment variable is set): 
 
 - `lcpencrypt`: the command line encryption tool,
 - `lcpserver`: the license server,
-- `lsdserver`: the status document server.
+- `lsdserver`: the status server.
 
 ### On Windows 10
 
@@ -264,15 +274,11 @@ lcp:
     host: "192.168.0.1"
     port: 8989
     public_base_url: "http://192.168.0.1:8989/lcpserver"
-    database: "sqlite3://file:/usr/local/var/lcp/db/lcp.sqlite?cache=shared&mode=rwc"
-    auth_file: "/usr/local/var/lcp/lcpsv/htpasswd"
-storage:
-    filesystem:
-        directory: "/usr/local/var/lcp/storage"
-        url: "https://www.example.net/lcp/files/storage/" 
+    database: "sqlite3://file:/usr/local/var/readium/db/lcp.sqlite?cache=shared&mode=rwc"
+    auth_file: "/usr/local/var/readium/config/htpasswd"
 certificate:
-    cert: "/usr/local/var/lcp/cert/cert.pem"
-    private_key: "/usr/local/var/lcp/cert/privkey.pem"
+    cert: "/usr/local/var/readium/config/cert.pem"
+    private_key: "/usr/local/var/readium/config/privkey.pem"
 license:
     links:
         status: "https://www.example.net/lsdserver/licenses/{license_id}/status"     
