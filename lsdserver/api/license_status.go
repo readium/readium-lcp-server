@@ -39,7 +39,7 @@ type Server interface {
 // It is triggered by a notification from the license server
 func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) {
 	var lic license.License
-	err := apilcp.DecodeJSONLicense(r, &lic)
+	err := apilcp.DecodeJSONLicenseFromReq(r, &lic)
 
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
