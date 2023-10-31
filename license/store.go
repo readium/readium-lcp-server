@@ -161,7 +161,6 @@ func (s *sqlStore) Get(id string) (License, error) {
 func Open(db *sql.DB) (store Store, err error) {
 
 	driver, _ := config.GetDatabase(config.Config.LcpServer.Database)
-	log.Println("Database driver " + driver)
 
 	// if sqlite, create the license table if it does not exist
 	if driver == "sqlite3" {
