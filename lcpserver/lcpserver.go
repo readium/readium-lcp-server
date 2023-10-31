@@ -65,6 +65,11 @@ func main() {
 		log.Println("Can't run in production mode, not built with the proper lib")
 		os.Exit(1)
 	}
+	if config.Config.Profile == "basic" {
+		log.Println("Server running in test mode")
+	} else {
+		log.Println("Server running in production mode, profile " + config.Config.Profile)
+	}
 
 	driver, cnxn := config.GetDatabase(config.Config.LcpServer.Database)
 	log.Println("Database driver " + driver)
