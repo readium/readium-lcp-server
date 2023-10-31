@@ -95,7 +95,7 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
 	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
 
-	// methods related to EPUB encrypted content
+	// methods related to encrypted content
 
 	contentRoutesPathPrefix := "/contents"
 	contentRoutes := sr.R.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
@@ -108,8 +108,10 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 	s.handlePrivateFunc(contentRoutes, "/{content_id}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")
 
 	if !readonly {
-		// put content to the storage
+		// create a publication
 		s.handlePrivateFunc(contentRoutes, "/{content_id}", apilcp.AddContent, basicAuth).Methods("PUT")
+		// delete a publication
+		s.handlePrivateFunc(contentRoutes, "/{content_id}", apilcp.DeleteContent, basicAuth).Methods("DELETE")
 		// generate a license for given content
 		s.handlePrivateFunc(contentRoutes, "/{content_id}/license", apilcp.GenerateLicense, basicAuth).Methods("POST")
 		// deprecated, from a typo in the lcp server spec
