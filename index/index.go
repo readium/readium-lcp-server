@@ -20,6 +20,7 @@ type Index interface {
 	Get(id string) (Content, error)
 	Add(c Content) error
 	Update(c Content) error
+	Delete(id string) error
 	List() func() (Content, error)
 }
 
@@ -61,6 +62,12 @@ func (i dbIndex) Add(c Content) error {
 func (i dbIndex) Update(c Content) error {
 	_, err := i.db.Exec("UPDATE content SET encryption_key=? , location=?, length=?, sha256=?, type=? WHERE id=?",
 		c.EncryptionKey, c.Location, c.Length, c.Sha256, c.Type, c.ID)
+	return err
+}
+
+// Delete deletes a record
+func (i dbIndex) Delete(id string) error {
+	_, err := i.db.Exec("DELETE FROM content WHERE id=?", id)
 	return err
 }
 
