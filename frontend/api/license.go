@@ -18,7 +18,6 @@ import (
 )
 
 // GetFilteredLicenses searches licenses activated by more than n devices
-//
 func GetFilteredLicenses(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	rDevices := r.FormValue("devices")
@@ -51,15 +50,14 @@ func GetFilteredLicenses(w http.ResponseWriter, r *http.Request, s IServer) {
 // It generates a partial license from the purchase info,
 // fetches the license from the lcp server and returns it to the caller.
 // This API method is called from a link in the license status document.
-//
 func GetLicense(w http.ResponseWriter, r *http.Request, s IServer) {
 
 	var purchase webpurchase.Purchase
 	var err error
 
 	vars := mux.Vars(r)
-	var licenseID = vars["license_id"]
 	// get the license id in the URL
+	var licenseID = vars["license_id"]
 	if purchase, err = s.PurchaseAPI().GetByLicenseID(licenseID); err != nil {
 		switch err {
 		case webpurchase.ErrNotFound:
