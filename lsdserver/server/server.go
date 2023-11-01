@@ -38,7 +38,7 @@ func (s *Server) GoofyMode() bool {
 	return s.goofyMode
 }
 
-func New(bindAddr string, readonly bool, complianceMode bool, goofyMode bool, lst *licensestatuses.LicenseStatuses, trns *transactions.Transactions, basicAuth *auth.BasicAuth) *Server {
+func New(bindAddr string, readonly bool, goofyMode bool, lst *licensestatuses.LicenseStatuses, trns *transactions.Transactions, basicAuth *auth.BasicAuth) *Server {
 
 	sr := api.CreateServerRouter("")
 
@@ -67,10 +67,6 @@ func New(bindAddr string, readonly bool, complianceMode bool, goofyMode bool, ls
 
 	s.handleFunc(licenseRoutes, "/{key}/status", apilsd.GetLicenseStatusDocument).Methods("GET")
 	s.handleFunc(licenseRoutes, "/{key}", apilsd.GetFreshLicense).Methods("GET")
-
-	if complianceMode {
-		s.handleFunc(sr.R, "/compliancetest", apilsd.AddLogToFile).Methods("POST")
-	}
 
 	s.handlePrivateFunc(licenseRoutes, "/{key}/registered", apilsd.ListRegisteredDevices, basicAuth).Methods("GET")
 	if !readonly {

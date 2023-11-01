@@ -36,6 +36,8 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
+
+	"github.com/readium/readium-lcp-server/logging"
 )
 
 const (
@@ -51,6 +53,7 @@ type Problem struct {
 	Instance string `json:"instance,omitempty"`
 }
 
+// Problem types
 const ERROR_BASE_URL = "http://readium.org/license-status-document/error/"
 const LICENSE_NOT_FOUND = ERROR_BASE_URL + "notfound"
 const SERVER_INTERNAL_ERROR = ERROR_BASE_URL + "server"
@@ -90,7 +93,9 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 	// debug only
 	//PrintStack()
 
-	log.Print(string(jsonError))
+	msg := fmt.Sprintf("Error: %s (%d) = %s", problem.Title, problem.Status, problem.Detail)
+	// log the error persistently
+	logging.Print(msg)
 }
 
 func PrintStack() {

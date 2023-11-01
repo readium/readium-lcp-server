@@ -26,6 +26,7 @@ import (
 	"github.com/readium/readium-lcp-server/index"
 	lcpserver "github.com/readium/readium-lcp-server/lcpserver/server"
 	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/logging"
 	"github.com/readium/readium-lcp-server/pack"
 	"github.com/readium/readium-lcp-server/storage"
 )
@@ -136,7 +137,14 @@ func main() {
 	htpasswd := auth.HtpasswdFileProvider(authFile)
 	authenticator := auth.NewBasicAuthenticator("Readium License Content Protection Server", htpasswd)
 
+	// if the logging key is set, logs will be sent to a file and/or Slack channel for test purposes
+	err = logging.Init(config.Config.Logging)
+	if err != nil {
+		panic(err)
+	}
+
 	HandleSignals()
+
 	parsedPort := strconv.Itoa(config.Config.LcpServer.Port)
 	s := lcpserver.New(":"+parsedPort, readonly, &idx, &store, &lst, &cert, packager, authenticator)
 	if readonly {

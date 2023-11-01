@@ -5,7 +5,6 @@
 package config
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,7 +25,7 @@ type Configuration struct {
 	CMSAccessAuth  Auth               `yaml:"cms_access_auth"`
 	LicenseStatus  LicenseStatus      `yaml:"license_status"`
 	Localization   Localization       `yaml:"localization"`
-	ComplianceMode bool               `yaml:"compliance_mode"`
+	Logging        Logging            `yaml:"logging"`
 	GoofyMode      bool               `yaml:"goofy_mode"`
 	Profile        string             `yaml:"profile,omitempty"`
 
@@ -49,7 +48,6 @@ type LsdServerInfo struct {
 	ServerInfo     `yaml:",inline"`
 	LicenseLinkUrl string `yaml:"license_link_url,omitempty"`
 	UserDataUrl    string `yaml:"user_data_url,omitempty"`
-	LogDirectory   string `yaml:"log_directory"`
 }
 
 type FrontendServerInfo struct {
@@ -109,13 +107,19 @@ type Localization struct {
 	DefaultLanguage string   `yaml:"default_language"`
 }
 
+type Logging struct {
+	Directory      string `yaml:"directory"`
+	SlackToken     string `yaml:"slack_token"`
+	SlackChannelID string `yaml:"slack_channel"`
+}
+
 // Config is a global variable which contains the server configuration
 var Config Configuration
 
 // ReadConfig parses the configuration file
 func ReadConfig(configFileName string) {
 	filename, _ := filepath.Abs(configFileName)
-	yamlFile, err := ioutil.ReadFile(filename)
+	yamlFile, err := os.ReadFile(filename)
 
 	if err != nil {
 		panic("Can't read config file: " + configFileName)

@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
@@ -25,6 +24,7 @@ import (
 	"github.com/readium/readium-lcp-server/epub"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/logging"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/storage"
 )
@@ -211,7 +211,7 @@ func buildLicensedPublication(lic *license.License, s Server) (buf bytes.Buffer,
 	if err != nil {
 		return buf, err
 	}
-	b, err := ioutil.ReadAll(contents)
+	b, err := io.ReadAll(contents)
 	if err != nil {
 		return buf, err
 	}
@@ -264,7 +264,7 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the license id from the request URL
 	licenseID := vars["license_id"]
 
-	log.Println("Get License with id", licenseID)
+	logging.Print("Get License with id " + licenseID)
 
 	// initialize the license from the info stored in the db.
 	var licOut license.License
