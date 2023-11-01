@@ -7,7 +7,6 @@ package xmlenc
 import (
 	"encoding/xml"
 	"io"
-	"net/url"
 
 	"golang.org/x/net/html/charset"
 )
@@ -20,12 +19,7 @@ type Manifest struct {
 
 // DataForFile returns the EncryptedData item corresponding to a given path
 func (m Manifest) DataForFile(path string) (Data, bool) {
-	fileUri, err := url.Parse(path)
-	if err != nil {
-		return Data{}, false
-	}
-
-	uri := URI(fileUri.EscapedPath())
+	uri := URI(path)
 	for _, datum := range m.Data {
 		if datum.CipherData.CipherReference.URI == uri {
 			return datum, true

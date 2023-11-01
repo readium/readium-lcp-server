@@ -10,7 +10,6 @@ import (
 	"encoding/base64"
 	"io"
 	"log"
-	"net/url"
 	"strings"
 
 	"github.com/readium/readium-lcp-server/crypto"
@@ -226,11 +225,7 @@ func encryptEPUBResource(compressor *flate.Writer, compress bool, encrypter cryp
 	data.KeyInfo.RetrievalMethod.URI = "license.lcpl#/encryption/content_key"
 	data.KeyInfo.RetrievalMethod.Type = "http://readium.org/2014/01/lcp#EncryptedContentKey"
 
-	uri, err := url.Parse(file.Path)
-	if err != nil {
-		return err
-	}
-	data.CipherData.CipherReference.URI = xmlenc.URI(uri.EscapedPath())
+	data.CipherData.CipherReference.URI = xmlenc.URI(file.Path)
 
 	// declare to the reading software that the content is compressed before encryption
 	method := NoCompression
