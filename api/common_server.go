@@ -82,7 +82,8 @@ func CreateServerRouter(tplPath string) ServerRouter {
 	n.Use(recovery)
 
 	//https://github.com/urfave/negroni#logger
-	n.Use(negroni.NewLogger())
+	// Nov 2023, suppression of negroni logs
+	//n.Use(negroni.NewLogger())
 
 	// debug: log request details
 	//n.Use(negroni.HandlerFunc(ExtraLogger))
