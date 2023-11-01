@@ -377,7 +377,7 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	log.Println("New License:", lic.ID, ". Content:", contentID, "User:", lic.User.ID)
+	log.Println("New License:", lic.ID, "Content:", contentID, "User:", lic.User.ID)
 
 	// set http headers
 	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
@@ -540,8 +540,10 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 
 // UpdateLicense updates an existing license.
 // parameters:
-// 		{license_id} in the calling URL
-// 		partial license containing properties which should be updated (and only these)
+//
+//	{license_id} in the calling URL
+//	partial license containing properties which should be updated (and only these)
+//
 // return: an http status code (200, 400 or 404)
 // Usually called from the License Status Server after a renew, return or cancel/revoke action
 // -> updates the end date.
@@ -609,7 +611,8 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 // ListLicenses returns a JSON struct with information about the existing licenses
 // parameters:
-// 	page: page number
+//
+//	page: page number
 //	per_page: number of items par page
 func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 
@@ -669,8 +672,9 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 
 // ListLicensesForContent lists all licenses associated with a given content
 // parameters:
+//
 //	content_id: content identifier
-// 	page: page number (default 1)
+//	page: page number (default 1)
 //	per_page: number of items par page (default 30)
 func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 

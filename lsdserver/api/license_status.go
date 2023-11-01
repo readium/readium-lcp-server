@@ -55,6 +55,8 @@ func CreateLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Serve
 		return
 	}
 
+	log.Println("New License Status Doc, license:", ls.LicenseRef)
+
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusCreated)
 }
