@@ -42,7 +42,14 @@ func main() {
 	config.ReadConfig(config_file)
 	log.Println("Config from " + config_file)
 
+	// read only flag
 	readonly = config.Config.LcpServer.ReadOnly
+
+	// if the logging key is set, logs will be sent to a file and/or Slack channel for test purposes
+	err = logging.Init(config.Config.Logging)
+	if err != nil {
+		panic(err)
+	}
 
 	err = config.SetPublicUrls()
 	if err != nil {
@@ -62,10 +69,12 @@ func main() {
 		log.Println("Error loading X509 cert: " + err.Error())
 		os.Exit(1)
 	}
+	/* this check is temporarily deactivated. It will be reactivated after a new LCP production lib has been distributed.
 	if config.Config.Profile != "basic" && !license.LCP_PRODUCTION_LIB {
 		log.Println("Can't run in production mode, not built with the proper lib")
 		os.Exit(1)
 	}
+	*/
 	if config.Config.Profile == "basic" {
 		log.Println("Server running in test mode")
 	} else {
@@ -136,12 +145,6 @@ func main() {
 	}
 	htpasswd := auth.HtpasswdFileProvider(authFile)
 	authenticator := auth.NewBasicAuthenticator("Readium License Content Protection Server", htpasswd)
-
-	// if the logging key is set, logs will be sent to a file and/or Slack channel for test purposes
-	err = logging.Init(config.Config.Logging)
-	if err != nil {
-		panic(err)
-	}
 
 	HandleSignals()
 
