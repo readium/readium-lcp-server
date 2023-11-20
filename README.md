@@ -98,21 +98,9 @@ Install
 
 Assuming a working Go installation (*go 1.16* or higher) ...
 
-The project supports Go modules. Developers can therefore clone the codebase in the directory of their choice. Our recommendation is to use a structure like the one below: 
+### On Linux and MacOS: the easy route
 
-```
-|- <some root dir>
- |-readium
-   |- readium-lcp-server  // where the codebase is cloned
-   |- config          // where the configuration files and X509 certificates are maintained 
-   |- db              // where the sqlite database files are stored (if sqlite is used) 
-   |- tmp             // where temporary files are created
-```
-
-
-### On Linux and MacOS:
-
-If you are installing from the master branch:
+Simply use the go install command.
 
 ```sh
 # fetch, build and install the different packages and their dependencies
@@ -121,13 +109,45 @@ go install github.com/readium/readium-lcp-server/lcpserver@latest
 go install github.com/readium/readium-lcp-server/lsdserver@latest
 ```
 
-"@latest" can be replaced by a specific version, e.g. "@V1.9.0" (warning: use a capital V).
+"@latest" can be replaced by a specific version, e.g. "@V1.8.0" (warning: use a capital V).
 
-You should now find the generated Go binaries in $GOPATH/bin (or $GOBIN if this environment variable is set): 
+You should now find the generated binaries in $GOPATH/bin: 
 
 - `lcpencrypt`: the command line encryption tool,
 - `lcpserver`: the license server,
 - `lsdserver`: the status server.
+
+### On Linux and MacOS: the developer's route
+
+The project supports Go modules. Developers can therefore clone the codebase in the directory of their choice. This will be required to move the LCP Server to its production mode later. 
+
+Our recommendation is to use a structure like the one below: 
+
+```
+|- <some root dir>
+ |-readium
+   |- readium-lcp-server  // where the codebase is cloned
+   |- <config structure>  // see below, configuration 
+
+```
+
+Move to the `readium` directory and use:
+
+```
+git clone https://github.com/readium/readium-lcp-server.git 
+```
+
+Then compile the code with: 
+
+```
+cd readium-lcp-server
+go build -o $GOPATH/bin ./lcpencrypt
+go build -o $GOPATH/bin ./lcpserver
+go build -o $GOPATH/bin ./lsdserver
+```
+
+You should now find the generated binaries in $GOPATH/bin (or $GOBIN if this environment variable is set).
+
 
 ### On Windows 10
 
@@ -140,6 +160,19 @@ Also, in the previous instructions, replace:
 
 Configuration
 ==============
+
+## Config structure
+
+Our recommendation is to use a structure like the one below: 
+
+```
+|- <some root dir>
+ |-readium
+   |- readium-lcp-server  // where the codebase is cloned
+   |- config          // where the configuration files and X509 certificates are maintained 
+   |- db              // where the sqlite database files are stored (if sqlite is used) 
+   |- tmp             // where temporary files are created
+```
 
 ## Environment variables
 
