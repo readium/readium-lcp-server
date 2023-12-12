@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"os"
 	"text/template"
 
@@ -137,7 +138,11 @@ func (reader *RPFReader) Resources() []Resource {
 	var resources []Resource
 	for _, manifestResource := range reader.manifest.ReadingOrder {
 		isEncrypted := manifestResource.Properties != nil && manifestResource.Properties.Encrypted != nil
-		resources = append(resources, &rwpResource{file: files[manifestResource.Href], isEncrypted: isEncrypted, contentType: manifestResource.Type})
+		if files[manifestResource.Href] != nil {
+			resources = append(resources, &rwpResource{file: files[manifestResource.Href], isEncrypted: isEncrypted, contentType: manifestResource.Type})
+		} else {
+			log.Printf("No file found in the archive for href %s in manifest", manifestResource.Href)
+		}
 	}
 
 	return resources
@@ -153,6 +158,7 @@ type rwpResource struct {
 	file        *zip.File
 }
 
+// rwpResource supports the Resource interface
 func (resource *rwpResource) Path() string                   { return resource.file.Name }
 func (resource *rwpResource) ContentType() string            { return resource.contentType }
 func (resource *rwpResource) Size() int64                    { return int64(resource.file.UncompressedSize64) }

@@ -75,6 +75,10 @@ func Process(encrypter crypto.Encrypter, contentKey string, reader PackageReader
 	// loop through the resources of the source package, encrypt them if needed, copy them into the dest package
 	for _, resource := range reader.Resources() {
 		if !resource.Encrypted() && resource.CanBeEncrypted() {
+			if resource.(*rwpResource).file == nil {
+				log.Println("Error encrypting a file: Nil file name")
+				return
+			}
 			err = encryptRPFResource(compressor, encrypter, key, resource, writer)
 			if err != nil {
 				log.Println("Error encrypting ", resource.Path(), ": ", err.Error())
