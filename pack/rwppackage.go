@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"text/template"
 
@@ -138,8 +139,12 @@ func (reader *RPFReader) Resources() []Resource {
 	var resources []Resource
 	for _, manifestResource := range reader.manifest.ReadingOrder {
 		isEncrypted := manifestResource.Properties != nil && manifestResource.Properties.Encrypted != nil
-		if files[manifestResource.Href] != nil {
-			resources = append(resources, &rwpResource{file: files[manifestResource.Href], isEncrypted: isEncrypted, contentType: manifestResource.Type})
+		name, err := url.QueryUnescape(manifestResource.Href)
+		if err != nil {
+			log.Printf("Error unescaping %s in manifest", manifestResource.Href)
+		}
+		if files[name] != nil {
+			resources = append(resources, &rwpResource{file: files[name], isEncrypted: isEncrypted, contentType: manifestResource.Type})
 		} else {
 			log.Printf("No file found in the archive for href %s in manifest", manifestResource.Href)
 		}
