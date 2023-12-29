@@ -14,12 +14,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 
 	"github.com/gorilla/mux"
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/logging"
 	"github.com/readium/readium-lcp-server/pack"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/storage"
@@ -129,7 +131,10 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	// if the encrypted publication has not been stored yet
+	// add a log
+	logging.Print("Add publication " + contentID)
+
+	// if the encrypted publication has not been already stored by lcpencrypt
 	if encrypted.StorageMode == Storage_none {
 
 		// open the encrypted file, use its full path
@@ -192,6 +197,9 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 		contents = append(contents, it)
 	}
 
+	// add a log
+	logging.Print("List publications, total " + strconv.Itoa(len(contents)))
+
 	w.Header().Set("Content-Type", api.ContentType_JSON)
 	enc := json.NewEncoder(w)
 	err := enc.Encode(contents)
@@ -209,6 +217,10 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the content id from the calling url
 	vars := mux.Vars(r)
 	contentID := vars["content_id"]
+
+	// add a log
+	logging.Print("Get publication " + contentID)
+
 	content, err := s.Index().Get(contentID)
 	if err != nil { //item probably not found
 		if err == index.ErrNotFound {
@@ -256,6 +268,10 @@ func DeleteContent(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the content id from the calling url
 	vars := mux.Vars(r)
 	contentID := vars["content_id"]
+
+	// add a log
+	logging.Print("Delete publication " + contentID)
+
 	err := s.Index().Delete(contentID)
 	if err != nil { //item probably not found
 		if err == index.ErrNotFound {

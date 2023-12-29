@@ -264,7 +264,8 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the license id from the request URL
 	licenseID := vars["license_id"]
 
-	logging.Print("Get License with id " + licenseID)
+	// add a log
+	logging.Print("Get the License " + licenseID)
 
 	// initialize the license from the info stored in the db.
 	var licOut license.License
@@ -377,7 +378,8 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	log.Println("New License:", lic.ID, "Content:", contentID, "User:", lic.User.ID)
+	// add a log
+	logging.Print("Generate a License " + lic.ID + " for Content " + contentID + " and User " + lic.User.ID)
 
 	// set http headers
 	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
@@ -402,7 +404,8 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 	vars := mux.Vars(r)
 	licenseID := vars["license_id"]
 
-	log.Println("Get a Licensed publication for license id", licenseID)
+	// add a log
+	logging.Print("Get a Licensed publication for License " + licenseID)
 
 	// get the input body
 	var licIn license.License
@@ -472,7 +475,7 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 	vars := mux.Vars(r)
 	contentID := vars["content_id"]
 
-	log.Println("Generate a Licensed publication for content id", contentID)
+	logging.Print("Generate a Licensed publication for Content " + contentID)
 
 	// get the input body
 	var lic license.License
@@ -553,7 +556,8 @@ func UpdateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the license id from the request URL
 	licenseID := vars["license_id"]
 
-	log.Println("Update License with id", licenseID)
+	// add a log
+	logging.Print("Update the License " + licenseID)
 
 	var licIn license.License
 	err := DecodeJSONLicense(r, &licIn)
@@ -645,7 +649,10 @@ func ListLicenses(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	licenses := make([]license.LicenseReport, 0)
-	//log.Println("ListAll(" + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
+
+	// add a log
+	logging.Print("List Licenses (page " + strconv.Itoa(int(page)) + ", count " + strconv.Itoa(int(perPage)) + ")")
+
 	fn := s.Licenses().ListAll(int(perPage), int(page))
 	for it, err := fn(); err == nil; it, err = fn() {
 		licenses = append(licenses, it)
@@ -717,7 +724,10 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	licenses := make([]license.LicenseReport, 0)
-	//log.Println("List(" + contentId + "," + strconv.Itoa(int(per_page)) + "," + strconv.Itoa(int(page)) + ")")
+
+	// add a log
+	logging.Print("List Licenses for publication " + contentID + " (page " + strconv.Itoa(int(page)) + ", count " + strconv.Itoa(int(perPage)) + ")")
+
 	fn := s.Licenses().ListByContentID(contentID, int(perPage), int(page))
 	for it, err := fn(); err == nil; it, err = fn() {
 		licenses = append(licenses, it)
