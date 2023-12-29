@@ -37,21 +37,21 @@ type Entity struct {
 }
 
 // CMSMsg is used for notifying a CMS
-// todo: why is this structure imposed by pubstore (Coded, Entity)?
 type CMSMsg struct {
-	UUID            string    `json:"uuid"`
-	Title           string    `json:"title"`
-	DatePublication time.Time `json:"datePublication"`
-	Description     string    `json:"description"`
-	CoverUrl        string    `json:"coverUrl"`
-	Language        []Coded   `json:"language"`
-	Publisher       []Entity  `json:"publisher"`
-	Author          []Entity  `json:"author"`
-	Category        []Entity  `json:"category"`
+	UUID          string    `json:"uuid"`
+	Title         string    `json:"title"`
+	ContentType   string    `json:"content_type"`
+	DatePublished time.Time `json:"date_published"`
+	Description   string    `json:"description"`
+	CoverUrl      string    `json:"cover_url"`
+	Language      []Coded   `json:"language"`
+	Publisher     []Entity  `json:"publisher"`
+	Author        []Entity  `json:"author"`
+	Category      []Entity  `json:"category"`
 }
 
 // NotifyLCPServer notifies the License Server of the encryption of a publication
-func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, password string) error {
+func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, password string, verbose bool) error {
 
 	// An empty notify URL is not an error, simply a silent encryption
 	if lcpsv == "" {
@@ -122,13 +122,13 @@ func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, pa
 		}
 	}
 
-	/*
-		// write a json message to stdout for debug purpose
-		fmt.Println("Notification:")
+	// verbose: log the notification
+	if verbose {
+		fmt.Println("LCP Server Notification:")
 		var out bytes.Buffer
 		json.Indent(&out, jsonBody, "", " ")
 		out.WriteTo(os.Stdout)
-	*/
+	}
 
 	req.SetBasicAuth(username, password)
 	client := &http.Client{
@@ -141,7 +141,7 @@ func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, pa
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}
-	fmt.Println(notifyURL + " was notified that a new publication was encrypted")
+	fmt.Println("The LCP Server was notified")
 	return nil
 }
 
@@ -194,7 +194,7 @@ func AbortNotification(pub Publication, lcpsv string, v2 bool, username string, 
 }
 
 // NotifyCMS notifies a CMS of the encryption of a publication
-func NotifyCMS(pub Publication, notifyURL string) error {
+func NotifyCMS(pub Publication, notifyURL string, verbose bool) error {
 
 	// An empty notify URL is not an error, simply a silent encryption
 	if notifyURL == "" {
@@ -212,7 +212,8 @@ func NotifyCMS(pub Publication, notifyURL string) error {
 	var msg CMSMsg
 	msg.UUID = pub.UUID
 	msg.Title = pub.Title
-	msg.DatePublication = pub.Date
+	msg.ContentType = pub.ContentType
+	msg.DatePublished = pub.Date
 	msg.Description = pub.Description
 	msg.CoverUrl = pub.CoverUrl
 	var lg Coded
@@ -243,11 +244,13 @@ func NotifyCMS(pub Publication, notifyURL string) error {
 		return err
 	}
 
-	// write a json message to stdout for debug purpose
-	fmt.Println("CMS Notification:")
-	var out bytes.Buffer
-	json.Indent(&out, jsonBody, "", " ")
-	out.WriteTo(os.Stdout)
+	// verbose: log the notification
+	if verbose {
+		fmt.Println("CMS Notification:")
+		var out bytes.Buffer
+		json.Indent(&out, jsonBody, "", " ")
+		out.WriteTo(os.Stdout)
+	}
 
 	req.SetBasicAuth(username, password)
 	client := &http.Client{
@@ -260,7 +263,7 @@ func NotifyCMS(pub Publication, notifyURL string) error {
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}
-	fmt.Println(notifyURL + " was notified that a new publication was encrypted")
+	fmt.Println("The CMS was notified")
 	return nil
 }
 

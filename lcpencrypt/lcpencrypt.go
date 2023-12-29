@@ -27,10 +27,11 @@ func showHelpAndExit() {
 	fmt.Println("-output     optional, target folder of encrypted publications")
 	fmt.Println("-temp       optional, working folder for temporary files")
 	fmt.Println("-contentkey optional, base64 encoded content key; if omitted a random content key is generated")
-	fmt.Println("-lcpsv      optional, URL, host name of the License server which is notified; the preferred syntax is http://username:password@example.com")
+	fmt.Println("-lcpsv      optional, URL, host name of the License server which is notified; its syntax is http://username:password@example.com")
 	fmt.Println("-v2         optional, boolean, indicates a v2 License server")
-	fmt.Println("-login      optional, used along with lcpsv, username for the License server")
-	fmt.Println("-password   optional, used along with lcpsv, password for the License server")
+	// these parameters are deprecated, let's be silent about them in the help
+	//fmt.Println("-login      optional, used along with lcpsv, username for the License server")
+	//fmt.Println("-password   optional, used along with lcpsv, password for the License server")
 	fmt.Println("-notify     optional, URL, notification endpoint for a CMS; its syntax is http://username:password@example.com")
 	fmt.Println("-help :     help information")
 	os.Exit(0)
@@ -57,6 +58,7 @@ func main() {
 	username := flag.String("login", "", "optional unless lcpsv is used, username for the License server")
 	password := flag.String("password", "", "optional unless lcpsv is used, password for the License server")
 	notify := flag.String("notify", "", "optional, URL, notification endpoint for a CMS; its syntax is http://username:password@example.com")
+	verbose := flag.Bool("verbose", false, "optional, boolean, adds logs to stdout")
 
 	help := flag.Bool("help", false, "shows information")
 
@@ -89,13 +91,13 @@ func main() {
 	elapsed := time.Since(start)
 
 	// notify the license server
-	err = encrypt.NotifyLCPServer(*publication, *lcpsv, *v2, *username, *password)
+	err = encrypt.NotifyLCPServer(*publication, *lcpsv, *v2, *username, *password, *verbose)
 	if err != nil {
 		exitWithError("Error notifying the LCP Server", err)
 	}
 
 	// notify a CMS (v2 syntax; username and password are always in the URL)
-	err = encrypt.NotifyCMS(*publication, *notify)
+	err = encrypt.NotifyCMS(*publication, *notify, *verbose)
 	if err != nil {
 		fmt.Println("Error notifying the CMS:", err.Error())
 		// abort the notification of the license server
