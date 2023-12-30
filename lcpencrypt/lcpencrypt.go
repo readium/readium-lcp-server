@@ -18,23 +18,23 @@ import (
 // showHelpAndExit displays some help and exits.
 func showHelpAndExit() {
 
-	fmt.Println("lcpencrypt encrypts a publication using the LCP DRM")
-	fmt.Println("-input      source epub/pdf/lpf file locator (file system or http GET)")
+	fmt.Println("lcpencrypt encrypts a publication using the LCP DRM.")
+	fmt.Println("-input      source epub/pdf/lpf/audiobook file locator (file system or http GET)")
 	fmt.Println("-contentid  optional, content identifier; if omitted a uuid is generated")
 	fmt.Println("-storage    optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
 	fmt.Println("-url        optional, base url associated with the storage, without filename")
 	fmt.Println("-filename   optional, file name of the encrypted publication; if omitted, contentid is used")
-	fmt.Println("-output     optional, temporary location of encrypted publications, before the License Server moves them. File system path only")
-	fmt.Println("-temp       optional, working folder for temporary files")
+	fmt.Println("-temp       optional, working folder for temporary files. If not set, the current directory will be used.")
 	fmt.Println("-cover      optional, boolean, indicates that covers must be generated when possible")
 	fmt.Println("-contentkey optional, base64 encoded content key; if omitted a random content key is generated")
 	fmt.Println("-lcpsv      optional, URL, host name of the License Server to be notified; syntax http://username:password@example.com")
-	fmt.Println("-v2         optional, boolean, indicates a License Server v2")
+	fmt.Println("-v2         optional, boolean, indicates communication with a License Server v2")
 	// these parameters are deprecated, let's be silent about them in the help
 	//fmt.Println("-login      optional, used along with lcpsv, username for the License server")
 	//fmt.Println("-password   optional, used along with lcpsv, password for the License server")
 	fmt.Println("-notify     optional, URL, notification endpoint of a CMS; syntax http://username:password@example.com")
 	fmt.Println("-verbose    optional, boolean, the information sent to the LCP Server and CMS will be displayed")
+	fmt.Println("-output     optional, deprecated, temporary location of encrypted publications, before the License Server moves them. File system path only. This path must be directly accessible from the License Server. If not set, encrypted publications will be temporarily created into the current directory.")
 	fmt.Println("-help :     help information")
 	os.Exit(0)
 }
