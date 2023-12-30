@@ -38,16 +38,16 @@ type Entity struct {
 
 // CMSMsg is used for notifying a CMS
 type CMSMsg struct {
-	UUID          string    `json:"uuid"`
-	Title         string    `json:"title"`
-	ContentType   string    `json:"content_type"`
-	DatePublished time.Time `json:"date_published"`
-	Description   string    `json:"description"`
-	CoverUrl      string    `json:"cover_url"`
-	Language      []Coded   `json:"language"`
-	Publisher     []Entity  `json:"publisher"`
-	Author        []Entity  `json:"author"`
-	Category      []Entity  `json:"category"`
+	UUID          string   `json:"uuid"`
+	Title         string   `json:"title"`
+	ContentType   string   `json:"content_type"`
+	DatePublished string   `json:"date_published"`
+	Description   string   `json:"description"`
+	CoverUrl      string   `json:"cover_url,omitempty"`
+	Language      []Coded  `json:"language"`
+	Publisher     []Entity `json:"publisher"`
+	Author        []Entity `json:"author"`
+	Category      []Entity `json:"category"`
 }
 
 // NotifyLCPServer notifies the License Server of the encryption of a publication
@@ -128,6 +128,7 @@ func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, pa
 		var out bytes.Buffer
 		json.Indent(&out, jsonBody, "", " ")
 		out.WriteTo(os.Stdout)
+		fmt.Println("")
 	}
 
 	req.SetBasicAuth(username, password)
@@ -244,12 +245,13 @@ func NotifyCMS(pub Publication, notifyURL string, verbose bool) error {
 		return err
 	}
 
-	// verbose: log the notification
+	// verbose: display the notification
 	if verbose {
 		fmt.Println("CMS Notification:")
 		var out bytes.Buffer
 		json.Indent(&out, jsonBody, "", " ")
 		out.WriteTo(os.Stdout)
+		fmt.Println("")
 	}
 
 	req.SetBasicAuth(username, password)
