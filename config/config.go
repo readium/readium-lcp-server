@@ -40,8 +40,8 @@ type ServerInfo struct {
 	ReadOnly      bool   `yaml:"readonly,omitempty"`
 	PublicBaseUrl string `yaml:"public_base_url,omitempty"`
 	Database      string `yaml:"database,omitempty"`
-	Directory     string `yaml:"directory,omitempty"`
 	CertDate      string `yaml:"cert_date,omitempty"`
+	Resources     string `yaml:"resources,omitempty"`
 }
 
 type LsdServerInfo struct {
@@ -52,6 +52,7 @@ type LsdServerInfo struct {
 
 type FrontendServerInfo struct {
 	ServerInfo          `yaml:",inline"`
+	Directory           string `yaml:"directory,omitempty"`
 	ProviderUri         string `yaml:"provider_uri"`
 	RightPrint          int32  `yaml:"right_print"`
 	RightCopy           int32  `yaml:"right_copy"`

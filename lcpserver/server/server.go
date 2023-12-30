@@ -34,6 +34,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/readium/readium-lcp-server/api"
+	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/index"
 	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
 	"github.com/readium/readium-lcp-server/license"
@@ -95,7 +96,13 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
 	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
 
-	// methods related to encrypted content
+	// Serve static resources from a configurable directory.
+	// This is used when lcpencrypt sends encrypted resources and cover images to an fs storage,
+	// and we want this http server to provide such resources to the outside world (e.g. PubStore).
+	resourceDir := config.Config.LcpServer.Resources
+	sr.R.PathPrefix("/resources/").Handler(http.StripPrefix("/resources/", http.FileServer(http.Dir(resourceDir))))
+
+	// Methods related to encrypted content
 
 	contentRoutesPathPrefix := "/contents"
 	contentRoutes := sr.R.PathPrefix(contentRoutesPathPrefix).Subrouter().StrictSlash(false)
@@ -122,7 +129,7 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 		s.handlePrivateFunc(contentRoutes, "/{content_id}/publications", apilcp.GenerateLicensedPublication, basicAuth).Methods("POST")
 	}
 
-	// methods related to licenses
+	// Methods related to licenses
 
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
