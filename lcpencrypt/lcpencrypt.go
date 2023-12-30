@@ -24,15 +24,17 @@ func showHelpAndExit() {
 	fmt.Println("-storage    optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
 	fmt.Println("-url        optional, base url associated with the storage, without filename")
 	fmt.Println("-filename   optional, file name of the encrypted publication; if omitted, contentid is used")
-	fmt.Println("-output     optional, target folder of encrypted publications")
+	fmt.Println("-output     optional, temporary location of encrypted publications, before the License Server moves them. File system path only")
 	fmt.Println("-temp       optional, working folder for temporary files")
+	fmt.Println("-cover      optional, boolean, indicates that covers must be generated when possible")
 	fmt.Println("-contentkey optional, base64 encoded content key; if omitted a random content key is generated")
-	fmt.Println("-lcpsv      optional, URL, host name of the License server which is notified; its syntax is http://username:password@example.com")
-	fmt.Println("-v2         optional, boolean, indicates a v2 License server")
+	fmt.Println("-lcpsv      optional, URL, host name of the License Server to be notified; syntax http://username:password@example.com")
+	fmt.Println("-v2         optional, boolean, indicates a License Server v2")
 	// these parameters are deprecated, let's be silent about them in the help
 	//fmt.Println("-login      optional, used along with lcpsv, username for the License server")
 	//fmt.Println("-password   optional, used along with lcpsv, password for the License server")
-	fmt.Println("-notify     optional, URL, notification endpoint for a CMS; its syntax is http://username:password@example.com")
+	fmt.Println("-notify     optional, URL, notification endpoint of a CMS; syntax http://username:password@example.com")
+	fmt.Println("-verbose    optional, boolean, the information sent to the LCP Server and CMS will be displayed")
 	fmt.Println("-help :     help information")
 	os.Exit(0)
 }
@@ -52,13 +54,14 @@ func main() {
 	storageFilename := flag.String("filename", "", "optional, file name of the encrypted publication; if omitted, contentid is used")
 	outputRepo := flag.String("output", "", "optional, target folder of encrypted publications")
 	tempRepo := flag.String("temp", "", "optional, working folder for temporary files")
+	cover := flag.Bool("cover", false, "optional, boolean, indicates that covers must be generated when possible")
 	contentkey := flag.String("contentkey", "", "optional, base64 encoded content key; if omitted a random content key is generated")
 	lcpsv := flag.String("lcpsv", "", "URL, host name of the License server which is notified; the preferred syntax is http://username:password@example.com")
 	v2 := flag.Bool("v2", false, "optional, boolean, indicates a v2 License serve")
 	username := flag.String("login", "", "optional unless lcpsv is used, username for the License server")
 	password := flag.String("password", "", "optional unless lcpsv is used, password for the License server")
 	notify := flag.String("notify", "", "optional, URL, notification endpoint for a CMS; its syntax is http://username:password@example.com")
-	verbose := flag.Bool("verbose", false, "optional, boolean, adds logs to stdout")
+	verbose := flag.Bool("verbose", false, "optional, boolean, the information sent to the LCP Server and CMS will be displayed")
 
 	help := flag.Bool("help", false, "shows information")
 
@@ -83,7 +86,7 @@ func main() {
 	start := time.Now()
 
 	// encrypt the publication
-	publication, err := encrypt.ProcessEncryption(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename)
+	publication, err := encrypt.ProcessEncryption(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename, *cover)
 	if err != nil {
 		exitWithError("Error processing a publication", err)
 	}
