@@ -18,7 +18,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/readium/readium-lcp-server/crypto"
 	"github.com/readium/readium-lcp-server/epub"
@@ -31,7 +30,7 @@ import (
 type Publication struct {
 	UUID          string
 	Title         string
-	Date          time.Time
+	Date          string
 	Description   string
 	Language      []string
 	Publisher     []string
@@ -49,7 +48,7 @@ type Publication struct {
 
 // ProcessEncryption encrypts a publication
 // inputPath must contain a processable file extension (EPUB, PDF, LPF or RPF)
-func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, storageRepo, storageURL, storageFilename string) (*Publication, error) {
+func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, storageRepo, storageURL, storageFilename string, extractCover bool) (*Publication, error) {
 
 	if inputPath == "" {
 		return nil, errors.New("ProcessEncryption, parameter error")
@@ -135,10 +134,9 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 
 	inputExt := filepath.Ext(inputPath)
 
-	// the cover will be extracted if lcpencrypt stores the file and the file is an EPUB
-	extractCover := false
-	if storageRepo != "" {
-		extractCover = true
+	// the cover can be extracted if lcpencrypt stores the file and the file is an EPUB
+	if storageRepo == "" {
+		extractCover = false
 	}
 
 	switch inputExt {
@@ -325,7 +323,7 @@ func processEPUB(pub *Publication, inputPath string, outputPath string, encrypte
 
 	// init metadata
 	pub.Title = epub.Package[0].Metadata.Title[0]
-	pub.Date, _ = time.Parse("2006-01-02", epub.Package[0].Metadata.Date)
+	pub.Date = epub.Package[0].Metadata.Date
 	pub.Description = epub.Package[0].Metadata.Description
 	pub.Language = epub.Package[0].Metadata.Language
 	pub.Publisher = epub.Package[0].Metadata.Publisher
@@ -375,34 +373,32 @@ func processEPUB(pub *Publication, inputPath string, outputPath string, encrypte
 		return errors.New("empty output file")
 	}
 
-	// extract the cover image and store it at the target location
-	for _, f := range zr.File {
-		if f.Name == coverPath {
-			epubCover, err := f.Open()
-			if err != nil {
-				// we do not consider it as an error
-				log.Printf("Error opening the cover in %s, %s", coverPath, err.Error())
+	if extractCover {
+		// extract the cover image and store it at the target location
+		for _, f := range zr.File {
+			if f.Name == coverPath {
+				epubCover, err := f.Open()
+				if err != nil {
+					log.Printf("Error opening the cover in %s, %s", coverPath, err.Error())
+					break // move out of the loop
+				}
+				defer epubCover.Close()
+				// create the output cover
+				coverExt := path.Ext(coverPath)
+				coverFile, err := os.Create(outputPath + coverExt)
+				if err != nil {
+					return err
+				}
+				defer coverFile.Close()
+				_, err = io.Copy(coverFile, epubCover)
+				if err != nil {
+					// we do not consider it as an error
+					log.Printf("Error copying cover data, %s", err.Error())
+				}
+				// set temporarily, will be updated later
+				pub.CoverUrl = coverPath
+				break
 			}
-			defer epubCover.Close()
-			// create the output cover
-			coverExt := path.Ext(coverPath)
-			coverFile, err := os.Create(outputPath + coverExt)
-			if err != nil {
-				return err
-			}
-			_, err = io.Copy(coverFile, epubCover)
-			if err != nil {
-				// we do not consider it as an error
-				log.Printf("Error copying cover data, %s", err.Error())
-			}
-			err = coverFile.Close()
-			if err != nil {
-				// we do not consider it as an error
-				log.Printf("Error closing the cover file, %s", err.Error())
-			}
-			// set temporarily, will be updated later
-			pub.CoverUrl = coverPath
-			break
 		}
 	}
 
