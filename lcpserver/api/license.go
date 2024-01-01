@@ -117,9 +117,13 @@ func setRights(lic *license.License) {
 func buildLicense(lic *license.License, s Server, updatefix bool) error {
 
 	// set the LCP profile
-	license.SetLicenseProfile(lic)
+	err := license.SetLicenseProfile(lic)
+	if err != nil {
+		log.Println("Build License: " + err.Error())
+		return err
+	}
 
-	// force the algorithm to the one defined by the basic and 1.0 profiles
+	// force the algorithm to the one defined by the current profiles
 	lic.Encryption.UserKey.Algorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 
 	// get content info from the db
