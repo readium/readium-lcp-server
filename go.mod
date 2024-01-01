@@ -18,6 +18,7 @@ require (
 	github.com/rickb777/date v1.19.1
 	github.com/rs/cors v1.8.2
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
+	github.com/slack-go/slack v0.12.3 // indirect
 	github.com/urfave/negroni v1.0.0
 	golang.org/x/net v0.17.0
 	golang.org/x/text v0.13.0
