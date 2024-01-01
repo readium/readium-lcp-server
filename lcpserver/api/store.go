@@ -219,7 +219,7 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	contentID := vars["content_id"]
 
 	// add a log
-	logging.Print("Get publication " + contentID)
+	logging.Print("Fetch content " + contentID)
 
 	content, err := s.Index().Get(contentID)
 	if err != nil { //item probably not found
