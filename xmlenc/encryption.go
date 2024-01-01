@@ -7,6 +7,8 @@ package xmlenc
 import (
 	"encoding/xml"
 	"io"
+	"net/url"
+	"strings"
 
 	"golang.org/x/net/html/charset"
 )
@@ -17,9 +19,23 @@ type Manifest struct {
 	XMLName struct{} `xml:"urn:oasis:names:tc:opendocument:xmlns:container encryption"`
 }
 
+// ResourcePathEscape encodes a path for a URL but keep slashes unescaped
+func ResourcePathEscape(path string) string {
+	segments := strings.Split(path, "/")
+
+	// Encode each segment individually
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+
+	// Join the encoded segments with slashes
+	return strings.Join(segments, "/")
+}
+
 // DataForFile returns the EncryptedData item corresponding to a given path
 func (m Manifest) DataForFile(path string) (Data, bool) {
-	uri := URI(path)
+	uri := URI(ResourcePathEscape(path))
+
 	for _, datum := range m.Data {
 		if datum.CipherData.CipherReference.URI == uri {
 			return datum, true

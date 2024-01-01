@@ -229,7 +229,8 @@ func encryptEPUBResource(compressor *flate.Writer, compress bool, encrypter cryp
 	data.KeyInfo.RetrievalMethod.URI = "license.lcpl#/encryption/content_key"
 	data.KeyInfo.RetrievalMethod.Type = "http://readium.org/2014/01/lcp#EncryptedContentKey"
 
-	data.CipherData.CipherReference.URI = xmlenc.URI(file.Path)
+	// espace the path before using it as a uri
+	data.CipherData.CipherReference.URI = xmlenc.URI(xmlenc.ResourcePathEscape(file.Path))
 
 	// declare to the reading software that the content is compressed before encryption
 	method := NoCompression
