@@ -19,6 +19,9 @@ import (
 )
 
 const (
+	// DO NOT FORGET to update the version
+	Software_Version = "1.9.0"
+
 	ContentType_LCP_JSON  = "application/vnd.readium.lcp.license.v1.0+json"
 	ContentType_LSD_JSON  = "application/vnd.readium.license.status.v1.0+json"
 	ContentType_TEXT_HTML = "text/html"
@@ -34,6 +37,8 @@ type ServerRouter struct {
 }
 
 func CreateServerRouter(tplPath string) ServerRouter {
+
+	log.Println("Software Version " + Software_Version)
 
 	r := mux.NewRouter()
 
