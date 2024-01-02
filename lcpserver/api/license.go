@@ -355,6 +355,10 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
+
+	// add a log
+	logging.Print("Generate a License " + lic.ID + " for Content " + contentID + " and User " + lic.User.ID)
+
 	// check mandatory information in the input body
 	err = checkGenerateLicenseInput(&lic)
 	if err != nil {
@@ -381,9 +385,6 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		//problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: contentID}, http.StatusInternalServerError)
 		return
 	}
-
-	// add a log
-	logging.Print("Generate a License " + lic.ID + " for Content " + contentID + " and User " + lic.User.ID)
 
 	// set http headers
 	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
