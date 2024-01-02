@@ -10,10 +10,11 @@ import (
 	"log"
 
 	"github.com/readium/readium-lcp-server/config"
+	"github.com/readium/readium-lcp-server/dbutils"
 	uuid "github.com/satori/go.uuid"
 )
 
-//ErrNotFound error trown when user is not found
+// ErrNotFound error trown when user is not found
 var ErrNotFound = errors.New("User not found")
 
 // WebUser interface for user db interaction
@@ -26,7 +27,7 @@ type WebUser interface {
 	ListUsers(page int, pageNum int) func() (User, error)
 }
 
-//User struct defines a user
+// User struct defines a user
 type User struct {
 	ID       int64  `json:"id"`
 	UUID     string `json:"uuid"`
@@ -74,7 +75,8 @@ func (user dbUser) Add(newUser User) error {
 	}
 	newUser.UUID = uid.String()
 
-	_, err := user.db.Exec("INSERT INTO \"user\" (uuid, name, email, password, hint) VALUES (?, ?, ?, ?, ?)",
+	_, err := user.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database,
+		"INSERT INTO \"user\" (uuid, name, email, password, hint) VALUES (?, ?, ?, ?, ?)"),
 		newUser.UUID, newUser.Name, newUser.Email, newUser.Password, newUser.Hint)
 	return err
 }
@@ -82,7 +84,8 @@ func (user dbUser) Add(newUser User) error {
 // Update updates a user
 func (user dbUser) Update(changedUser User) error {
 
-	_, err := user.db.Exec("UPDATE \"user\" SET name=? , email=?, password=?, hint=? WHERE id=?",
+	_, err := user.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database,
+		"UPDATE \"user\" SET name=? , email=?, password=?, hint=? WHERE id=?"),
 		changedUser.Name, changedUser.Email, changedUser.Password, changedUser.Hint, changedUser.ID)
 	return err
 }
@@ -91,13 +94,13 @@ func (user dbUser) Update(changedUser User) error {
 func (user dbUser) DeleteUser(userID int64) error {
 
 	// delete user purchases
-	_, err := user.db.Exec("DELETE FROM purchase WHERE user_id=?", userID)
+	_, err := user.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database, "DELETE FROM purchase WHERE user_id=?"), userID)
 	if err != nil {
 		return err
 	}
 
 	// delete user
-	_, err = user.db.Exec("DELETE FROM \"user\" WHERE id=?", userID)
+	_, err = user.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database, "DELETE FROM \"user\" WHERE id=?"), userID)
 	return err
 }
 
@@ -129,7 +132,7 @@ func (user dbUser) ListUsers(page int, pageNum int) func() (User, error) {
 	}
 }
 
-//Open  returns a WebUser interface (db interaction)
+// Open  returns a WebUser interface (db interaction)
 func Open(db *sql.DB) (i WebUser, err error) {
 
 	driver, _ := config.GetDatabase(config.Config.FrontendServer.Database)
@@ -143,7 +146,8 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	}
 
 	var dbGetUser *sql.Stmt
-	dbGetUser, err = db.Prepare("SELECT id, uuid, name, email, password, hint FROM \"user\" WHERE id = ?")
+	dbGetUser, err = db.Prepare(dbutils.GetParamQuery(config.Config.FrontendServer.Database,
+		"SELECT id, uuid, name, email, password, hint FROM \"user\" WHERE id = ?"))
 	if err != nil {
 		return
 	}
@@ -152,7 +156,8 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	if driver == "mssql" {
 		dbGetByEmail, err = db.Prepare("SELECT TOP 1 id, uuid, name, email, password, hint FROM \"user\" WHERE email = ?")
 	} else {
-		dbGetByEmail, err = db.Prepare("SELECT id, uuid, name, email, password, hint FROM \"user\" WHERE email = ? LIMIT 1")
+		dbGetByEmail, err = db.Prepare(dbutils.GetParamQuery(config.Config.FrontendServer.Database,
+			"SELECT id, uuid, name, email, password, hint FROM \"user\" WHERE email = ? LIMIT 1"))
 	}
 	if err != nil {
 		return
@@ -162,7 +167,8 @@ func Open(db *sql.DB) (i WebUser, err error) {
 	if driver == "mssql" {
 		dbList, err = db.Prepare("SELECT id, uuid, name, email, password, hint	FROM \"user\" ORDER BY email desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY")
 	} else {
-		dbList, err = db.Prepare("SELECT id, uuid, name, email, password, hint	FROM \"user\" ORDER BY email desc LIMIT ? OFFSET ?")
+		dbList, err = db.Prepare(dbutils.GetParamQuery(config.Config.FrontendServer.Database,
+			"SELECT id, uuid, name, email, password, hint	FROM \"user\" ORDER BY email desc LIMIT ? OFFSET ?"))
 	}
 	if err != nil {
 		return

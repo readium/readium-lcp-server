@@ -16,6 +16,7 @@ import (
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/config"
+	"github.com/readium/readium-lcp-server/dbutils"
 	"github.com/readium/readium-lcp-server/frontend/webpublication"
 	"github.com/readium/readium-lcp-server/frontend/webuser"
 	"github.com/readium/readium-lcp-server/license"
@@ -23,10 +24,10 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-//ErrNotFound Error is thrown when a purchase is not found
+// ErrNotFound Error is thrown when a purchase is not found
 var ErrNotFound = errors.New("purchase not found")
 
-//ErrNoChange is thrown when an update action does not change any rows (not found)
+// ErrNoChange is thrown when an update action does not change any rows (not found)
 var ErrNoChange = errors.New("no lines were updated")
 
 // WebPurchase defines possible interactions with the db
@@ -56,8 +57,8 @@ const (
 	LOAN string = "LOAN"
 )
 
-//Purchase struct defines a user in json and database
-//PurchaseType: BUY or LOAN
+// Purchase struct defines a user in json and database
+// PurchaseType: BUY or LOAN
 type Purchase struct {
 	ID              int64                      `json:"id,omitempty"`
 	UUID            string                     `json:"uuid"`
@@ -455,9 +456,9 @@ func (pManager PurchaseManager) Add(p Purchase) error {
 	}
 	p.UUID = uid.String()
 
-	_, err := pManager.db.Exec(`INSERT INTO purchase
+	_, err := pManager.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database, `INSERT INTO purchase
 	(uuid, publication_id, user_id, type, transaction_date, start_date, end_date, status)
-	VALUES (?, ?, ?, ?, ?, ?, ?, 'ok')`,
+	VALUES (?, ?, ?, ?, ?, ?, ?, 'ok')`),
 		p.UUID, p.Publication.ID, p.User.ID, string(p.Type), p.TransactionDate, p.StartDate, p.EndDate)
 
 	return err
@@ -540,7 +541,7 @@ func (pManager PurchaseManager) Update(p Purchase) error {
 		p.Status = StatusOk
 	}
 	// update the db with the updated license id, start date, end date, status
-	result, err := pManager.db.Exec(`UPDATE purchase SET license_uuid=?, start_date=?, end_date=?, status=? WHERE id=?`,
+	result, err := pManager.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database, `UPDATE purchase SET license_uuid=?, start_date=?, end_date=?, status=? WHERE id=?`),
 		p.LicenseUUID, p.StartDate, p.EndDate, p.Status, p.ID)
 	if err != nil {
 		return err
@@ -573,13 +574,13 @@ func Init(db *sql.DB) (i WebPurchase, err error) {
 	FROM purchase p JOIN "user" u ON (p.user_id=u.id) JOIN publication pu ON (p.publication_id=pu.id)`
 
 	var dbGetByID *sql.Stmt
-	dbGetByID, err = db.Prepare(selectQuery + `WHERE p.id = ?`)
+	dbGetByID, err = db.Prepare(selectQuery + dbutils.GetParamQuery(config.Config.FrontendServer.Database, ` WHERE p.id = ?`))
 	if err != nil {
 		return
 	}
 
 	var dbGetByLicenseID *sql.Stmt
-	dbGetByLicenseID, err = db.Prepare(selectQuery + ` WHERE p.license_uuid = ?`)
+	dbGetByLicenseID, err = db.Prepare(selectQuery + dbutils.GetParamQuery(config.Config.FrontendServer.Database, ` WHERE p.license_uuid = ?`))
 	if err != nil {
 		return
 	}
@@ -588,7 +589,7 @@ func Init(db *sql.DB) (i WebPurchase, err error) {
 	if driver == "mssql" {
 		dbList, err = db.Prepare(selectQuery + ` ORDER BY p.transaction_date desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
 	} else {
-		dbList, err = db.Prepare(selectQuery + ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`)
+		dbList, err = db.Prepare(selectQuery + dbutils.GetParamQuery(config.Config.FrontendServer.Database, ` ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`))
 	}
 	if err != nil {
 		return
@@ -598,7 +599,7 @@ func Init(db *sql.DB) (i WebPurchase, err error) {
 	if driver == "mssql" {
 		dbListByUser, err = db.Prepare(selectQuery + ` WHERE u.id = ? ORDER BY p.transaction_date desc OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
 	} else {
-		dbListByUser, err = db.Prepare(selectQuery + ` WHERE u.id = ? ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`)
+		dbListByUser, err = db.Prepare(selectQuery + dbutils.GetParamQuery(config.Config.FrontendServer.Database, ` WHERE u.id = ? ORDER BY p.transaction_date desc LIMIT ? OFFSET ?`))
 	}
 	if err != nil {
 		return
