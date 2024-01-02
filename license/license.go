@@ -341,10 +341,19 @@ func encryptKey(encrypter crypto.Encrypter, key []byte, kek []byte) []byte {
 	return out.Bytes()
 }
 
+func remove(sl []string, i int) []string {
+	sl[i] = sl[len(sl)-1]
+	return sl[:len(sl)-1]
+}
+
 func encryptFields(encrypter crypto.Encrypter, l *License, key []byte) error {
-	for _, toEncrypt := range l.User.Encrypted {
+	for i, toEncrypt := range l.User.Encrypted {
 		var out bytes.Buffer
 		field := getField(&l.User, toEncrypt)
+		if !field.IsValid() {
+			l.User.Encrypted = remove(l.User.Encrypted, i)
+			break
+		}
 		err := encrypter.Encrypt(key[:], bytes.NewBufferString(field.String()), &out)
 		if err != nil {
 			return err
