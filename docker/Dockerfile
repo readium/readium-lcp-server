@@ -40,7 +40,7 @@ ARG PROFILE=basic
 
 COPY $PRIVATE_KEY_PATH /privkey.pem
 COPY $CERTIFICATE_PATH /cert.pem
-COPY $I18N /i18n
+#COPY $I18N /i18n
 COPY $AUTH_FILE /htpasswd
 
 # envsubst in inittab once
