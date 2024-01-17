@@ -14,8 +14,16 @@ COPY $USERKEYGO_PATH $USERKEYGO_PATH
 
 # RUN apk add build-base
 
-RUN echo $CONTAINER_TIMEZONE && arch && uname && apt-get -y update && apt-get -y upgrade && ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata && apt-get install -y make curl git python build-essential golang bsdmainutils && curl -fsSL https://deb.nodesource.com/setup_18.x | bash && apt-get install -y nodejs
+RUN echo $CONTAINER_TIMEZONE && arch && uname && apt-get -y update && apt-get -y upgrade && ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata && apt-get install -y make curl git python build-essential bsdmainutils golang-1.21-go && ls /usr/lib/go-1.21 && export GOROOT=/usr/lib/go-1.21 && export PATH=$GOROOT/bin:$PATH && echo $PATH && which go && whereis go && go version && go env && curl -fsSL https://deb.nodesource.com/setup_20.x | bash && apt-get install -y nodejs
 
+#go get golang.org/dl/go1.21@latest
+# RUN curl -OL https://golang.org/dl/go1.21.6.linux-amd64.tar.gz && mkdir -p ./golang && tar -C ./golang -xvf go1.21.6.linux-amd64.tar.gz
+ENV GOROOT=/usr/lib/go-1.21
+ENV PATH=$GOROOT/bin:$PATH
+RUN echo $PATH && echo ${PATH}
+RUN which go && whereis go && go version && go env
+
+# RUN CGO_ENABLED=1 GOPATH=/lcp/build GOARCH=amd64 go install -x -ldflags '-linkmode external -w -extldflags -static' ./lcpserver
 RUN make BUILD_PROD=${BUILD_PROD} LIBUSERKEY_PATH=${LIBUSERKEY_PATH} USERKEYH_PATH=${USERKEYH_PATH} USERKEYGO_PATH=${USERKEYGO_PATH} lcpserver && ls -als -R /lcp/build/bin
 
 RUN make lsdserver && ls -als -R /lcp/build/bin

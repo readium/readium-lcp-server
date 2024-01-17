@@ -76,6 +76,8 @@ prepare:
 	echo "UNAME $(UNAME_S)"
 	echo "ARCH $(MYARCH)"
 	echo "GOARCH $(GOARCH)"
+	echo "PATH $(PATH)"
+	go version && go env
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(BUILD_DIR)/cert
 	mkdir -p $(BUILD_DIR)/db
@@ -117,12 +119,16 @@ $(frontend_manage): prepare
 		&& cp package.json package.json.backup \
 		&& $(SED_I) '/\"lite-server\"\:/d' package.json \
 		&& $(SED_I) 's/git\:/https\:/g' package.json \
-		&& npm install --legacy-peer-deps \
+		&& node --version \
+		&& npm --version \
+		&& npm i --legacy-peer-deps \
 		&& npm update \
 		&& npm run clean \
 		&& npm run build-css \
 		&& npm run copy-templates \
 		&& $(SED_I) '/es2015/d' node_modules/@types/node/index.d.ts \
+		&& rm -rf node_modules/@types/jasmine \
+		&& node_modules/.bin/tsc --version \
 		&& node_modules/.bin/tsc \
 		&& mv package.json.backup package.json \
 		&& cp -r . $(BUILD_DIR)/frontend/manage/.
