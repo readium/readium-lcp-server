@@ -88,10 +88,8 @@ func main() {
 	// the server will behave strangely, to test the resilience of LCP compliant apps
 	goofyMode := config.Config.GoofyMode
 
-	// a log file will be created with a specifc format, for compliance testing
-	complianceMode := config.Config.ComplianceMode
-	logDirectory := config.Config.LsdServer.LogDirectory
-	err = logging.Init(logDirectory, complianceMode)
+	// if the logging key is set, logs will be sent to a file and/or Slack channel for test purposes
+	err = logging.Init(config.Config.Logging)
 	if err != nil {
 		panic(err)
 	}
@@ -99,7 +97,7 @@ func main() {
 	HandleSignals()
 
 	parsedPort := strconv.Itoa(config.Config.LsdServer.Port)
-	s := lsdserver.New(":"+parsedPort, readonly, complianceMode, goofyMode, &hist, &trns, authenticator)
+	s := lsdserver.New(":"+parsedPort, readonly, goofyMode, &hist, &trns, authenticator)
 	if readonly {
 		log.Println("License status server running in readonly mode on port " + parsedPort)
 	} else {

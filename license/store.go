@@ -153,7 +153,9 @@ func (s *sqlStore) Get(id string) (License, error) {
 	l.Rights = new(UserRights)
 	err := row.Scan(&l.ID, &l.User.ID, &l.Provider, &l.Issued, &l.Updated,
 		&l.Rights.Print, &l.Rights.Copy, &l.Rights.Start, &l.Rights.End, &l.ContentID)
-
+	if err == sql.ErrNoRows {
+		err = ErrNotFound
+	}
 	return l, err
 }
 
@@ -161,7 +163,6 @@ func (s *sqlStore) Get(id string) (License, error) {
 func Open(db *sql.DB) (store Store, err error) {
 
 	driver, _ := config.GetDatabase(config.Config.LcpServer.Database)
-	log.Println("Database driver " + driver)
 
 	// if sqlite, create the license table if it does not exist
 	if driver == "sqlite3" {

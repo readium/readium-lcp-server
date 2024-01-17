@@ -11,9 +11,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -24,15 +26,35 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// Publication aggregates information during the process
+type Publication struct {
+	UUID          string
+	Title         string
+	Date          string
+	Description   string
+	Language      []string
+	Publisher     []string
+	Author        []string
+	Subject       []string
+	CoverUrl      string
+	StorageMode   int
+	FileName      string
+	EncryptionKey []byte
+	Location      string
+	ContentType   string
+	Size          uint32
+	Checksum      string
+}
+
 // ProcessEncryption encrypts a publication
 // inputPath must contain a processable file extension (EPUB, PDF, LPF or RPF)
-func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, storageRepo, storageURL, storageFilename string) (*apilcp.LcpPublication, error) {
+func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, storageRepo, storageURL, storageFilename string, extractCover bool) (*Publication, error) {
 
 	if inputPath == "" {
 		return nil, errors.New("ProcessEncryption, parameter error")
 	}
 
-	var pub apilcp.LcpPublication
+	var pub Publication
 
 	// if contentID is not set, generate a random UUID
 	if contentID == "" {
@@ -42,7 +64,7 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 		}
 		contentID = uid.String()
 	}
-	pub.ContentID = contentID
+	pub.UUID = contentID
 
 	// create a temp folder if declared, or use the current dir
 	if tempRepo != "" {
@@ -78,7 +100,7 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 			// file system storage
 		} else {
 			pub.StorageMode = apilcp.Storage_fs
-			// create the storage folder
+			// create the storage folder when necessary
 			err := os.MkdirAll(storageRepo, os.ModePerm)
 			if err != nil && !os.IsExist(err) {
 				return nil, err
@@ -97,7 +119,7 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 
 	// set the target file name; use the content id by default
 	if storageFilename == "" {
-		storageFilename = pub.ContentID
+		storageFilename = pub.UUID
 	}
 
 	// set the output path
@@ -112,14 +134,22 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 
 	inputExt := filepath.Ext(inputPath)
 
+	// the cover can be extracted if lcpencrypt stores the file and the file is an EPUB
+	if storageRepo == "" {
+		extractCover = false
+	}
+
 	switch inputExt {
 	case ".epub":
-		err = processEPUB(&pub, inputPath, outputPath, encrypter, contentKey)
+		err = processEPUB(&pub, inputPath, outputPath, encrypter, contentKey, extractCover)
 	case ".pdf":
+		extractCover = false
 		err = processPDF(&pub, inputPath, outputPath, encrypter, contentKey)
 	case ".lpf":
+		extractCover = false
 		err = processLPF(&pub, inputPath, outputPath, encrypter, contentKey)
 	case ".audiobook", ".divina", ".webpub", ".rpf":
+		extractCover = false
 		err = processRPF(&pub, inputPath, outputPath, encrypter, contentKey)
 	default:
 		return nil, errors.New("unprocessable extension " + inputExt)
@@ -135,34 +165,35 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 		}
 	}
 
-	// store the publication if required, and set pub.Output
+	// store the publication if required, and set pub.Location
 	switch pub.StorageMode {
+	// the license server will have to store the encrypted publication
+	// warning: the license server must have read access to the output repo.
 	case apilcp.Storage_none:
-		// reminder: if the license server is requested storing the encrypted publication,
-		// then it must have read access to the output repo.
-		pub.Output = outputPath
+		// location indicates to the license server the path to the encrypted publication
+		pub.Location = outputPath
+	// the encryption tools stores the encrypted publication in a file system
 	case apilcp.Storage_fs:
-		// url of the publication
-		pub.Output, err = setPubURL(storageURL, storageFilename)
+		// location indicates the url of the publication
+		pub.Location, err = url.JoinPath(storageURL, storageFilename)
+		// the encryption tools stores the encrypted publication in an S3 storage
 	case apilcp.Storage_s3:
 		// store the encrypted file in its definitive S3 storage, delete the temp file
-		// use the filename parameter is provided; use the unique id by default
-		var name string
-		if storageFilename != "" {
-			name = storageFilename
-		} else {
-			name = pub.ContentID
-		}
-		err = StoreS3Publication(outputPath, storageRepo, name)
+		err = StoreS3Publication(outputPath, storageRepo, storageFilename)
 		if err != nil {
 			return nil, err
 		}
-		// url of the publication
-		pub.Output, err = setPubURL(storageURL, storageFilename)
+		// location indicates the url of the publication on S3
+		pub.Location, err = url.JoinPath(storageURL, storageFilename)
 	}
 	if err != nil {
 		return nil, err
 	}
+	if extractCover {
+		coverExt := path.Ext(pub.CoverUrl)
+		pub.CoverUrl, _ = url.JoinPath(storageURL, storageFilename+coverExt)
+	}
+
 	return &pub, nil
 }
 
@@ -175,7 +206,8 @@ func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
 
 	url, err := url.Parse(inputPath)
 	if err != nil {
-		return "", err
+		// this is not a valid URL
+		return "", nil
 	}
 
 	// no need to fetch the file, which is in a file system
@@ -214,7 +246,7 @@ func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
 
 // targetFileInfo sets the file name and content type
 // which will be used during future downloads
-func targetFileInfo(pub *apilcp.LcpPublication, inputPath, storageFilename string) error {
+func targetFileInfo(pub *Publication, inputPath, storageFilename string) error {
 
 	// if the storage filename was imposed, use it
 	if storageFilename != "" {
@@ -262,27 +294,6 @@ func targetFileInfo(pub *apilcp.LcpPublication, inputPath, storageFilename strin
 	return nil
 }
 
-// setPubURL sets a publication url from a base url and an id
-func setPubURL(base, id string) (pubURL string, err error) {
-
-	if base != "" {
-		baseURL, err := url.Parse(base)
-		if err != nil {
-			return "", err
-		}
-		// adds a slash if missing
-		if !strings.HasSuffix(baseURL.Path, "/") {
-			baseURL.Path = baseURL.Path + "/"
-		}
-		url, err := baseURL.Parse(id)
-		if err != nil {
-			return "", err
-		}
-		pubURL = url.String()
-	}
-	return pubURL, nil
-}
-
 // checksum calculates the checksum of a file
 func checksum(file *os.File) string {
 
@@ -295,7 +306,7 @@ func checksum(file *os.File) string {
 }
 
 // processEPUB encrypts resources in an EPUB
-func processEPUB(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
+func processEPUB(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string, extractCover bool) error {
 
 	// create a zip reader from the input path
 	zr, err := zip.OpenReader(inputPath)
@@ -309,6 +320,32 @@ func processEPUB(pub *apilcp.LcpPublication, inputPath string, outputPath string
 	if err != nil {
 		return err
 	}
+
+	// init metadata
+	pub.Title = epub.Package[0].Metadata.Title[0]
+	pub.Date = epub.Package[0].Metadata.Date
+	pub.Description = epub.Package[0].Metadata.Description
+	pub.Language = epub.Package[0].Metadata.Language
+	pub.Publisher = epub.Package[0].Metadata.Publisher
+	pub.Author = epub.Package[0].Metadata.Author
+	pub.Subject = epub.Package[0].Metadata.Subject
+
+	// look for the cover image
+	coverImageID := "cover-image"
+	for _, meta := range epub.Package[0].Metadata.Metas {
+		if meta.Name == "cover" {
+			coverImageID = meta.Content
+		}
+	}
+	var coverPath string
+	for _, item := range epub.Package[0].Manifest.Items {
+		if strings.Contains(item.Properties, "cover-image") ||
+			item.ID == coverImageID {
+			// re-construct a path, avoid insertion of backslashes as separator on Windows
+			coverPath = filepath.ToSlash(filepath.Join(epub.Package[0].BasePath, item.Href))
+		}
+	}
+
 	// create the output file
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
@@ -316,29 +353,60 @@ func processEPUB(pub *apilcp.LcpPublication, inputPath string, outputPath string
 	}
 	// will close the output file
 	defer outputFile.Close()
+
 	// encrypt the content of the publication,
 	// write  into the output file
 	_, encryptionKey, err := pack.Do(encrypter, contentKey, epub, outputFile)
 	if err != nil {
 		return err
 	}
-	pub.ContentKey = encryptionKey
+	pub.EncryptionKey = encryptionKey
 	// calculate the output file size and checksum
 	stats, err := outputFile.Stat()
 	if err == nil && (stats.Size() > 0) {
 		filesize := stats.Size()
-		pub.Size = filesize
+		pub.Size = uint32(filesize)
 		cs := checksum(outputFile)
 		pub.Checksum = cs
 	}
 	if stats.Size() == 0 {
 		return errors.New("empty output file")
 	}
+
+	if extractCover {
+		// extract the cover image and store it at the target location
+		for _, f := range zr.File {
+			if f.Name == coverPath {
+				epubCover, err := f.Open()
+				if err != nil {
+					log.Printf("Error opening the cover in %s, %s", coverPath, err.Error())
+					break // move out of the loop
+				}
+				defer epubCover.Close()
+				// create the output cover
+				coverExt := path.Ext(coverPath)
+				coverFile, err := os.Create(outputPath + coverExt)
+				if err != nil {
+					return err
+				}
+				defer coverFile.Close()
+				_, err = io.Copy(coverFile, epubCover)
+				if err != nil {
+					// we do not consider it as an error
+					log.Printf("Error copying cover data, %s", err.Error())
+				}
+				// set temporarily, will be updated later
+				pub.CoverUrl = coverPath
+				break
+			}
+		}
+	}
+
 	return nil
 }
 
 // processPDF wraps a PDF file inside a Readium Package and encrypts its resources
-func processPDF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
+func processPDF(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// generate a temp Readium Package (rwpp) which embeds the PDF file; its title is the PDF file name
 	tmpPackagePath := outputPath + ".tmp"
@@ -355,7 +423,7 @@ func processPDF(pub *apilcp.LcpPublication, inputPath string, outputPath string,
 }
 
 // processLPF transforms a W3C LPF file into a Readium Package and encrypts its resources
-func processLPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
+func processLPF(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// generate a tmp Readium Package (rwpp) out of a W3C Package (lpf)
 	tmpPackagePath := outputPath + ".tmp"
@@ -372,7 +440,7 @@ func processLPF(pub *apilcp.LcpPublication, inputPath string, outputPath string,
 }
 
 // processRPF encrypts the source Readium Package
-func processRPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
+func processRPF(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// build an encrypted package
 	return buildEncryptedRPF(pub, inputPath, outputPath, encrypter, contentKey)
@@ -380,7 +448,7 @@ func processRPF(pub *apilcp.LcpPublication, inputPath string, outputPath string,
 
 // buildEncryptedRPF builds an encrypted Readium package out of an un-encrypted one
 // FIXME: it cannot be used for EPUB as long as Do() and Process() are not merged
-func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
+func buildEncryptedRPF(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
 	// create a reader on the un-encrypted readium package
 	reader, err := pack.OpenRPF(inputPath)
@@ -404,7 +472,7 @@ func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, outputPath 
 	if err != nil {
 		return err
 	}
-	pub.ContentKey = encryptionKey
+	pub.EncryptionKey = encryptionKey
 
 	err = writer.Close()
 	if err != nil {
@@ -415,7 +483,7 @@ func buildEncryptedRPF(pub *apilcp.LcpPublication, inputPath string, outputPath 
 	stats, err := outputFile.Stat()
 	if err == nil && (stats.Size() > 0) {
 		filesize := stats.Size()
-		pub.Size = filesize
+		pub.Size = uint32(filesize)
 		cs := checksum(outputFile)
 		pub.Checksum = cs
 	}

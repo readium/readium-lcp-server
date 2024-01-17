@@ -11,6 +11,8 @@ import (
 	"github.com/readium/readium-lcp-server/config"
 )
 
+var LCP_PRODUCTION_LIB = false
+
 // GenerateUserKey function prepares the user key
 func GenerateUserKey(key UserKey) []byte {
 	if config.Config.Profile != "basic" {

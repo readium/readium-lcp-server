@@ -20,23 +20,30 @@ type Package struct {
 
 // Metadata is the package metadata structure
 type Metadata struct {
-	Author string `json:"author" xml:"http://purl.org/dc/elements/1.1/ creator"`
-	Title  string `json:"title" xml:"http://purl.org/dc/elements/1.1/ title"`
-	Isbn   string `json:"isbn" xml:"http://purl.org/dc/elements/1.1/ identifier"`
-	Metas  []Meta `xml:"http://www.idpf.org/2007/opf meta"`
-	Cover  string `json:"cover"`
+	Identifier  string   `json:"identifier" xml:"http://purl.org/dc/elements/1.1/ identifier"`
+	Title       []string `json:"title" xml:"http://purl.org/dc/elements/1.1/ title"`
+	Description string   `json:"description" xml:"http://purl.org/dc/elements/1.1/ description"`
+	Date        string   `json:"date" xml:"http://purl.org/dc/elements/1.1/ date"`
+	Author      []string `json:"author" xml:"http://purl.org/dc/elements/1.1/ creator"`
+	Contributor []string `json:"contributor" xml:"http://purl.org/dc/elements/1.1/ contributor"`
+	Publisher   []string `json:"publisher" xml:"http://purl.org/dc/elements/1.1/ publisher"`
+	Language    []string `json:"language" xml:"http://purl.org/dc/elements/1.1/ language"`
+	Subject     []string `json:"subject" xml:"http://purl.org/dc/elements/1.1/ subject"`
+	Metas       []Meta   `xml:"http://www.idpf.org/2007/opf meta"`
 }
 
 // Meta is the metadata item structure
 type Meta struct {
-	Name    string `xml:"name,attr"`
-	Content string `xml:"content,attr"`
+	Name     string `xml:"name,attr"` // EPUB 2
+	Content  string `xml:"content,attr"`
+	Property string `xml:"property,attr"` // EPUB 3
+	Refines  string `xml:"refines,attr"`
+	Text     string `xml:",chardata"`
 }
 
 // Manifest is the package manifest structure
 type Manifest struct {
-	XMLName xml.Name
-	Items   []Item `xml:"http://www.idpf.org/2007/opf item"`
+	Items []Item `xml:"http://www.idpf.org/2007/opf item"`
 }
 
 // Item is the manifest item structure
