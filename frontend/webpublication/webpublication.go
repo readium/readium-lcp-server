@@ -16,7 +16,6 @@ import (
 
 	"github.com/readium/readium-lcp-server/config"
 	"github.com/readium/readium-lcp-server/encrypt"
-	apilcp "github.com/readium/readium-lcp-server/lcpserver/api"
 )
 
 // Publication status
@@ -104,31 +103,30 @@ func (pubManager PublicationManager) CheckByTitle(title string) (int64, error) {
 // and inserts a record in the database.
 func encryptPublication(inputPath string, pub *Publication, pubManager PublicationManager) error {
 
-	var notification *apilcp.LcpPublication
-
 	// encrypt the publication
 	// FIXME: work on a direct storage of the output file.
 	outputRepo := config.Config.FrontendServer.EncryptedRepository
 	empty := ""
-	notification, err := encrypt.ProcessEncryption(empty, empty, inputPath, empty, outputRepo, empty, empty, empty)
+	notification, err := encrypt.ProcessEncryption(empty, empty, inputPath, empty, outputRepo, empty, empty, empty, false)
 	if err != nil {
 		return err
 	}
 
-	// send a notification to the License server
-	err = encrypt.NotifyLcpServer(
-		notification,
+	// send a notification to the License Server v1
+	err = encrypt.NotifyLCPServer(
+		*notification,
 		config.Config.LcpServer.PublicBaseUrl,
+		false,
 		config.Config.LcpUpdateAuth.Username,
 		config.Config.LcpUpdateAuth.Password,
-		false)
+		false) // non verbose
 	if err != nil {
 		return err
 	}
 
 	// store the new publication in the db
 	// the publication uuid is the lcp db content id.
-	pub.UUID = notification.ContentID
+	pub.UUID = notification.UUID
 	pub.Status = StatusOk
 	_, err = pubManager.db.Exec("INSERT INTO publication (uuid, title, status) VALUES ( ?, ?, ?)",
 		pub.UUID, pub.Title, pub.Status)

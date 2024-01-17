@@ -9,6 +9,8 @@ import (
 	"log"
 )
 
+var LCP_PRODUCTION_LIB = false
+
 // GenerateUserKey function prepares the user key
 func GenerateUserKey(key UserKey, profile string) []byte {
 	if profile != "http://readium.org/lcp/basic-profile" {

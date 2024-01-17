@@ -16,7 +16,11 @@ import (
 	"math/big"
 	"net/url"
 	"reflect"
+<<<<<<< HEAD
 	"strconv"
+=======
+	"regexp"
+>>>>>>> cd
 	"strings"
 	"time"
 
@@ -104,40 +108,44 @@ type LicenseReport struct {
 	ContentID string      `json:"-"`
 }
 
-var profileMap = map[string]string{
-	"basic": "http://readium.org/lcp/basic-profile",
-	"1.0":   "http://readium.org/lcp/profile-1.0",
-	"2.0":   "http://readium.org/lcp/profile-2.0",
-	"2.1":   "http://readium.org/lcp/profile-2.1",
-	"2.2":   "http://readium.org/lcp/profile-2.2",
-	"2.3":   "http://readium.org/lcp/profile-2.3",
-	"2.4":   "http://readium.org/lcp/profile-2.4",
-	"2.5":   "http://readium.org/lcp/profile-2.5",
-	"2.6":   "http://readium.org/lcp/profile-2.6",
-	"2.7":   "http://readium.org/lcp/profile-2.7",
-	"2.8":   "http://readium.org/lcp/profile-2.8",
-	"2.9":   "http://readium.org/lcp/profile-2.9",
+// EncryptionProfile is an enum of possible encryption profiles
+type EncryptionProfile int
+
+// Declare typed constants for Encryption Profile
+const (
+	BasicProfile EncryptionProfile = iota
+	V1Profile
+)
+
+// isValidPositiveDecimal checks if a string represents a positive decimal numeral with one digit before and after the separator
+func isValidPositiveDecimal(s string) bool {
+	regex := regexp.MustCompile(`^[1-9]\.\d$`)
+	return regex.MatchString(s)
+}
+
+// licenseProfileURL converts the profile token in the config to a standard profile URL
+func licenseProfileURL() string {
+	// possible profiles are basic, 1.0 and other decimal values
+	// "2.x" is not processable in this version, because the api of user_key_prod would have to be modified,
+	// and providers must be able to recompile with the original version.
+	var profileURL string
+	if config.Config.Profile == "basic" {
+		profileURL = "http://readium.org/lcp/basic-profile"
+	} else if isValidPositiveDecimal(config.Config.Profile) {
+		profileURL = "http://readium.org/lcp/profile-" + config.Config.Profile
+	} else {
+		profileURL = "unknown-profile"
+	}
+	return profileURL
 }
 
 // SetLicenseProfile sets the license profile from config
-func SetLicenseProfile(l *License) {
-
-	var profile = config.Config.Profile
-	if profile == "2.x" {
-		// profile rotation
-		if n, err := rand.Int(rand.Reader, big.NewInt(10)); err == nil {
-			l.Encryption.Profile = "http://readium.org/lcp/profile-2." + strconv.Itoa(int(n.Int64()))
-		} else {
-			fmt.Println(err)
-			l.Encryption.Profile = "http://readium.org/lcp/profile-2.0"
-		}
-	} else {
-		if name, ok := profileMap[profile]; ok {
-			l.Encryption.Profile = name
-		} else {
-			l.Encryption.Profile = "http://readium.org/lcp/basic-profile"
-		}
+func SetLicenseProfile(l *License) error {
+	l.Encryption.Profile = licenseProfileURL()
+	if l.Encryption.Profile == "unknown-profile" {
+		return errors.New("failed to assign a license profile url")
 	}
+	return nil
 }
 
 // newUUID generates a random UUID according to RFC 4122

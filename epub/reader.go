@@ -170,8 +170,7 @@ func Read(r *zip.Reader) (Epub, error) {
 // addCleartextResources searches for resources which must no be encrypted
 // i.e. cover, nav and NCX
 func addCleartextResources(ep *Epub, p opf.Package) {
-	var coverImageID string
-	coverImageID = "cover-image"
+	coverImageID := "cover-image"
 	for _, meta := range p.Metadata.Metas {
 		if meta.Name == "cover" {
 			coverImageID = meta.Content

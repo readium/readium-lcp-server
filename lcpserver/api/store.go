@@ -14,12 +14,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 
 	"github.com/gorilla/mux"
 
 	"github.com/readium/readium-lcp-server/api"
 	"github.com/readium/readium-lcp-server/index"
 	"github.com/readium/readium-lcp-server/license"
+	"github.com/readium/readium-lcp-server/logging"
 	"github.com/readium/readium-lcp-server/pack"
 	"github.com/readium/readium-lcp-server/problem"
 	"github.com/readium/readium-lcp-server/storage"
@@ -34,8 +36,8 @@ type Server interface {
 	Source() *pack.ManualSource
 }
 
-// LcpPublication is used for communication with the License Server
-type LcpPublication struct {
+// Encrypted is used for communication with the License Server
+type Encrypted struct {
 	ContentID   string `json:"content-id"`
 	ContentKey  []byte `json:"content-encryption-key"`
 	StorageMode int    `json:"storage-mode"`
@@ -107,8 +109,8 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 // AddContent adds content to the storage
 // lcp spec : store data resulting from an external encryption
-// PUT method with PAYLOAD : LcpPublication in json format
-// This method adds the input encrypted file in a store
+// PUT method with PAYLOAD : encrypted publication in json format
+// This method adds an encrypted file to a store
 // and adds the corresponding decryption key to the database.
 // The content_id is taken from  the url.
 // The input file is then deleted.
@@ -117,8 +119,8 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	// parse the json payload
 	vars := mux.Vars(r)
 	decoder := json.NewDecoder(r.Body)
-	var publication LcpPublication
-	err := decoder.Decode(&publication)
+	var encrypted Encrypted
+	err := decoder.Decode(&encrypted)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
@@ -129,11 +131,14 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	// if the encrypted publication has not been stored yet
-	if publication.StorageMode == Storage_none {
+	// add a log
+	logging.Print("Add publication " + contentID)
+
+	// if the encrypted publication has not been already stored by lcpencrypt
+	if encrypted.StorageMode == Storage_none {
 
 		// open the encrypted file, use its full path
-		file, err := getAndOpenFile(publication.Output)
+		file, err := getAndOpenFile(encrypted.Output)
 		if err != nil {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
@@ -153,23 +158,23 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	// or update the database with a new content key and file location if the content id already exists
 	var c index.Content
 	c, err = s.Index().Get(contentID)
-	c.EncryptionKey = publication.ContentKey
+	c.EncryptionKey = encrypted.ContentKey
 	// the Location field contains either the file name (useful during download)
-	// or the storage URL of the publication, depending the storage mode.
-	if publication.StorageMode != Storage_none {
-		c.Location = publication.Output
+	// or the storage URL of the encrypted, depending the storage mode.
+	if encrypted.StorageMode != Storage_none {
+		c.Location = encrypted.Output
 	} else {
-		c.Location = publication.FileName
+		c.Location = encrypted.FileName
 	}
-	c.Length = publication.Size
-	c.Sha256 = publication.Checksum
-	c.Type = publication.ContentType
+	c.Length = encrypted.Size
+	c.Sha256 = encrypted.Checksum
+	c.Type = encrypted.ContentType
 
 	code := http.StatusCreated
 	if err == index.ErrNotFound { //insert into database
 		c.ID = contentID
 		err = s.Index().Add(c)
-	} else { //update the encryption key for c.ID = publication.ContentID
+	} else { //update the encryption key for c.ID = encrypted.ContentID
 		err = s.Index().Update(c)
 		code = http.StatusOK
 	}
@@ -192,6 +197,9 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 		contents = append(contents, it)
 	}
 
+	// add a log
+	logging.Print("List publications, total " + strconv.Itoa(len(contents)))
+
 	w.Header().Set("Content-Type", api.ContentType_JSON)
 	enc := json.NewEncoder(w)
 	err := enc.Encode(contents)
@@ -209,6 +217,10 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the content id from the calling url
 	vars := mux.Vars(r)
 	contentID := vars["content_id"]
+
+	// add a log
+	logging.Print("Fetch content " + contentID)
+
 	content, err := s.Index().Get(contentID)
 	if err != nil { //item probably not found
 		if err == index.ErrNotFound {
@@ -248,6 +260,30 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// returns the content of the file to the caller
 	io.Copy(w, contentReadCloser)
+}
+
+// DeleteContent deletes a record
+func DeleteContent(w http.ResponseWriter, r *http.Request, s Server) {
+
+	// get the content id from the calling url
+	vars := mux.Vars(r)
+	contentID := vars["content_id"]
+
+	// add a log
+	logging.Print("Delete publication " + contentID)
+
+	err := s.Index().Delete(contentID)
+	if err != nil { //item probably not found
+		if err == index.ErrNotFound {
+			problem.Error(w, r, problem.Problem{Detail: "Index:" + err.Error(), Instance: contentID}, http.StatusNotFound)
+		} else {
+			problem.Error(w, r, problem.Problem{Detail: "Index:" + err.Error(), Instance: contentID}, http.StatusInternalServerError)
+		}
+		return
+	}
+	// set the response http code
+	w.WriteHeader(http.StatusOK)
+
 }
 
 // getAndOpenFile opens a file from a path, or downloads then opens it if its location is a URL
