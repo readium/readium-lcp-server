@@ -13,14 +13,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/big"
 	"net/url"
 	"reflect"
-<<<<<<< HEAD
-	"strconv"
-=======
 	"regexp"
->>>>>>> cd
 	"strings"
 	"time"
 
