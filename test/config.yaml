@@ -12,19 +12,19 @@
 
 lcp:
     # the public url a client app will use to access the License Server (optional)
-    public_base_url:  "http://<LCP_SERVER>:<PORT>"
+    public_base_url: "http://127.0.0.1:8989"
 lcp_update_auth: 
     # login and password used by the Status Server to access the License Server
-    username: "<adm_username>"
-    password: "<adm_password>"
+    username: "adm_username"
+    password: "adm_password"
 
 lsd:
     # the public url a client app will use to access the Status Server
-    public_base_url:  "https://<PUBLIC_LSD_SERVER>"
+    public_base_url:  "http://127.0.0.1:8990"
 lsd_notify_auth: 
     # login and password used by the License Server to access the Status Server
-    username: "<adm_username>"
-    password: "<adm_password>"
+    username: "adm_username"
+    password: "adm_password"
 
 
 # LCP Server
@@ -32,41 +32,44 @@ lsd_notify_auth:
 profile: "basic"
 lcp:
     # the port on which the License Server will be running
-    port: <PORT>
+    host: "127.0.0.1"
+    port: 8989
     # replace this dsn if you're not using SQLite 
     database: "sqlite3://file:<LCP_HOME>/db/lcp.sqlite?cache=shared&mode=rwc"
     # authentication file of the License Server. Here we use the same file for the License Server and Status Server
-    auth_file: "<LCP_HOME>/config/htpasswd"
+    auth_file: "<LCP_HOME>/htpasswd"
 # uncomment if lcpencrypt does not manage the storage of encrypted publications
-#storage:
-#    filesystem:
-#        directory: "<LCP_HOME>/files/storage"
+storage:
+   filesystem:
+       directory: "<LCP_HOME>/files/storage"
 certificate:
     # theses test certificates are provided in the test/cert folder of the codebase
-    cert: "<LCP_HOME>/config/cert-edrlab-test.pem"
-    private_key: "<LCP_HOME>/config/privkey-edrlab-test.pem"
+    cert: "<LCP_HOME>/cert/cert-edrlab-test.pem"
+    private_key: "<LCP_HOME>/cert/privkey-edrlab-test.pem"
 license:
     links:
         # leave the url as-is (after <LSD_SERVER> has been resolved)
-        status: "http://<LSD_SERVER>/licenses/{license_id}/status"     
+        status: "http://127.0.0.1:8990/licenses/{license_id}/status"
         # the url of a REAL html page, that indicates how the user can get back his passphrase if forgotten
-        hint: "<CUSTOM_HINT_PAGE_URL>"
+        hint: "http://127.0.0.1:8991/static/hint.html"
+        publication: "http://127.0.0.1:8989/contents/{publication_id}"
 
 
 # LSD Server
 
 lsd:
     # the port on which the Status Server will be running
-    port: <PORT>
+    host: "127.0.0.1"
+    port: 8990
     # replace this dsn if you're not using SQLite 
     database: "sqlite3://<LCP_HOME>/db/lsd.sqlite?cache=shared&mode=rwc"
     # authentication file of the Status Server. Here we use the same file for the License Server and Status Server
-    auth_file: "<LCP_HOME>/config/htpasswd"
+    auth_file: "<LCP_HOME>/htpasswd"
     # in this example, the License Gateway is developed so that adding a license id 
     # to the host name gives access to a fresh license.   
     # Keep {license_id} as-is; this is a template. 
     # Read the doc to know more about how to develop a License Gateway.
-    license_link_url: "http://<GATEWAY>/{license_id}"
+    license_link_url: "http://127.0.0.1:8991/api/v1/licenses/{license_id}"
 license_status:
     register: true
     renew: true
