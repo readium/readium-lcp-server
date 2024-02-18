@@ -113,7 +113,7 @@ func setRights(lic *license.License) {
 	}
 }
 
-// build a license, common to get and generate license, get and generate licensed publication
+// build a license, common to get and generate license, get and generate a protected publication
 func buildLicense(lic *license.License, s Server, updatefix bool) error {
 
 	// set the LCP profile
@@ -202,8 +202,8 @@ func isWebPub(in *zip.Reader) bool {
 	return false
 }
 
-// buildLicensedPublication builds a licensed publication, common to get and generate licensed publication
-func buildLicensedPublication(lic *license.License, s Server) (buf bytes.Buffer, err error) {
+// buildProtectedPublication builds a protected publication, common to get and generate protected publication
+func buildProtectedPublication(lic *license.License, s Server) (buf bytes.Buffer, err error) {
 
 	// get content info from the bd
 	item, err := s.Store().Get(lic.ContentID)
@@ -401,10 +401,10 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	go notifyLsdServer(lic, s)
 }
 
-// GetLicensedPublication returns a licensed publication
+// GetProtectedPublication returns a protected publication
 // for a given license identified by its id
 // plus a partial license given as input
-func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
+func GetProtectedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 
 	vars := mux.Vars(r)
 	licenseID := vars["license_id"]
@@ -443,8 +443,8 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
-	// build a licensed publication
-	buf, err := buildLicensedPublication(&licOut, s)
+	// build a protected publication
+	buf, err := buildProtectedPublication(&licOut, s)
 	if err == storage.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: licOut.ContentID}, http.StatusNotFound)
 		return
@@ -468,14 +468,14 @@ func GetLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Add("X-Lcp-License", licOut.ID)
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusCreated)
-	// return the full licensed publication to the caller
+	// return the full protected publication to the caller
 	io.Copy(w, &buf)
 }
 
-// GenerateLicensedPublication generates and returns a licensed publication
+// GenerateProtectedPublication generates and returns a protected publication
 // for a given content identified by its id
 // plus a partial license given as input
-func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Server) {
+func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 
 	vars := mux.Vars(r)
 	contentID := vars["content_id"]
@@ -517,7 +517,7 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 	go notifyLsdServer(lic, s)
 
 	// build a licenced publication
-	buf, err := buildLicensedPublication(&lic, s)
+	buf, err := buildProtectedPublication(&lic, s)
 	if err == storage.ErrNotFound {
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: lic.ContentID}, http.StatusNotFound)
 		return
@@ -542,7 +542,7 @@ func GenerateLicensedPublication(w http.ResponseWriter, r *http.Request, s Serve
 	w.Header().Add("X-Lcp-License", lic.ID)
 	// must come *after* w.Header().Add()/Set(), but before w.Write()
 	w.WriteHeader(http.StatusCreated)
-	// return the full licensed publication to the caller
+	// return the full protected publication to the caller
 	io.Copy(w, &buf)
 }
 

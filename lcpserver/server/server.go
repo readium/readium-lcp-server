@@ -123,10 +123,10 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 		s.handlePrivateFunc(contentRoutes, "/{content_id}/license", apilcp.GenerateLicense, basicAuth).Methods("POST")
 		// deprecated, from a typo in the lcp server spec
 		s.handlePrivateFunc(contentRoutes, "/{content_id}/licenses", apilcp.GenerateLicense, basicAuth).Methods("POST")
-		// generate a licensed publication
-		s.handlePrivateFunc(contentRoutes, "/{content_id}/publication", apilcp.GenerateLicensedPublication, basicAuth).Methods("POST")
+		// generate a protected publication
+		s.handlePrivateFunc(contentRoutes, "/{content_id}/publication", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 		// deprecated, from a typo in the lcp server spec
-		s.handlePrivateFunc(contentRoutes, "/{content_id}/publications", apilcp.GenerateLicensedPublication, basicAuth).Methods("POST")
+		s.handlePrivateFunc(contentRoutes, "/{content_id}/publications", apilcp.GenerateProtectedPublication, basicAuth).Methods("POST")
 	}
 
 	// Methods related to licenses
@@ -138,8 +138,8 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 	// get a license
 	s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.GetLicense, basicAuth).Methods("GET")
 	s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.GetLicense, basicAuth).Methods("POST")
-	// get a licensed publication via a license id
-	s.handlePrivateFunc(licenseRoutes, "/{license_id}/publication", apilcp.GetLicensedPublication, basicAuth).Methods("POST")
+	// get a protected publication via a license id
+	s.handlePrivateFunc(licenseRoutes, "/{license_id}/publication", apilcp.GetProtectedPublication, basicAuth).Methods("POST")
 	if !readonly {
 		// update a license
 		s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.UpdateLicense, basicAuth).Methods("PATCH")
