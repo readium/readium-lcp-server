@@ -20,7 +20,7 @@ Prerequisites
 Binaries are only pre-built on demand and for a service fee, therefore in the general case you'll need to get a working Golang installation. 
 Please refer to the official Go documentation for installation procedures at https://golang.org/.
 
-This software is working with *go 1.16* or higher. It is currently maintained using *go 1.20* (July 2023). 
+This software is working with *go 1.19* or higher. It is currently maintained using *go 1.21* (February 2024). 
 
 You must put in place:
 
