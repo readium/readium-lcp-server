@@ -8,9 +8,9 @@ ARG LIBUSERKEY_PATH=/docker/dummy
 ARG USERKEYH_PATH=/docker/dummy
 ARG USERKEYGO_PATH=/docker/dummy
 
-COPY $LIBUSERKEY_PATH $LIBUSERKEY_PATH
-COPY $USERKEYH_PATH $USERKEYH_PATH
-COPY $USERKEYGO_PATH $USERKEYGO_PATH
+COPY $LIBUSERKEY_PATH /libuserkey.a
+COPY $USERKEYH_PATH /userkey.h
+COPY $USERKEYGO_PATH /user_key.go
 
 # RUN apk add build-base
 
@@ -24,7 +24,7 @@ RUN echo $PATH && echo ${PATH}
 RUN which go && whereis go && go version && go env
 
 # RUN CGO_ENABLED=1 GOPATH=/lcp/build GOARCH=amd64 go install -x -ldflags '-linkmode external -w -extldflags -static' ./lcpserver
-RUN make BUILD_PROD=${BUILD_PROD} LIBUSERKEY_PATH=${LIBUSERKEY_PATH} USERKEYH_PATH=${USERKEYH_PATH} USERKEYGO_PATH=${USERKEYGO_PATH} lcpserver && ls -als -R /lcp/build/bin
+RUN make BUILD_PROD=${BUILD_PROD} LIBUSERKEY_PATH=/libuserkey.a USERKEYH_PATH=/userkey.h USERKEYGO_PATH=/user_key.go lcpserver && ls -als -R /lcp/build/bin
 
 RUN make lsdserver && ls -als -R /lcp/build/bin
 
