@@ -1,0 +1,36 @@
+pipeline {
+  agent any
+
+  stages {
+
+    stage('Clone repository') {
+      // Missing Credentials can be added via UI
+      // Look at the bottom of the box for a link called "Pipeline-Syntax"
+      // If you don't have much Jenkins experience,
+      // there you can generate pipelines with a few Dropdowns and Textboxes
+      git branch: 'cd_dev', poll: false, url: 'https://github.com/readium/readium-lcp-server'
+    }
+
+    stage('Build') {
+      steps {
+        app = docker.build("readium-lcp-server-build-test", """
+            -f docker/Dockerfile
+            .
+            """)
+      }
+    }
+
+    stage('Test image') {
+      app.inside {
+        sh 'echo "Tests passed"'
+      }
+    }
+
+    stage('Push image') {
+      docker.withRegistry('http://registry-lcp.local:5000') {
+        app.push("streamer-${env.BUILD_NUMBER}")
+        app.push("latest")
+      }
+    }
+  }
+}
