@@ -3,46 +3,59 @@ pipeline {
 
   stages {
 
-    stage('Clone repository') {
+    stage("Clone repository") {
       // Missing Credentials can be added via UI
       // Look at the bottom of the box for a link called "Pipeline-Syntax"
       // If you don't have much Jenkins experience,
       // there you can generate pipelines with a few Dropdowns and Textboxes
-      git branch: 'cd_dev', poll: false, url: 'https://github.com/readium/readium-lcp-server'
+      steps {
+        git branch: 'cd_dev', poll: false, url: 'https://github.com/readium/readium-lcp-server'
+      }
     }
 
-    stage('Build') {
+    stage("Build") {
       steps {
-        withCredentials([file(credentialsId: 'cert-edrlab-pem', variable: 'CERTIFICATE_PATH', domain: 'lcp'),
-            file(credentialsId: 'userkey-h', variable: 'USERKEYH_PATH', domain: 'lcp'),
-            file(credentialsId: 'libuserkey-a', variable: 'LIBUSERKEY_PATH', domain: 'lcp'),
-            file(credentialsId: 'privkey-edrlab-pem', variable: 'PRIVATE_KEY_PATH', domain: 'lcp'),
-            file(credentialsId: 'user-key-go', variable: 'USERKEYGO_PATH', domain: 'lcp')]) {
-          app = docker.build("readium-lcp-server-build-prod", """
-              -f docker/Dockerfile
-              --build-arg LIBUSERKEY_PATH=$LIBUSERKEY_PATH
-              --build-arg USERKEYH_PATH=$USERKEYH_PATH
-              --build-arg USERKEYGO_PATH=$USERKEYGO_PATH
-              --build-arg BUILD_PROD=true
-              --build-arg PRIVATE_KEY_PATH=$PRIVATE_KEY_PATH
-              --build-arg CERTIFICATE_PATH=$CERTIFICATE_PATH
-              --build-arg PROFILE=1.0
-              .
-              """)
+        script {
+          withCredentials([file(credentialsId: 'cert-edrlab-pem', variable: 'CERTIFICATE_PATH', domain: 'lcp'),
+              file(credentialsId: 'userkey-h', variable: 'USERKEYH_PATH', domain: 'lcp'),
+              file(credentialsId: 'libuserkey-a', variable: 'LIBUSERKEY_PATH', domain: 'lcp'),
+              file(credentialsId: 'privkey-edrlab-pem', variable: 'PRIVATE_KEY_PATH', domain: 'lcp'),
+              file(credentialsId: 'user-key-go', variable: 'USERKEYGO_PATH', domain: 'lcp')]) {
+
+            app = docker.build("readium-lcp-server-build-prod", """ \
+                -f docker/Dockerfile \
+                --build-arg LIBUSERKEY_PATH=$LIBUSERKEY_PATH \
+                --build-arg USERKEYH_PATH=$USERKEYH_PATH \
+                --build-arg USERKEYGO_PATH=$USERKEYGO_PATH \
+                --build-arg BUILD_PROD=true \
+                --build-arg PRIVATE_KEY_PATH=$PRIVATE_KEY_PATH \
+                --build-arg CERTIFICATE_PATH=$CERTIFICATE_PATH \
+                --build-arg PROFILE=1.0 \
+                .
+                """)
+          }
         }
       }
     }
 
-    stage('Test image') {
-      app.inside {
-        sh 'echo "Tests passed"'
+    stage("Test image") {
+      steps {
+        script {
+          app.inside {
+            sh 'echo "Tests passed"'
+          }
+        }
       }
     }
 
-    stage('Push image') {
-      docker.withRegistry('http://registry-lcp.local:5000') {
-        app.push("streamer-${env.BUILD_NUMBER}")
-        app.push("latest")
+    stage("Push image") {
+      steps {
+        script {
+          docker.withRegistry('http://registry-lcp.local:5000') {
+            app.push("streamer-${env.BUILD_NUMBER}")
+            app.push("latest")
+          }
+        }
       }
     }
   }
