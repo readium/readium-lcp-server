@@ -22,17 +22,22 @@ pipeline {
               file(credentialsId: 'privkey-edrlab-pem', variable: 'PRIVATE_KEY_PATH', domain: 'lcp'),
               file(credentialsId: 'user-key-go', variable: 'USERKEYGO_PATH', domain: 'lcp')]) {
 
-            app = docker.build("readium-lcp-server-build-prod", """ \
-                -f docker/Dockerfile \
-                --build-arg LIBUSERKEY_PATH=$LIBUSERKEY_PATH \
-                --build-arg USERKEYH_PATH=$USERKEYH_PATH \
-                --build-arg USERKEYGO_PATH=$USERKEYGO_PATH \
-                --build-arg BUILD_PROD=true \
-                --build-arg PRIVATE_KEY_PATH=$PRIVATE_KEY_PATH \
-                --build-arg CERTIFICATE_PATH=$CERTIFICATE_PATH \
-                --build-arg PROFILE=1.0 \
-                .
-                """)
+              sh "rm -rf ./secrets && mkdir ./secrets && cp $CERTIFICATE_PATH ./secrets/cert.pem && cp $USERKEYH_PATH ./secrets/userkey.h && cp $LIBUSERKEY_PATH ./secrets/libuserkey.a && cp $PRIVATE_KEY_PATH ./secrets/privkey.pem && cp $USERKEYGO_PATH ./secrets/user_key.go"
+
+              app = docker.build("readium-lcp-server-build-prod", """ \
+                  -f docker/Dockerfile \
+                  --progress=plain \
+                  --build-arg LIBUSERKEY_PATH=./secrets/libuserkey.a \
+                  --build-arg USERKEYH_PATH=./secrets/userkey.h \
+                  --build-arg USERKEYGO_PATH=./secrets/user_key.go \
+                  --build-arg BUILD_PROD=true \
+                  --build-arg PRIVATE_KEY_PATH=./secrets/privkey.pem \
+                  --build-arg CERTIFICATE_PATH=./secrets/cert.pem \
+                  --build-arg PROFILE=1.0 \
+                  .
+                  """)
+
+               sh "rm -rf ./secrets"
           }
         }
       }
