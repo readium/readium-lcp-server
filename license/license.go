@@ -304,7 +304,7 @@ func expandUriTemplate(uriTemplate, variable, value string) string {
 func EncryptLicenseFields(l *License, c index.Content) error {
 
 	// generate the user key
-	encryptionKey := GenerateUserKey(l.Encryption.UserKey, l.Encryption.Profile)
+	encryptionKey := GenerateUserKey(l.Encryption.UserKey)
 	if encryptionKey == nil {
 		return errors.New("incompatible LCP profile; error generating a user key")
 	}
