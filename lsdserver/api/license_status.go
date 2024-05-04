@@ -104,7 +104,7 @@ func GetLicenseStatusDocument(w http.ResponseWriter, r *http.Request, s Server) 
 		}
 	}
 
-	err = fillLicenseStatus(licenseStatus, r, s)
+	err = fillLicenseStatus(licenseStatus, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -222,7 +222,7 @@ func RegisterDevice(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// the device has been registered for the license (now *or before*)
 	// fill the updated license status
-	err = fillLicenseStatus(licenseStatus, r, s)
+	err = fillLicenseStatus(licenseStatus, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -318,6 +318,8 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	licenseStatus.Updated.Status = &event.Timestamp
 	// update the license updated timestamp with the event date
 	licenseStatus.Updated.License = &event.Timestamp
+	// remove the potential end timestamp
+	licenseStatus.PotentialRights = nil
 
 	err = s.LicenseStatuses().Update(*licenseStatus)
 	if err != nil {
@@ -326,7 +328,7 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// fill the license status
-	err = fillLicenseStatus(licenseStatus, r, s)
+	err = fillLicenseStatus(licenseStatus, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -398,7 +400,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	currentEnd = *licenseStatus.CurrentEndLicense
-	//log.Print("Lending renewal activated. Current end date " + currentEnd.UTC().Format(time.RFC3339))
+	log.Print("Current end date " + currentEnd.UTC().Format(time.RFC3339))
 
 	var suggestedEnd time.Time
 	// check if the 'end' request parameter is empty
@@ -455,15 +457,16 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// update a license via a call to the lcp Server
-	httpStatusCode, errorr := updateLicense(suggestedEnd, licenseID)
-	if errorr != nil {
-		problem.Error(w, r, problem.Problem{Detail: errorr.Error()}, http.StatusInternalServerError)
+	var httpStatusCode int
+	httpStatusCode, err = updateLicense(suggestedEnd, licenseID)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
 	if httpStatusCode != http.StatusOK && httpStatusCode != http.StatusPartialContent { // 200, 206
-		errorr = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
+		err = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
 
-		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: errorr.Error()}, httpStatusCode)
+		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: err.Error()}, httpStatusCode)
 		return
 	}
 	// update the license status fields
@@ -471,6 +474,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	licenseStatus.CurrentEndLicense = &suggestedEnd
 	licenseStatus.Updated.Status = &event.Timestamp
 	licenseStatus.Updated.License = &event.Timestamp
+	log.Print("Update timestamp ", event.Timestamp.UTC().Format(time.RFC3339))
 
 	// update the license status in db
 	err = s.LicenseStatuses().Update(*licenseStatus)
@@ -480,7 +484,7 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// fill the localized 'message', the 'links' and 'event' objects in the license status
-	err = fillLicenseStatus(licenseStatus, r, s)
+	err = fillLicenseStatus(licenseStatus, s)
 	if err != nil {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
@@ -702,10 +706,12 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	// update the license status properties with the new status & expiration item (now)
+	// the potential end timestamp is also removed.
 	licenseStatus.Status = newStatus.Status
 	licenseStatus.CurrentEndLicense = &currentTime
 	licenseStatus.Updated.Status = &currentTime
 	licenseStatus.Updated.License = &currentTime
+	licenseStatus.PotentialRights = nil
 
 	// update the license status in db
 	err = s.LicenseStatuses().Update(*licenseStatus)
@@ -939,7 +945,7 @@ func updateLicense(timeEnd time.Time, licenseID string) (int, error) {
 }
 
 // fillLicenseStatus fills the 'message' field, the 'links' and 'event' objects in the license status
-func fillLicenseStatus(ls *licensestatuses.LicenseStatus, r *http.Request, s Server) error {
+func fillLicenseStatus(ls *licensestatuses.LicenseStatus, s Server) error {
 	// add the message
 	ls.Message = "The license is in " + ls.Status + " state"
 	// add the links
