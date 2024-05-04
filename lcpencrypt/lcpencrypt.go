@@ -99,7 +99,7 @@ func main() {
 		exitWithError("Error notifying the LCP Server", err)
 	}
 
-	// notify a CMS (v2 syntax; username and password are always in the URL)
+	// notify a CMS (username and password are always in the URL)
 	err = encrypt.NotifyCMS(*publication, *notify, *verbose)
 	if err != nil {
 		fmt.Println("Error notifying the CMS:", err.Error())
