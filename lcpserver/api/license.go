@@ -38,6 +38,9 @@ var ErrBadHexValue = errors.New("erroneous user_key.hex_value can't be decoded")
 // ErrBadValue sets an error message returned to the caller
 var ErrBadValue = errors.New("erroneous user_key.value, can't be decoded")
 
+// lastGeneratedLicense is for tests only
+var lastGeneratedLicense license.License
+
 // checkGetLicenseInput: if we generate or get a license, check mandatory information in the input body
 // and compute request parameters
 func checkGetLicenseInput(l *license.License) error {
@@ -258,10 +261,74 @@ func buildProtectedPublication(lic *license.License, s Server) (buf bytes.Buffer
 	return buf, zipWriter.Close()
 }
 
+// GetTestLicense returns an existing license,
+// selected by a license id and a partial license
+// set to the last information generated on this server. This is only for test.
+func GetTestLicense(w http.ResponseWriter, r *http.Request, s Server) {
+
+	// Active only in test mode, if
+	if !config.Config.TestMode {
+		problem.Error(w, r, problem.Problem{Detail: "The server is not in test mode"}, http.StatusBadRequest)
+		return
+	}
+	if lastGeneratedLicense.User.ID == "" {
+		problem.Error(w, r, problem.Problem{Detail: "No previous generated license"}, http.StatusBadRequest)
+		return
+	}
+
+	vars := mux.Vars(r)
+	// get the license id from the request URL
+	licenseID := vars["license_id"]
+
+	// add a log
+	logging.Print("Get a Test License " + licenseID)
+
+	// initialize the license from the info stored in the db.
+	var licOut license.License
+	licOut, e := s.Licenses().Get(licenseID)
+	// process license not found etc.
+	if e == license.ErrNotFound {
+		problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusNotFound)
+		return
+	} else if e != nil {
+		problem.Error(w, r, problem.Problem{Detail: e.Error()}, http.StatusBadRequest)
+		return
+	}
+
+	// It contains the hashed passphrase, user hint
+	// and other optional user data the provider wants to see embedded in the license
+	licIn := lastGeneratedLicense
+
+	// an input body was sent with the request:
+	// check mandatory information in the partial license
+	err := checkGetLicenseInput(&licIn)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	// copy useful data from licIn to LicOut
+	copyInputToLicense(&licIn, &licOut)
+	// build the license
+	err = buildLicense(&licOut, s, true)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	// set the http headers
+	w.Header().Add("Content-Type", api.ContentType_LCP_JSON)
+	w.Header().Add("Content-Disposition", `attachment; filename="license.lcpl"`)
+	w.WriteHeader(http.StatusOK)
+	// send back the license
+	// do not escape characters in the json payload
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	enc.Encode(licOut)
+}
+
 // GetLicense returns an existing license,
 // selected by a license id and a partial license both given as input.
-// The input partial license is optional: if absent, a partial license
-// is returned to the caller, with the info stored in the db.
+// If the input partial license is absent a partial license is returned
 func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 
 	vars := mux.Vars(r)
@@ -290,9 +357,9 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	err = DecodeJSONLicense(r, &licIn)
 	// error parsing the input body
 	if err != nil {
-		// if there was no partial license given as payload, return a partial license.
-		// The use case is a frontend that needs to get license up to date rights.
+		// if there was no partial license given as payload,
 		if err.Error() == "EOF" {
+			// The use case is a frontend that needs to get up to date license rights
 			log.Println("No payload, get a partial license")
 
 			// add useful http headers
@@ -304,10 +371,11 @@ func GetLicense(w http.ResponseWriter, r *http.Request, s Server) {
 			enc.SetEscapeHTML(false)
 			enc.Encode(licOut)
 			return
+		} else {
+			// unknown error
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			return
 		}
-		// unknown error
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
 	}
 
 	// an input body was sent with the request:
@@ -355,9 +423,10 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 		return
 	}
-
-	// add a log
-	logging.Print("Generate a License " + lic.ID + " for Content " + contentID + " and User " + lic.User.ID)
+	if config.Config.TestMode {
+		// save the partial license for later use on get license
+		lastGeneratedLicense = lic
+	}
 
 	// check mandatory information in the input body
 	err = checkGenerateLicenseInput(&lic)
@@ -367,6 +436,9 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	// init the license with an id and issue date
 	license.Initialize(contentID, &lic)
+
+	// add a log
+	logging.Print("Generate the License " + lic.ID + " for Content " + contentID + " and User " + lic.User.ID)
 
 	// normalize the start and end date, UTC, no milliseconds
 	setRights(&lic)
@@ -452,8 +524,7 @@ func GetProtectedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: licOut.ContentID}, http.StatusInternalServerError)
 		return
 	}
-	// get the content location to fill an http header
-	// FIXME: redundant as the content location has been set in a link (publication)
+	// get the content location to fill an http header; this will be the name of the downloaded file.
 	content, err1 := s.Index().Get(licOut.ContentID)
 	if err1 != nil {
 		problem.Error(w, r, problem.Problem{Detail: err1.Error(), Instance: licOut.ContentID}, http.StatusInternalServerError)
@@ -527,7 +598,6 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 	}
 
 	// get the content location to fill an http header
-	// FIXME: redundant as the content location has been set in a link (publication)
 	content, err1 := s.Index().Get(lic.ContentID)
 	if err1 != nil {
 		problem.Error(w, r, problem.Problem{Detail: err1.Error(), Instance: lic.ContentID}, http.StatusInternalServerError)

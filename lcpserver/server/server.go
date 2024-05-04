@@ -50,6 +50,7 @@ type Server struct {
 	lst      *license.Store
 	cert     *tls.Certificate
 	source   pack.ManualSource
+	testMode bool
 }
 
 func (s *Server) Store() storage.Store {
@@ -70,6 +71,10 @@ func (s *Server) Certificate() *tls.Certificate {
 
 func (s *Server) Source() *pack.ManualSource {
 	return &s.source
+}
+
+func (s *Server) TestMode() bool {
+	return s.testMode
 }
 
 func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, lst *license.Store, cert *tls.Certificate, packager *pack.Packager, basicAuth *auth.BasicAuth) *Server {
@@ -133,6 +138,9 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
+
+	// this is a test route
+	s.handleFunc(licenseRoutes, "/test/{license_id}", apilcp.GetTestLicense).Methods("GET")
 
 	s.handlePrivateFunc(sr.R, licenseRoutesPathPrefix, apilcp.ListLicenses, basicAuth).Methods("GET")
 	// get a license
