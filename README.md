@@ -338,7 +338,7 @@ lsd_notify_auth:
 
 #### license_status section
 `license_status`: parameters related to the interactions implemented by the Status server, if any:
-- `renting_days`: maximum number of days allowed for a loan, from the date the loan starts. If set to 0 or absent, no loan renewal is possible. 
+- `renting_days`: maximum number of days allowed for a loan, used for laon extensions. The maximum end date is calculated from the date the loan starts plus this value. If set to 0 or absent, no loan renewal is possible. 
 - `renew`: boolean; if `true`, the renewal of a loan is possible. 
 - `renew_days`: default number of additional days allowed during a renewal.
 - `return`: boolean; if `true`, an early return is possible.  
