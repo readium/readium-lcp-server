@@ -32,6 +32,7 @@ import (
 	"log"
 
 	"github.com/readium/readium-lcp-server/config"
+	"github.com/readium/readium-lcp-server/dbutils"
 )
 
 // License status
@@ -135,7 +136,7 @@ func (licManager LicenseManager) GetFiltered(deviceLimit string) ([]License, err
 // Add adds a new license
 func (licManager LicenseManager) Add(licenses License) error {
 
-	_, err := licManager.db.Exec("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)",
+	_, err := licManager.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database, "INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)"),
 		licenses.UUID, licenses.DeviceCount, licenses.Status, licenses.Message)
 	return err
 }
@@ -148,7 +149,8 @@ func (licManager LicenseManager) AddFromJSON(licensesJSON []byte) error {
 		return err
 	}
 
-	add, err := licManager.db.Prepare("INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)")
+	add, err := licManager.db.Prepare(dbutils.GetParamQuery(config.Config.FrontendServer.Database,
+		"INSERT INTO license_view (uuid, device_count, status, message) VALUES (?, ?, ?, ?)"))
 	if err != nil {
 		return err
 	}
@@ -173,7 +175,8 @@ func (licManager LicenseManager) PurgeDataBase() error {
 // Update updates a license
 func (licManager LicenseManager) Update(lic License) error {
 
-	_, err := licManager.db.Exec("UPDATE license_view SET device_count=?, uuid=?, status=? , message=? WHERE id = ?",
+	_, err := licManager.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database,
+		"UPDATE license_view SET device_count=?, uuid=?, status=? , message=? WHERE id = ?"),
 		lic.DeviceCount, lic.Status, lic.UUID, lic.ID, lic.Message)
 	return err
 }
@@ -181,7 +184,7 @@ func (licManager LicenseManager) Update(lic License) error {
 // Delete deletes a license
 func (licManager LicenseManager) Delete(id int64) error {
 
-	_, err := licManager.db.Exec("DELETE FROM license_view WHERE id = ?", id)
+	_, err := licManager.db.Exec(dbutils.GetParamQuery(config.Config.FrontendServer.Database, "DELETE FROM license_view WHERE id = ?"), id)
 	return err
 }
 
@@ -200,25 +203,25 @@ func Init(db *sql.DB) (i WebLicense, err error) {
 	}
 
 	var dbGetByID *sql.Stmt
-	dbGetByID, err = db.Prepare(
+	dbGetByID, err = db.Prepare(dbutils.GetParamQuery(config.Config.FrontendServer.Database,
 		`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message 
 		FROM license_view AS l 
 		INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 		INNER JOIN publication as pu ON p.publication_id = pu.id
 		INNER JOIN "user" as u ON p.user_id = u.id
-		WHERE l.id = ?`)
+		WHERE l.id = ?`))
 	if err != nil {
 		log.Println("Error preparing dbGetByID")
 		return
 	}
 
 	var dbGetFiltered *sql.Stmt
-	dbGetFiltered, err = db.Prepare(
+	dbGetFiltered, err = db.Prepare(dbutils.GetParamQuery(config.Config.FrontendServer.Database,
 		`SELECT l.uuid, pu.title, u.name, p.type, l.device_count, l.status, p.id, l.message FROM license_view AS l 
 		INNER JOIN purchase as p ON l.uuid = p.license_uuid 
 		INNER JOIN publication as pu ON p.publication_id = pu.id
 		INNER JOIN "user" as u ON p.user_id = u.id
-		WHERE l.device_count >= ?`)
+		WHERE l.device_count >= ?`))
 	if err != nil {
 		log.Println("Error preparing dbGetFiltered")
 		return

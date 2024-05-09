@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/readium/readium-lcp-server/config"
+	"github.com/readium/readium-lcp-server/dbutils"
 	"github.com/readium/readium-lcp-server/status"
 )
 
@@ -87,9 +88,9 @@ func (i dbLicenseStatuses) Add(ls LicenseStatus) error {
 		if ls.PotentialRights != nil && ls.PotentialRights.End != nil && !(*ls.PotentialRights.End).IsZero() {
 			end = ls.PotentialRights.End
 		}
-		_, err = i.db.Exec(`INSERT INTO license_status 
+		_, err = i.db.Exec(dbutils.GetParamQuery(config.Config.LsdServer.Database, `INSERT INTO license_status 
 		(status, license_updated, status_updated, device_count, potential_rights_end, license_ref,  rights_end)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`),
 			statusDB, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, end, ls.LicenseRef, ls.CurrentEndLicense)
 	}
 
@@ -191,8 +192,8 @@ func (i dbLicenseStatuses) Update(ls LicenseStatus) error {
 	}
 
 	var result sql.Result
-	result, err = i.db.Exec(`UPDATE license_status SET status=?, license_updated=?, status_updated=?, 
-	device_count=?,potential_rights_end=?, rights_end=?  WHERE id=?`,
+	result, err = i.db.Exec(dbutils.GetParamQuery(config.Config.LsdServer.Database, `UPDATE license_status SET status=?, license_updated=?, status_updated=?, 
+	device_count=?,potential_rights_end=?, rights_end=?  WHERE id=?`),
 		statusInt, ls.Updated.License, ls.Updated.Status, ls.DeviceCount, potentialRightsEnd, ls.CurrentEndLicense, ls.ID)
 
 	if err == nil {
@@ -217,7 +218,7 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 		}
 	}
 
-	dbGet, err := db.Prepare("SELECT * FROM license_status WHERE id = ?")
+	dbGet, err := db.Prepare(dbutils.GetParamQuery(config.Config.LsdServer.Database, "SELECT * FROM license_status WHERE id = ?"))
 	if err != nil {
 		return
 	}
@@ -227,15 +228,15 @@ func Open(db *sql.DB) (l LicenseStatuses, err error) {
 		dbList, err = db.Prepare(`SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ?
 		ORDER BY id DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`)
 	} else {
-		dbList, err = db.Prepare(`SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ?
-		ORDER BY id DESC LIMIT ? OFFSET ?`)
+		dbList, err = db.Prepare(dbutils.GetParamQuery(config.Config.LsdServer.Database, `SELECT id, status, license_updated, status_updated, device_count, license_ref FROM license_status WHERE device_count >= ?
+		ORDER BY id DESC LIMIT ? OFFSET ?`))
 
 	}
 	if err != nil {
 		return
 	}
 
-	dbGetByLicenseID, err := db.Prepare("SELECT * FROM license_status where license_ref = ?")
+	dbGetByLicenseID, err := db.Prepare(dbutils.GetParamQuery(config.Config.LsdServer.Database, "SELECT * FROM license_status where license_ref = ?"))
 	if err != nil {
 		return
 	}

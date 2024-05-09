@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/readium/readium-lcp-server/config"
+	"github.com/readium/readium-lcp-server/dbutils"
 	"github.com/readium/readium-lcp-server/status"
 )
 
@@ -70,7 +71,7 @@ func (i dbTransactions) Get(id int) (Event, error) {
 // The parameter eventType corresponds to the field 'type' in table 'event'
 func (i dbTransactions) Add(e Event, eventType int) error {
 
-	_, err := i.db.Exec("INSERT INTO event (device_name, timestamp, type, device_id, license_status_fk) VALUES (?, ?, ?, ?, ?)",
+	_, err := i.db.Exec(dbutils.GetParamQuery(config.Config.LsdServer.Database, "INSERT INTO event (device_name, timestamp, type, device_id, license_status_fk) VALUES (?, ?, ?, ?, ?)"),
 		e.DeviceName, e.Timestamp, eventType, e.DeviceId, e.LicenseStatusFk)
 	return err
 }
@@ -151,12 +152,12 @@ func Open(db *sql.DB) (t Transactions, err error) {
 	}
 
 	// select an event by its id
-	dbGet, err := db.Prepare("SELECT * FROM event WHERE id = ?")
+	dbGet, err := db.Prepare(dbutils.GetParamQuery(config.Config.LsdServer.Database, "SELECT * FROM event WHERE id = ?"))
 	if err != nil {
 		return
 	}
 
-	dbGetByStatusID, err := db.Prepare("SELECT * FROM event WHERE license_status_fk = ?")
+	dbGetByStatusID, err := db.Prepare(dbutils.GetParamQuery(config.Config.LsdServer.Database, "SELECT * FROM event WHERE license_status_fk = ?"))
 	if err != nil {
 		return
 	}
@@ -167,15 +168,15 @@ func Open(db *sql.DB) (t Transactions, err error) {
 		dbCheckDeviceStatus, err = db.Prepare(`SELECT TOP 1 type FROM event WHERE license_status_fk = ?
 		AND device_id = ? ORDER BY timestamp DESC`)
 	} else {
-		dbCheckDeviceStatus, err = db.Prepare(`SELECT type FROM event WHERE license_status_fk = ?
-		AND device_id = ? ORDER BY timestamp DESC LIMIT 1`)
+		dbCheckDeviceStatus, err = db.Prepare(dbutils.GetParamQuery(config.Config.LsdServer.Database, `SELECT type FROM event WHERE license_status_fk = ?
+		AND device_id = ? ORDER BY timestamp DESC LIMIT 1`))
 	}
 	if err != nil {
 		return
 	}
 
-	dbListRegisteredDevices, err := db.Prepare(`SELECT device_id,
-	device_name, timestamp  FROM event  WHERE license_status_fk = ? AND type = 1`)
+	dbListRegisteredDevices, err := db.Prepare(dbutils.GetParamQuery(config.Config.LsdServer.Database, `SELECT device_id,
+	device_name, timestamp  FROM event  WHERE license_status_fk = ? AND type = 1`))
 	if err != nil {
 		return
 	}
