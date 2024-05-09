@@ -212,6 +212,8 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 
 // GetContent fetches and returns an encrypted content file
 // selected by it content id (uuid)
+// This should be called only if the License Server stores the file.
+// If it is not the case, the file should be fetched from a standard web server
 func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// get the content id from the calling url
@@ -243,18 +245,30 @@ func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 	// opens the file
 	contentReadCloser, err := item.Contents()
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: "File:" + err.Error(), Instance: contentID}, http.StatusInternalServerError)
-		return
-	}
-
-	defer contentReadCloser.Close()
 	if err != nil { //file probably not found
 		problem.Error(w, r, problem.Problem{Detail: err.Error(), Instance: contentID}, http.StatusBadRequest)
 		return
 	}
+
+	defer contentReadCloser.Close()
+
 	// set headers
-	w.Header().Set("Content-Disposition", "attachment; filename="+content.Location)
+	// If this function is called for a file stored by the encrypting tool, we have to provide a sensible
+	// Content-Disposition header, to be used as file name after download.
+	hasPubLink, err := isURL(content.Location)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: "Content Location:" + err.Error(), Instance: contentID}, http.StatusInternalServerError)
+		return
+	}
+	var filename string
+	if hasPubLink {
+		// we have not stored the original file name, therefore we use the content id.
+		filename = content.ID
+	} else {
+		// in the initial version of the server, the filename was in this field.
+		filename = content.Location
+	}
+	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
 	w.Header().Set("Content-Type", content.Type)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", content.Length))
 

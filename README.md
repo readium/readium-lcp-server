@@ -20,7 +20,7 @@ Prerequisites
 Binaries are only pre-built on demand and for a service fee, therefore in the general case you'll need to get a working Golang installation. 
 Please refer to the official Go documentation for installation procedures at https://golang.org/.
 
-This software is working with *go 1.16* or higher. It is currently maintained using *go 1.20* (July 2023). 
+This software is working with *go 1.19* or higher. It is currently maintained using *go 1.21* (February 2024). 
 
 You must put in place:
 
@@ -338,7 +338,7 @@ lsd_notify_auth:
 
 #### license_status section
 `license_status`: parameters related to the interactions implemented by the Status server, if any:
-- `renting_days`: maximum number of days allowed for a loan, from the date the loan starts. If set to 0 or absent, no loan renewal is possible. 
+- `renting_days`: maximum number of days allowed for a loan, used for laon extensions. The maximum end date is calculated from the date the loan starts plus this value. If set to 0 or absent, no loan renewal is possible. 
 - `renew`: boolean; if `true`, the renewal of a loan is possible. 
 - `renew_days`: default number of additional days allowed during a renewal.
 - `return`: boolean; if `true`, an early return is possible.  

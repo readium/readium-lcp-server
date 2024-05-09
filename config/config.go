@@ -26,6 +26,7 @@ type Configuration struct {
 	LicenseStatus  LicenseStatus      `yaml:"license_status"`
 	Localization   Localization       `yaml:"localization"`
 	Logging        Logging            `yaml:"logging"`
+	TestMode       bool               `yaml:"test_mode"`
 	GoofyMode      bool               `yaml:"goofy_mode"`
 	Profile        string             `yaml:"profile,omitempty"`
 
