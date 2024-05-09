@@ -30,15 +30,12 @@ You must put in place:
 
 3/ a License Gateway, i.e. a piece of sofware you'll have to develop, which takes a request for an existing LCP license from a reading app, interrogates your database in order to get user information relative to this license, calls the License Server endpoint and returns this fresh LCP license back to the caller app (more information in the project Wiki).
 
-4/ a large storage volume for encrypted publications. It can be either a file system accessible from the Web via HTTP URLs, or an S3 bucket. Note that publications are encrypted once: every license generated for such publication is pointing at the same encrypted file. Because these publications are stronlgy encrypted and the decryption key is secured in your SQL database, public access to these files is not problematic.   
+4/ a large storage volume for encrypted publications. It can be either a file system accessible from the Web via HTTP URLs, or an S3 bucket. Note that publications are encrypted once: every license generated for such publication is pointing at the same encrypted file. Because these publications are stronlgy encrypted and the decryption key is secured in your SQL database, public access to these files is not problematic.  
 
 The servers require the setup of an SQL Database. 
 
 - SQLite is sufficient for most needs. If the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. SQLite database creation scripts are also provided in the "dbmodel" folder in case they are useful. 
-- MySQL database creation scripts are provided in the "dbmodel" folder. These scripts must be applied before launching the servers for the first time. 
-- MS SQL Server database creation scripts are provided as well in the "dbmodel" folder. These scripts must be applied before launching the servers for the first time. 
-
-A PostgresQL integration has been provided by a user of the LCP Server as a branch of the codebase, but is not fully integrated in the up-to-date codebase. Contact EDRLab if you want to sponsor its full integration. 
+- MySQL, MS SQL and PostgreSQL database creation scripts are provided in the "dbmodel" folder. These scripts must be applied before launching the servers for the first time. 
 
 Encryption Profiles
 ===================
@@ -237,12 +234,15 @@ Here are the details about the configuration properties of each server. In the s
 
 Here are models for the database property (variables in curly brackets):
 - sqlite: `sqlite3://file:{path-to-dot-sqlite-file}?cache=shared&mode=rwc`
-- MySQL: `mysql://{login}:{password}@/{dbname}?parseTime=true`
-- MS SQL Server: `mssql://server={server-address};user id={login};password={password};database={dbname}` 
+- MySQL: `mysql://{username}:{password}@/{dbname}?parseTime=true`
+- MS SQL Server: `mssql://server={server-address};user id={username};password={password};database={dbname}`
+- PostgrSQL: `postgres://{username}:{password}@{host}:{port}/{dbname}`
 
 Note 1 relative to MS SQL Server: when using SQL Server Express, the server-address is of type `{ip-address}\\SQLEXPRESS)`.
 
 Note 2 relative to MS SQL Server: we've seen installs with the additional parameters `;connection timeout=30;encrypt=disable`.
+
+Note 3 relative to PostgrSQL: add `?sslmode=disable` for a local test install. 
 
 #### storage section
 This section should be empty if the storage location of encrypted publications is managed by the lcpencrypt utility.
