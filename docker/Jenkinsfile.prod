@@ -34,8 +34,8 @@ pipeline {
                   --build-arg BUILD_PROD=true \
                   --build-arg PRIVATE_KEY_PATH=./secrets/privkey.pem \
                   --build-arg CERTIFICATE_PATH=./secrets/cert.pem \
-                  --build-arg LOGGING_SLACK_TOKEN="$SLACK_TOKEN"
-                  --build-arg LOGGING_SLACK_CHANNEL="C063N1KEESJ"
+                  --build-arg LOGGING_SLACK_TOKEN="$SLACK_TOKEN" \
+                  --build-arg LOGGING_SLACK_CHANNEL="C063N1KEESJ" \
                   --build-arg PROFILE=2.1 \
                   .
                   """)
