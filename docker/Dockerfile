@@ -45,6 +45,8 @@ ARG PRIVATE_KEY_PATH=/test/cert/privkey-edrlab-test.pem
 ARG CERTIFICATE_PATH=/test/cert/cert-edrlab-test.pem
 ARG CONFIG_PATH=/docker/config.yaml
 ARG PROFILE=basic
+ARG LOGGING_SLACK_TOKEN=""
+ARG LOGGING_SLACK_CHANNEL=""
 
 COPY $PRIVATE_KEY_PATH /privkey.pem
 COPY $CERTIFICATE_PATH /cert.pem
@@ -102,6 +104,9 @@ ENV PROFILE=$PROFILE
 ENV PORT=8080
 
 ENV BASE_URL=http://127.0.0.1:8080/frontend/
+
+ENV LOGGING_SLACK_TOKEN=$LOGGING_SLACK_TOKEN
+ENV LOGGING_SLACK_CHANNEL=$LOGGING_SLACK_CHANNEL
 
 COPY /docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 

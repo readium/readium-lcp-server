@@ -21,6 +21,11 @@ lsd_notify_auth:
     username: "${LSD_NOTIFY_AUTH_USER}"
     password: "${LSD_NOTIFY_AUTH_PASS}"
 
+# slack logging
+logging:
+  slack_token: "${LOGGING_SLACK_TOKEN}"
+  slack_channel: "${LOGGING_SLACK_CHANNEL}"
+
 
 # LCP Server
 
@@ -71,4 +76,4 @@ frontend:
     encrypted_repository: "${FRONTEND_ENCRYPTED_PATH}"
     provider_uri: "${FRONTEND_PROVIDER_URI}"
     right_print: 10
-    right_copy: 2000
+    right_copy: 4000
