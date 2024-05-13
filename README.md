@@ -20,7 +20,7 @@ Prerequisites
 Binaries are only pre-built on demand and for a service fee, therefore in the general case you'll need to get a working Golang installation. 
 Please refer to the official Go documentation for installation procedures at https://golang.org/.
 
-This software is working with *go 1.16* or higher. It is currently maintained using *go 1.20* (July 2023). 
+This software is working with *go 1.19* or higher. It is currently maintained using *go 1.21* (February 2024). 
 
 You must put in place:
 
@@ -30,15 +30,12 @@ You must put in place:
 
 3/ a License Gateway, i.e. a piece of sofware you'll have to develop, which takes a request for an existing LCP license from a reading app, interrogates your database in order to get user information relative to this license, calls the License Server endpoint and returns this fresh LCP license back to the caller app (more information in the project Wiki).
 
-4/ a large storage volume for encrypted publications. It can be either a file system accessible from the Web via HTTP URLs, or an S3 bucket. Note that publications are encrypted once: every license generated for such publication is pointing at the same encrypted file. Because these publications are stronlgy encrypted and the decryption key is secured in your SQL database, public access to these files is not problematic.   
+4/ a large storage volume for encrypted publications. It can be either a file system accessible from the Web via HTTP URLs, or an S3 bucket. Note that publications are encrypted once: every license generated for such publication is pointing at the same encrypted file. Because these publications are stronlgy encrypted and the decryption key is secured in your SQL database, public access to these files is not problematic.  
 
 The servers require the setup of an SQL Database. 
 
 - SQLite is sufficient for most needs. If the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. SQLite database creation scripts are also provided in the "dbmodel" folder in case they are useful. 
-- MySQL database creation scripts are provided in the "dbmodel" folder. These scripts must be applied before launching the servers for the first time. 
-- MS SQL Server database creation scripts are provided as well in the "dbmodel" folder. These scripts must be applied before launching the servers for the first time. 
-
-A PostgresQL integration has been provided by a user of the LCP Server as a branch of the codebase, but is not fully integrated in the up-to-date codebase. Contact EDRLab if you want to sponsor its full integration. 
+- MySQL, MS SQL and PostgreSQL database creation scripts are provided in the "dbmodel" folder. These scripts must be applied before launching the servers for the first time. 
 
 Encryption Profiles
 ===================
@@ -267,12 +264,15 @@ Here are the details about the configuration properties of each server. In the s
 
 Here are models for the database property (variables in curly brackets):
 - sqlite: `sqlite3://file:{path-to-dot-sqlite-file}?cache=shared&mode=rwc`
-- MySQL: `mysql://{login}:{password}@/{dbname}?parseTime=true`
-- MS SQL Server: `mssql://server={server-address};user id={login};password={password};database={dbname}` 
+- MySQL: `mysql://{username}:{password}@/{dbname}?parseTime=true`
+- MS SQL Server: `mssql://server={server-address};user id={username};password={password};database={dbname}`
+- PostgrSQL: `postgres://{username}:{password}@{host}:{port}/{dbname}`
 
 Note 1 relative to MS SQL Server: when using SQL Server Express, the server-address is of type `{ip-address}\\SQLEXPRESS)`.
 
 Note 2 relative to MS SQL Server: we've seen installs with the additional parameters `;connection timeout=30;encrypt=disable`.
+
+Note 3 relative to PostgrSQL: add `?sslmode=disable` for a local test install. 
 
 #### storage section
 This section should be empty if the storage location of encrypted publications is managed by the lcpencrypt utility.
@@ -368,7 +368,7 @@ lsd_notify_auth:
 
 #### license_status section
 `license_status`: parameters related to the interactions implemented by the Status server, if any:
-- `renting_days`: maximum number of days allowed for a loan, from the date the loan starts. If set to 0 or absent, no loan renewal is possible. 
+- `renting_days`: maximum number of days allowed for a loan, used for laon extensions. The maximum end date is calculated from the date the loan starts plus this value. If set to 0 or absent, no loan renewal is possible. 
 - `renew`: boolean; if `true`, the renewal of a loan is possible. 
 - `renew_days`: default number of additional days allowed during a renewal.
 - `return`: boolean; if `true`, an early return is possible.  

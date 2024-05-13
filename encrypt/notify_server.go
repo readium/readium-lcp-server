@@ -160,7 +160,7 @@ func AbortNotification(pub Publication, lcpsv string, v2 bool, username string, 
 	var notifyURL string
 	var err error
 	if v2 {
-		notifyURL, err = url.JoinPath(lcpsv, "publications")
+		notifyURL, err = url.JoinPath(lcpsv, "publications", pub.UUID)
 	} else {
 		notifyURL, err = url.JoinPath(lcpsv, "contents", pub.UUID)
 	}

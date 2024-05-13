@@ -26,6 +26,7 @@ type Configuration struct {
 	LicenseStatus  LicenseStatus      `yaml:"license_status"`
 	Localization   Localization       `yaml:"localization"`
 	Logging        Logging            `yaml:"logging"`
+	TestMode       bool               `yaml:"test_mode"`
 	GoofyMode      bool               `yaml:"goofy_mode"`
 	Profile        string             `yaml:"profile,omitempty"`
 
@@ -141,6 +142,10 @@ func GetDatabase(uri string) (string, string) {
 	}
 
 	parts := strings.Split(uri, "://")
+	if parts[0] == "postgres" {
+		return parts[0], uri
+	}
+
 	return parts[0], parts[1]
 }
 
