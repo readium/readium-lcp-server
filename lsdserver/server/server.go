@@ -74,6 +74,7 @@ func New(bindAddr string, readonly bool, goofyMode bool, lst *licensestatuses.Li
 		s.handleFunc(licenseRoutes, "/{key}/return", apilsd.LendingReturn).Methods("PUT")
 		s.handleFunc(licenseRoutes, "/{key}/renew", apilsd.LendingRenewal).Methods("PUT")
 		s.handlePrivateFunc(licenseRoutes, "/{key}/status", apilsd.LendingCancellation, basicAuth).Methods("PATCH")
+		s.handlePrivateFunc(licenseRoutes, "/{key}/extend", apilsd.ExtendSubscription, basicAuth).Methods("PUT")
 
 		s.handlePrivateFunc(sr.R, "/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 		s.handlePrivateFunc(licenseRoutes, "/", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
