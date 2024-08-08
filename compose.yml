@@ -4,10 +4,10 @@ services:
     volumes:
       - ./data/readium/db:/usr/local/var/readium/db
       - ./data/logs:/var/log/readium
-      - ./data/readium/config.yaml:/usr/local/etc/readium/config.yaml
-      - ./data/readium/htpasswd:/usr/local/etc/readium/htpasswd
-      - ./data/readium/cert/cert-edrlab-test.pem:/usr/local/var/readium/lcp/cert/cert.pem
-      - ./data/readium/cert/privkey-edrlab-test.pem:/usr/local/var/readium/lcp/cert/privkey.pem
+      - ./.docker/config.yaml:/usr/local/etc/readium/config.yaml
+      - ./test/htpasswd:/usr/local/etc/readium/htpasswd
+      - ./test/cert/cert-edrlab-test.pem:/usr/local/var/readium/lcp/cert/cert.pem
+      - ./test/cert/privkey-edrlab-test.pem:/usr/local/var/readium/lcp/cert/privkey.pem
     ports:
       - "8990:8990"
       - "8989:8989"
