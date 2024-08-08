@@ -3,11 +3,17 @@ services:
     build: .
     volumes:
       - ./data/readium/db:/usr/local/var/readium/db
+      - ./data/readium/storage:/usr/local/var/readium/storage
       - ./data/logs:/var/log/readium
-      - ./.docker/config.yaml:/usr/local/etc/readium/config.yaml
+      - ./docker/config.yaml:/usr/local/etc/readium/config.yaml
       - ./test/htpasswd:/usr/local/etc/readium/htpasswd
       - ./test/cert/cert-edrlab-test.pem:/usr/local/var/readium/lcp/cert/cert.pem
       - ./test/cert/privkey-edrlab-test.pem:/usr/local/var/readium/lcp/cert/privkey.pem
+  nginx:
+    image: nginx:1.27
+    volumes:
+      - ./docker/http.conf:/etc/nginx/conf.d/default.conf
+      - ./data/readium/storage:/usr/local/var/readium/storage
+      - ./data/logs/nginx:/var/log/nginx
     ports:
-      - "8990:8990"
-      - "8989:8989"
+      - "8988:8988"

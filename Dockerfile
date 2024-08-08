@@ -27,9 +27,9 @@ COPY --from=builder --chown=lcp:readium --chmod=0540 /usr/local/bin/lcpserver /u
 COPY --from=builder --chown=lsd:readium --chmod=0540 /usr/local/bin/lsdserver /usr/local/bin/lsdserver
 COPY --from=builder --chown=readium:readium --chmod=0640 /usr/local/src/test/cert /usr/local/var/readium/lcp/cert
 
-COPY --chown=readium:readium --chmod=0440 .docker/config.yaml /usr/local/etc/readium/config.yaml
+COPY --chown=readium:readium --chmod=0440 docker/config.yaml /usr/local/etc/readium/config.yaml
 
-COPY .docker/supervisord.conf /etc/supervisord.conf
+COPY docker/supervisord.conf /etc/supervisord.conf
 
 ENV READIUM_LCPSERVER_CONFIG=/usr/local/etc/readium/config.yaml
 ENV READIUM_LSDSERVER_CONFIG=/usr/local/etc/readium/config.yaml
