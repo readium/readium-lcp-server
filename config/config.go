@@ -127,6 +127,9 @@ func ReadConfig(configFileName string) {
 		panic("Can't read config file: " + configFileName)
 	}
 
+	// Set default values
+	Config.LicenseStatus.Register = true
+
 	err = yaml.Unmarshal(yamlFile, &Config)
 
 	if err != nil {
