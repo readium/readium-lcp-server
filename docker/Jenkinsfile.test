@@ -19,10 +19,10 @@ pipeline {
           withCredentials([string(credentialsId: 'C07KFNG59PF', variable: 'SLACK_TOKEN', domain: 'lcp')]) {
           app = docker.build("readium-lcp-server-build-test", """ \
               -f docker/Dockerfile \
-              .
               --progress=plain \
               --build-arg LOGGING_SLACK_TOKEN="$SLACK_TOKEN" \
               --build-arg LOGGING_SLACK_CHANNEL="C07KFNG59PF" \
+              .
               """)
           }
         }
