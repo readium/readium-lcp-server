@@ -16,7 +16,7 @@ pipeline {
     stage('Build') {
       steps {
         script {
-          withCredentials([string(credentialsId: 'C07KFNG59PF', variable: 'SLACK_TOKEN', domain: 'lcp')]) {
+          withCredentials([string(credentialsId: 'SLACK_TOKEN', variable: 'SLACK_TOKEN', domain: 'lcp')]) {
           app = docker.build("readium-lcp-server-build-test", """ \
               -f docker/Dockerfile \
               --progress=plain \
