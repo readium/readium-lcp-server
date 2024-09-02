@@ -21,7 +21,7 @@ pipeline {
               file(credentialsId: 'libuserkey-a', variable: 'LIBUSERKEY_PATH', domain: 'lcp'),
               file(credentialsId: 'privkey-edrlab-pem', variable: 'PRIVATE_KEY_PATH', domain: 'lcp'),
               file(credentialsId: 'user-key-go', variable: 'USERKEYGO_PATH', domain: 'lcp'),
-              string(credentialsId: 'C063N1KEESJ', variable: 'SLACK_TOKEN', domain: 'lcp')]) {
+              string(credentialsId: 'C07L7FUL93J', variable: 'SLACK_TOKEN', domain: 'lcp')]) {
 
               sh "rm -rf ./secrets && mkdir ./secrets && cp $CERTIFICATE_PATH ./secrets/cert.pem && cp $USERKEYH_PATH ./secrets/userkey.h && cp $LIBUSERKEY_PATH ./secrets/libuserkey.a && cp $PRIVATE_KEY_PATH ./secrets/privkey.pem && cp $USERKEYGO_PATH ./secrets/user_key.go"
 
@@ -35,7 +35,7 @@ pipeline {
                   --build-arg PRIVATE_KEY_PATH=./secrets/privkey.pem \
                   --build-arg CERTIFICATE_PATH=./secrets/cert.pem \
                   --build-arg LOGGING_SLACK_TOKEN="$SLACK_TOKEN" \
-                  --build-arg LOGGING_SLACK_CHANNEL="C063N1KEESJ" \
+                  --build-arg LOGGING_SLACK_CHANNEL="C07L7FUL93J" \
                   --build-arg PROFILE=2.1 \
                   .
                   """)
