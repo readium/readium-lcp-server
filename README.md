@@ -338,11 +338,11 @@ lsd_notify_auth:
 
 #### license_status section
 `license_status`: parameters related to the interactions implemented by the Status server, if any:
-- `renting_days`: maximum number of days allowed for a loan, used for laon extensions. The maximum end date is calculated from the date the loan starts plus this value. If set to 0 or absent, no loan renewal is possible. 
-- `renew`: boolean; if `true`, the renewal of a loan is possible. 
-- `renew_days`: default number of additional days allowed during a renewal.
-- `return`: boolean; if `true`, an early return is possible.  
-- `register`: boolean; if `true`, registering a device is possible.
+- `register`: boolean; if `true`, registering a device is possible; `true` by default.  
+- `renew`: boolean; if `true`, loan extensions are possible; `false` by default. 
+- `return`: boolean; if `true`, early returns are possible; `false` by default. 
+- `renting_days`: maximum number of days allowed for a loan. The maximum end date of a license is based on the date the loan starts, plus this value. No loan extension is possible after this upper limit. Use a large value (20000?) if you operate a subscription model.  
+- `renew_days`: default number of additional days for a loan extension. It will be overwritten by an explicit attribute of the renew command. 
 - `renew_page_url`: URL template; if set, the renew feature is implemented as an HTML page. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
 - `renew_custom_url`: URL template; if set, the renew feature is managed by the license provider. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
 

@@ -69,12 +69,10 @@ func main() {
 		log.Println("Error loading X509 cert: " + err.Error())
 		os.Exit(1)
 	}
-	/* this check is temporarily deactivated. It will be reactivated after a new LCP production lib has been distributed.
 	if config.Config.Profile != "basic" && !license.LCP_PRODUCTION_LIB {
-		log.Println("Can't run in production mode, not built with the proper lib")
+		log.Println("Can't run in production mode, server built with a test LCP lib")
 		os.Exit(1)
 	}
-	*/
 	if config.Config.Profile == "basic" {
 		log.Println("Server running in test mode")
 	} else {
