@@ -961,6 +961,10 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 
 	links := new([]licensestatuses.Link)
 
+	// add a self link (required by ODL)
+	link := licensestatuses.Link{Href: lsdBaseURL + "/licenses/" + ls.LicenseRef + "/status", Rel: "self", Type: api.ContentType_LSD_JSON, Templated: false}
+	*links = append(*links, link)
+
 	// if the link template to the license is set
 	if licenseLinkURL != "" {
 		licenseLinkURLFinal := expandUriTemplate(licenseLinkURL, "license_id", ls.LicenseRef)
