@@ -25,6 +25,7 @@ type Store interface {
 	UpdateLsdStatus(id string, status int32) error
 	Add(l License) error
 	Get(id string) (License, error)
+	TouchByContentID(ContentID string) error
 }
 
 type sqlStore struct {
@@ -158,6 +159,17 @@ func (s *sqlStore) Get(id string) (License, error) {
 		err = ErrNotFound
 	}
 	return l, err
+}
+
+// TouchByContentID updates the updated field of all licenses for a given contentID
+func (s *sqlStore) TouchByContentID(contentID string) error {
+
+	_, err := s.db.Exec(dbutils.GetParamQuery(config.Config.LcpServer.Database, `UPDATE license SET updated=? WHERE content_fk=?`),
+		time.Now().UTC().Truncate(time.Second), contentID)
+	if err != nil {
+		log.Println("Error touching licenses for contentID", contentID)
+	}
+	return err
 }
 
 // Open

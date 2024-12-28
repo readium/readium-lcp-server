@@ -114,10 +114,15 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 
 	s.handleFunc(sr.R, contentRoutesPathPrefix, apilcp.ListContents).Methods("GET")
 
+	// Public routes
 	// get encrypted content by content id (a uuid)
-	s.handleFunc(contentRoutes, "/{content_id}", apilcp.GetContent).Methods("GET")
+	s.handleFunc(contentRoutes, "/{content_id}", apilcp.GetContentFile).Methods("GET")
+
+	// Private routes
 	// get all licenses associated with a given content
 	s.handlePrivateFunc(contentRoutes, "/{content_id}/licenses", apilcp.ListLicensesForContent, basicAuth).Methods("GET")
+	// get content information by content id (a uuid)
+	s.handlePrivateFunc(contentRoutes, "/{content_id}/info", apilcp.GetContentInfo, basicAuth).Methods("GET")
 
 	if !readonly {
 		// create a publication
