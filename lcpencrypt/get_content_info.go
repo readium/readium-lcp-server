@@ -69,16 +69,18 @@ func getContentKey(contentKey *string, contentID, lcpsv string, v2 bool, usernam
 	}
 	defer resp.Body.Close()
 
-	contentInfo := ContentInfo{}
-	dec := json.NewDecoder(resp.Body)
-	err = dec.Decode(&contentInfo)
-	if err != nil {
-		return errors.New("unable to decode content information")
+	// if the content is found, the content key is updated
+	if resp.StatusCode == http.StatusOK {
+		contentInfo := ContentInfo{}
+		dec := json.NewDecoder(resp.Body)
+		err = dec.Decode(&contentInfo)
+		if err != nil {
+			return errors.New("unable to decode content information")
+		}
+
+		*contentKey = b64.StdEncoding.EncodeToString(contentInfo.EncryptionKey)
+		fmt.Println("Existing encryption key retrieved")
 	}
-
-	*contentKey = b64.StdEncoding.EncodeToString(contentInfo.EncryptionKey)
-
-	fmt.Println("Existing encryption key retrieved")
 	return nil
 }
 
