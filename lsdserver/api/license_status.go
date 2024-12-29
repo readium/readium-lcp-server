@@ -388,10 +388,12 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// check the status of the license.
 	// note: renewing an unactive (ready) license is forbidden
-	if licenseStatus.Status == status.STATUS_EXPIRED && !config.Config.LicenseStatus.RenewExpired {
-		msg = "The license has expired and cannot be renewed"
-		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
-		return
+	if licenseStatus.Status == status.STATUS_EXPIRED {
+		if !config.Config.LicenseStatus.RenewExpired {
+			msg = "The license has expired and cannot be renewed"
+			problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
+			return
+		}
 	} else if licenseStatus.Status != status.STATUS_ACTIVE {
 		msg = "The current license status is " + licenseStatus.Status + "; renew forbidden"
 		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
