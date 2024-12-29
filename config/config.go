@@ -101,6 +101,7 @@ type LicenseStatus struct {
 	RenewDays      int    `yaml:"renew_days"`
 	RenewPageUrl   string `yaml:"renew_page_url,omitempty"`
 	RenewCustomUrl string `yaml:"renew_custom_url,omitempty"`
+	RenewExpired   bool   `yaml:"renew_expired"`
 }
 
 type Localization struct {

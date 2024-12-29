@@ -277,10 +277,9 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		licenseStatus.Status = status.STATUS_CANCELLED
 	case status.STATUS_ACTIVE:
 		licenseStatus.Status = status.STATUS_RETURNED
+	// a license can be returned even if it has expired, this is a final status.
 	case status.STATUS_EXPIRED:
-		msg = "The license has already expired"
-		problem.Error(w, r, problem.Problem{Type: problem.RETURN_EXPIRED, Detail: msg}, http.StatusForbidden)
-		return
+		licenseStatus.Status = status.STATUS_RETURNED
 	case status.STATUS_RETURNED:
 		msg = "The license has already been returned before"
 		problem.Error(w, r, problem.Problem{Type: problem.RETURN_ALREADY, Detail: msg}, http.StatusForbidden)
@@ -387,9 +386,13 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	// check that the license status is active.
+	// check the status of the license.
 	// note: renewing an unactive (ready) license is forbidden
-	if licenseStatus.Status != status.STATUS_ACTIVE {
+	if licenseStatus.Status == status.STATUS_EXPIRED && !config.Config.LicenseStatus.RenewExpired {
+		msg = "The license has expired and cannot be renewed"
+		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
+		return
+	} else if licenseStatus.Status != status.STATUS_ACTIVE {
 		msg = "The current license status is " + licenseStatus.Status + "; renew forbidden"
 		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
 		return
@@ -435,9 +438,9 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// check the suggested end date vs the upper end date (which is already set in our implementation)
-	//log.Print("Potential rights end = ", licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339))
+	//log.Print("Upper limit = ", licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339))
 	if suggestedEnd.After(*licenseStatus.PotentialRights.End) {
-		msg := "Attempt to renew with a date greater than potential rights end = " + licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339)
+		msg := "Attempt to renew with a date greater than the upper limit = " + licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339)
 		problem.Error(w, r, problem.Problem{Type: problem.RENEW_REJECT, Detail: msg}, http.StatusForbidden)
 		return
 	}
@@ -955,7 +958,13 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 	registerAvailable := config.Config.LicenseStatus.Register && usableLicense
 	licenseHasRightsEnd := ls.CurrentEndLicense != nil && !(*ls.CurrentEndLicense).IsZero()
 	returnAvailable := config.Config.LicenseStatus.Return && licenseHasRightsEnd && usableLicense
-	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd && usableLicense
+
+	// add the possibility to renew an expired license
+	var renewableLicense bool
+	if config.Config.LicenseStatus.RenewExpired {
+		renewableLicense = usableLicense || ls.Status == status.STATUS_EXPIRED
+	}
+	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd && renewableLicense
 	renewPageUrl := config.Config.LicenseStatus.RenewPageUrl
 	renewCustomUrl := config.Config.LicenseStatus.RenewCustomUrl
 
