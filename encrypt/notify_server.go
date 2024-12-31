@@ -139,6 +139,8 @@ func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, pa
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}
@@ -187,6 +189,8 @@ func AbortNotification(pub Publication, lcpsv string, v2 bool, username string, 
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}
@@ -262,6 +266,8 @@ func NotifyCMS(pub Publication, notifyURL string, verbose bool) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}

@@ -303,7 +303,7 @@ func (pManager PurchaseManager) GenerateOrGetLicense(purchase Purchase) (license
 	// store the license id if it was not already set
 	if purchase.LicenseUUID == nil {
 		purchase.LicenseUUID = &fullLicense.ID
-		pManager.Update(purchase)
+		err = pManager.Update(purchase)
 		if err != nil {
 			return license.License{}, errors.New("unable to update the license id")
 		}

@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -56,7 +56,7 @@ const (
 
 func writeRequestFileToTemp(r io.Reader) (int64, *os.File, error) {
 	dir := os.TempDir()
-	file, err := ioutil.TempFile(dir, "readium-lcp")
+	file, err := os.CreateTemp(dir, "readium-lcp")
 	if err != nil {
 		return 0, file, err
 	}
@@ -155,9 +155,10 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// insert a row in the database if the content id does not already exist
-	// or update the database with a new content key and file location if the content id already exists
+	// or update the database with new information if the content id already exists
 	var c index.Content
 	c, err = s.Index().Get(contentID)
+	// err checked later ...
 	c.EncryptionKey = encrypted.ContentKey
 	// the Location field contains either the file name (useful during download)
 	// or the storage URL of the encrypted, depending the storage mode.
@@ -174,9 +175,16 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 	if err == index.ErrNotFound { //insert into database
 		c.ID = contentID
 		err = s.Index().Add(c)
+		// the content id was found in the database
 	} else { //update the encryption key for c.ID = encrypted.ContentID
 		err = s.Index().Update(c)
 		code = http.StatusOK
+
+		if err == nil {
+			log.Println("Update all license timestamps associated with this publication")
+			err = s.Licenses().TouchByContentID(contentID) // update all licenses update timestamps
+		}
+
 	}
 	if err != nil { //if db not updated
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
@@ -193,7 +201,9 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 	fn := s.Index().List()
 	contents := make([]index.Content, 0)
 
+	var razkey []byte // in a list, we don't return the encryption key.
 	for it, err := fn(); err == nil; it, err = fn() {
+		it.EncryptionKey = razkey
 		contents = append(contents, it)
 	}
 
@@ -210,11 +220,44 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 
 }
 
-// GetContent fetches and returns an encrypted content file
+// GetContentInfo returns information about the encrypted content,
+// especially the encryption key.
+// Used by the encryption utility when the file to encrypt is an update of an existing encrypted publication.
+func GetContentInfo(w http.ResponseWriter, r *http.Request, s Server) {
+	// get the content id from the calling url
+	vars := mux.Vars(r)
+	contentID := vars["content_id"]
+
+	// add a log
+	logging.Print("Get content info " + contentID)
+
+	// get the info
+	content, err := s.Index().Get(contentID)
+	if err != nil { //item probably not found
+		if err == index.ErrNotFound {
+			problem.Error(w, r, problem.Problem{Detail: "Index:" + err.Error(), Instance: contentID}, http.StatusNotFound)
+		} else {
+			problem.Error(w, r, problem.Problem{Detail: "Index:" + err.Error(), Instance: contentID}, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// return the info
+	w.Header().Set("Content-Type", api.ContentType_JSON)
+	enc := json.NewEncoder(w)
+	err = enc.Encode(content)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
+
+}
+
+// GetContentFile fetches and returns an encrypted content file
 // selected by it content id (uuid)
 // This should be called only if the License Server stores the file.
 // If it is not the case, the file should be fetched from a standard web server
-func GetContent(w http.ResponseWriter, r *http.Request, s Server) {
+func GetContentFile(w http.ResponseWriter, r *http.Request, s Server) {
 
 	// get the content id from the calling url
 	vars := mux.Vars(r)
@@ -316,7 +359,7 @@ func getAndOpenFile(filePathOrURL string) (*os.File, error) {
 }
 
 func downloadAndOpenFile(url string) (*os.File, error) {
-	file, _ := ioutil.TempFile("", "")
+	file, _ := os.CreateTemp("", "")
 	fileName := file.Name()
 
 	err := downloadFile(url, fileName)
@@ -360,4 +403,9 @@ func downloadFile(url string, targetFilePath string) error {
 	}
 
 	return nil
+}
+
+// Ping is a simple health check
+func Ping(w http.ResponseWriter, r *http.Request, s Server) {
+	w.WriteHeader(http.StatusOK)
 }

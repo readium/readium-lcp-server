@@ -85,6 +85,19 @@ func main() {
 
 	start := time.Now()
 
+	// if contentid is set but not contentkey, check if the content already exists in the License Server.
+	// If this is the case, get the content encryption key for the server, so that the new encryption
+	// keeps the same key. This is necessary to allow fresh licenses being capable
+	// of decrypting previously downloaded content.
+	if *contentid != "" && *contentkey == "" {
+		// warning: this is a synchronous REST call
+		// contentKey is not initialized if the content does not exist in the License Server
+		err := getContentKey(contentkey, *contentid, *lcpsv, *v2, *username, *password)
+		if err != nil {
+			exitWithError("Error retrieving content info", err)
+		}
+	}
+
 	// encrypt the publication
 	publication, err := encrypt.ProcessEncryption(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename, *cover)
 	if err != nil {
