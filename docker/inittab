@@ -1,0 +1,17 @@
+
+::once:/bin/sh /init.sh /frontend/manage
+
+
+# LCP suit
+::respawn:/usr/bin/lcpserver
+
+::respawn:/usr/bin/lsdserver
+
+::respawn:/usr/bin/frontend
+
+# NGINX
+::respawn:/bin/sh -c '/docker-entrypoint.sh nginx -g "daemon off;"'
+
+# SIGTERM then SIGKILL
+::ctrlaltdel:/sbin/halt
+
