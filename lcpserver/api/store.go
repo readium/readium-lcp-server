@@ -404,3 +404,8 @@ func downloadFile(url string, targetFilePath string) error {
 
 	return nil
 }
+
+// Ping is a simple health check
+func Ping(w http.ResponseWriter, r *http.Request, s Server) {
+	w.WriteHeader(http.StatusOK)
+}

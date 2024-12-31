@@ -101,6 +101,9 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
 	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
 
+	// Ping endpoint
+	s.handleFunc(sr.R, "/ping", apilcp.Ping).Methods("GET")
+
 	// Serve static resources from a configurable directory.
 	// This is used when lcpencrypt sends encrypted resources and cover images to an fs storage,
 	// and we want this http server to provide such resources to the outside world (e.g. PubStore).

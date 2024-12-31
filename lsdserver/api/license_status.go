@@ -1132,3 +1132,8 @@ func fillLicenseStatus(ls *licensestatuses.LicenseStatus, s Server) error {
 
 	return err
 }
+
+// Ping is a simple health check
+func Ping(w http.ResponseWriter, r *http.Request, s Server) {
+	w.WriteHeader(http.StatusOK)
+}
