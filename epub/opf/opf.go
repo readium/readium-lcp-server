@@ -5,8 +5,10 @@
 package opf
 
 import (
+	"bytes"
 	"encoding/xml"
 	"io"
+	"regexp"
 
 	"golang.org/x/net/html/charset"
 )
@@ -57,12 +59,28 @@ func (m Manifest) ItemWithPath(path string) (Item, bool) {
 	return Item{}, false
 }
 
+var unsupportedXMLDeclaration = regexp.MustCompile(`^<\?\s*xml\s+version\s*=\s*"\s*1.[1-9]\s*"`)
+var supportedXMLDeclaration = []byte(`<?xml version="1.0"`)
+
 // Parse parses the opf xml struct and returns a Package object
 func Parse(r io.Reader) (Package, error) {
 	var p Package
+
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		return p, err
+	}
+	opf := buf.Bytes()
+	if unsupportedXMLDeclaration.Match(opf) {
+		opf = unsupportedXMLDeclaration.ReplaceAll(
+			opf, supportedXMLDeclaration)
+	}
+	r = bytes.NewReader(opf)
+
 	xd := xml.NewDecoder(r)
 	// deal with non utf-8 xml files
 	xd.CharsetReader = charset.NewReaderLabel
-	err := xd.Decode(&p)
+	err = xd.Decode(&p)
 	return p, err
 }
