@@ -29,12 +29,21 @@ type rootFile struct {
 	MediaType string `xml:"media-type,attr"`
 }
 
+func BypassReader(label string, input io.Reader) (io.Reader, error) {
+	return input, nil
+}
+
 // findRootFiles looks for the epub root files
 func findRootFiles(r io.Reader) ([]rootFile, error) {
-	xd := xml.NewDecoder(r)
-	// deal with non utf-8 xml files
-	xd.CharsetReader = charset.NewReaderLabel
 	var roots []rootFile
+
+	nr, err := charset.NewReader(r, "utf-16")
+	if err != nil {
+		return nil, err
+	}
+	xd := xml.NewDecoder(nr)
+	xd.CharsetReader = BypassReader
+
 	for x, err := xd.Token(); x != nil && err == nil; x, err = xd.Token() {
 		if err != nil {
 			return nil, err
