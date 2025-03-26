@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 as box
+FROM alpine as box
 
 WORKDIR /lcp
 COPY . /lcp/.
@@ -14,14 +14,25 @@ COPY $USERKEYGO_PATH /user_key.go
 
 # RUN apk add build-base
 
-RUN set -x; echo $CONTAINER_TIMEZONE && arch && uname && apt-get -y update && apt-get -y upgrade && ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata && apt-get install -y make curl git python build-essential bsdmainutils golang-1.21-go && ls /usr/lib/go-1.21 && export GOROOT=/usr/lib/go-1.21 && export PATH=$GOROOT/bin:$PATH && echo $PATH && which go && whereis go && go version && go env && curl -fsSL https://deb.nodesource.com/setup_20.x | bash && apt-get install -y nodejs
+#RUN set -x; echo $CONTAINER_TIMEZONE && arch && uname && \
+#apt-get clean && apt-get -y update && apt-get -y upgrade && \
+#ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+
+RUN set -x; apk update && apk add tzdata curl make util-linux nodejs=~22 npm=~10 go=~1.23 git python3 && \
+ln -s /usr/share/zoneinfo/Europe/Brussels /etc/localtime && \
+echo $PATH && which go && whereis go && go version && go env
+
+# switch to alpine linux too many issues with debian/ubuntu with the package manager Package Hash Missmatch , I do not know why !!?
+#apt-get install -y bsdmainutils && \
+#curl -O -L https://go.dev/dl/go1.24.1.linux-amd64.tar.gz && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.24.1.linux-amd64.tar.gz && export PATH=$PATH:/usr/local/go/bin && \
+#curl -fsSL https://deb.nodesource.com/setup_20.x | bash && apt-get install -y nodejs
 
 #go get golang.org/dl/go1.21@latest
 # RUN curl -OL https://golang.org/dl/go1.21.6.linux-amd64.tar.gz && mkdir -p ./golang && tar -C ./golang -xvf go1.21.6.linux-amd64.tar.gz
-ENV GOROOT=/usr/lib/go-1.21
-ENV PATH=$GOROOT/bin:$PATH
-RUN echo $PATH && echo ${PATH}
-RUN which go && whereis go && go version && go env
+#ENV GOROOT=/usr/lib/go-1.21
+#ENV PATH=$GOROOT/bin:$PATH
+#RUN echo $PATH && echo ${PATH}
+#RUN which go && whereis go && go version && go env
 
 # RUN CGO_ENABLED=1 GOPATH=/lcp/build GOARCH=amd64 go install -x -ldflags '-linkmode external -w -extldflags -static' ./lcpserver
 RUN make BUILD_PROD=${BUILD_PROD} LIBUSERKEY_PATH=/libuserkey.a USERKEYH_PATH=/userkey.h USERKEYGO_PATH=/user_key.go lcpserver && ls -als -R /lcp/build/bin
@@ -104,6 +115,8 @@ ENV PROFILE=$PROFILE
 ENV PORT=8080
 
 ENV BASE_URL=http://127.0.0.1:8080/frontend/
+
+ENV STORAGE_BASE_URL=http://127.0.0.1:8080/storage
 
 ENV LOGGING_SLACK_TOKEN=$LOGGING_SLACK_TOKEN
 ENV LOGGING_SLACK_CHANNEL=$LOGGING_SLACK_CHANNEL

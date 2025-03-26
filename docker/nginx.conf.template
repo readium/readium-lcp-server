@@ -11,6 +11,12 @@ server {
     return 302 /frontend;
   }
 
+  location ^~ /storage {
+    autoindex off;
+    alias ${LCP_STORAGE_PATH};
+    try_files $uri =404;
+  }
+
   location /lcpserver/ {
     proxy_pass http://127.0.0.1:${LCP_PORT}/;
   }

@@ -45,7 +45,7 @@ license:
     links:
         status: "${LSD_BASE_URL}/licenses/{license_id}/status"     
         hint: "${FRONTEND_BASE_URL}/static/hint.html"
-        publication: "${LCP_BASE_URL}/contents/{publication_id}" 
+        publication: "${STORAGE_BASE_URL}/{publication_id}" 
 
 
 # LSD Server
