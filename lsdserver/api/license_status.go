@@ -277,10 +277,9 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 		licenseStatus.Status = status.STATUS_CANCELLED
 	case status.STATUS_ACTIVE:
 		licenseStatus.Status = status.STATUS_RETURNED
+	// a license can be returned even if it has expired, this is a final status.
 	case status.STATUS_EXPIRED:
-		msg = "The license has already expired"
-		problem.Error(w, r, problem.Problem{Type: problem.RETURN_EXPIRED, Detail: msg}, http.StatusForbidden)
-		return
+		licenseStatus.Status = status.STATUS_RETURNED
 	case status.STATUS_RETURNED:
 		msg = "The license has already been returned before"
 		problem.Error(w, r, problem.Problem{Type: problem.RETURN_ALREADY, Detail: msg}, http.StatusForbidden)
@@ -348,9 +347,12 @@ func LendingReturn(w http.ResponseWriter, r *http.Request, s Server) {
 // LendingRenewal checks that the calling device is registered with the license,
 // then modifies the end date associated with the license
 // and returns an updated license status to the caller.
-// the 'end' parameter is optional; if absent, the end date is computed from
-// the current end date plus a configuration parameter.
 // Note: as per the spec, a non-registered device can renew a loan.
+//
+// parameters:
+//
+//	key: license id
+//	end: the new end date for the license (optional)
 func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
 	vars := mux.Vars(r)
@@ -384,23 +386,27 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
-	// check that the license status is active.
+	// check the status of the license.
 	// note: renewing an unactive (ready) license is forbidden
-	if licenseStatus.Status != status.STATUS_ACTIVE {
+	if licenseStatus.Status == status.STATUS_EXPIRED {
+		if !config.Config.LicenseStatus.RenewExpired {
+			msg = "The license has expired and cannot be renewed"
+			problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
+			return
+		}
+	} else if licenseStatus.Status != status.STATUS_ACTIVE {
 		msg = "The current license status is " + licenseStatus.Status + "; renew forbidden"
 		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
 		return
 	}
 
 	// check if the license contains a date end property
-	var currentEnd time.Time
 	if licenseStatus.CurrentEndLicense == nil || (*licenseStatus.CurrentEndLicense).IsZero() {
 		msg = "This license has no current end date; it cannot be renewed"
 		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
 		return
 	}
-	currentEnd = *licenseStatus.CurrentEndLicense
-	log.Print("Current end date " + currentEnd.UTC().Format(time.RFC3339))
+	currentEnd := *licenseStatus.CurrentEndLicense
 
 	var suggestedEnd time.Time
 	// check if the 'end' request parameter is empty
@@ -416,9 +422,14 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		// compute a suggested duration from the config value
 		suggestedDuration := 24 * time.Hour * time.Duration(renewDays) // nanoseconds
 
-		// compute the suggested end date from the current end date
-		suggestedEnd = currentEnd.Add(time.Duration(suggestedDuration))
-		//log.Print("Default extension request until ", suggestedEnd.UTC().Format(time.RFC3339))
+		// compute the suggested end date from now
+		if config.Config.LicenseStatus.RenewFromNow {
+			suggestedEnd = time.Now().Add(time.Duration(suggestedDuration))
+			// compute the suggested end date from the current end date
+		} else {
+			suggestedEnd = currentEnd.Add(time.Duration(suggestedDuration))
+		}
+		log.Print("Default extension request until ", suggestedEnd.UTC().Format(time.RFC3339))
 
 		// if the 'end' request parameter is set
 	} else {
@@ -428,13 +439,13 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 			problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
-		//log.Print("Explicit extension request until ", suggestedEnd.UTC().Format(time.RFC3339))
+		log.Print("Explicit extension request until ", suggestedEnd.UTC().Format(time.RFC3339))
 	}
 
 	// check the suggested end date vs the upper end date (which is already set in our implementation)
-	//log.Print("Potential rights end = ", licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339))
+	//log.Print("Upper limit = ", licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339))
 	if suggestedEnd.After(*licenseStatus.PotentialRights.End) {
-		msg := "Attempt to renew with a date greater than potential rights end = " + licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339)
+		msg := "Attempt to renew with a date greater than the upper limit = " + licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339)
 		problem.Error(w, r, problem.Problem{Type: problem.RENEW_REJECT, Detail: msg}, http.StatusForbidden)
 		return
 	}
@@ -470,6 +481,162 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 	// update the license status fields
+	licenseStatus.Status = status.STATUS_ACTIVE
+	licenseStatus.CurrentEndLicense = &suggestedEnd
+	licenseStatus.Updated.Status = &event.Timestamp
+	licenseStatus.Updated.License = &event.Timestamp
+	//log.Print("Update timestamp ", event.Timestamp.UTC().Format(time.RFC3339))
+
+	// update the license status in db
+	err = s.LicenseStatuses().Update(*licenseStatus)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	// fill the localized 'message', the 'links' and 'event' objects in the license status
+	err = fillLicenseStatus(licenseStatus, s)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	// return the updated license status to the caller
+	// the device count must not be sent in json to the caller
+	licenseStatus.DeviceCount = nil
+	enc := json.NewEncoder(w)
+	err = enc.Encode(licenseStatus)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+}
+
+// ExtendSubscription extends the lifetime of a subscription license.
+// It can re-activate an expired license (but not a returned or cancelled/revoked one);
+// this allows the extension to be made after a trial period as ended.
+//
+// parameters:
+//
+//	key: license id
+//	end: the new end date for the license (optional)
+func ExtendSubscription(w http.ResponseWriter, r *http.Request, s Server) {
+	w.Header().Set("Content-Type", api.ContentType_LSD_JSON)
+	vars := mux.Vars(r)
+
+	var msg string
+
+	// get the license status by license id
+	licenseID := vars["key"]
+
+	// add a log
+	logging.Print("Extend the Subscription for License " + licenseID)
+
+	// get the license status
+	licenseStatus, err := s.LicenseStatuses().GetByLicenseID(licenseID)
+	if err != nil {
+		if licenseStatus == nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+			return
+		}
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	// the max end date must be set
+	if licenseStatus.PotentialRights == nil || licenseStatus.PotentialRights.End == nil {
+		msg := "The maximum end date must be set"
+		problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: msg}, http.StatusBadRequest)
+		return
+	}
+
+	// extension is impossible if the status is revoked, cancelled or returned
+	if licenseStatus.Status == status.STATUS_REVOKED || licenseStatus.Status == status.STATUS_CANCELLED || licenseStatus.Status == status.STATUS_RETURNED {
+		msg := "The license cannot be extended as it is " + licenseStatus.Status
+		problem.Error(w, r, problem.Problem{Type: problem.RETURN_BAD_REQUEST, Detail: msg}, http.StatusBadRequest)
+		return
+	}
+
+	// check if the license contains a date end property
+	var currentEnd time.Time
+	if licenseStatus.CurrentEndLicense == nil || (*licenseStatus.CurrentEndLicense).IsZero() {
+		msg = "This license has no current end date; it cannot be extended"
+		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
+		return
+	}
+	currentEnd = *licenseStatus.CurrentEndLicense
+	log.Print("Current end date " + currentEnd.UTC().Format(time.RFC3339))
+	if licenseStatus.Status == status.STATUS_EXPIRED {
+		log.Println("This license had expired and will be re-activated")
+	}
+
+	var suggestedEnd time.Time
+	// check if the 'end' request parameter is empty
+	timeEndString := r.FormValue("end")
+	if timeEndString == "" {
+		// get the config parameter renew_days
+		renewDays := config.Config.LicenseStatus.RenewDays
+		if renewDays == 0 {
+			msg = "No explicit end value and no configured value"
+			problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusInternalServerError)
+			return
+		}
+		// compute a suggested duration from the config value
+		suggestedDuration := 24 * time.Hour * time.Duration(renewDays) // nanoseconds
+
+		// compute the suggested end date from the current end date
+		suggestedEnd = currentEnd.Add(time.Duration(suggestedDuration))
+		log.Print("Default extension request until ", suggestedEnd.UTC().Format(time.RFC3339))
+
+		// if the 'end' request parameter is set
+	} else {
+		var err error
+		suggestedEnd, err = time.Parse(time.RFC3339, timeEndString)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: err.Error()}, http.StatusBadRequest)
+			return
+		}
+		log.Print("Explicit extension request until ", suggestedEnd.UTC().Format(time.RFC3339))
+	}
+
+	// check the suggested end date vs the max end date (which is already set in our implementation)
+	//log.Print("Potential rights end = ", licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339))
+	if suggestedEnd.After(*licenseStatus.PotentialRights.End) {
+		msg := "Attempt to extend with a date greater than max end = " + licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339)
+		problem.Error(w, r, problem.Problem{Type: problem.RENEW_REJECT, Detail: msg}, http.StatusForbidden)
+		return
+	}
+	// check the suggested end date vs the current end date
+	if suggestedEnd.Before(currentEnd) {
+		msg := "Attempt to extend with a date before the current end date"
+		problem.Error(w, r, problem.Problem{Type: problem.RENEW_REJECT, Detail: msg}, http.StatusForbidden)
+		return
+	}
+
+	// add a log
+	logging.Print("License extended until " + suggestedEnd.UTC().Format(time.RFC3339))
+
+	// create a renew event with a static device name
+	event := makeEvent(status.EVENT_RENEWED, "subscription", "suscription", licenseStatus.ID)
+	err = s.Transactions().Add(*event, status.EVENT_RENEWED_INT)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	// update a license via a call to the lcp Server
+	var httpStatusCode int
+	httpStatusCode, err = updateLicense(suggestedEnd, licenseID)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	if httpStatusCode != http.StatusOK && httpStatusCode != http.StatusPartialContent { // 200, 206
+		err = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
+
+		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: err.Error()}, httpStatusCode)
+		return
+	}
+	// update the license status fields; the status is active
 	licenseStatus.Status = status.STATUS_ACTIVE
 	licenseStatus.CurrentEndLicense = &suggestedEnd
 	licenseStatus.Updated.Status = &event.Timestamp
@@ -796,11 +963,21 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 	registerAvailable := config.Config.LicenseStatus.Register && usableLicense
 	licenseHasRightsEnd := ls.CurrentEndLicense != nil && !(*ls.CurrentEndLicense).IsZero()
 	returnAvailable := config.Config.LicenseStatus.Return && licenseHasRightsEnd && usableLicense
-	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd && usableLicense
+
+	// add the possibility to renew an expired license
+	var renewableLicense bool
+	if config.Config.LicenseStatus.RenewExpired {
+		renewableLicense = usableLicense || ls.Status == status.STATUS_EXPIRED
+	}
+	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd && renewableLicense
 	renewPageUrl := config.Config.LicenseStatus.RenewPageUrl
 	renewCustomUrl := config.Config.LicenseStatus.RenewCustomUrl
 
 	links := new([]licensestatuses.Link)
+
+	// add a self link (required by ODL)
+	link := licensestatuses.Link{Href: lsdBaseURL + "/licenses/" + ls.LicenseRef + "/status", Rel: "self", Type: api.ContentType_LSD_JSON, Templated: false}
+	*links = append(*links, link)
 
 	// if the link template to the license is set
 	if licenseLinkURL != "" {
@@ -954,4 +1131,9 @@ func fillLicenseStatus(ls *licensestatuses.LicenseStatus, s Server) error {
 	err := getEvents(ls, s)
 
 	return err
+}
+
+// Ping is a simple health check
+func Ping(w http.ResponseWriter, r *http.Request, s Server) {
+	w.WriteHeader(http.StatusOK)
 }

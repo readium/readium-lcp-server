@@ -15,8 +15,6 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
-
-	"github.com/readium/readium-lcp-server/logging"
 )
 
 const (
@@ -68,10 +66,6 @@ func Error(w http.ResponseWriter, r *http.Request, problem Problem, status int) 
 		http.Error(w, "{}", problem.Status)
 	}
 	fmt.Fprintln(w, string(jsonError))
-
-	// log the error persistently
-	msg := fmt.Sprintf("Error: %s (%d). %s", problem.Title, problem.Status, problem.Detail)
-	logging.Print(msg)
 
 	// debug only
 	//PrintStack()

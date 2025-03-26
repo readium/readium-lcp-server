@@ -28,10 +28,10 @@ type Index interface {
 // Content represents an encrypted resource
 type Content struct {
 	ID            string `json:"id"`
-	EncryptionKey []byte `json:"-"`
+	EncryptionKey []byte `json:"key,omitempty"` // warning, sensitive info
 	Location      string `json:"location"`
-	Length        int64  `json:"length"` //not exported in license spec?
-	Sha256        string `json:"sha256"` //not exported in license spec?
+	Length        int64  `json:"length"`
+	Sha256        string `json:"sha256"`
 	Type          string `json:"type"`
 }
 
