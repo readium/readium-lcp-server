@@ -128,8 +128,6 @@ RUN apk --update add --no-cache libc6-compat gettext sed ca-certificates openssl
 #RUN ldd /usr/bin/lsdserver
 #RUN ldd /usr/bin/frontend
 
-RUN apk del curl make gcc git
-
 CMD ["init"]
 
 EXPOSE $PORT
