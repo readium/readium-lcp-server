@@ -1,4 +1,4 @@
-FROM frolvlad/alpine-glibc as box
+FROM alpine as box
 
 WORKDIR /lcp
 COPY . /lcp/.
@@ -18,9 +18,12 @@ COPY $USERKEYGO_PATH /user_key.go
 #apt-get clean && apt-get -y update && apt-get -y upgrade && \
 #ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
 
-RUN set -x; apk update && apk add tzdata curl make util-linux gcc nodejs=~22 npm=~10 go=~1.23 git python3 && \
+RUN set -x; apk update && apk add tzdata curl make util-linux gcc gcompat nodejs=~22 npm=~10 go=~1.23 git python3 && \
 ln -s /usr/share/zoneinfo/Europe/Brussels /etc/localtime && \
-echo $PATH && which go && whereis go && go version && go env
+echo $PATH && which go && whereis go && go version && go env \
+wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub \
+wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r1/glibc-2.35-r1.apk \
+apk add glibc-2.35-r1.apk
 
 # switch to alpine linux too many issues with debian/ubuntu with the package manager Package Hash Missmatch , I do not know why !!?
 #apt-get install -y bsdmainutils && \
