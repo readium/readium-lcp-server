@@ -18,7 +18,7 @@ COPY $USERKEYGO_PATH /user_key.go
 #apt-get clean && apt-get -y update && apt-get -y upgrade && \
 #ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
 
-RUN set -x; apk update && apk add tzdata curl make util-linux gcc nodejs=~22 npm=~11 go=~1.24 git python3 && \
+RUN set -x; apk update && apk add tzdata curl make util-linux gcc gcompat nodejs=~22 npm=~11 go=~1.24 git python3 && \
 ln -s /usr/share/zoneinfo/Europe/Brussels /etc/localtime && \
 echo $PATH && which go && whereis go && go version && go env
 
