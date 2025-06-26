@@ -43,9 +43,16 @@ pipeline {
       steps {
         script {
           docker.withRegistry('http://registry-lcp.local:5000') {
-            app.push("streamer-${env.BUILD_NUMBER}")
             app.push("latest")
           }
+        }
+      }
+    }
+
+    stage('Remove image') {
+      steps {
+        script {
+          sh "docker image rm -f ${app.imageName()}"
         }
       }
     }
