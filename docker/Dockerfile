@@ -1,4 +1,4 @@
-FROM alpine as box
+FROM debian:stable as box
 
 WORKDIR /lcp
 COPY . /lcp/.
@@ -12,30 +12,34 @@ COPY $LIBUSERKEY_PATH /libuserkey.a
 COPY $USERKEYH_PATH /userkey.h
 COPY $USERKEYGO_PATH /user_key.go
 
-# RUN apk add build-base
+RUN set -x; \
+echo $CONTAINER_TIMEZONE && \
+arch && \
+uname && \
+date && \
+# https://forums.docker.com/t/hash-sum-mismatch-writing-more-data-as-expected/45940/2
+# https://github.com/jenkinsci/docker/issues/543#issuecomment-2568210821
+echo "Acquire::http::Pipeline-Depth 0;" >> /etc/apt/apt.conf.d/99fixbadproxy && \
+echo "Acquire::http::No-Cache true;" >> /etc/apt/apt.conf.d/99fixbadproxy && \
+echo "Acquire::BrokenProxy    true;" >> /etc/apt/apt.conf.d/99fixbadproxy && \
+apt-get -y update && \
+ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && \
+echo $CONTAINER_TIMEZONE > /etc/timezone && \
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata && \
+DEBIAN_FRONTEND=noninteractive apt-get install -y curl wget git python3 build-essential bsdmainutils && \
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+apt-get install -y nodejs && \
+wget -O go.tgz "https://go.dev/dl/go1.24.4.linux-amd64.tar.gz" && \
+tar -C /usr/local -xzf go.tgz && \
+rm go.tgz
 
-#RUN set -x; echo $CONTAINER_TIMEZONE && arch && uname && \
-#apt-get clean && apt-get -y update && apt-get -y upgrade && \
-#ln -snf /usr/share/zoneinfo/$CONTAINER_TIMEZONE /etc/localtime && echo $CONTAINER_TIMEZONE > /etc/timezone && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+ENV GOROOT=/usr/local/go
+ENV PATH=$GOROOT/bin:$PATH
+RUN echo $PATH && echo ${PATH}
+RUN which go && whereis go && go version && go env && node -v && npm -v
 
-RUN set -x; apk update && apk add tzdata curl make util-linux gcc gcompat nodejs=~22 npm=~10 go=~1.23 git python3 && \
-ln -s /usr/share/zoneinfo/Europe/Brussels /etc/localtime && \
-echo $PATH && which go && whereis go && go version && go env \
-wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub \
-wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r1/glibc-2.35-r1.apk \
-apk add glibc-2.35-r1.apk
-
-# switch to alpine linux too many issues with debian/ubuntu with the package manager Package Hash Missmatch , I do not know why !!?
-#apt-get install -y bsdmainutils && \
-#curl -O -L https://go.dev/dl/go1.24.1.linux-amd64.tar.gz && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.24.1.linux-amd64.tar.gz && export PATH=$PATH:/usr/local/go/bin && \
-#curl -fsSL https://deb.nodesource.com/setup_20.x | bash && apt-get install -y nodejs
-
-#go get golang.org/dl/go1.21@latest
-# RUN curl -OL https://golang.org/dl/go1.21.6.linux-amd64.tar.gz && mkdir -p ./golang && tar -C ./golang -xvf go1.21.6.linux-amd64.tar.gz
-#ENV GOROOT=/usr/lib/go-1.21
-#ENV PATH=$GOROOT/bin:$PATH
-#RUN echo $PATH && echo ${PATH}
-#RUN which go && whereis go && go version && go env
+#node=v22.17.0
+#npm=10.9.2
 
 # RUN CGO_ENABLED=1 GOPATH=/lcp/build GOARCH=amd64 go install -x -ldflags '-linkmode external -w -extldflags -static' ./lcpserver
 RUN make BUILD_PROD=${BUILD_PROD} LIBUSERKEY_PATH=/libuserkey.a USERKEYH_PATH=/userkey.h USERKEYGO_PATH=/user_key.go lcpserver && ls -als -R /lcp/build/bin
