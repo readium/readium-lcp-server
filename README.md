@@ -34,7 +34,7 @@ You must put in place:
 
 The servers require the setup of an SQL Database. 
 
-- SQLite is sufficient for most needs. If the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. SQLite database creation scripts are also provided in the "dbmodel" folder in case they are useful. 
+- SQLite is sufficient for most needs. If the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. SQLite database creation scripts are also provided in the "dbmodel" folder in case they are useful. A warning: the `lcpserver`and `lsdserver` processes require separate database names, i.e. separate SQLite files. 
 - MySQL, MS SQL and PostgreSQL database creation scripts are provided in the "dbmodel" folder. These scripts must be applied before launching the servers for the first time. 
 
 Encryption Profiles
