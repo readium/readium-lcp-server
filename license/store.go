@@ -182,7 +182,6 @@ func (s *sqlStore) Count(from, to time.Time) (int, error) {
 		from, to)
 	var count int
 	err := row.Scan(&count)
-	log.Println("Count:", count, from, to)
 
 	return count, err
 }
