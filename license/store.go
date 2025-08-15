@@ -26,6 +26,7 @@ type Store interface {
 	Add(l License) error
 	Get(id string) (License, error)
 	TouchByContentID(ContentID string) error
+	Count(from time.Time, to time.Time) (int, error)
 }
 
 type sqlStore struct {
@@ -170,6 +171,20 @@ func (s *sqlStore) TouchByContentID(contentID string) error {
 		log.Println("Error touching licenses for contentID", contentID)
 	}
 	return err
+}
+
+// Count counts the number of licenses generated during a time period
+func (s *sqlStore) Count(from, to time.Time) (int, error) {
+
+	// note: I chose not to add an index on the issued field.
+	// This is to avoid performance issues with high write loads, for a query only made once in a while.
+	row := s.db.QueryRow(dbutils.GetParamQuery(config.Config.LcpServer.Database, `SELECT COUNT(*) FROM license WHERE issued BETWEEN ? AND ?`),
+		from, to)
+	var count int
+	err := row.Scan(&count)
+	log.Println("Count:", count, from, to)
+
+	return count, err
 }
 
 // Open

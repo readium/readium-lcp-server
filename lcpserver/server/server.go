@@ -161,6 +161,11 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 		s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.UpdateLicense, basicAuth).Methods("PATCH")
 	}
 
+	// Utility methods
+
+	// License Count endpoint
+	s.handlePrivateFunc(sr.R, "/licensecount", apilcp.LicenseCount, basicAuth).Methods("GET")
+
 	s.source.Feed(packager.Incoming)
 	return s
 }
