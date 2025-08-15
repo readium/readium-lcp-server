@@ -847,14 +847,14 @@ func LicenseCount(w http.ResponseWriter, r *http.Request, s Server) {
 	// get the parameters
 	if r.FormValue("from") != "" {
 		f, err := time.Parse(time.RFC3339, r.FormValue("from"))
-		if err != nil {
+		if err == nil {
 			from = f
 		}
 	} else {
 	}
 	if r.FormValue("to") != "" {
 		t, err := time.Parse(time.RFC3339, r.FormValue("to"))
-		if err != nil {
+		if err == nil {
 			to = t
 		}
 	}
