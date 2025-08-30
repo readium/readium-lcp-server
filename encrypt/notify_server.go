@@ -22,7 +22,7 @@ type LCPServerMsgV2 struct {
 	UUID          string `json:"uuid"`
 	Title         string `json:"title"`
 	EncryptionKey []byte `json:"encryption_key"`
-	Location      string `json:"location"`
+	Href          string `json:"Href"`
 	ContentType   string `json:"content_type"`
 	Size          uint32 `json:"size"`
 	Checksum      string `json:"checksum"`
@@ -107,7 +107,7 @@ func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, pa
 		msg.UUID = pub.UUID
 		msg.Title = pub.Title
 		msg.EncryptionKey = pub.EncryptionKey
-		msg.Location = pub.Location
+		msg.Href = pub.Location
 		msg.ContentType = pub.ContentType
 		msg.Size = pub.Size
 		msg.Checksum = pub.Checksum
