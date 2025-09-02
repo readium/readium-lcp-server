@@ -176,6 +176,9 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 	case apilcp.Storage_fs:
 		// location indicates the url of the publication
 		pub.Location, err = url.JoinPath(storageURL, storageFilename)
+		if err != nil {
+			return nil, err
+		}
 		// the encryption tools stores the encrypted publication in an S3 storage
 	case apilcp.Storage_s3:
 		// store the encrypted file in its definitive S3 storage, delete the temp file
@@ -185,9 +188,9 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 		}
 		// location indicates the url of the publication on S3
 		pub.Location, err = url.JoinPath(storageURL, storageFilename)
-	}
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 	if extractCover {
 		coverExt := path.Ext(pub.CoverUrl)
@@ -226,7 +229,8 @@ func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
 	defer out.Close()
 
 	// fetch the file
-	if url.Scheme == "http" || url.Scheme == "https" {
+	switch url.Scheme {
+	case "http", "https":
 		res, err := http.Get(inputPath)
 		if err != nil {
 			return "", err
@@ -237,7 +241,7 @@ func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-	} else if url.Scheme == "ftp" {
+	case "ftp":
 		// we'll use https://github.com/jlaffaye/ftp when requested
 		return "", errors.New("ftp not supported yet")
 	}
