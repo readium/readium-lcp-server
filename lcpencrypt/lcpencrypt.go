@@ -47,6 +47,7 @@ func exitWithError(context string, err error) {
 }
 
 func main() {
+	providerUri := flag.String("provider", "", "optional, provider URI")
 	inputPath := flag.String("input", "", "source epub/pdf/lpf file locator (file system or http GET)")
 	contentid := flag.String("contentid", "", "optional, content identifier; if omitted, a uuid is generated")
 	storageRepo := flag.String("storage", "", "optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
@@ -107,7 +108,7 @@ func main() {
 	elapsed := time.Since(start)
 
 	// notify the license server
-	err = encrypt.NotifyLCPServer(*publication, *lcpsv, *v2, *username, *password, *verbose)
+	err = encrypt.NotifyLCPServer(*publication, *providerUri, *lcpsv, *v2, *username, *password, *verbose)
 	if err != nil {
 		exitWithError("Error notifying the LCP Server", err)
 	}
