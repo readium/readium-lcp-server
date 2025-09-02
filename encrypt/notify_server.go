@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -153,7 +154,7 @@ func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username stri
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}
-	fmt.Println("The LCP Server was notified")
+	log.Println("The LCP Server was notified")
 	return nil
 }
 
@@ -203,7 +204,7 @@ func AbortNotification(pub Publication, lcpsv string, v2 bool, username string, 
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}
-	fmt.Println("Encrypted publication deleted from the LCP Server")
+	log.Println("Encrypted publication deleted from the LCP Server")
 	return nil
 }
 
@@ -280,7 +281,7 @@ func NotifyCMS(pub Publication, notifyURL string, verbose bool) error {
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}
-	fmt.Println("The CMS was notified")
+	log.Println("The CMS was notified")
 	return nil
 }
 
