@@ -19,10 +19,13 @@ import (
 
 // LCPServerMsgV2 is used for notifying an LCP Server V2
 type LCPServerMsgV2 struct {
+	ProviderUri   string `json:"provider_uri,omitempty"`
 	UUID          string `json:"uuid"`
 	Title         string `json:"title"`
+	Authors       string `json:"authors,omitempty"`
+	CoverUrl      string `json:"cover_url,omitempty"`
 	EncryptionKey []byte `json:"encryption_key"`
-	Href          string `json:"Href"`
+	Href          string `json:"href"`
 	ContentType   string `json:"content_type"`
 	Size          uint32 `json:"size"`
 	Checksum      string `json:"checksum"`
@@ -51,7 +54,7 @@ type CMSMsg struct {
 }
 
 // NotifyLCPServer notifies the License Server of the encryption of a publication
-func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, password string, verbose bool) error {
+func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username string, password string, verbose bool) error {
 
 	// An empty notify URL is not an error, simply a silent encryption
 	if lcpsv == "" {
@@ -104,8 +107,14 @@ func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, pa
 		}
 	} else {
 		var msg LCPServerMsgV2
+		msg.ProviderUri = prov
 		msg.UUID = pub.UUID
 		msg.Title = pub.Title
+		for _, author := range pub.Author {
+			msg.Authors += author + ", "
+		}
+		msg.Authors = strings.TrimSuffix(msg.Authors, ", ")
+		msg.CoverUrl = pub.CoverUrl
 		msg.EncryptionKey = pub.EncryptionKey
 		msg.Href = pub.Location
 		msg.ContentType = pub.ContentType
