@@ -87,8 +87,15 @@ func (i dbIndex) Update(c Content) error {
 
 // Delete deletes a record
 func (i dbIndex) Delete(id string) error {
-	_, err := i.db.Exec("DELETE FROM content WHERE id=?", id)
-	return err
+	driver, _ := config.GetDatabase(config.Config.LcpServer.Database)
+
+	if driver == "postgres" {
+		_, err := i.db.Exec(dbutils.GetParamQuery(config.Config.LcpServer.Database, "DELETE FROM content WHERE id=?"), id)
+		return err
+	} else {
+		_, err := i.db.Exec("DELETE FROM content WHERE id=?", id)
+		return err
+	}
 }
 
 // List lists rows
