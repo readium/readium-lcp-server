@@ -83,6 +83,11 @@ func New(bindAddr string, readonly bool, goofyMode bool, lst *licensestatuses.Li
 		s.handlePrivateFunc(licenseRoutes, "/", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 	}
 
+	// Utility methods
+
+	// License Count endpoint
+	s.handlePrivateFunc(sr.R, "/licensecount", apilsd.LicenseCount, basicAuth).Methods("GET")
+
 	return s
 }
 

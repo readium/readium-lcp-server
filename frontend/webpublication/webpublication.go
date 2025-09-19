@@ -116,6 +116,7 @@ func encryptPublication(inputPath string, pub *Publication, pubManager Publicati
 	// send a notification to the License Server v1
 	err = encrypt.NotifyLCPServer(
 		*notification,
+		"", /// no provider uri
 		config.Config.LcpServer.PublicBaseUrl,
 		false,
 		config.Config.LcpUpdateAuth.Username,

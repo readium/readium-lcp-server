@@ -9,7 +9,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -53,6 +52,7 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 	if inputPath == "" {
 		return nil, errors.New("ProcessEncryption, parameter error")
 	}
+	log.Println("Process ", inputPath)
 
 	var pub Publication
 
@@ -68,6 +68,7 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 
 	// create a temp folder if declared, or use the current dir
 	if tempRepo != "" {
+		log.Println("Create the temp folder ", tempRepo)
 		err := os.MkdirAll(tempRepo, os.ModePerm)
 		if err != nil && !os.IsExist(err) {
 			return nil, err
@@ -124,7 +125,6 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 
 	// set the output path
 	outputPath := filepath.Join(outputRepo, storageFilename)
-	fmt.Println("Output path:", outputPath)
 
 	// define an AES encrypter
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
@@ -159,6 +159,7 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 	}
 
 	if deleteTemp {
+		log.Println("Delete the temp file ", inputPath)
 		err = os.Remove(inputPath)
 		if err != nil {
 			return nil, err
@@ -166,18 +167,24 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 	}
 
 	// store the publication if required, and set pub.Location
+	var mode string
 	switch pub.StorageMode {
-	// the license server will have to store the encrypted publication
-	// warning: the license server must have read access to the output repo.
 	case apilcp.Storage_none:
+		// the license server will have to store the encrypted publication
+		// warning: the license server must have read access to the output repo.
 		// location indicates to the license server the path to the encrypted publication
 		pub.Location = outputPath
-	// the encryption tools stores the encrypted publication in a file system
+		mode = "temp"
 	case apilcp.Storage_fs:
+		// the encryption tools stores the encrypted publication in a file system
 		// location indicates the url of the publication
 		pub.Location, err = url.JoinPath(storageURL, storageFilename)
-		// the encryption tools stores the encrypted publication in an S3 storage
+		if err != nil {
+			return nil, err
+		}
+		mode = "file system"
 	case apilcp.Storage_s3:
+		// the encryption tools stores the encrypted publication in an S3 storage
 		// store the encrypted file in its definitive S3 storage, delete the temp file
 		err = StoreS3Publication(outputPath, storageRepo, storageFilename)
 		if err != nil {
@@ -185,13 +192,17 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 		}
 		// location indicates the url of the publication on S3
 		pub.Location, err = url.JoinPath(storageURL, storageFilename)
+		if err != nil {
+			return nil, err
+		}
+		mode = "s3"
 	}
-	if err != nil {
-		return nil, err
-	}
+	log.Println("Storage mode", mode, "- location", pub.Location)
+
 	if extractCover {
 		coverExt := path.Ext(pub.CoverUrl)
 		pub.CoverUrl, _ = url.JoinPath(storageURL, storageFilename+coverExt)
+		log.Println("Cover Url", pub.CoverUrl)
 	}
 
 	return &pub, nil
@@ -215,6 +226,8 @@ func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
 		return "", nil
 	}
 
+	log.Println("Create a temporary file and fetch the input file")
+
 	// the temp file has the same extension as the remote file
 	inputExt := filepath.Ext(inputPath)
 	tempPath := filepath.Join(tempRepo, contentID+inputExt)
@@ -226,7 +239,8 @@ func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
 	defer out.Close()
 
 	// fetch the file
-	if url.Scheme == "http" || url.Scheme == "https" {
+	switch url.Scheme {
+	case "http", "https":
 		res, err := http.Get(inputPath)
 		if err != nil {
 			return "", err
@@ -237,7 +251,7 @@ func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-	} else if url.Scheme == "ftp" {
+	case "ftp":
 		// we'll use https://github.com/jlaffaye/ftp when requested
 		return "", errors.New("ftp not supported yet")
 	}
@@ -307,6 +321,8 @@ func checksum(file *os.File) string {
 
 // processEPUB encrypts resources in an EPUB
 func processEPUB(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string, extractCover bool) error {
+
+	log.Println("Process as EPUB")
 
 	// create a zip reader from the input path
 	zr, err := zip.OpenReader(inputPath)
@@ -408,6 +424,8 @@ func processEPUB(pub *Publication, inputPath string, outputPath string, encrypte
 // processPDF wraps a PDF file inside a Readium Package and encrypts its resources
 func processPDF(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
 
+	log.Println("Process as PDF")
+
 	// generate a temp Readium Package (rwpp) which embeds the PDF file; its title is the PDF file name
 	tmpPackagePath := outputPath + ".tmp"
 	err := pack.BuildRPFFromPDF(filepath.Base(inputPath), inputPath, tmpPackagePath)
@@ -424,6 +442,8 @@ func processPDF(pub *Publication, inputPath string, outputPath string, encrypter
 
 // processLPF transforms a W3C LPF file into a Readium Package and encrypts its resources
 func processLPF(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
+
+	log.Println("Process as LPF")
 
 	// generate a tmp Readium Package (rwpp) out of a W3C Package (lpf)
 	tmpPackagePath := outputPath + ".tmp"

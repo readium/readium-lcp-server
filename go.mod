@@ -19,8 +19,8 @@ require (
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	github.com/slack-go/slack v0.12.5
 	github.com/urfave/negroni v1.0.0
-	golang.org/x/net v0.25.0
-	golang.org/x/text v0.22.0
+	golang.org/x/net v0.38.0
+	golang.org/x/text v0.23.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -31,5 +31,5 @@ require (
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/rickb777/plural v1.4.1 // indirect
-	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
 )

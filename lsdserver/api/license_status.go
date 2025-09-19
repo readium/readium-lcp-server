@@ -888,6 +888,106 @@ func LendingCancellation(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 }
 
+type licenseCount struct {
+	Total     int       `json:"total"`
+	Ready     int       `json:"ready"`
+	Active    int       `json:"active"`
+	Expired   int       `json:"expired"`
+	Returned  int       `json:"returned"`
+	Revoked   int       `json:"revoked"`
+	Cancelled int       `json:"cancelled"`
+	From      time.Time `json:"from"`
+	To        time.Time `json:"to"`
+}
+
+// LicenseCount counts the number of licenses generated during a time period
+// parameters:
+//
+//	from: initial date (optional)
+//	to: end date (optional)
+func LicenseCount(w http.ResponseWriter, r *http.Request, s Server) {
+	// default values
+	// calculation on the last year
+	from := time.Now().AddDate(-1, 0, 0).Truncate(time.Second)
+	to := time.Now().Truncate(time.Second)
+	// get the parameters
+	if r.FormValue("from") != "" {
+		f, err := time.Parse(time.RFC3339, r.FormValue("from"))
+		if err == nil {
+			from = f
+		} else {
+			log.Println("error ", err.Error())
+		}
+	}
+	if r.FormValue("to") != "" {
+		t, err := time.Parse(time.RFC3339, r.FormValue("to"))
+		if err == nil {
+			to = t
+		} else {
+			log.Println("error", err)
+		}
+	}
+
+	total, err := s.LicenseStatuses().Count(from, to)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	ready, err := s.LicenseStatuses().CountWithStatus(from, to, status.STATUS_READY)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	active, err := s.LicenseStatuses().CountWithStatus(from, to, status.STATUS_ACTIVE)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	expired, err := s.LicenseStatuses().CountWithStatus(from, to, status.STATUS_EXPIRED)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	returned, err := s.LicenseStatuses().CountWithStatus(from, to, status.STATUS_RETURNED)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	revoked, err := s.LicenseStatuses().CountWithStatus(from, to, status.STATUS_REVOKED)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	cancelled, err := s.LicenseStatuses().CountWithStatus(from, to, status.STATUS_CANCELLED)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	// shape the response
+	response := licenseCount{
+		Total:     total,
+		Ready:     ready,
+		Active:    active,
+		Expired:   expired,
+		Returned:  returned,
+		Revoked:   revoked,
+		Cancelled: cancelled,
+		From:      from,
+		To:        to,
+	}
+	w.Header().Set("Content-Type", api.ContentType_JSON)
+	enc := json.NewEncoder(w)
+	// do not escape characters
+	enc.SetEscapeHTML(false)
+	err = enc.Encode(response)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+}
+
 // makeLicenseStatus sets fields of license status according to the config file
 // and creates needed inner objects of license status
 func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatus) {
