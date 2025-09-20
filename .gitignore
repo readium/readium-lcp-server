@@ -10,12 +10,14 @@ debug
 *.lib
 *.exe
 *.yaml
+*.h
 !test/config.yaml
 **/manage/config.js
 frontend/manage/node_modules/*
 frontend/manage/dist/*
 frontend/manage/js/*
 frontend/manage/js/components/*
+license/user_key_prod.go
 *.map
 *.htpasswd
 lcpserver/test.sqllite
