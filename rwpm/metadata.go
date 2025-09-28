@@ -57,7 +57,7 @@ func (d *DateOrDatetime) UnmarshalJSON(b []byte) error {
 
 	s := strings.Trim(string(b), "\"")
 	// process a date
-	if len(s) == 11 && strings.Index(s, "Z") == 10 { // a date may end with a 'Z'
+	if len(s) == 11 && strings.HasSuffix(s, "Z") { // a date may end with a 'Z'
 		s = strings.TrimRight(s, "Z")
 	}
 	if len(s) == 10 {
@@ -107,6 +107,13 @@ func (d Date) MarshalJSON() ([]byte, error) {
 	return []byte(date.Format("\"2006-01-02\"")), nil
 }
 
+// MarshalJSON marshalls Date
+func (d Date) String() string {
+
+	date := time.Time(d)
+	return date.Format("\"2006-01-02\"")
+}
+
 // Meta is a generic structure for other metadata
 type Meta struct {
 	Property string
@@ -150,8 +157,7 @@ type Subject struct {
 // UnmarshalJSON unmarshals Subjects
 func (s *Subjects) UnmarshalJSON(b []byte) error {
 
-	var sbjs []Subject
-	sbjs = make([]Subject, 1)
+	sbjs := make([]Subject, 1)
 	var sbj Subject
 
 	// literal value
@@ -232,8 +238,7 @@ func (s Subject) MarshalJSON() ([]byte, error) {
 		return json.Marshal(s.Name)
 	}
 	type Alias Subject
-	sbjAlias := Alias{s.Name, s.SortAs, s.Scheme, s.Code}
-	return json.Marshal(sbjAlias)
+	return json.Marshal(Alias(s))
 }
 
 // BelongsTo is a list of collections/series that a publication belongs to
@@ -256,8 +261,7 @@ type Contributors []Contributor
 // UnmarshalJSON unmarshals contributors
 func (c *Contributors) UnmarshalJSON(b []byte) error {
 
-	var ctors []Contributor
-	ctors = make([]Contributor, 1)
+	ctors := make([]Contributor, 1)
 	var ctor Contributor
 
 	// literal value
@@ -364,8 +368,7 @@ func (c Contributor) MarshalJSON() ([]byte, error) {
 		return json.Marshal(c.Name["und"])
 	}
 	type Alias Contributor
-	ctorAlias := Alias{c.Name, c.SortAs, c.Identifier, c.Role}
-	return json.Marshal(ctorAlias)
+	return json.Marshal(Alias(c))
 }
 
 // MultiLanguage stores one or more values indexed by language.
@@ -375,8 +378,7 @@ type MultiLanguage map[string]string
 // The "und" (undefined)language corresponds to a literal value
 func (m *MultiLanguage) UnmarshalJSON(b []byte) error {
 
-	var mmap map[string]string
-	mmap = make(map[string]string)
+	mmap := make(map[string]string)
 
 	var literal string
 	var err error
@@ -396,8 +398,7 @@ func (m *MultiLanguage) UnmarshalJSON(b []byte) error {
 func (m MultiLanguage) MarshalJSON() ([]byte, error) {
 
 	if len(m) > 1 || m["und"] == "" {
-		var mmap map[string]string
-		mmap = make(map[string]string)
+		mmap := make(map[string]string)
 
 		for key, value := range m {
 			mmap[key] = value
@@ -407,7 +408,7 @@ func (m MultiLanguage) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m["und"])
 }
 
-// Text returns the "und" language value or the single value found in the map
+// Text returns the "und" language value or the first value found in the map
 func (m MultiLanguage) Text() string {
 
 	if m["und"] != "" {
