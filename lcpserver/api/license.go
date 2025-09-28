@@ -446,6 +446,10 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	// build the license
 	err = buildLicense(&lic, s, false)
 	if err != nil {
+		if errors.Is(err, index.ErrNotFound) {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+			return
+		}
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
