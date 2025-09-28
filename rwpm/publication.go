@@ -102,9 +102,7 @@ func (publication *Publication) AddLink(linkType string, rel []string, url strin
 		link.Rel = rel
 	}
 
-	if templated == true {
-		link.Templated = true
-	}
+	link.Templated = templated
 
 	publication.Links = append(publication.Links, link)
 }
