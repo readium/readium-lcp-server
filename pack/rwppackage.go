@@ -467,6 +467,7 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string) (RWPInfo, error) 
 		,
 		"metadata": {
 			"@type": "http://schema.org/Book",
+			"conformsTo": "https://readium.org/webpub-manifest/profiles/pdf",
 			"title": "{{.Title}}",
 			"author": "{{.Author}}",
 			"subject": "{{.Subject}}",
