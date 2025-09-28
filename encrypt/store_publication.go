@@ -12,9 +12,9 @@ import (
 	"github.com/readium/readium-lcp-server/storage"
 )
 
-// StoreS3Publication stores an encrypted file into its definitive storage.
-// Only called for S3 buckets.
-func StoreS3Publication(inputPath, storagePath, name string) error {
+// StoreFileOnS3 stores an encrypted file or cover image into its definitive storage.
+// it then deletes the input file.
+func StoreFileOnS3(inputPath, storagePath, name string) error {
 
 	s3Split := strings.Split(storagePath, ":")
 
@@ -29,7 +29,7 @@ func StoreS3Publication(inputPath, storagePath, name string) error {
 		return errors.New("could not init the S3 storage")
 	}
 
-	// open the encrypted file, defer its deletion
+	// open the input file, defer its deletion
 	file, err := os.Open(inputPath)
 	if err != nil {
 		return err

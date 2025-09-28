@@ -9,6 +9,7 @@ require (
 	github.com/abbot/go-http-auth v0.4.0
 	github.com/aws/aws-sdk-go v1.55.8
 	github.com/claudiu/gocron v0.0.0-20151103142354-980c96bf412b
+	github.com/gen2brain/go-fitz v1.24.15
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gorilla/mux v1.8.1
 	github.com/jeffbmartinez/delay v0.0.0-20150608194421-e1b689d78b33
@@ -28,11 +29,14 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/ebitengine/purego v0.8.4 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/jupiterrider/ffi v0.5.0 // indirect
 	github.com/rickb777/plural v1.4.4 // indirect
 	golang.org/x/crypto v0.42.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
 )

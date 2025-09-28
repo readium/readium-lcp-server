@@ -25,7 +25,7 @@ func showHelpAndExit() {
 	fmt.Println("-url        optional, base url associated with the storage, without filename")
 	fmt.Println("-filename   optional, file name of the encrypted publication; if omitted, contentid is used")
 	fmt.Println("-temp       optional, working folder for temporary files. If not set, the current directory will be used.")
-	fmt.Println("-cover      optional, boolean, indicates that covers must be generated when possible")
+	fmt.Println("-cover      optional, boolean, indicates that a cover should be generated")
 	fmt.Println("-contentkey optional, base64 encoded content key; if omitted a random content key is generated")
 	fmt.Println("-lcpsv      optional, URL, host name of the License Server to be notified; syntax http://username:password@example.com")
 	fmt.Println("-v2         optional, boolean, indicates communication with a License Server v2")
