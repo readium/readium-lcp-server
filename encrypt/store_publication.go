@@ -14,9 +14,9 @@ import (
 
 // StoreFileOnS3 stores an encrypted file or cover image into its definitive storage.
 // it then deletes the input file.
-func StoreFileOnS3(inputPath, storagePath, name string) error {
+func StoreFileOnS3(inputPath, storageRepo, name string) error {
 
-	s3Split := strings.Split(storagePath, ":")
+	s3Split := strings.Split(storageRepo, ":")
 
 	s3conf := storage.S3Config{}
 	s3conf.Region = s3Split[1]
