@@ -396,7 +396,6 @@ func OpenRPF(name string) (*RPFReader, error) {
 }
 
 // BuildRPFFromPDF builds a Readium Package (rwpp) which embeds a PDF file and a cover
-// extract the cover if coverPath is not empty
 // the cover file extracted from the PDF is not deleted by this function
 func BuildRPFFromPDF(inputPath, packagePath, coverPath string) (RWPInfo, error) {
 
@@ -431,36 +430,34 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string) (RWPInfo, error) 
 		return rwpInfo, err
 	}
 
-	// extract metadata from the PDF, and the cover if coverPath is provided
+	// extract metadata , and cover from the PDF
 	rwpInfo, err = extractRWPInfo(inputPath, coverPath)
 	if err != nil {
 		log.Printf("Error extracting the PDF cover, %s", err.Error())
-		// non-fatal error
-	} else if coverPath != "" {
-		// add the cover image to the package if it was extracted
-		writer, err := zipWriter.CreateHeader(&zip.FileHeader{
-			Name:   "cover.jpg",
-			Method: zip.Store,
-		})
-		if err != nil {
-			return rwpInfo, err
-		}
-		coverFile, err := os.Open(coverPath)
-		if err != nil {
-			return rwpInfo, err
-		}
-		defer coverFile.Close()
+		return rwpInfo, err
+	}
 
-		_, err = io.Copy(writer, coverFile)
-		if err != nil {
-			return rwpInfo, err
-		}
+	// add the cover image to the package
+	writer, err = zipWriter.CreateHeader(&zip.FileHeader{
+		Name:   "cover.jpg",
+		Method: zip.Store,
+	})
+	if err != nil {
+		return rwpInfo, err
+	}
+	coverFile, err := os.Open(coverPath)
+	if err != nil {
+		return rwpInfo, err
+	}
+	defer coverFile.Close()
+
+	_, err = io.Copy(writer, coverFile)
+	if err != nil {
+		return rwpInfo, err
 	}
 
 	// inject a Readium manifest into the zip output
-	var manifest string
-	if coverPath != "" {
-		manifest = `
+	manifest := `
 		{
 			"@context": "https://readium.org/webpub-manifest/context.jsonld"
 			,
@@ -484,27 +481,6 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string) (RWPInfo, error) 
 			]
 		}
 		`
-	} else {
-		manifest = `
-		{
-			"@context": "https://readium.org/webpub-manifest/context.jsonld"
-			,
-			"metadata": {
-				"@type": "http://schema.org/Book",
-				"conformsTo": "https://readium.org/webpub-manifest/profiles/pdf",
-				"title": "{{.Title}}",
-				"author": "{{.Author}}",
-				"subject": "{{.Subject}}",
-				"numberOfPages": {{.NumPages}}
-			},
-			"readingOrder": [
-				{
-					"href": "publication.pdf", "title": "publication", "type": "application/pdf"
-				}
-			]
-		}
-		`
-	}
 
 	manifestWriter, err := zipWriter.Create(ManifestLocation)
 	if err != nil {

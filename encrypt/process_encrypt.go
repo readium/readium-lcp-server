@@ -419,20 +419,24 @@ func processPDF(pub *Publication, encrypter crypto.Encrypter, contentKey string)
 
 	log.Println("Process as PDF")
 
-	// generate a temp Readium Package (rwpp) which embeds the PDF file; its title is the PDF file name
-	// the first page of the PDF is extracted as a JPEG cover image if requested
 	tmpPackagePath := filepath.Join(pub.OutputRepo, pub.FileName+".tmp")
-	var coverPath string
-	if pub.ExtractCover {
-		pub.CoverName = strings.TrimSuffix(pub.FileName, filepath.Ext(pub.FileName)) + ".jpg"
-		coverPath = filepath.Join(pub.OutputRepo, pub.CoverName)
-	}
+	pub.CoverName = strings.TrimSuffix(pub.FileName, filepath.Ext(pub.FileName)) + ".jpg"
+	coverPath := filepath.Join(pub.OutputRepo, pub.CoverName)
+
+	// generate a temp Readium Package (rwpp) which embeds the PDF file
+	// the first page of the PDF is extracted as a JPEG cover image
 	rwpInfo, err := pack.BuildRPFFromPDF(pub.InputPath, tmpPackagePath, coverPath)
-	// will will remove the tmp files even if an error is returned
+	// will will remove the tmp file even if an error is returned
 	defer os.Remove(tmpPackagePath)
 	// process error
 	if err != nil {
 		return err
+	}
+
+	if !pub.ExtractCover {
+		// remove the cover file if it was created
+		os.Remove(coverPath)
+		pub.CoverName = ""
 	}
 
 	// set publication metadata extracted from the PDF
