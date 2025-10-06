@@ -152,6 +152,7 @@ func AddContent(w http.ResponseWriter, r *http.Request, s Server) {
 			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
 			return
 		}
+		log.Printf("File %s moved to storage ", encrypted.Output)
 	}
 
 	// insert a row in the database if the content id does not already exist
