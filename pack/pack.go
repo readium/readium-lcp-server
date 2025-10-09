@@ -127,7 +127,7 @@ func Do(encrypter crypto.Encrypter, contentKey string, ep epub.Epub, w io.Writer
 
 	for _, res := range ep.Resource {
 		if _, alreadyEncrypted := ep.Encryption.DataForFile(res.Path); !alreadyEncrypted && canEncrypt(res, ep) {
-			compress := mustCompressBeforeEncryption(*res, ep)
+			compress := mustCompressBeforeEncryption(*res)
 			// encrypt the resource after optionally compressing it
 			err = encryptEPUBResource(compressor, compress, encrypter, key, ep.Encryption, res, ew)
 			if err != nil {
@@ -158,7 +158,7 @@ func Do(encrypter crypto.Encrypter, contentKey string, ep epub.Epub, w io.Writer
 // mustCompressBeforeEncryption checks is a resource must be compressed before encryption.
 // We don't want to compress files if that might cause streaming (byte range requests) issues.
 // The test is applied on the resource media-type; image, video, audio, pdf are stored without compression.
-func mustCompressBeforeEncryption(file epub.Resource, ep epub.Epub) bool {
+func mustCompressBeforeEncryption(file epub.Resource) bool {
 
 	mimetype := file.ContentType
 

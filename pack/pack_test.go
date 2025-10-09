@@ -8,7 +8,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/flate"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/readium/readium-lcp-server/crypto"
@@ -31,7 +31,7 @@ func TestPacking(t *testing.T) {
 	if !ok {
 		t.Fatalf("Could not find %s in input", htmlFilePath)
 	}
-	inputBytes, err := ioutil.ReadAll(inputRes.Contents)
+	inputBytes, err := io.ReadAll(inputRes.Contents)
 	if err != nil {
 		t.Fatalf("Could not find %s in input", htmlFilePath)
 	}
@@ -101,7 +101,7 @@ func TestPacking(t *testing.T) {
 			t.Errorf("Could not decrypt file")
 		} else {
 			decrypter.Decrypt(key, res.Contents, &buf)
-			if outputBytes, err := ioutil.ReadAll(flate.NewReader(&buf)); err != nil {
+			if outputBytes, err := io.ReadAll(flate.NewReader(&buf)); err != nil {
 				t.Fatalf("Could not decompress data from %s", htmlFilePath)
 			} else {
 				if !bytes.Equal(inputBytes, outputBytes) {

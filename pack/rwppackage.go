@@ -1,4 +1,4 @@
-// Copyright 2020 Readium Foundation. All rights reserved.
+// Copyright 2025 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -8,14 +8,34 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"errors"
+	"image/jpeg"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"io"
 	"log"
 	"net/url"
 	"os"
 	"text/template"
 
+	"github.com/gen2brain/go-fitz"
 	"github.com/readium/readium-lcp-server/rwpm"
 )
+
+// RWPInfo contains information extracted from a Readium Web Publication,
+// deemed useful for a notified CMS or LCP Server
+type RWPInfo struct {
+	UUID        string
+	NumPages    int // only for PDF-based RWPs
+	Title       string
+	Date        string
+	Description string
+	Language    []string
+	Publisher   []string
+	Author      []string
+	Subject     []string
+}
 
 // RPFReader is a Readium Package reader
 type RPFReader struct {
@@ -153,6 +173,63 @@ func (reader *RPFReader) Resources() []Resource {
 	return resources
 }
 
+// ExtractCover extracts the cover image from the Readium Package
+func (reader *RPFReader) ExtractCover(coverHref string) (io.Reader, error) {
+
+	// find the cover file in the zip archive
+	for _, file := range reader.zipArchive.File {
+		if file.Name == coverHref {
+			return file.Open()
+		}
+	}
+	return nil, errors.New("no cover file found in the archive")
+}
+
+// ExtractCoverHref extracts the cover href from the Readium Package
+func (reader *RPFReader) ExtractCoverHref() (string, error) {
+
+	var coverHref string
+	// find the cover in the manifest resources
+	for _, resource := range reader.manifest.Resources {
+		for _, rel := range resource.Rel {
+			if rel == "cover" {
+				coverHref = resource.Href
+				break
+			}
+		}
+		if coverHref != "" {
+			break
+		}
+	}
+	if coverHref != "" {
+		return coverHref, nil
+	}
+
+	// find the cover in the manifest links
+	for _, resource := range reader.manifest.Links {
+		for _, rel := range resource.Rel {
+			if rel == "cover" {
+				coverHref = resource.Href
+				break
+			}
+		}
+		if coverHref != "" {
+			break
+		}
+	}
+	if coverHref != "" {
+		return coverHref, nil
+	}
+
+	return "", errors.New("no cover found in the manifest")
+}
+
+// ConformsTo returns the conformance type of the Readium Package
+func (reader *RPFReader) ConformsTo() string {
+	return reader.manifest.Metadata.ConformsTo
+}
+
+// Close closes a Readium Package Reader
 func (reader *RPFReader) Close() error {
 	return reader.zipArchive.Close()
 }
@@ -172,6 +249,7 @@ func (resource *rwpResource) Open() (io.ReadCloser, error)   { return resource.f
 func (resource *rwpResource) CompressBeforeEncryption() bool { return false }
 func (resource *rwpResource) CanBeEncrypted() bool           { return true }
 
+// CopyTo copies the resource to the package writer without encryption
 func (resource *rwpResource) CopyTo(packageWriter PackageWriter) error {
 
 	wc, err := packageWriter.NewFile(resource.Path(), resource.contentType, resource.file.Method)
@@ -317,73 +395,230 @@ func OpenRPF(name string) (*RPFReader, error) {
 	return &RPFReader{zipArchive: zipArchive, manifest: manifest}, nil
 }
 
-// BuildRPFFromPDF builds a Readium Package (rwpp) which embeds a PDF file
-func BuildRPFFromPDF(title string, inputPath string, outputPath string) error {
+// BuildRPFFromPDF builds a Readium Package (rwpp) which embeds a PDF file and a cover
+// the cover file extracted from the PDF is not deleted by this function
+func BuildRPFFromPDF(inputPath, packagePath, coverPath string) (RWPInfo, error) {
+
+	var rwpInfo RWPInfo
 
 	// create the rwpp
-	f, err := os.Create(outputPath)
+	f, err := os.Create(packagePath)
 	if err != nil {
-		return err
+		return rwpInfo, err
 	}
 	defer f.Close()
 
 	// copy the content of the pdf input file into the zip output, as 'publication.pdf'.
 	// the pdf content is stored compressed so that the encryption performance on Windows is better (!).
 	zipWriter := zip.NewWriter(f)
+	defer zipWriter.Close()
 	writer, err := zipWriter.CreateHeader(&zip.FileHeader{
 		Name:   "publication.pdf",
 		Method: zip.Deflate,
 	})
 	if err != nil {
-		return err
+		return rwpInfo, err
 	}
 	inputFile, err := os.Open(inputPath)
 	if err != nil {
-		zipWriter.Close()
-		return err
+		return rwpInfo, err
 	}
 	defer inputFile.Close()
 
 	_, err = io.Copy(writer, inputFile)
 	if err != nil {
-		zipWriter.Close()
-		return err
+		return rwpInfo, err
+	}
+
+	// extract metadata , and cover from the PDF
+	rwpInfo, err = extractRWPInfo(inputPath, coverPath)
+	if err != nil {
+		log.Printf("Error extracting the PDF cover, %s", err.Error())
+		return rwpInfo, err
+	}
+
+	// add the cover image to the package
+	writer, err = zipWriter.CreateHeader(&zip.FileHeader{
+		Name:   "cover.jpg",
+		Method: zip.Store,
+	})
+	if err != nil {
+		return rwpInfo, err
+	}
+	coverFile, err := os.Open(coverPath)
+	if err != nil {
+		return rwpInfo, err
+	}
+	defer coverFile.Close()
+
+	_, err = io.Copy(writer, coverFile)
+	if err != nil {
+		return rwpInfo, err
 	}
 
 	// inject a Readium manifest into the zip output
 	manifest := `
-	{
-		"@context": [
-			"https://readium.org/webpub-manifest/context.jsonld"
-		],
-		"metadata": {
-			"title": "{{.Title}}"
-		},
-		"readingOrder": [
-			{
-				"href": "publication.pdf",
-				"type": "application/pdf"
-			}
-		]
-	}
-	`
+		{
+			"@context": "https://readium.org/webpub-manifest/context.jsonld"
+			,
+			"metadata": {
+				"@type": "http://schema.org/Book",
+				"conformsTo": "https://readium.org/webpub-manifest/profiles/pdf",
+				"title": "{{.Title}}",
+				"author": "{{.Author}}",
+				"subject": "{{.Subject}}",
+				"numberOfPages": {{.NumPages}}
+			},
+			"readingOrder": [
+				{
+					"href": "publication.pdf", "title": "publication", "type": "application/pdf"
+				}
+			],
+			"resources": [
+				{
+					"rel": "cover", "href": "cover.jpg", "type": "image/jpeg"
+				}
+			]
+		}
+		`
 
 	manifestWriter, err := zipWriter.Create(ManifestLocation)
 	if err != nil {
-		return err
+		return rwpInfo, err
 	}
 
 	tmpl, err := template.New("manifest").Parse(manifest)
 	if err != nil {
-		zipWriter.Close()
-		return err
+		return rwpInfo, err
 	}
 
-	err = tmpl.Execute(manifestWriter, struct{ Title string }{title})
+	// remove underscores, hyphens, stars which are frequent in PDF titles
+	rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "_", " ")
+	rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "-", " ")
+	rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "*", " ")
+	rwpInfo.Title = strings.TrimSpace(rwpInfo.Title)
+	if rwpInfo.Title == "" {
+		rwpInfo.Title = "No Title Available" // default title
+	}
+	// there is zero or one author/subject in the PDF metadata
+	if len(rwpInfo.Author) == 0 {
+		rwpInfo.Author = []string{"unknown"}
+	}
+	if len(rwpInfo.Subject) == 0 {
+		rwpInfo.Subject = []string{"unknown"}
+	}
+	params := struct {
+		Title    string
+		Author   string
+		Subject  string
+		NumPages int
+	}{
+		Title:    rwpInfo.Title,
+		Author:   rwpInfo.Author[0],
+		Subject:  rwpInfo.Subject[0],
+		NumPages: rwpInfo.NumPages,
+	}
+	err = tmpl.Execute(manifestWriter, params)
 	if err != nil {
-		zipWriter.Close()
-		return err
+		return rwpInfo, err
 	}
 
-	return zipWriter.Close()
+	return rwpInfo, nil
+}
+
+// extractRWPInfo extracts metadata from the PDF
+// and the first page as a JPG image if coverPath is not empty
+func extractRWPInfo(inputPath, coverPath string) (RWPInfo, error) {
+
+	var rwpInfo RWPInfo
+
+	// let's check the time it takes to extract the cover
+	start := time.Now()
+	defer func() {
+		if coverPath != "" {
+			log.Printf("Extracting the PDF cover took %s", time.Since(start))
+		}
+	}()
+
+	// we'll use go-fitz to extract the cover and metadata -> CGO-based solution
+	doc, err := fitz.New(inputPath)
+	if err != nil {
+		return rwpInfo, err
+	}
+	defer doc.Close()
+
+	// extract PDF metadata and number of pages
+	metadata := doc.Metadata()
+	rwpInfo.Title = cleanNulls(metadata["title"])
+	rwpInfo.Author = []string{cleanNulls(metadata["author"])}
+	rwpInfo.Subject = []string{cleanNulls(metadata["subject"])}
+	rwpInfo.NumPages = doc.NumPage()
+
+	if coverPath == "" {
+		// no cover extraction requested
+		return rwpInfo, nil
+	}
+
+	// get the first page
+	img, err := doc.Image(0)
+	if err != nil {
+		return rwpInfo, nil
+	}
+
+	// save the image as a JPG file
+	cover, err := os.Create(coverPath)
+	if err != nil {
+		return rwpInfo, err
+	}
+	defer cover.Close()
+
+	err = jpeg.Encode(cover, img, &jpeg.Options{Quality: jpeg.DefaultQuality})
+	if err != nil {
+		return rwpInfo, nil
+	}
+
+	return rwpInfo, nil
+}
+
+// cleanNulls removes null characters from a string
+func cleanNulls(s string) string {
+	return strings.ReplaceAll(s, string([]byte{0}), "")
+}
+
+// ExtractCoverFromRPF extracts the cover image from a Readium Package and saves it to outputRepo
+// returns coverPath (with filename and extension) if successful
+func ExtractCoverFromRPF(rpfPath, outputRepo string) (string, error) {
+
+	// open the RPF
+	rpfReader, err := OpenRPF(rpfPath)
+	if err != nil {
+		return "", err
+	}
+	defer rpfReader.Close()
+
+	// extract the cover extension
+	coverHref, err := rpfReader.ExtractCoverHref()
+	if err != nil {
+		return "", err
+	}
+
+	// extract the cover image
+	coverImage, err := rpfReader.ExtractCover(coverHref)
+	if err != nil {
+		return "", err
+	}
+
+	// build the full path of the cover file
+	coverName := filepath.Base(coverHref)
+	coverPath := filepath.Join(outputRepo, coverName)
+
+	// save the cover image to the specified path
+	coverFile, err := os.Create(coverPath)
+	if err != nil {
+		return "", err
+	}
+	defer coverFile.Close()
+
+	_, err = io.Copy(coverFile, coverImage)
+	return coverPath, err
 }

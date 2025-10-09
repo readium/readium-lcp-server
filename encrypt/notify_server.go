@@ -48,10 +48,10 @@ type CMSMsg struct {
 	DatePublished string   `json:"date_published"`
 	Description   string   `json:"description"`
 	CoverUrl      string   `json:"cover_url,omitempty"`
-	Language      []Coded  `json:"language"`
-	Publisher     []Entity `json:"publisher"`
-	Author        []Entity `json:"author"`
-	Category      []Entity `json:"category"`
+	Language      []Coded  `json:"language,omitempty"`
+	Publisher     []Entity `json:"publisher,omitempty"`
+	Author        []Entity `json:"author,omitempty"`
+	Category      []Entity `json:"category,omitempty"`
 }
 
 // NotifyLCPServer notifies the License Server of the encryption of a publication
@@ -238,13 +238,19 @@ func NotifyCMS(pub Publication, notifyURL string, verbose bool) error {
 	}
 	var en Entity
 	for _, en.Name = range pub.Publisher {
-		msg.Publisher = append(msg.Publisher, en)
+		if en.Name != "" {
+			msg.Publisher = append(msg.Publisher, en)
+		}
 	}
 	for _, en.Name = range pub.Author {
-		msg.Author = append(msg.Author, en)
+		if en.Name != "" {
+			msg.Author = append(msg.Author, en)
+		}
 	}
 	for _, en.Name = range pub.Subject {
-		msg.Category = append(msg.Category, en)
+		if en.Name != "" {
+			msg.Category = append(msg.Category, en)
+		}
 	}
 
 	var req *http.Request

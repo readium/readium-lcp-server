@@ -1,4 +1,4 @@
-// Copyright 2021 Readium Foundation. All rights reserved.
+// Copyright 2025 Readium Foundation. All rights reserved.
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file exposed on Github (readium) in the project repository.
 
@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -35,9 +34,13 @@ type Publication struct {
 	Publisher     []string
 	Author        []string
 	Subject       []string
+	InputPath     string
+	ExtractCover  bool
 	CoverUrl      string
 	StorageMode   int
+	OutputRepo    string
 	FileName      string
+	CoverName     string
 	EncryptionKey []byte
 	Location      string
 	ContentType   string
@@ -46,15 +49,18 @@ type Publication struct {
 }
 
 // ProcessEncryption encrypts a publication
-// inputPath must contain a processable file extension (EPUB, PDF, LPF or RPF)
+// inputPath must contain a processable file extension.
 func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, storageRepo, storageURL, storageFilename string, extractCover bool) (*Publication, error) {
 
-	if inputPath == "" {
+	var pub Publication
+	pub.OutputRepo = outputRepo
+	pub.ExtractCover = extractCover
+	pub.InputPath = inputPath
+
+	if pub.InputPath == "" {
 		return nil, errors.New("ProcessEncryption, parameter error")
 	}
-	log.Println("Process ", inputPath)
-
-	var pub Publication
+	log.Println("Process ", pub.InputPath)
 
 	// if contentID is not set, generate a random UUID
 	if contentID == "" {
@@ -86,7 +92,7 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 	// if a temp file has been fetched, it will be deleted later
 	if tempPath != "" {
 		deleteTemp = true
-		inputPath = tempPath
+		pub.InputPath = tempPath
 	}
 
 	// select a storage mode
@@ -97,9 +103,9 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 		// S3 storage is specified by the presence of "s3:" at the start of the -storage param
 		if strings.HasPrefix(storageRepo, "s3:") {
 			pub.StorageMode = apilcp.Storage_s3
-			outputRepo = tempRepo // before move to s3
-			// file system storage
+			pub.OutputRepo = tempRepo // before move to s3
 		} else {
+			// file system storage
 			pub.StorageMode = apilcp.Storage_fs
 			// create the storage folder when necessary
 			err := os.MkdirAll(storageRepo, os.ModePerm)
@@ -107,50 +113,39 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 				return nil, err
 			}
 			// the encrypted file will be directly generated inside the storage path
-			outputRepo = storageRepo
+			pub.OutputRepo = storageRepo
 		}
 	}
 	// if the output repo is still not set, use the temp directory.
-	if outputRepo == "" {
-		outputRepo = tempRepo
+	if pub.OutputRepo == "" {
+		pub.OutputRepo = tempRepo
 	}
 
-	// set target file info
-	targetFileInfo(&pub, inputPath, storageFilename)
-
-	// set the target file name; use the content id by default
-	if storageFilename == "" {
-		storageFilename = pub.UUID
+	// set the target file name and content type
+	err = setTargetFileInfo(&pub, storageFilename)
+	if err != nil {
+		return nil, err
 	}
-
-	// set the output path
-	outputPath := filepath.Join(outputRepo, storageFilename)
 
 	// define an AES encrypter
 	encrypter := crypto.NewAESEncrypter_PUBLICATION_RESOURCES()
 
-	// select the encryption process from the input file extension
-	err = nil
-
-	inputExt := filepath.Ext(inputPath)
-
-	// the cover can be extracted if lcpencrypt stores the file and the file is an EPUB
+	// the cover should only be extracted if lcpencrypt stores the file (not if the LCP Server stores the file)
 	if storageRepo == "" {
-		extractCover = false
+		pub.ExtractCover = false
 	}
 
+	// select the encryption process from the input file extension
+	inputExt := filepath.Ext(inputPath)
 	switch inputExt {
 	case ".epub":
-		err = processEPUB(&pub, inputPath, outputPath, encrypter, contentKey, extractCover)
+		err = processEPUB(&pub, encrypter, contentKey)
 	case ".pdf":
-		extractCover = false
-		err = processPDF(&pub, inputPath, outputPath, encrypter, contentKey)
+		err = processPDF(&pub, encrypter, contentKey)
 	case ".lpf":
-		extractCover = false
-		err = processLPF(&pub, inputPath, outputPath, encrypter, contentKey)
+		err = processLPF(&pub, encrypter, contentKey)
 	case ".audiobook", ".divina", ".webpub", ".rpf":
-		extractCover = false
-		err = processRPF(&pub, inputPath, outputPath, encrypter, contentKey)
+		err = processRPF(&pub, encrypter, contentKey)
 	default:
 		return nil, errors.New("unprocessable extension " + inputExt)
 	}
@@ -173,38 +168,47 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 		// the license server will have to store the encrypted publication
 		// warning: the license server must have read access to the output repo.
 		// location indicates to the license server the path to the encrypted publication
-		pub.Location = outputPath
+		pub.Location = filepath.Join(pub.OutputRepo, pub.FileName)
 		mode = "temp"
 	case apilcp.Storage_fs:
-		// the encryption tools stores the encrypted publication in a file system
+		// the encryption tool stores the encrypted publication in a file system
 		// location indicates the url of the publication
-		pub.Location, err = url.JoinPath(storageURL, storageFilename)
+		pub.Location, err = url.JoinPath(storageURL, pub.FileName)
 		if err != nil {
 			return nil, err
 		}
 		mode = "file system"
 	case apilcp.Storage_s3:
-		// the encryption tools stores the encrypted publication in an S3 storage
-		// store the encrypted file in its definitive S3 storage, delete the temp file
-		err = StoreS3Publication(outputPath, storageRepo, storageFilename)
+		// the encryption tool stores the encrypted publication in an S3 storage
+		// and deletes the temp file
+		fromPath := filepath.Join(pub.OutputRepo, pub.FileName)
+		err = StoreFileOnS3(fromPath, storageRepo, pub.FileName)
 		if err != nil {
 			return nil, err
 		}
+		// if a cover was extracted (pub.CoverName not empty), store it in S3 too
+		// and deletes the cover
+		if pub.ExtractCover && pub.CoverName != "" {
+			fromPath := filepath.Join(pub.OutputRepo, pub.CoverName)
+			err = StoreFileOnS3(fromPath, storageRepo, pub.CoverName)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		// location indicates the url of the publication on S3
-		pub.Location, err = url.JoinPath(storageURL, storageFilename)
+		pub.Location, err = url.JoinPath(storageURL, pub.FileName)
 		if err != nil {
 			return nil, err
 		}
 		mode = "s3"
 	}
-	log.Println("Storage mode", mode, "- location", pub.Location)
+	log.Println("Storage mode", mode)
 
-	if extractCover {
-		coverExt := path.Ext(pub.CoverUrl)
-		pub.CoverUrl, _ = url.JoinPath(storageURL, storageFilename+coverExt)
-		log.Println("Cover Url", pub.CoverUrl)
+	// if a cover was extracted, set its url
+	if pub.ExtractCover && pub.CoverName != "" {
+		pub.CoverUrl, _ = url.JoinPath(storageURL, pub.CoverName)
 	}
-
 	return &pub, nil
 }
 
@@ -258,53 +262,45 @@ func fetchInputFile(inputPath, tempRepo, contentID string) (string, error) {
 	return tempPath, nil
 }
 
-// targetFileInfo sets the file name and content type
+// setTargetFileInfo sets the file name and content type
 // which will be used during future downloads
-func targetFileInfo(pub *Publication, inputPath, storageFilename string) error {
+func setTargetFileInfo(pub *Publication, storageFilename string) error {
 
-	// if the storage filename was imposed, use it
-	if storageFilename != "" {
-		pub.FileName = storageFilename
-	} else {
-		//  generate a filename from the input filename and a target extension
-		inputFile := filepath.Base(inputPath)
-		inputExt := filepath.Ext(inputPath)
-		fileNameNoExt := inputFile[:len(inputFile)-len(inputExt)]
-
-		var ext string
-		switch inputExt {
-		case ".epub":
-			ext = inputExt
-		case ".pdf":
-			ext = ".lcpdf"
-		case ".audiobook", ".rpf":
-			ext = ".lcpau"
-		case ".divina":
-			ext = ".lcpdi"
-		case ".lpf":
-			// short term solution. We'll need to inspect the W3C manifest and check conformsTo,
-			// to be certain this is an audiobook (vs another profile of Web Publication)
-			ext = ".lcpau"
-		case ".webpub":
-			// short term solution. We'll need to inspect the RWP manifest and check conformsTo,
-			// to be certain this package contains a pdf
-			ext = ".lcpdf"
-		}
-		pub.FileName = fileNameNoExt + ext
-	}
-
-	// find the target mime type
-	outputExt := filepath.Ext(pub.FileName)
-	switch outputExt {
+	var targetExt string
+	switch filepath.Ext(pub.InputPath) {
 	case ".epub":
+		targetExt = ".epub"
+		// epub is a special case, as the content type does not change for encrypted files
 		pub.ContentType = epub.ContentType_EPUB
-	case ".lcpdf":
+	case ".pdf":
+		targetExt = ".lcpdf"
 		pub.ContentType = "application/pdf+lcp"
-	case ".lcpau":
+	case ".audiobook":
+		targetExt = ".lcpau"
 		pub.ContentType = "application/audiobook+lcp"
-	case ".lcpdi":
+	case ".divina":
+		targetExt = ".lcpdi"
 		pub.ContentType = "application/divina+lcp"
+	case ".webpub", ".rpf", ".lpf":
+		targetExt = ".webpub"
+		// Temporary value. The conformsTo property of the manifest will be checked later
+		pub.ContentType = "application/webpub+lcp"
+	default:
+		return errors.New("unprocessable extension " + filepath.Ext(pub.InputPath))
 	}
+
+	// if the storage filename is imposed, use it
+	if storageFilename != "" {
+		// remove the extension (if any)
+		storageFilename = strings.TrimSuffix(storageFilename, filepath.Ext(storageFilename))
+	} else {
+		// use the content ID as file name, add the target extension
+		storageFilename = pub.UUID
+	}
+
+	// set the publication filename with the target extension
+	pub.FileName = storageFilename + targetExt
+
 	return nil
 }
 
@@ -319,13 +315,13 @@ func checksum(file *os.File) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-// processEPUB encrypts resources in an EPUB
-func processEPUB(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string, extractCover bool) error {
+// processEPUB generates an encrypted EPUB
+func processEPUB(pub *Publication, encrypter crypto.Encrypter, contentKey string) error {
 
 	log.Println("Process as EPUB")
 
 	// create a zip reader from the input path
-	zr, err := zip.OpenReader(inputPath)
+	zr, err := zip.OpenReader(pub.InputPath)
 	if err != nil {
 		return err
 	}
@@ -337,7 +333,7 @@ func processEPUB(pub *Publication, inputPath string, outputPath string, encrypte
 		return err
 	}
 
-	// init metadata
+	// set publication metadata
 	pub.Title = epub.Package[0].Metadata.Title[0]
 	pub.Date = epub.Package[0].Metadata.Date
 	pub.Description = epub.Package[0].Metadata.Description
@@ -346,24 +342,8 @@ func processEPUB(pub *Publication, inputPath string, outputPath string, encrypte
 	pub.Author = epub.Package[0].Metadata.Author
 	pub.Subject = epub.Package[0].Metadata.Subject
 
-	// look for the cover image
-	coverImageID := "cover-image"
-	for _, meta := range epub.Package[0].Metadata.Metas {
-		if meta.Name == "cover" {
-			coverImageID = meta.Content
-		}
-	}
-	var coverPath string
-	for _, item := range epub.Package[0].Manifest.Items {
-		if strings.Contains(item.Properties, "cover-image") ||
-			item.ID == coverImageID {
-			// re-construct a path, avoid insertion of backslashes as separator on Windows
-			coverPath = filepath.ToSlash(filepath.Join(epub.Package[0].BasePath, item.Href))
-		}
-	}
-
 	// create the output file
-	outputFile, err := os.Create(outputPath)
+	outputFile, err := os.Create(filepath.Join(pub.OutputRepo, pub.FileName))
 	if err != nil {
 		return err
 	}
@@ -389,7 +369,22 @@ func processEPUB(pub *Publication, inputPath string, outputPath string, encrypte
 		return errors.New("empty output file")
 	}
 
-	if extractCover {
+	// look for the cover image, in case its extraction is requested
+	var coverImageID string
+	var coverPath string
+	if pub.ExtractCover {
+		for _, meta := range epub.Package[0].Metadata.Metas {
+			if meta.Name == "cover" {
+				coverImageID = meta.Content
+			}
+		}
+		for _, item := range epub.Package[0].Manifest.Items {
+			if strings.Contains(item.Properties, "cover-image") ||
+				item.ID == coverImageID {
+				// re-construct a path, avoid insertion of backslashes as separator on Windows
+				coverPath = filepath.ToSlash(filepath.Join(epub.Package[0].BasePath, item.Href))
+			}
+		}
 		// extract the cover image and store it at the target location
 		for _, f := range zr.File {
 			if f.Name == coverPath {
@@ -399,85 +394,149 @@ func processEPUB(pub *Publication, inputPath string, outputPath string, encrypte
 					break // move out of the loop
 				}
 				defer epubCover.Close()
-				// create the output cover
-				coverExt := path.Ext(coverPath)
-				coverFile, err := os.Create(outputPath + coverExt)
+				// create the output cover file
+				pub.CoverName = strings.TrimSuffix(pub.FileName, filepath.Ext(pub.FileName)) + filepath.Ext(coverPath)
+				coverFile, err := os.Create(filepath.Join(pub.OutputRepo, pub.CoverName))
 				if err != nil {
 					return err
 				}
 				defer coverFile.Close()
 				_, err = io.Copy(coverFile, epubCover)
 				if err != nil {
-					// we do not consider it as an error
+					// we do not consider it as a fatal error
 					log.Printf("Error copying cover data, %s", err.Error())
 				}
-				// set temporarily, will be updated later
-				pub.CoverUrl = coverPath
+				// we found the cover, exit the loop
 				break
 			}
 		}
 	}
-
 	return nil
 }
 
 // processPDF wraps a PDF file inside a Readium Package and encrypts its resources
-func processPDF(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
+func processPDF(pub *Publication, encrypter crypto.Encrypter, contentKey string) error {
 
 	log.Println("Process as PDF")
 
-	// generate a temp Readium Package (rwpp) which embeds the PDF file; its title is the PDF file name
-	tmpPackagePath := outputPath + ".tmp"
-	err := pack.BuildRPFFromPDF(filepath.Base(inputPath), inputPath, tmpPackagePath)
-	// will remove the tmp file even if an error is returned
+	tmpPackagePath := filepath.Join(pub.OutputRepo, pub.FileName+".tmp")
+	pub.CoverName = strings.TrimSuffix(pub.FileName, filepath.Ext(pub.FileName)) + ".jpg"
+	coverPath := filepath.Join(pub.OutputRepo, pub.CoverName)
+
+	// generate a temp Readium Package (rwpp) which embeds the PDF file
+	// the first page of the PDF is extracted as a JPEG cover image
+	rwpInfo, err := pack.BuildRPFFromPDF(pub.InputPath, tmpPackagePath, coverPath)
+	// will will remove the tmp file even if an error is returned
 	defer os.Remove(tmpPackagePath)
 	// process error
 	if err != nil {
 		return err
 	}
 
-	// build an encrypted package
-	return buildEncryptedRPF(pub, tmpPackagePath, outputPath, encrypter, contentKey)
-}
-
-// processLPF transforms a W3C LPF file into a Readium Package and encrypts its resources
-func processLPF(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
-
-	log.Println("Process as LPF")
-
-	// generate a tmp Readium Package (rwpp) out of a W3C Package (lpf)
-	tmpPackagePath := outputPath + ".tmp"
-	err := pack.BuildRPFFromLPF(inputPath, tmpPackagePath)
-	// will remove the tmp file even if an error is returned
-	defer os.Remove(tmpPackagePath)
-	// process error
-	if err != nil {
-		return err
+	if !pub.ExtractCover {
+		// remove the cover file if it was created
+		os.Remove(coverPath)
+		pub.CoverName = ""
 	}
 
+	// set publication metadata extracted from the PDF
+	pub.Title = rwpInfo.Title
+	pub.Author = rwpInfo.Author
+	pub.Subject = rwpInfo.Subject
+
 	// build an encrypted package
-	return buildEncryptedRPF(pub, tmpPackagePath, outputPath, encrypter, contentKey)
+	pub.InputPath = tmpPackagePath
+	return buildEncryptedRPF(pub, encrypter, contentKey)
 }
 
 // processRPF encrypts the source Readium Package
-func processRPF(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
+func processRPF(pub *Publication, encrypter crypto.Encrypter, contentKey string) error {
+
+	log.Println("Process as Readium Package")
+
+	// extract the cover from the package if requested
+	if pub.ExtractCover {
+		// the cover is copied to coverPath. Its original extension is preserved
+		coverPath, err := pack.ExtractCoverFromRPF(pub.InputPath, pub.OutputRepo)
+		// we do not consider err as a fatal error
+		if err != nil {
+			log.Println("No cover extracted from the RPF. Error:", err.Error())
+		} else {
+			pub.CoverName = filepath.Base(coverPath) // will be "" if no cover was found
+		}
+	}
 
 	// build an encrypted package
-	return buildEncryptedRPF(pub, inputPath, outputPath, encrypter, contentKey)
+	return buildEncryptedRPF(pub, encrypter, contentKey)
+}
+
+// processLPF transforms a W3C LPF file into a Readium Package and encrypts its resources
+func processLPF(pub *Publication, encrypter crypto.Encrypter, contentKey string) error {
+
+	log.Println("Process as W3C LPF Package")
+
+	// generate a tmp Readium Package (rwpp) out of a W3C Package (lpf)
+	tmpPackagePath := filepath.Join(pub.OutputRepo, pub.FileName+".tmp")
+	rwpInfo, err := pack.BuildRPFFromLPF(pub.InputPath, tmpPackagePath)
+	// will remove the tmp file even if an error is returned
+	defer os.Remove(tmpPackagePath)
+	// process error
+	if err != nil {
+		return err
+	}
+
+	// set publication metadata
+	pub.Title = rwpInfo.Title
+	pub.Date = rwpInfo.Date
+	pub.Description = rwpInfo.Description
+	pub.Language = rwpInfo.Language
+	pub.Publisher = rwpInfo.Publisher
+	pub.Author = rwpInfo.Author
+	pub.Subject = rwpInfo.Subject
+
+	// extract the cover from the package if requested
+	if pub.ExtractCover {
+		// the cover is copied to outputRepo. Its original extension is preserved
+		coverPath, err := pack.ExtractCoverFromRPF(tmpPackagePath, pub.OutputRepo)
+		// we do not consider err as a fatal error
+		if err != nil {
+			log.Println("No cover extracted from the LPF. Error:", err.Error())
+		} else {
+			pub.CoverName = filepath.Base(coverPath)
+		}
+	}
+
+	// build an encrypted package from a new input file
+	pub.InputPath = tmpPackagePath
+	return buildEncryptedRPF(pub, encrypter, contentKey)
 }
 
 // buildEncryptedRPF builds an encrypted Readium package out of an un-encrypted one
-// FIXME: it cannot be used for EPUB as long as Do() and Process() are not merged
-func buildEncryptedRPF(pub *Publication, inputPath string, outputPath string, encrypter crypto.Encrypter, contentKey string) error {
+func buildEncryptedRPF(pub *Publication, encrypter crypto.Encrypter, contentKey string) error {
 
 	// create a reader on the un-encrypted readium package
-	reader, err := pack.OpenRPF(inputPath)
+	reader, err := pack.OpenRPF(pub.InputPath)
 	if err != nil {
 		return err
 	}
 	defer reader.Close()
+
+	// set the target content type from the conformance type in the manifest
+	ext := filepath.Ext(pub.FileName)
+	switch reader.ConformsTo() {
+	case "https://readium.org/webpub-manifest/profiles/audiobook":
+		pub.FileName = strings.TrimSuffix(pub.FileName, ext) + ".lcpau"
+		pub.ContentType = "application/audiobook+lcp"
+	case "https://readium.org/webpub-manifest/profiles/divina":
+		pub.FileName = strings.TrimSuffix(pub.FileName, ext) + ".lcpdi"
+		pub.ContentType = "application/divina+lcp"
+	case "https://readium.org/webpub-manifest/profiles/pdf":
+		pub.FileName = strings.TrimSuffix(pub.FileName, ext) + ".lcpdf"
+		pub.ContentType = "application/pdf+lcp"
+	}
+
 	// create the encrypted package file
-	outputFile, err := os.Create(outputPath)
+	outputFile, err := os.Create(filepath.Join(pub.OutputRepo, pub.FileName))
 	if err != nil {
 		return err
 	}

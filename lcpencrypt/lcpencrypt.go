@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -25,7 +26,7 @@ func showHelpAndExit() {
 	fmt.Println("-url        optional, base url associated with the storage, without filename")
 	fmt.Println("-filename   optional, file name of the encrypted publication; if omitted, contentid is used")
 	fmt.Println("-temp       optional, working folder for temporary files. If not set, the current directory will be used.")
-	fmt.Println("-cover      optional, boolean, indicates that covers must be generated when possible")
+	fmt.Println("-cover      optional, boolean, indicates that a cover should be generated")
 	fmt.Println("-contentkey optional, base64 encoded content key; if omitted a random content key is generated")
 	fmt.Println("-lcpsv      optional, URL, host name of the License Server to be notified; syntax http://username:password@example.com")
 	fmt.Println("-v2         optional, boolean, indicates communication with a License Server v2")
@@ -87,7 +88,7 @@ func main() {
 	start := time.Now()
 
 	// if contentid is set but not contentkey, check if the content already exists in the License Server.
-	// If this is the case, get the content encryption key for the server, so that the new encryption
+	// If this is the case, get the content encryption key from the server, so that the new encryption
 	// keeps the same key. This is necessary to allow fresh licenses being capable
 	// of decrypting previously downloaded content.
 	if *contentid != "" && *contentkey == "" {
@@ -103,6 +104,16 @@ func main() {
 	publication, err := encrypt.ProcessEncryption(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename, *cover)
 	if err != nil {
 		exitWithError("Error processing a publication", err)
+	}
+
+	// logs if verbose mode
+	if *verbose {
+		log.Println("Encrypted file:", filepath.Join(publication.OutputRepo, publication.FileName))
+		log.Println("File url:", publication.Location)
+		if publication.ExtractCover {
+			log.Println("Cover file name:", publication.CoverName)
+			log.Println("Cover file url:", publication.CoverUrl)
+		}
 	}
 
 	elapsed := time.Since(start)

@@ -199,12 +199,14 @@ func generateRWPManifest(w3cman rwpm.W3CPublication) (manifest rwpm.Publication)
 }
 
 // BuildRPFFromLPF builds a Readium package (rwpp) from a W3C LPF file (lpfPath)
-func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
+func BuildRPFFromLPF(lpfPath string, rwppPath string) (RWPInfo, error) {
+
+	var rwpInfo RWPInfo
 
 	// open the lpf file
 	lpfFile, err := zip.OpenReader(lpfPath)
 	if err != nil {
-		return err
+		return rwpInfo, err
 	}
 	defer lpfFile.Close()
 
@@ -215,13 +217,13 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 		if file.Name == W3CManifestName {
 			m, err := file.Open()
 			if err != nil {
-				return err
+				return rwpInfo, err
 			}
 			defer m.Close()
 			decoder := json.NewDecoder(m)
 			err = decoder.Decode(&w3cManifest)
 			if err != nil {
-				return err
+				return rwpInfo, err
 			}
 			found = true
 			break
@@ -229,7 +231,7 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 	}
 	// return an error if the W3C manifest is missing
 	if !found {
-		return fmt.Errorf("W3C LPF %s: missing publication.json", lpfPath)
+		return rwpInfo, fmt.Errorf("W3C LPF %s: missing publication.json", lpfPath)
 	}
 
 	// extract the primary entry page from the LPF
@@ -239,10 +241,30 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 	// and primary entry page
 	rwpManifest := generateRWPManifest(w3cManifest)
 
+	// set some RWPInfo fields from the manifest
+	rwpInfo.UUID = rwpManifest.Metadata.Identifier
+	rwpInfo.Title = rwpManifest.Metadata.Title.Text()
+	if rwpManifest.Metadata.Published != nil {
+		rwpInfo.Date = rwpManifest.Metadata.Published.String()
+	}
+	rwpInfo.Description = rwpManifest.Metadata.Description
+	for _, lg := range rwpManifest.Metadata.Language {
+		rwpInfo.Language = append(rwpInfo.Language, lg)
+	}
+	for _, en := range rwpManifest.Metadata.Publisher {
+		rwpInfo.Publisher = append(rwpInfo.Publisher, en.Name.Text())
+	}
+	for _, en := range rwpManifest.Metadata.Author {
+		rwpInfo.Author = append(rwpInfo.Author, en.Name.Text())
+	}
+	for _, en := range rwpManifest.Metadata.Subject {
+		rwpInfo.Subject = append(rwpInfo.Subject, en.Name)
+	}
+
 	// marshal the Readium manifest
 	rwpJSON, err := json.MarshalIndent(rwpManifest, "", " ")
 	if err != nil {
-		return err
+		return rwpInfo, err
 	}
 	// debug
 	//println(string(rwpJSON))
@@ -250,7 +272,7 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 	// create the rwpp file
 	rwppFile, err := os.Create(rwppPath)
 	if err != nil {
-		return err
+		return rwpInfo, err
 	}
 
 	defer rwppFile.Close()
@@ -262,11 +284,11 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 	// Add the Readium manifest to the rwpp
 	man, err := zipWriter.Create(RWPManifestName)
 	if err != nil {
-		return err
+		return rwpInfo, err
 	}
 	_, err = man.Write(rwpJSON)
 	if err != nil {
-		return err
+		return rwpInfo, err
 	}
 
 	// Append every lpf resource to the rwpp
@@ -279,19 +301,19 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) error {
 		// keep the original compression value (store vs deflate)
 		writer, err := zipWriter.CreateHeader(&file.FileHeader)
 		if err != nil {
-			return err
+			return rwpInfo, err
 		}
 		reader, err := file.Open()
 		if err != nil {
-			return err
+			return rwpInfo, err
 		}
 		defer reader.Close()
 		_, err = io.Copy(writer, reader)
 		if err != nil {
-			return err
+			return rwpInfo, err
 		}
 	}
-	return nil
+	return rwpInfo, nil
 }
 
 // newUUID generates a random UUID according to RFC 4122
