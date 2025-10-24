@@ -50,7 +50,7 @@ type Publication struct {
 
 // ProcessEncryption encrypts a publication
 // inputPath must contain a processable file extension.
-func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, storageRepo, storageURL, storageFilename string, extractCover bool) (*Publication, error) {
+func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, storageRepo, storageURL, storageFilename string, extractCover, pdfNoMeta bool) (*Publication, error) {
 
 	var pub Publication
 	pub.OutputRepo = outputRepo
@@ -141,7 +141,7 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 	case ".epub":
 		err = processEPUB(&pub, encrypter, contentKey)
 	case ".pdf":
-		err = processPDF(&pub, encrypter, contentKey)
+		err = processPDF(&pub, encrypter, contentKey, pdfNoMeta)
 	case ".lpf":
 		err = processLPF(&pub, encrypter, contentKey)
 	case ".audiobook", ".divina", ".webpub", ".rpf":
@@ -415,7 +415,7 @@ func processEPUB(pub *Publication, encrypter crypto.Encrypter, contentKey string
 }
 
 // processPDF wraps a PDF file inside a Readium Package and encrypts its resources
-func processPDF(pub *Publication, encrypter crypto.Encrypter, contentKey string) error {
+func processPDF(pub *Publication, encrypter crypto.Encrypter, contentKey string, pdfNoMeta bool) error {
 
 	log.Println("Process as PDF")
 
@@ -425,7 +425,7 @@ func processPDF(pub *Publication, encrypter crypto.Encrypter, contentKey string)
 
 	// generate a temp Readium Package (rwpp) which embeds the PDF file
 	// the first page of the PDF is extracted as a JPEG cover image
-	rwpInfo, err := pack.BuildRPFFromPDF(pub.InputPath, tmpPackagePath, coverPath)
+	rwpInfo, err := pack.BuildRPFFromPDF(pub.InputPath, tmpPackagePath, coverPath, pdfNoMeta)
 	// will will remove the tmp file even if an error is returned
 	defer os.Remove(tmpPackagePath)
 	// process error

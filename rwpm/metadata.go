@@ -111,7 +111,7 @@ func (d Date) MarshalJSON() ([]byte, error) {
 func (d Date) String() string {
 
 	date := time.Time(d)
-	return date.Format("\"2006-01-02\"")
+	return date.Format("2006-01-02")
 }
 
 // Meta is a generic structure for other metadata
