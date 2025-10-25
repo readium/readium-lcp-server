@@ -228,6 +228,11 @@ func (reader *RPFReader) ConformsTo() string {
 	return reader.manifest.Metadata.ConformsTo
 }
 
+// Title returns the title of the manifest
+func (reader *RPFReader) Title() string {
+	return reader.manifest.Metadata.Title["und"]
+}
+
 // Close closes a Readium Package Reader
 func (reader *RPFReader) Close() error {
 	return reader.zipArchive.Close()

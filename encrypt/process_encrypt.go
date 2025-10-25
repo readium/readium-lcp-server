@@ -521,6 +521,11 @@ func buildEncryptedRPF(pub *Publication, encrypter crypto.Encrypter, contentKey 
 	}
 	defer reader.Close()
 
+	// set the title from the manifest if not already set
+	if pub.Title == "" {
+		pub.Title = reader.Title()
+	}
+
 	// set the target content type from the conformance type in the manifest
 	ext := filepath.Ext(pub.FileName)
 	switch reader.ConformsTo() {
