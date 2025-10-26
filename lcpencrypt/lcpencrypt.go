@@ -21,6 +21,7 @@ func showHelpAndExit() {
 
 	fmt.Println("lcpencrypt encrypts a publication using the LCP DRM.")
 	fmt.Println("-input      source epub/pdf/lpf/audiobook file locator (file system or http GET)")
+	fmt.Println("-provider   publication provider (URI)")
 	fmt.Println("-contentid  optional, content identifier; if omitted a uuid is generated")
 	fmt.Println("-storage    optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
 	fmt.Println("-url        optional, base url associated with the storage, without filename")
@@ -49,8 +50,8 @@ func exitWithError(context string, err error) {
 }
 
 func main() {
-	providerUri := flag.String("provider", "", "optional, provider URI")
 	inputPath := flag.String("input", "", "source epub/pdf/lpf file locator (file system or http GET)")
+	providerUri := flag.String("provider", "", "optional, publication provider (URI)")
 	contentid := flag.String("contentid", "", "optional, content identifier; if omitted, a uuid is generated")
 	storageRepo := flag.String("storage", "", "optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
 	storageURL := flag.String("url", "", "optional, base url associated with the storage, without filename")
