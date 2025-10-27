@@ -472,6 +472,9 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string, pdfNoMeta bool) (
 	manifest.Metadata.Type = "http://schema.org/Book"
 	manifest.Metadata.ConformsTo = "https://readium.org/webpub-manifest/profiles/pdf"
 
+	// number of pages is needed to display progress in the reader
+	manifest.Metadata.NumberOfPages = rwpInfo.NumPages
+
 	// PDF metadata can be so bad that we may want to ignore them
 	if pdfNoMeta {
 		// we still need a title
@@ -483,6 +486,7 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string, pdfNoMeta bool) (
 		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, ".", " ")
 		rwpInfo.Title = strings.TrimSpace(rwpInfo.Title)
 		manifest.Metadata.Title.Set("und", rwpInfo.Title)
+		// add PDF metadata to the manifest
 	} else {
 		// remove underscores, hyphens, stars which are frequent in PDF titles
 		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "_", " ")
@@ -560,6 +564,7 @@ func extractRWPInfo(inputPath, coverPath string) (RWPInfo, error) {
 	if subject != "" {
 		rwpInfo.Subject = []string{subject}
 	}
+	rwpInfo.NumPages = doc.NumPage()
 
 	if coverPath == "" {
 		// no cover extraction requested
