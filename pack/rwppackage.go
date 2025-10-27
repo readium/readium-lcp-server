@@ -17,7 +17,6 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"text/template"
 
 	"github.com/gen2brain/go-fitz"
 	"github.com/readium/readium-lcp-server/rwpm"
@@ -229,6 +228,11 @@ func (reader *RPFReader) ConformsTo() string {
 	return reader.manifest.Metadata.ConformsTo
 }
 
+// Title returns the title of the manifest
+func (reader *RPFReader) Title() string {
+	return reader.manifest.Metadata.Title["und"]
+}
+
 // Close closes a Readium Package Reader
 func (reader *RPFReader) Close() error {
 	return reader.zipArchive.Close()
@@ -397,7 +401,7 @@ func OpenRPF(name string) (*RPFReader, error) {
 
 // BuildRPFFromPDF builds a Readium Package (rwpp) which embeds a PDF file and a cover
 // the cover file extracted from the PDF is not deleted by this function
-func BuildRPFFromPDF(inputPath, packagePath, coverPath string) (RWPInfo, error) {
+func BuildRPFFromPDF(inputPath, packagePath, coverPath string, pdfNoMeta bool) (RWPInfo, error) {
 
 	var rwpInfo RWPInfo
 
@@ -456,69 +460,71 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string) (RWPInfo, error) 
 		return rwpInfo, err
 	}
 
-	// inject a Readium manifest into the zip output
-	manifest := `
-		{
-			"@context": "https://readium.org/webpub-manifest/context.jsonld"
-			,
-			"metadata": {
-				"@type": "http://schema.org/Book",
-				"conformsTo": "https://readium.org/webpub-manifest/profiles/pdf",
-				"title": "{{.Title}}",
-				"author": "{{.Author}}",
-				"subject": "{{.Subject}}",
-				"numberOfPages": {{.NumPages}}
-			},
-			"readingOrder": [
-				{
-					"href": "publication.pdf", "title": "publication", "type": "application/pdf"
-				}
-			],
-			"resources": [
-				{
-					"rel": "cover", "href": "cover.jpg", "type": "image/jpeg"
-				}
-			]
-		}
-		`
-
 	manifestWriter, err := zipWriter.Create(ManifestLocation)
 	if err != nil {
 		return rwpInfo, err
 	}
 
-	tmpl, err := template.New("manifest").Parse(manifest)
-	if err != nil {
-		return rwpInfo, err
+	// create simple manifest object
+	var manifest rwpm.Publication
+
+	manifest.Context.Add("https://readium.org/webpub-manifest/context.jsonld")
+	manifest.Metadata.Type = "http://schema.org/Book"
+	manifest.Metadata.ConformsTo = "https://readium.org/webpub-manifest/profiles/pdf"
+
+	// number of pages is needed to display progress in the reader
+	manifest.Metadata.NumberOfPages = rwpInfo.NumPages
+
+	// PDF metadata can be so bad that we may want to ignore them
+	if pdfNoMeta {
+		// we still need a title
+		filename := filepath.Base(inputPath)
+		rwpInfo.Title = strings.TrimSuffix(filename, filepath.Ext(filename)) // default title
+		// remove underscores, hyphens, dots which are frequent in PDF file names
+		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "_", " ")
+		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "-", " ")
+		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, ".", " ")
+		rwpInfo.Title = strings.TrimSpace(rwpInfo.Title)
+		manifest.Metadata.Title.Set("und", rwpInfo.Title)
+		// add PDF metadata to the manifest
+	} else {
+		// remove underscores, hyphens, stars which are frequent in PDF titles
+		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "_", " ")
+		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "-", " ")
+		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "*", " ")
+		rwpInfo.Title = strings.TrimSpace(rwpInfo.Title)
+		if rwpInfo.Title == "" {
+			rwpInfo.Title = "No Title Available" // default title
+		}
+		manifest.Metadata.Title.Set("und", rwpInfo.Title)
+		// there is zero or one author/subject in the PDF metadata
+		if len(rwpInfo.Author) != 0 {
+			manifest.Metadata.Author.AddName(rwpInfo.Author[0])
+		}
+		if len(rwpInfo.Subject) != 0 {
+			manifest.Metadata.Subject.Add(rwpm.Subject{Name: rwpInfo.Subject[0]})
+		}
 	}
 
-	// remove underscores, hyphens, stars which are frequent in PDF titles
-	rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "_", " ")
-	rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "-", " ")
-	rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "*", " ")
-	rwpInfo.Title = strings.TrimSpace(rwpInfo.Title)
-	if rwpInfo.Title == "" {
-		rwpInfo.Title = "No Title Available" // default title
+	manifest.ReadingOrder = []rwpm.Link{
+		{
+			Href:  "publication.pdf",
+			Title: "publication",
+			Type:  "application/pdf",
+		},
 	}
-	// there is zero or one author/subject in the PDF metadata
-	if len(rwpInfo.Author) == 0 {
-		rwpInfo.Author = []string{"unknown"}
+	manifest.Resources = []rwpm.Link{
+		{
+			Rel:  []string{"cover"},
+			Href: "cover.jpg",
+			Type: "image/jpeg",
+		},
 	}
-	if len(rwpInfo.Subject) == 0 {
-		rwpInfo.Subject = []string{"unknown"}
-	}
-	params := struct {
-		Title    string
-		Author   string
-		Subject  string
-		NumPages int
-	}{
-		Title:    rwpInfo.Title,
-		Author:   rwpInfo.Author[0],
-		Subject:  rwpInfo.Subject[0],
-		NumPages: rwpInfo.NumPages,
-	}
-	err = tmpl.Execute(manifestWriter, params)
+
+	// marshal and write manifest as JSON
+	encoder := json.NewEncoder(manifestWriter)
+	encoder.SetIndent("", "  ")
+	err = encoder.Encode(manifest)
 	if err != nil {
 		return rwpInfo, err
 	}
@@ -550,8 +556,14 @@ func extractRWPInfo(inputPath, coverPath string) (RWPInfo, error) {
 	// extract PDF metadata and number of pages
 	metadata := doc.Metadata()
 	rwpInfo.Title = cleanNulls(metadata["title"])
-	rwpInfo.Author = []string{cleanNulls(metadata["author"])}
-	rwpInfo.Subject = []string{cleanNulls(metadata["subject"])}
+	author := cleanNulls(metadata["author"])
+	if author != "" {
+		rwpInfo.Author = []string{author}
+	}
+	subject := cleanNulls(metadata["subject"])
+	if subject != "" {
+		rwpInfo.Subject = []string{subject}
+	}
 	rwpInfo.NumPages = doc.NumPage()
 
 	if coverPath == "" {
