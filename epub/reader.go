@@ -179,7 +179,8 @@ func addCleartextResources(ep *Epub, p opf.Package) {
 		if strings.Contains(item.Properties, "cover-image") ||
 			item.ID == coverImageID ||
 			strings.Contains(item.Properties, "nav") ||
-			item.MediaType == ContentType_NCX {
+			item.MediaType == ContentType_NCX ||
+			item.MediaType == ContentType_PAGEMAP {
 			// re-construct a path, avoid insertion of backslashes as separator on Windows
 			path := filepath.ToSlash(filepath.Join(p.BasePath, item.Href))
 			ep.addCleartextResource(path)
