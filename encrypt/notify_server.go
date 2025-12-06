@@ -20,7 +20,7 @@ import (
 
 // LCPServerMsgV2 is used for notifying an LCP Server V2
 type LCPServerMsgV2 struct {
-	ProviderUri   string `json:"provider_uri,omitempty"`
+	Provider      string `json:"provider,omitempty"`
 	UUID          string `json:"uuid"`
 	Title         string `json:"title"`
 	Authors       string `json:"authors,omitempty"`
@@ -108,7 +108,7 @@ func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username stri
 		}
 	} else {
 		var msg LCPServerMsgV2
-		msg.ProviderUri = prov
+		msg.Provider = prov
 		msg.UUID = pub.UUID
 		msg.Title = pub.Title
 		for _, author := range pub.Author {
