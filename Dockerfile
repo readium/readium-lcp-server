@@ -18,16 +18,12 @@ FROM debian:12-slim
 
 RUN apt update && apt install -y sqlite3 supervisor
 
-RUN useradd -m readium
-RUN useradd -m -g readium lcp
-RUN useradd -m -g readium lsd
+COPY --from=builder --chmod=0550 /usr/local/bin/lcpencrypt /usr/local/bin/lcpencrypt
+COPY --from=builder --chmod=0540 /usr/local/bin/lcpserver /usr/local/bin/lcpserver
+COPY --from=builder --chmod=0540 /usr/local/bin/lsdserver /usr/local/bin/lsdserver
+COPY --from=builder --chmod=0640 /usr/local/src/test/cert /usr/local/var/readium/lcp/cert
 
-COPY --from=builder --chown=:readium --chmod=0550 /usr/local/bin/lcpencrypt /usr/local/bin/lcpencrypt
-COPY --from=builder --chown=lcp:readium --chmod=0540 /usr/local/bin/lcpserver /usr/local/bin/lcpserver
-COPY --from=builder --chown=lsd:readium --chmod=0540 /usr/local/bin/lsdserver /usr/local/bin/lsdserver
-COPY --from=builder --chown=readium:readium --chmod=0640 /usr/local/src/test/cert /usr/local/var/readium/lcp/cert
-
-COPY --chown=readium:readium --chmod=0440 docker/config.yaml /usr/local/etc/readium/config.yaml
+COPY --chmod=0440 docker/config.yaml /usr/local/etc/readium/config.yaml
 
 COPY docker/supervisord.conf /etc/supervisord.conf
 
