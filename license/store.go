@@ -25,6 +25,8 @@ type Store interface {
 	UpdateLsdStatus(id string, status int32) error
 	Add(l License) error
 	Get(id string) (License, error)
+	TouchByContentID(ContentID string) error
+	Count(from time.Time, to time.Time) (int, error)
 }
 
 type sqlStore struct {
@@ -158,6 +160,30 @@ func (s *sqlStore) Get(id string) (License, error) {
 		err = ErrNotFound
 	}
 	return l, err
+}
+
+// TouchByContentID updates the updated field of all licenses for a given contentID
+func (s *sqlStore) TouchByContentID(contentID string) error {
+
+	_, err := s.db.Exec(dbutils.GetParamQuery(config.Config.LcpServer.Database, `UPDATE license SET updated=? WHERE content_fk=?`),
+		time.Now().UTC().Truncate(time.Second), contentID)
+	if err != nil {
+		log.Println("Error touching licenses for contentID", contentID)
+	}
+	return err
+}
+
+// Count counts the number of licenses generated during a time period
+func (s *sqlStore) Count(from, to time.Time) (int, error) {
+
+	// note: I chose not to add an index on the issued field.
+	// This is to avoid performance issues with high write loads, for a query only made once in a while.
+	row := s.db.QueryRow(dbutils.GetParamQuery(config.Config.LcpServer.Database, `SELECT COUNT(*) FROM license WHERE issued BETWEEN ? AND ?`),
+		from, to)
+	var count int
+	err := row.Scan(&count)
+
+	return count, err
 }
 
 // Open

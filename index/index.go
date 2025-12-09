@@ -28,10 +28,10 @@ type Index interface {
 // Content represents an encrypted resource
 type Content struct {
 	ID            string `json:"id"`
-	EncryptionKey []byte `json:"-"`
+	EncryptionKey []byte `json:"key,omitempty"` // warning, sensitive info
 	Location      string `json:"location"`
-	Length        int64  `json:"length"` //not exported in license spec?
-	Sha256        string `json:"sha256"` //not exported in license spec?
+	Length        int64  `json:"length"`
+	Sha256        string `json:"sha256"`
 	Type          string `json:"type"`
 }
 
@@ -87,8 +87,15 @@ func (i dbIndex) Update(c Content) error {
 
 // Delete deletes a record
 func (i dbIndex) Delete(id string) error {
-	_, err := i.db.Exec("DELETE FROM content WHERE id=?", id)
-	return err
+	driver, _ := config.GetDatabase(config.Config.LcpServer.Database)
+
+	if driver == "postgres" {
+		_, err := i.db.Exec(dbutils.GetParamQuery(config.Config.LcpServer.Database, "DELETE FROM content WHERE id=?"), id)
+		return err
+	} else {
+		_, err := i.db.Exec("DELETE FROM content WHERE id=?", id)
+		return err
+	}
 }
 
 // List lists rows

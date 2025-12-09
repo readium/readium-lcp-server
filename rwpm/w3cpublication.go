@@ -58,8 +58,7 @@ type W3CContributors []W3CContributor
 // UnmarshalJSON unmarshals contributors
 func (c *W3CContributors) UnmarshalJSON(b []byte) error {
 
-	var ctors []W3CContributor
-	ctors = make([]W3CContributor, 1)
+	ctors := make([]W3CContributor, 1)
 	var ctor W3CContributor
 
 	// literal value
@@ -146,8 +145,7 @@ func (c W3CContributor) MarshalJSON() ([]byte, error) {
 		return json.Marshal(c.Name[0].Value)
 	}
 	type Alias W3CContributor
-	ctorAlias := Alias{c.Type, c.Name, c.ID, c.URL, c.Identifier}
-	return json.Marshal(ctorAlias)
+	return json.Marshal(Alias(c))
 }
 
 // W3CMultiLanguage struct
@@ -163,8 +161,7 @@ type W3CLocalized struct {
 // UnmarshalJSON unmarshalls W3CMultilanguge
 func (m *W3CMultiLanguage) UnmarshalJSON(b []byte) error {
 
-	var locs []W3CLocalized
-	locs = make([]W3CLocalized, 1)
+	locs := make([]W3CLocalized, 1)
 	var loc W3CLocalized
 	var literal string
 	var err error
@@ -252,8 +249,7 @@ func (l W3CLocalized) MarshalJSON() ([]byte, error) {
 	}
 	// object value
 	type Alias W3CLocalized
-	locAlias := Alias{l.Language, l.Value, l.Direction}
-	return json.Marshal(locAlias)
+	return json.Marshal(Alias(l))
 }
 
 // W3CLinks struct
@@ -262,8 +258,7 @@ type W3CLinks []W3CLink
 // UnmarshalJSON unmarshalls W3CLinks
 func (l *W3CLinks) UnmarshalJSON(b []byte) error {
 
-	var lnks []W3CLink
-	lnks = make([]W3CLink, 1)
+	lnks := make([]W3CLink, 1)
 	var lnk W3CLink
 
 	// literal value
@@ -340,6 +335,5 @@ func (l W3CLink) MarshalJSON() ([]byte, error) {
 		return json.Marshal(l.URL)
 	}
 	type Alias W3CLink
-	lnkAlias := Alias{l.URL, l.EncodingFormat, l.Name, l.Description, l.Rel, l.Integrity, l.Duration, l.Alternate}
-	return json.Marshal(lnkAlias)
+	return json.Marshal(Alias(l))
 }

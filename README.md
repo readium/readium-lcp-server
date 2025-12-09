@@ -34,7 +34,7 @@ You must put in place:
 
 The servers require the setup of an SQL Database. 
 
-- SQLite is sufficient for most needs. If the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. SQLite database creation scripts are also provided in the "dbmodel" folder in case they are useful. 
+- SQLite is sufficient for most needs. If the "database" property of each server defines a sqlite3 driver, the db setup is dynamically achieved when the server runs for the first time. SQLite database creation scripts are also provided in the "dbmodel" folder in case they are useful. A warning: the `lcpserver`and `lsdserver` processes require separate database names, i.e. separate SQLite files. 
 - MySQL, MS SQL and PostgreSQL database creation scripts are provided in the "dbmodel" folder. These scripts must be applied before launching the servers for the first time. 
 
 Encryption Profiles
@@ -341,12 +341,14 @@ lsd_notify_auth:
 - `register`: boolean; if `true`, registering a device is possible; `true` by default.  
 - `renew`: boolean; if `true`, loan extensions are possible; `false` by default. 
 - `return`: boolean; if `true`, early returns are possible; `false` by default. 
-- `renting_days`: maximum number of days allowed for a loan. The maximum end date of a license is based on the date the loan starts, plus this value. No loan extension is possible after this upper limit. Use a large value (20000?) if you operate a subscription model.  
-- `renew_days`: default number of additional days for a loan extension. It will be overwritten by an explicit attribute of the renew command. 
-- `renew_page_url`: URL template; if set, the renew feature is implemented as an HTML page. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
-- `renew_custom_url`: URL template; if set, the renew feature is managed by the license provider. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
+- `renting_days`: maximum number of days allowed for a loan. The maximum license end date is based on the date the loan starts, plus this value. No loan extension is possible after this upper limit. Use a large value (20000?) if you operate a subscription model.  
+- `renew_days`: default number of additional days for a loan extension. An explicit attribute of the renew command will overwrite it. 
+- `renew_from_now`: boolean; if `true`, the number of days of an extension is based on the current timestamp, not the license end date. 
+- `renew_expired`: boolean; if `true`, the license provider allows the extension of an expired license. 
+- `renew_page_url`: URL template; if set, the renew feature is implemented as an HTML page. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in every status document's 'renew' link.
+- `renew_custom_url`: URL template; if set, the license provider manages the renew feature. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
 
-Detailed explanations about the use of `renew_page_url` and `renew_custom_url` are found in a [specific section of the wiki](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-into-a-distribution-platform#option-manage-renew-requests-using-your-own-rules). 
+Detailed explanations about the use of `renew_page_url` and `renew_custom_url` are found in a [specific section of the wiki](https://github.com/readium/readium-lcp-server/wiki/Integrating-the-LCP-server-with-a-content-management-system#option-manage-renew-requests-using-your-own-rules). 
 
 #### lcp_update_auth section 
 The Status Server must be able to get information from the License Server. 

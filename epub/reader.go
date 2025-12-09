@@ -36,9 +36,6 @@ func findRootFiles(r io.Reader) ([]rootFile, error) {
 	xd.CharsetReader = charset.NewReaderLabel
 	var roots []rootFile
 	for x, err := xd.Token(); x != nil && err == nil; x, err = xd.Token() {
-		if err != nil {
-			return nil, err
-		}
 		switch x.(type) {
 		case xml.StartElement:
 			start := x.(xml.StartElement)
@@ -116,7 +113,7 @@ func Read(r *zip.Reader) (Epub, error) {
 			return Epub{}, err
 		}
 		defer r.Close()
-		m, err := xmlenc.Read(r)
+		m, _ := xmlenc.Read(r)
 		encryption = &m
 	}
 
@@ -182,7 +179,8 @@ func addCleartextResources(ep *Epub, p opf.Package) {
 		if strings.Contains(item.Properties, "cover-image") ||
 			item.ID == coverImageID ||
 			strings.Contains(item.Properties, "nav") ||
-			item.MediaType == ContentType_NCX {
+			item.MediaType == ContentType_NCX ||
+			item.MediaType == ContentType_PAGEMAP {
 			// re-construct a path, avoid insertion of backslashes as separator on Windows
 			path := filepath.ToSlash(filepath.Join(p.BasePath, item.Href))
 			ep.addCleartextResource(path)

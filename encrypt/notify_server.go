@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,10 +20,13 @@ import (
 
 // LCPServerMsgV2 is used for notifying an LCP Server V2
 type LCPServerMsgV2 struct {
+	Provider      string `json:"provider,omitempty"`
 	UUID          string `json:"uuid"`
 	Title         string `json:"title"`
+	Authors       string `json:"authors,omitempty"`
+	CoverUrl      string `json:"cover_url,omitempty"`
 	EncryptionKey []byte `json:"encryption_key"`
-	Location      string `json:"location"`
+	Href          string `json:"href"`
 	ContentType   string `json:"content_type"`
 	Size          uint32 `json:"size"`
 	Checksum      string `json:"checksum"`
@@ -44,14 +48,14 @@ type CMSMsg struct {
 	DatePublished string   `json:"date_published"`
 	Description   string   `json:"description"`
 	CoverUrl      string   `json:"cover_url,omitempty"`
-	Language      []Coded  `json:"language"`
-	Publisher     []Entity `json:"publisher"`
-	Author        []Entity `json:"author"`
-	Category      []Entity `json:"category"`
+	Language      []Coded  `json:"language,omitempty"`
+	Publisher     []Entity `json:"publisher,omitempty"`
+	Author        []Entity `json:"author,omitempty"`
+	Category      []Entity `json:"category,omitempty"`
 }
 
 // NotifyLCPServer notifies the License Server of the encryption of a publication
-func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, password string, verbose bool) error {
+func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username string, password string, verbose bool) error {
 
 	// An empty notify URL is not an error, simply a silent encryption
 	if lcpsv == "" {
@@ -104,10 +108,16 @@ func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, pa
 		}
 	} else {
 		var msg LCPServerMsgV2
+		msg.Provider = prov
 		msg.UUID = pub.UUID
 		msg.Title = pub.Title
+		for _, author := range pub.Author {
+			msg.Authors += author + ", "
+		}
+		msg.Authors = strings.TrimSuffix(msg.Authors, ", ")
+		msg.CoverUrl = pub.CoverUrl
 		msg.EncryptionKey = pub.EncryptionKey
-		msg.Location = pub.Location
+		msg.Href = pub.Location
 		msg.ContentType = pub.ContentType
 		msg.Size = pub.Size
 		msg.Checksum = pub.Checksum
@@ -139,10 +149,12 @@ func NotifyLCPServer(pub Publication, lcpsv string, v2 bool, username string, pa
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}
-	fmt.Println("The LCP Server was notified")
+	log.Println("The LCP Server was notified")
 	return nil
 }
 
@@ -187,10 +199,12 @@ func AbortNotification(pub Publication, lcpsv string, v2 bool, username string, 
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}
-	fmt.Println("Encrypted publication deleted from the LCP Server")
+	log.Println("Encrypted publication deleted from the LCP Server")
 	return nil
 }
 
@@ -224,13 +238,19 @@ func NotifyCMS(pub Publication, notifyURL string, verbose bool) error {
 	}
 	var en Entity
 	for _, en.Name = range pub.Publisher {
-		msg.Publisher = append(msg.Publisher, en)
+		if en.Name != "" {
+			msg.Publisher = append(msg.Publisher, en)
+		}
 	}
 	for _, en.Name = range pub.Author {
-		msg.Author = append(msg.Author, en)
+		if en.Name != "" {
+			msg.Author = append(msg.Author, en)
+		}
 	}
 	for _, en.Name = range pub.Subject {
-		msg.Category = append(msg.Category, en)
+		if en.Name != "" {
+			msg.Category = append(msg.Category, en)
+		}
 	}
 
 	var req *http.Request
@@ -262,10 +282,12 @@ func NotifyCMS(pub Publication, notifyURL string, verbose bool) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+
 	if (resp.StatusCode != 302) && (resp.StatusCode/100) != 2 { //302=found or 20x reply = OK
 		return fmt.Errorf("the server returned an error %d", resp.StatusCode)
 	}
-	fmt.Println("The CMS was notified")
+	log.Println("The CMS was notified")
 	return nil
 }
 

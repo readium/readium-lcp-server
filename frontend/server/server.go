@@ -48,7 +48,7 @@ import (
 	"github.com/readium/readium-lcp-server/frontend/webuser"
 )
 
-//Server struct contains server info and  db interfaces
+// Server struct contains server info and  db interfaces
 type Server struct {
 	http.Server
 	readonly     bool
@@ -197,6 +197,7 @@ func fetchLicenseStatusesTask(s *Server) {
 		log.Println("No http connection - no fetch this time")
 		return
 	}
+	defer res.Body.Close()
 
 	// get all licence status documents from the lsd server
 	body, err := ioutil.ReadAll(res.Body)
@@ -204,7 +205,6 @@ func fetchLicenseStatusesTask(s *Server) {
 		log.Println("Failed to read from the http connection - no fetch this time")
 		return
 	}
-	defer res.Body.Close()
 
 	// clear the db
 	err = s.license.PurgeDataBase()
@@ -229,22 +229,22 @@ func (server *Server) PublicationAPI() webpublication.WebPublication {
 	return server.publications
 }
 
-//UserAPI ( staticapi.IServer )returns DB interface for users
+// UserAPI ( staticapi.IServer )returns DB interface for users
 func (server *Server) UserAPI() webuser.WebUser {
 	return server.users
 }
 
-//PurchaseAPI ( staticapi.IServer )returns DB interface for purchases
+// PurchaseAPI ( staticapi.IServer )returns DB interface for purchases
 func (server *Server) PurchaseAPI() webpurchase.WebPurchase {
 	return server.purchases
 }
 
-//DashboardAPI ( staticapi.IServer )returns DB interface for dashboard
+// DashboardAPI ( staticapi.IServer )returns DB interface for dashboard
 func (server *Server) DashboardAPI() webdashboard.WebDashboard {
 	return server.dashboard
 }
 
-//LicenseAPI ( staticapi.IServer )returns DB interface for license
+// LicenseAPI ( staticapi.IServer )returns DB interface for license
 func (server *Server) LicenseAPI() weblicense.WebLicense {
 	return server.license
 }

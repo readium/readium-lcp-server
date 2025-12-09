@@ -60,6 +60,9 @@ func New(bindAddr string, readonly bool, goofyMode bool, lst *licensestatuses.Li
 	// Route.Subrouter: http://www.gorillatoolkit.org/pkg/mux#Route.Subrouter
 	// Router.StrictSlash: http://www.gorillatoolkit.org/pkg/mux#Router.StrictSlash
 
+	// Ping endpoint
+	s.handleFunc(sr.R, "/ping", apilsd.Ping).Methods("GET")
+
 	licenseRoutesPathPrefix := "/licenses"
 	licenseRoutes := sr.R.PathPrefix(licenseRoutesPathPrefix).Subrouter().StrictSlash(false)
 
@@ -79,6 +82,11 @@ func New(bindAddr string, readonly bool, goofyMode bool, lst *licensestatuses.Li
 		s.handlePrivateFunc(sr.R, "/licenses", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 		s.handlePrivateFunc(licenseRoutes, "/", apilsd.CreateLicenseStatusDocument, basicAuth).Methods("PUT")
 	}
+
+	// Utility methods
+
+	// License Count endpoint
+	s.handlePrivateFunc(sr.R, "/licensecount", apilsd.LicenseCount, basicAuth).Methods("GET")
 
 	return s
 }

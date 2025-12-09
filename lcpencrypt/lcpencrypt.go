@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -20,12 +21,14 @@ func showHelpAndExit() {
 
 	fmt.Println("lcpencrypt encrypts a publication using the LCP DRM.")
 	fmt.Println("-input      source epub/pdf/lpf/audiobook file locator (file system or http GET)")
+	fmt.Println("-provider   publication provider (URI)")
 	fmt.Println("-contentid  optional, content identifier; if omitted a uuid is generated")
 	fmt.Println("-storage    optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
 	fmt.Println("-url        optional, base url associated with the storage, without filename")
 	fmt.Println("-filename   optional, file name of the encrypted publication; if omitted, contentid is used")
 	fmt.Println("-temp       optional, working folder for temporary files. If not set, the current directory will be used.")
-	fmt.Println("-cover      optional, boolean, indicates that covers must be generated when possible")
+	fmt.Println("-cover      optional, boolean, indicates that a cover should be generated")
+	fmt.Println("-pdfnometa  optional, boolean, indicates that PDF metadata must not be extracted")
 	fmt.Println("-contentkey optional, base64 encoded content key; if omitted a random content key is generated")
 	fmt.Println("-lcpsv      optional, URL, host name of the License Server to be notified; syntax http://username:password@example.com")
 	fmt.Println("-v2         optional, boolean, indicates communication with a License Server v2")
@@ -48,6 +51,7 @@ func exitWithError(context string, err error) {
 
 func main() {
 	inputPath := flag.String("input", "", "source epub/pdf/lpf file locator (file system or http GET)")
+	providerUri := flag.String("provider", "", "optional, publication provider (URI)")
 	contentid := flag.String("contentid", "", "optional, content identifier; if omitted, a uuid is generated")
 	storageRepo := flag.String("storage", "", "optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
 	storageURL := flag.String("url", "", "optional, base url associated with the storage, without filename")
@@ -55,6 +59,7 @@ func main() {
 	outputRepo := flag.String("output", "", "optional, target folder of encrypted publications")
 	tempRepo := flag.String("temp", "", "optional, working folder for temporary files")
 	cover := flag.Bool("cover", false, "optional, boolean, indicates that covers must be generated when possible")
+	pdfnometa := flag.Bool("pdfnometa", false, "optional, boolean, indicates that PDF metadata must not be extracted")
 	contentkey := flag.String("contentkey", "", "optional, base64 encoded content key; if omitted a random content key is generated")
 	lcpsv := flag.String("lcpsv", "", "URL, host name of the License server which is notified; the preferred syntax is http://username:password@example.com")
 	v2 := flag.Bool("v2", false, "optional, boolean, indicates a v2 License serve")
@@ -85,16 +90,39 @@ func main() {
 
 	start := time.Now()
 
+	// if contentid is set but not contentkey, check if the content already exists in the License Server.
+	// If this is the case, get the content encryption key from the server, so that the new encryption
+	// keeps the same key. This is necessary to allow fresh licenses being capable
+	// of decrypting previously downloaded content.
+	if *contentid != "" && *contentkey == "" {
+		// warning: this is a synchronous REST call
+		// contentKey is not initialized if the content does not exist in the License Server
+		err := getContentKey(contentkey, *contentid, *lcpsv, *v2, *username, *password)
+		if err != nil {
+			exitWithError("Error retrieving content info", err)
+		}
+	}
+
 	// encrypt the publication
-	publication, err := encrypt.ProcessEncryption(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename, *cover)
+	publication, err := encrypt.ProcessEncryption(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename, *cover, *pdfnometa)
 	if err != nil {
 		exitWithError("Error processing a publication", err)
+	}
+
+	// logs if verbose mode
+	if *verbose {
+		log.Println("Encrypted file:", filepath.Join(publication.OutputRepo, publication.FileName))
+		log.Println("File url:", publication.Location)
+		if publication.ExtractCover {
+			log.Println("Cover file name:", publication.CoverName)
+			log.Println("Cover file url:", publication.CoverUrl)
+		}
 	}
 
 	elapsed := time.Since(start)
 
 	// notify the license server
-	err = encrypt.NotifyLCPServer(*publication, *lcpsv, *v2, *username, *password, *verbose)
+	err = encrypt.NotifyLCPServer(*publication, *providerUri, *lcpsv, *v2, *username, *password, *verbose)
 	if err != nil {
 		exitWithError("Error notifying the LCP Server", err)
 	}

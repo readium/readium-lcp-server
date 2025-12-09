@@ -446,6 +446,10 @@ func GenerateLicense(w http.ResponseWriter, r *http.Request, s Server) {
 	// build the license
 	err = buildLicense(&lic, s, false)
 	if err != nil {
+		if errors.Is(err, index.ErrNotFound) {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusNotFound)
+			return
+		}
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
@@ -825,6 +829,61 @@ func ListLicensesForContent(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+}
+
+type licenseCount struct {
+	Total int       `json:"total"`
+	From  time.Time `json:"from"`
+	To    time.Time `json:"to"`
+}
+
+// LicenseCount counts the number of licenses generated during a time period
+// parameters:
+//
+//	from: initial date (optional)
+//	to: end date (optional)
+func LicenseCount(w http.ResponseWriter, r *http.Request, s Server) {
+
+	// default values
+	// calculation on the last year
+	from := time.Now().AddDate(-1, 0, 0).Truncate(time.Second)
+	to := time.Now().Truncate(time.Second)
+	// get the parameters
+	if r.FormValue("from") != "" {
+		f, err := time.Parse(time.RFC3339, r.FormValue("from"))
+		if err == nil {
+			from = f
+		}
+	} else {
+	}
+	if r.FormValue("to") != "" {
+		t, err := time.Parse(time.RFC3339, r.FormValue("to"))
+		if err == nil {
+			to = t
+		}
+	}
+
+	total, err := s.Licenses().Count(from, to)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	// shape the response
+	response := licenseCount{
+		Total: total,
+		From:  from,
+		To:    to,
+	}
+	w.Header().Set("Content-Type", api.ContentType_JSON)
+	enc := json.NewEncoder(w)
+	// do not escape characters
+	enc.SetEscapeHTML(false)
+	err = enc.Encode(response)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
 }
 
 // DecodeJSONLicense decodes a license formatted in json and returns a license object
