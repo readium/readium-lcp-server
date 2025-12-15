@@ -443,55 +443,56 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	}
 
 	// check the suggested end date vs the upper end date (which is already set in our implementation)
-	//log.Print("Upper limit = ", licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339))
+	// the two issues below are not treated as errors
+	norenew := false
 	if suggestedEnd.After(*licenseStatus.PotentialRights.End) {
-		msg := "Attempt to renew with a date greater than the upper limit = " + licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339)
-		problem.Error(w, r, problem.Problem{Type: problem.RENEW_REJECT, Detail: msg}, http.StatusForbidden)
-		return
+		norenew = true
+		log.Print("Attempt to renew with a date greater than the upper limit = " + licenseStatus.PotentialRights.End.UTC().Format(time.RFC3339))
 	}
 	// check the suggested end date vs the current end date
 	if suggestedEnd.Before(currentEnd) {
-		msg := "Attempt to renew with a date before the current end date"
-		problem.Error(w, r, problem.Problem{Type: problem.RENEW_REJECT, Detail: msg}, http.StatusForbidden)
-		return
+		norenew = true
+		log.Print("Attempt to renew with a date before the current end date: " + currentEnd.UTC().Format(time.RFC3339) + " vs " + suggestedEnd.UTC().Format(time.RFC3339))
 	}
 
-	// add a log
-	logging.Print("Loan renewed until " + suggestedEnd.UTC().Format(time.RFC3339))
+	if !norenew {
+		// add a log
+		logging.Print("Loan renewed until " + suggestedEnd.UTC().Format(time.RFC3339))
 
-	// create a renew event
-	event := makeEvent(status.EVENT_RENEWED, deviceName, deviceID, licenseStatus.ID)
-	err = s.Transactions().Add(*event, status.EVENT_RENEWED_INT)
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
-	}
+		// create a renew event
+		event := makeEvent(status.EVENT_RENEWED, deviceName, deviceID, licenseStatus.ID)
+		err = s.Transactions().Add(*event, status.EVENT_RENEWED_INT)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			return
+		}
 
-	// update a license via a call to the lcp Server
-	var httpStatusCode int
-	httpStatusCode, err = updateLicense(suggestedEnd, licenseID)
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
-	}
-	if httpStatusCode != http.StatusOK && httpStatusCode != http.StatusPartialContent { // 200, 206
-		err = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
+		// update a license via a call to the lcp Server
+		var httpStatusCode int
+		httpStatusCode, err = updateLicense(suggestedEnd, licenseID)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			return
+		}
+		if httpStatusCode != http.StatusOK && httpStatusCode != http.StatusPartialContent { // 200, 206
+			err = errors.New("LCP license PATCH returned HTTP error code " + strconv.Itoa(httpStatusCode))
 
-		problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: err.Error()}, httpStatusCode)
-		return
-	}
-	// update the license status fields
-	licenseStatus.Status = status.STATUS_ACTIVE
-	licenseStatus.CurrentEndLicense = &suggestedEnd
-	licenseStatus.Updated.Status = &event.Timestamp
-	licenseStatus.Updated.License = &event.Timestamp
-	//log.Print("Update timestamp ", event.Timestamp.UTC().Format(time.RFC3339))
+			problem.Error(w, r, problem.Problem{Type: problem.REGISTRATION_BAD_REQUEST, Detail: err.Error()}, httpStatusCode)
+			return
+		}
+		// update the license status fields
+		licenseStatus.Status = status.STATUS_ACTIVE
+		licenseStatus.CurrentEndLicense = &suggestedEnd
+		licenseStatus.Updated.Status = &event.Timestamp
+		licenseStatus.Updated.License = &event.Timestamp
+		//log.Print("Update timestamp ", event.Timestamp.UTC().Format(time.RFC3339))
 
-	// update the license status in db
-	err = s.LicenseStatuses().Update(*licenseStatus)
-	if err != nil {
-		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
-		return
+		// update the license status in db
+		err = s.LicenseStatuses().Update(*licenseStatus)
+		if err != nil {
+			problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// fill the localized 'message', the 'links' and 'event' objects in the license status
@@ -500,7 +501,8 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusInternalServerError)
 		return
 	}
-	// return the updated license status to the caller
+
+	// return the license status to the caller
 	// the device count must not be sent in json to the caller
 	licenseStatus.DeviceCount = nil
 	enc := json.NewEncoder(w)
