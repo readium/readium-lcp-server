@@ -23,7 +23,8 @@ const (
 	ContentType_XHTML = "application/xhtml+xml"
 	ContentType_HTML  = "text/html"
 
-	ContentType_NCX = "application/x-dtbncx+xml"
+	ContentType_NCX     = "application/x-dtbncx+xml"
+	ContentType_PAGEMAP = "application/oebps-page-map+xml"
 
 	ContentType_EPUB = "application/epub+zip"
 )
