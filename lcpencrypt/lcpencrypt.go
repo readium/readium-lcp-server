@@ -37,6 +37,8 @@ func showHelpAndExit() {
 	//fmt.Println("-password   optional, used along with lcpsv, password for the License server")
 	fmt.Println("-notify     optional, URL, notification endpoint of a CMS; syntax http://username:password@example.com")
 	fmt.Println("-verbose    optional, boolean, the information sent to the LCP Server and CMS will be displayed")
+	fmt.Println("-altid      optional, boolean, if set, the file name is used as an alternative publication ID")
+
 	fmt.Println("-output     optional, deprecated, temporary location of encrypted publications, before the License Server moves them. File system path only. This path must be directly accessible from the License Server. If not set, encrypted publications will be temporarily created into the current directory.")
 	fmt.Println("-help :     help information")
 	os.Exit(0)

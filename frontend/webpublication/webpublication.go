@@ -121,7 +121,7 @@ func encryptPublication(inputPath string, pub *Publication, pubManager Publicati
 		false,
 		config.Config.LcpUpdateAuth.Username,
 		config.Config.LcpUpdateAuth.Password,
-		false) // non verbose
+		false, false) // non verbose, don't generate an alternative id
 	if err != nil {
 		return err
 	}

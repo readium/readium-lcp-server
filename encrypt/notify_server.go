@@ -23,7 +23,7 @@ import (
 type LCPServerMsgV2 struct {
 	Provider      string `json:"provider,omitempty"`
 	UUID          string `json:"uuid"`
-	AltID         string `json:"altid,omitempty"`
+	AltID         string `json:"alt_id,omitempty"`
 	Title         string `json:"title"`
 	Authors       string `json:"authors,omitempty"`
 	CoverUrl      string `json:"cover_url,omitempty"`
