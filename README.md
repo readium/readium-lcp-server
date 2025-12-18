@@ -343,7 +343,7 @@ lsd_notify_auth:
 - `return`: boolean; if `true`, early returns are possible; `false` by default. 
 - `renting_days`: maximum number of days allowed for a loan. The maximum license end date is based on the date the loan starts, plus this value. No loan extension is possible after this upper limit. Use a large value (20000?) if you operate a subscription model.  
 - `renew_days`: default number of additional days for a loan extension. An explicit attribute of the renew command will overwrite it. 
-- `renew_from_now`: boolean; if `true`, the number of days of an extension is based on the current timestamp, not the license end date. 
+- `renew_from_now`: boolean; if `true`, which is recommended, the number of days of an extension is based on the current timestamp, not the license end date. 
 - `renew_expired`: boolean; if `true`, the license provider allows the extension of an expired license. 
 - `renew_page_url`: URL template; if set, the renew feature is implemented as an HTML page. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in every status document's 'renew' link.
 - `renew_custom_url`: URL template; if set, the license provider manages the renew feature. This url template supports a `{license_id}`, `{/license_id}` or `{?license_id}` parameter. The final url will be inserted in the 'renew' link of every status document.
