@@ -27,6 +27,7 @@ import (
 // Publication aggregates information during the process
 type Publication struct {
 	UUID          string
+	AltID         string
 	Title         string
 	Date          string
 	Description   string
@@ -52,15 +53,17 @@ type Publication struct {
 // inputPath must contain a processable file extension.
 func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, storageRepo, storageURL, storageFilename string, extractCover, pdfNoMeta bool) (*Publication, error) {
 
+	if inputPath == "" {
+		return nil, errors.New("ProcessEncryption, missing input path")
+	}
+	log.Println("Process ", inputPath)
+
 	var pub Publication
 	pub.OutputRepo = outputRepo
 	pub.ExtractCover = extractCover
 	pub.InputPath = inputPath
-
-	if pub.InputPath == "" {
-		return nil, errors.New("ProcessEncryption, parameter error")
-	}
-	log.Println("Process ", pub.InputPath)
+	// set the AltID as the file name without extension; it may be sent to the LCP Server in the genAltid option is active
+	pub.AltID = strings.TrimSuffix(filepath.Base(pub.InputPath), filepath.Ext(pub.InputPath))
 
 	// if contentID is not set, generate a random UUID
 	if contentID == "" {
@@ -180,14 +183,14 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 		mode = "file system"
 	case apilcp.Storage_s3:
 		// the encryption tool stores the encrypted publication in an S3 storage
-		// and deletes the temp file
+		// and delete the temp file
 		fromPath := filepath.Join(pub.OutputRepo, pub.FileName)
 		err = StoreFileOnS3(fromPath, storageRepo, pub.FileName)
 		if err != nil {
 			return nil, err
 		}
 		// if a cover was extracted (pub.CoverName not empty), store it in S3 too
-		// and deletes the cover
+		// and delete the cover
 		if pub.ExtractCover && pub.CoverName != "" {
 			fromPath := filepath.Join(pub.OutputRepo, pub.CoverName)
 			err = StoreFileOnS3(fromPath, storageRepo, pub.CoverName)

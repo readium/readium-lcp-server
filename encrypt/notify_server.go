@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -114,7 +113,7 @@ func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username stri
 		msg.UUID = pub.UUID
 		if genAltid {
 			// use the file name (without extension) as alternative ID
-			msg.AltID = strings.TrimSuffix(filepath.Base(pub.InputPath), filepath.Ext(pub.InputPath))
+			msg.AltID = pub.AltID
 		}
 		msg.Title = pub.Title
 		for _, author := range pub.Author {
