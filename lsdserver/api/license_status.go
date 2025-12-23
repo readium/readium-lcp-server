@@ -390,23 +390,30 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 	// note: renewing an unactive (ready) license is forbidden
 	if licenseStatus.Status == status.STATUS_EXPIRED {
 		if !config.Config.LicenseStatus.RenewExpired {
-			msg = "The license has expired and cannot be renewed"
-			problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
+			msg = "The license has expired; it cannot be renewed"
+			problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusBadRequest)
 			return
 		}
 	} else if licenseStatus.Status != status.STATUS_ACTIVE {
-		msg = "The current license status is " + licenseStatus.Status + "; renew forbidden"
-		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
+		msg = "The license status is " + licenseStatus.Status + "; it cannot be renewed"
+		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusBadRequest)
 		return
 	}
 
 	// check if the license contains a date end property
 	if licenseStatus.CurrentEndLicense == nil || (*licenseStatus.CurrentEndLicense).IsZero() {
-		msg = "This license has no current end date; it cannot be renewed"
-		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusForbidden)
+		msg = "This license has no end date; it cannot be renewed"
+		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusBadRequest)
 		return
 	}
 	currentEnd := *licenseStatus.CurrentEndLicense
+
+	// check if the license has a maximum end date
+	if licenseStatus.PotentialRights == nil || licenseStatus.PotentialRights.End == nil || (*licenseStatus.PotentialRights.End).IsZero() {
+		msg = "This license has no maximum end date; it cannot be renewed"
+		problem.Error(w, r, problem.Problem{Type: problem.RENEW_BAD_REQUEST, Detail: msg}, http.StatusBadRequest)
+		return
+	}
 
 	var suggestedEnd time.Time
 	// check if the 'end' request parameter is empty
@@ -415,8 +422,8 @@ func LendingRenewal(w http.ResponseWriter, r *http.Request, s Server) {
 		// get the config  parameter renew_days
 		renewDays := config.Config.LicenseStatus.RenewDays
 		if renewDays == 0 {
-			msg = "No explicit end value and no configured value"
-			problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusInternalServerError)
+			msg = "No explicit end value in the request and no configured value"
+			problem.Error(w, r, problem.Problem{Detail: msg}, http.StatusBadRequest)
 			return
 		}
 		// compute a suggested duration from the config value
@@ -996,18 +1003,19 @@ func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatu
 	ls.LicenseRef = license.ID
 
 	registerAvailable := config.Config.LicenseStatus.Register
+	renewAvailable := config.Config.LicenseStatus.Renew
 
+	// if the license has no end in its rights, it is a purchased publication
 	if license.Rights == nil || license.Rights.End == nil {
-		// The publication was purchased (not a loan), so we do not set LSD.PotentialRights.End
 		ls.CurrentEndLicense = nil
 	} else {
-		// license.Rights.End exists => this is a loan
+		// this is a loan: set the end timestamp from license rights
 		endFromLicense := license.Rights.End.Add(0)
 		ls.CurrentEndLicense = &endFromLicense
-		ls.PotentialRights = new(licensestatuses.PotentialRights)
-
+		// set potential end from config if loan renewal is possible
 		rentingDays := config.Config.LicenseStatus.RentingDays
-		if rentingDays > 0 {
+		if renewAvailable && rentingDays > 0 { 
+			ls.PotentialRights = new(licensestatuses.PotentialRights)
 			endFromConfig := license.Issued.Add(time.Hour * 24 * time.Duration(rentingDays))
 
 			if endFromLicense.After(endFromConfig) {
@@ -1015,8 +1023,6 @@ func makeLicenseStatus(license license.License, ls *licensestatuses.LicenseStatu
 			} else {
 				ls.PotentialRights.End = &endFromConfig
 			}
-		} else {
-			ls.PotentialRights.End = &endFromLicense
 		}
 	}
 
@@ -1067,11 +1073,11 @@ func makeLinks(ls *licensestatuses.LicenseStatus) {
 	returnAvailable := config.Config.LicenseStatus.Return && licenseHasRightsEnd && usableLicense
 
 	// add the possibility to renew an expired license
-	var renewableLicense bool
+	statusAllowsRenew := usableLicense
 	if config.Config.LicenseStatus.RenewExpired {
-		renewableLicense = usableLicense || ls.Status == status.STATUS_EXPIRED
+		statusAllowsRenew = usableLicense || ls.Status == status.STATUS_EXPIRED
 	}
-	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd && renewableLicense
+	renewAvailable := config.Config.LicenseStatus.Renew && licenseHasRightsEnd && statusAllowsRenew
 	renewPageUrl := config.Config.LicenseStatus.RenewPageUrl
 	renewCustomUrl := config.Config.LicenseStatus.RenewCustomUrl
 
