@@ -25,6 +25,8 @@ type LCPServerMsgV2 struct {
 	AltID         string `json:"alt_id,omitempty"`
 	Title         string `json:"title"`
 	Authors       string `json:"authors,omitempty"`
+	Publishers    string `json:"publishers,omitempty"`
+	Description   string `json:"description"`
 	CoverUrl      string `json:"cover_url,omitempty"`
 	EncryptionKey []byte `json:"encryption_key"`
 	Href          string `json:"href"`
@@ -120,6 +122,11 @@ func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username stri
 			msg.Authors += author + ", "
 		}
 		msg.Authors = strings.TrimSuffix(msg.Authors, ", ")
+		for _, publisher := range pub.Publisher {
+			msg.Publishers += publisher + ", "
+		}
+		msg.Publishers = strings.TrimSuffix(msg.Publishers, ", ")
+		msg.Description = pub.Description
 		msg.CoverUrl = pub.CoverUrl
 		msg.EncryptionKey = pub.EncryptionKey
 		msg.Href = pub.Location
