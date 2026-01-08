@@ -279,7 +279,7 @@ func setTargetFileInfo(pub *Publication, storageFilename string) error {
 		targetExt = ".lcpdf"
 		pub.ContentType = "application/pdf+lcp"
 	case ".audiobook":
-		targetExt = ".lcpau"
+		targetExt = ".lcpa"
 		pub.ContentType = "application/audiobook+lcp"
 	case ".divina":
 		targetExt = ".lcpdi"
@@ -533,7 +533,7 @@ func buildEncryptedRPF(pub *Publication, encrypter crypto.Encrypter, contentKey 
 	ext := filepath.Ext(pub.FileName)
 	switch reader.ConformsTo() {
 	case "https://readium.org/webpub-manifest/profiles/audiobook":
-		pub.FileName = strings.TrimSuffix(pub.FileName, ext) + ".lcpau"
+		pub.FileName = strings.TrimSuffix(pub.FileName, ext) + ".lcpa"
 		pub.ContentType = "application/audiobook+lcp"
 	case "https://readium.org/webpub-manifest/profiles/divina":
 		pub.FileName = strings.TrimSuffix(pub.FileName, ext) + ".lcpdi"
