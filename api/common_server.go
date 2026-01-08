@@ -20,7 +20,7 @@ import (
 
 const (
 	// DO NOT FORGET to update the version
-	Software_Version = "1.12.6"
+	Software_Version = "1.12.7"
 
 	ContentType_LCP_JSON  = "application/vnd.readium.lcp.license.v1.0+json"
 	ContentType_LSD_JSON  = "application/vnd.readium.license.status.v1.0+json"
