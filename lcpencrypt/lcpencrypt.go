@@ -16,6 +16,11 @@ import (
 	"github.com/readium/readium-lcp-server/encrypt"
 )
 
+const (
+	// DO NOT FORGET to update the version
+	Software_Version = "1.12.7"
+)
+
 // showHelpAndExit displays some help and exits.
 func showHelpAndExit() {
 
@@ -114,6 +119,7 @@ func main() {
 
 	// logs if verbose mode
 	if *verbose {
+		log.Println("Software Version " + Software_Version)
 		log.Println("Encrypted file:", filepath.Join(publication.OutputRepo, publication.FileName))
 		log.Println("File url:", publication.Location)
 		if publication.ExtractCover {
