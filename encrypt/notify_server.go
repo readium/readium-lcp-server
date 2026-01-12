@@ -58,7 +58,14 @@ type CMSMsg struct {
 }
 
 // NotifyLCPServer notifies the License Server of the encryption of a publication
-func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username string, password string, verbose, genAltid bool) error {
+// the publication parameter contains all the information about the encrypted publication
+// the update parameter indicates whether this is a new publication or an update of an existing one
+// prov is the provider URI
+// lcpsv is the License Server URL
+// v2 indicates whether the License Server is a v2 server
+// username and password are used for basic authentication
+// verbose indicates whether the notification must be logged
+func NotifyLCPServer(pub Publication, update bool, prov, lcpsv string, v2 bool, username, password string, verbose bool) error {
 
 	// An empty notify URL is not an error, simply a silent encryption
 	if lcpsv == "" {
@@ -71,7 +78,11 @@ func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username stri
 	var notifyURL string
 	var err error
 	if v2 {
-		notifyURL, err = url.JoinPath(lcpsv, "publications")
+		if update {
+			notifyURL, err = url.JoinPath(lcpsv, "publications", pub.UUID)
+		} else {
+			notifyURL, err = url.JoinPath(lcpsv, "publications")
+		}
 	} else {
 		notifyURL, err = url.JoinPath(lcpsv, "contents", pub.UUID)
 	}
@@ -105,18 +116,17 @@ func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username stri
 		if err != nil {
 			return err
 		}
+		// this is a create or update operation
 		req, err = http.NewRequest("PUT", notifyURL, bytes.NewReader(jsonBody))
 		if err != nil {
 			return err
 		}
+	// V2 Server
 	} else {
 		var msg LCPServerMsgV2
 		msg.Provider = prov
 		msg.UUID = pub.UUID
-		if genAltid {
-			// use the file name (without extension) as alternative ID
-			msg.AltID = pub.AltID
-		}
+		msg.AltID = pub.AltID
 		msg.Title = pub.Title
 		for _, author := range pub.Author {
 			msg.Authors += author + ", "
@@ -138,7 +148,11 @@ func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username stri
 		if err != nil {
 			return err
 		}
-		req, err = http.NewRequest("POST", notifyURL, bytes.NewReader(jsonBody))
+		if update {
+			req, err = http.NewRequest("PUT", notifyURL, bytes.NewReader(jsonBody))
+		} else {
+			req, err = http.NewRequest("POST", notifyURL, bytes.NewReader(jsonBody))
+		}
 		if err != nil {
 			return err
 		}
