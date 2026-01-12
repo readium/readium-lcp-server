@@ -1202,8 +1202,6 @@ func updateLicense(timeEnd time.Time, licenseID string) (int, error) {
 	}()
 	// prepare the request
 	lcpURL := lcpBaseURL + "/licenses/" + licenseID
-	// message to the console
-	//log.Println("PATCH " + lcpURL)
 	// send the content to the LCP server
 	req, err := http.NewRequest("PATCH", lcpURL, pr)
 	if err != nil {
