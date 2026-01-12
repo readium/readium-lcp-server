@@ -107,7 +107,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 	json.NewEncoder(w).Encode(result.ID)
 }
 
-// AddContent adds content to the storage
+// AddContent adds or updates content to the storage
 // lcp spec : store data resulting from an external encryption
 // PUT method with PAYLOAD : encrypted publication in json format
 // This method adds an encrypted file to a store
