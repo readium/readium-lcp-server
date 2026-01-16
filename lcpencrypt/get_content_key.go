@@ -16,11 +16,13 @@ import (
 )
 
 type ContentInfo struct {
+	ID            string `json:"id"`
 	EncryptionKey []byte `json:"key,omitempty"`
 }
 
 type PubInfo struct {
-	EncryptionKey []byte    `json:"encryption_key"`
+	UUID            string `json:"uuid"`
+	EncryptionKey []byte   `json:"encryption_key"`
 }
 
 
