@@ -486,7 +486,7 @@ func GetProtectedPublication(w http.ResponseWriter, r *http.Request, s Server) {
 	licenseID := vars["license_id"]
 
 	// add a log
-	logging.Print("Get a Licensed publication for License " + licenseID)
+	logging.Print("Get a protected publication for License " + licenseID)
 
 	// get the input body
 	var licIn license.License
@@ -555,7 +555,7 @@ func GenerateProtectedPublication(w http.ResponseWriter, r *http.Request, s Serv
 	vars := mux.Vars(r)
 	contentID := vars["content_id"]
 
-	logging.Print("Generate a Licensed publication for Content " + contentID)
+	logging.Print("Generate a protected publication for content " + contentID)
 
 	// get the input body
 	var lic license.License
