@@ -19,7 +19,7 @@ import (
 
 const (
 	// DO NOT FORGET to update the version
-	Software_Version = "1.12.7"
+	Software_Version = "1.13.0"
 )
 
 // showHelpAndExit displays some help and exits.
@@ -158,6 +158,6 @@ func main() {
 		}
 	}
 
-	fmt.Println("The encryption took", elapsed)
+	log.Println("The encryption took", elapsed.Truncate(10 * time.Millisecond))
 	os.Exit(0)
 }
