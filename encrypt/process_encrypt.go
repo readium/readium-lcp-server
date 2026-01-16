@@ -62,8 +62,6 @@ func ProcessEncryption(contentID, contentKey, inputPath, tempRepo, outputRepo, s
 	pub.OutputRepo = outputRepo
 	pub.ExtractCover = extractCover
 	pub.InputPath = inputPath
-	// set the AltID as the file name without extension
-	pub.AltID = strings.TrimSuffix(filepath.Base(pub.InputPath), filepath.Ext(pub.InputPath))
 
 	// if contentID is not set, generate a random UUID
 	if contentID == "" {
