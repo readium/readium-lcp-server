@@ -96,7 +96,7 @@ func main() {
 	start := time.Now()
 
 	// get the file name from the input path, strip the extension
-	filename := strings.TrimSuffix(filepath.Base(*inputPath), filepath.Ext(*inputPath))
+	filen := strings.TrimSuffix(filepath.Base(*inputPath), filepath.Ext(*inputPath))
 
 	// if the publication UUID is imposed, check if the content already exists in the License Server.
 	// Note that the publication UUID may also have be set via the command line. 
@@ -104,7 +104,7 @@ func main() {
 	// keeps the same key.
 	// This is necessary to allow fresh licenses being capable of decrypting previously downloaded content.
 	if *useFilenameAs == "uuid" {
-		*contentid = filename
+		*contentid = filen
 	}
 
 	var contentkey string
@@ -122,6 +122,11 @@ func main() {
 	publication, err := encrypt.ProcessEncryption(*contentid, contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename, *cover, *pdfnometa)
 	if err != nil {
 		exitWithError("Error processing a publication", err)
+	}
+
+	// keep the file name as alt id if it is not used as uuid
+	if *useFilenameAs != "uuid" {
+		publication.AltID = filen
 	}
 
 	// logs if verbose mode
