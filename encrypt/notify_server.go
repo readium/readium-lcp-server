@@ -57,9 +57,9 @@ type CMSMsg struct {
 	Category      []Entity `json:"category,omitempty"`
 }
 
-// NotifyLCPServer notifies the License Server of the encryption of a publication
-// the publication parameter contains all the information about the encrypted publication
-// the update parameter indicates whether this is a new publication or an update of an existing one
+// NotifyLCPServer notifies the License Server of the encryption of a publication.
+// The publication parameter contains all the information about the encrypted publication
+// update indicates whether this is a new publication or an update of an existing one
 // prov is the provider URI
 // lcpsv is the License Server URL
 // v2 indicates whether the License Server is a v2 server
