@@ -542,7 +542,7 @@ func extractRWPInfo(inputPath, coverPath string) (RWPInfo, error) {
 	start := time.Now()
 	defer func() {
 		if coverPath != "" {
-			log.Printf("Extracting the PDF cover took %s", time.Since(start))
+			log.Printf("Extracting the PDF cover and metadata took %s", time.Since(start).Truncate(10 * time.Millisecond))
 		}
 	}()
 
