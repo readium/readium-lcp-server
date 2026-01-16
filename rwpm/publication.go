@@ -12,7 +12,7 @@ import (
 
 // Publication = Readium manifest
 type Publication struct {
-	Context      MultiString `json:"@context,omitempty"`
+	Context      string `json:"@context,omitempty"`
 	Metadata     Metadata    `json:"metadata"`
 	Links        []Link      `json:"links,omitempty"`
 	ReadingOrder []Link      `json:"readingOrder,omitempty"`

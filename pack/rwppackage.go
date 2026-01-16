@@ -468,7 +468,7 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string, pdfNoMeta bool) (
 	// create simple manifest object
 	var manifest rwpm.Publication
 
-	manifest.Context.Add("https://readium.org/webpub-manifest/context.jsonld")
+	manifest.Context = "https://readium.org/webpub-manifest/context.jsonld"
 	manifest.Metadata.Type = "http://schema.org/Book"
 	manifest.Metadata.ConformsTo = "https://readium.org/webpub-manifest/profiles/pdf"
 
