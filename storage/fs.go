@@ -61,7 +61,7 @@ func (s fsStorage) Add(key string, r io.ReadSeeker) (Item, error) {
 		return nil, err
 	}
 	defer file.Close()
-	io.Copy(file, r)
+	_, err = io.Copy(file, r)
 
 	if err != nil {
 		return nil, err
