@@ -136,7 +136,7 @@ git clone https://github.com/readium/readium-lcp-server.git
 
 Then compile the code with: 
 
-```
+```sh
 cd readium-lcp-server
 go build -o $GOPATH/bin ./lcpencrypt
 go build -o $GOPATH/bin ./lcpserver
@@ -144,6 +144,12 @@ go build -o $GOPATH/bin ./lsdserver
 ```
 
 You should now find the generated binaries in $GOPATH/bin (or $GOBIN if this environment variable is set).
+
+Note: on a Linux Alpine server, the addition of the musl tag is required for building lcpserver. 
+
+```sh
+go build -tags musl -o $GOPATH/bin ./lcpencrypt
+```
 
 
 ### On Windows 10
