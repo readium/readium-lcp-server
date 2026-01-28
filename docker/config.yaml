@@ -1,0 +1,74 @@
+# configuration for lcpserver, lsdserver and frontend.
+# It is meant to be used as a quick-start setup.
+#
+# Replace every occurence of <LCP_HOME> by the absolute path to the folder
+# hosting encrypted files, databases and certificates.
+
+
+# Shared configuration
+
+# The usernames and passwords must match the ones in the htpasswd files for each server.
+
+lcp:
+    public_base_url:  "${LCP_BASE_URL}"
+lcp_update_auth: 
+    username: "${LCP_UPDATE_AUTH_USER}"
+    password: "${LCP_UPDATE_AUTH_PASS}"
+
+lsd:
+    public_base_url:  "${LSD_BASE_URL}"
+lsd_notify_auth: 
+    username: "${LSD_NOTIFY_AUTH_USER}"
+    password: "${LSD_NOTIFY_AUTH_PASS}"
+
+
+# LCP Server
+
+profile: "${PROFILE}"
+lcp:
+    host: "${LCP_HOST}"
+    port: ${LCP_PORT}
+    database: "${LCP_DATABASE}"
+    auth_file: "${AUTH_FILE}"
+storage:
+    filesystem:
+        directory: "${LCP_STORAGE_PATH}"
+certificate:
+    cert: "${CERTIFICATE_PATH}"
+    private_key: "${PRIVATE_KEY}"
+license:
+    links:
+        status: "${LSD_BASE_URL}/licenses/{license_id}/status"     
+        hint: "${FRONTEND_BASE_URL}/static/hint.html"
+        publication: "${LCP_BASE_URL}/contents/{publication_id}" 
+
+
+# LSD Server
+
+lsd:
+    host: "${LSD_HOST}"
+    port: ${LSD_PORT}
+    database: "${LSD_DATABASE}"
+    auth_file: "${AUTH_FILE}"
+    license_link_url: "${FRONTEND_BASE_URL}/api/v1/licenses/{license_id}"
+license_status:
+    register: true
+    renew: true
+    return: true
+    renting_days: 60
+    renew_days: 7
+
+
+# Frontend Server
+
+frontend:
+    public_base_url: ${FRONTEND_BASE_URL}
+    host: "${FRONTEND_HOST}"
+    port: ${FRONTEND_PORT}
+    directory: "${FRONTEND_MANAGE}" # default is readium_lcp_server/frontend/manage .. you can disable it
+    database: "${FRONTEND_DATABASE}"
+    master_repository: "${FRONTEND_MASTER_PATH}"
+    encrypted_repository: "${FRONTEND_ENCRYPTED_PATH}"
+    provider_uri: "${FRONTEND_PROVIDER_URI}"
+    right_print: 10
+    right_copy: 2000

@@ -27,3 +27,11 @@ lcpencrypt/.DS_Store
 lcpserver/.DS_Store
 npm-debug.log
 manage/config.js
+
+!docker/**/config.yaml
+!docker/cloudbuild.prod.yaml
+!docker/cloudbuild.test.yaml
+!docker/nginx-edrlab/cloudbuild.yaml
+build/
+.*.swp
+docker/private/
