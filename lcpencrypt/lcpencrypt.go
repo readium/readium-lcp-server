@@ -19,13 +19,14 @@ import (
 
 const (
 	// DO NOT FORGET to update the version
-	Software_Version = "1.13.0"
+	Software_Version = "1.13.1"
 )
 
 // showHelpAndExit displays some help and exits.
 func showHelpAndExit() {
 
 	fmt.Println("lcpencrypt encrypts a publication using the LCP DRM.")
+	fmt.Println("Software Version " + Software_Version)
 	fmt.Println("-input      source epub/pdf/lpf/audiobook file locator (file system or http GET)")
 	fmt.Println("-provider   publication provider (URI)")
 	fmt.Println("-storage    optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
@@ -83,6 +84,11 @@ func main() {
 		showHelpAndExit()
 	}
 
+	// log if verbose mode
+	if *verbose {
+		log.Println("Software Version " + Software_Version)
+	}
+
 	if *storageRepo != "" && *storageURL == "" {
 		exitWithError("Parameters", errors.New("incorrect parameters, storage requires url, for more information type 'lcpencrypt -help' "))
 	}
@@ -129,9 +135,8 @@ func main() {
 		publication.AltID = filen
 	}
 
-	// logs if verbose mode
+	// log if verbose mode
 	if *verbose {
-		log.Println("Software Version " + Software_Version)
 		log.Println("Encrypted file:", filepath.Join(publication.OutputRepo, publication.FileName))
 		if publication.ExtractCover {
 			log.Println("Cover file name:", publication.CoverName)
