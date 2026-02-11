@@ -113,11 +113,12 @@ func Read(r *zip.Reader) (Epub, error) {
 			first100String = contentString[:100]
 		}
 		
-		if strings.Contains(first100String, `version="1.1"`) {
+		if strings.Contains(first100String, `version="1.1"`) || strings.Contains(first100String, `version='1.1'`) {
 			// EPUB only supports XML 1.0, so replace version="1.1" with version="1.0"
 			// As per the EPUB spec, XML 1.1 is not supported. 
 			// In practice, XML 1.1 features are never used in EPUB files, such declaration is always a mistake.
 			modifiedContent := strings.Replace(contentString, `version="1.1"`, `version="1.0"`, 1)
+			modifiedContent = strings.Replace(modifiedContent, `version='1.1'`, `version='1.0'`, 1)
 			finalReader = strings.NewReader(modifiedContent)
 		} else {
 			finalReader = strings.NewReader(contentString)
