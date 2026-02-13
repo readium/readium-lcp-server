@@ -43,6 +43,36 @@ Out of the box, this open-source software is using what we call the "basic" (or 
 
 But this profile, because it is open, does not offer any security. Security is provided by a "production" profile, i.e. confidential crypto information and a personal X.509 certificate delivered to trusted implementers by [EDRLab](mailto:contact@edrlab.org). EDRLab is the wordwide LCP Certification Authority. Licenses generated with the "production" profile are handled by any LCP compliant Reading System.
 
+Quickstart
+==========
+
+
+> You have to download node [v6.9.2](https://nodejs.org/dist/v6.9.2/) to compile the frontend webapp
+
+```
+make clean && PATH=/Users/edrlab/Downloads/node-v6.9.2-darwin-x64/bin:$PATH make && make run
+```
+
+Docker
+=======
+
+
+To build the master container (lcp+lsd+frontend) :
+
+```
+./docker/dockerbuild.sh `pwd` master
+```
+
+To run it :
+
+```
+./docker/dockerrun.sh
+```
+
+
+go to http://127.0.0.1:8080/frontend
+
+
 Executables
 ===========
 The server software is composed of several independant parts:
