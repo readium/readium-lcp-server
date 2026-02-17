@@ -19,7 +19,7 @@ import (
 
 const (
 	// DO NOT FORGET to update the version
-	Software_Version = "1.13.1"
+	Software_Version = "1.13.2"
 )
 
 // showHelpAndExit displays some help and exits.
