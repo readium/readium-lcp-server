@@ -8,6 +8,7 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"errors"
+	"image"
 	"image/jpeg"
 	"path/filepath"
 	"strings"
@@ -571,10 +572,11 @@ func extractRWPInfo(inputPath, coverPath string) (RWPInfo, error) {
 		return rwpInfo, nil
 	}
 
-	// get the first page
-	img, err := doc.Image(0)
+	// get the first page as a preview image; if this fails, we will not have a cover but the RWP will still be valid, so we return the error as nil
+	//img, err := doc.ImageDPI(0, 72.0)
+	img, err := renderPreview(doc, 0, 1200.0)
 	if err != nil {
-		return rwpInfo, nil
+		return rwpInfo, err
 	}
 
 	// save the image as a JPG file
@@ -595,6 +597,37 @@ func extractRWPInfo(inputPath, coverPath string) (RWPInfo, error) {
 // cleanNulls removes null characters from a string
 func cleanNulls(s string) string {
 	return strings.ReplaceAll(s, string([]byte{0}), "")
+}
+
+func renderPreview(doc *fitz.Document, pageNum int, maxSide float64) (*image.RGBA, error) {
+	// Get base dimensions at 72 DPI (PDF points)
+	rect, err := doc.Bound(pageNum)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert rectangle dimensions to float64 for precision
+	widthPoints := float64(rect.Dx())
+	heightPoints := float64(rect.Dy())
+
+	// Determine the longer side for ratio calculation
+	largerSide := widthPoints
+	if heightPoints > widthPoints {
+		largerSide = heightPoints
+	}
+
+	// Calculate target DPI to match maxSide (e.g., 1024px)
+	// Formula: targetDPI = (TargetPixels / PDFPoints) * 72
+	targetDPI := (maxSide / largerSide) * 72.0
+
+	// Security: Cap DPI at 300 to avoid upscaling tiny PDFs
+	if targetDPI > 300.0 {
+		targetDPI = 300.0
+	}
+
+	// Perform rendering at the calculated DPI
+	// This will result in an image where the longest side is exactly maxSide pixels
+	return doc.ImageDPI(pageNum, targetDPI)
 }
 
 // ExtractCoverFromRPF extracts the cover image from a Readium Package and saves it to outputRepo
