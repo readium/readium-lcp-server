@@ -1,9 +1,9 @@
 CREATE TABLE `license_status` (
-    `id` int(11) PRIMARY KEY AUTO_INCREMENT,
-    `status` int(11) NOT NULL,
+    `id` int PRIMARY KEY AUTO_INCREMENT,
+    `status` int NOT NULL,
     `license_updated` datetime NOT NULL,
     `status_updated` datetime NOT NULL,
-    `device_count` int(11) DEFAULT NULL,
+    `device_count` int DEFAULT NULL,
     `potential_rights_end` datetime DEFAULT NULL,
     `license_ref` varchar(255) NOT NULL,
     `rights_end` datetime DEFAULT NULL
@@ -12,7 +12,7 @@ CREATE TABLE `license_status` (
 CREATE INDEX `license_ref_index` ON `license_status` (`license_ref`);
 
 CREATE TABLE `event` (
-    `id` int(11) PRIMARY KEY AUTO_INCREMENT,
+    `id` int PRIMARY KEY AUTO_INCREMENT,
     `device_name` varchar(255) DEFAULT NULL,
     `timestamp` datetime NOT NULL,
     `type` int NOT NULL,
