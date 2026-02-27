@@ -19,7 +19,7 @@ import (
 
 const (
 	// DO NOT FORGET to update the version
-	Software_Version = "1.13.2"
+	Software_Version = "1.13.3"
 )
 
 // showHelpAndExit displays some help and exits.
@@ -36,6 +36,7 @@ func showHelpAndExit() {
 	fmt.Println("-cover      optional, boolean, indicates that a cover should be generated")
 	fmt.Println("-pdfnometa  optional, boolean, indicates that PDF metadata must not be extracted")
 	fmt.Println("-contentid  optional, publication identifier; if omitted a uuid is generated")
+	fmt.Println("-contentkey optional, base64 encoded content key; if omitted a random content key is generated, or the content key is retrieved from the License Server")
 	fmt.Println("-lcpsv      optional, URL, host name of the License Server to be notified; syntax http://username:password@example.com")
 	fmt.Println("-v2         optional, boolean, indicates communication with a License Server v2")
 	// these parameters are deprecated, let's be silent about them in the help
@@ -67,6 +68,7 @@ func main() {
 	pdfnometa := flag.Bool("pdfnometa", false, "boolean, indicates that PDF metadata must not be extracted")
 	useFilenameAs := flag.String("usefnas", "", "if set to 'uuid', the file name is used as publication uuid")
 	contentid := flag.String("contentid", "", "imposed publication UUID, used to update an existing publication")
+	contentkey := flag.String("contentkey", "", "optional, base64 encoded content key; if omitted a random content key is generated")
 	lcpsv := flag.String("lcpsv", "", "URL, host name of the License server which is notified; the preferred syntax is http://username:password@example.com")
 	v2 := flag.Bool("v2", false, "boolean, indicates a v2 License server")
 	username := flag.String("login", "", "optional unless lcpsv is used, username for the License server")
@@ -104,28 +106,27 @@ func main() {
 	// get the file name from the input path, strip the extension
 	filen := strings.TrimSuffix(filepath.Base(*inputPath), filepath.Ext(*inputPath))
 
-	// if the publication UUID is imposed, check if the content already exists in the License Server.
-	// Note that the publication UUID may also have be set via the command line. 
-	// If this is the case, get the content encryption key for the server, so that the new encryption
-	// keeps the same key.
-	// This is necessary to allow fresh licenses being capable of decrypting previously downloaded content.
+	// if the file name is the publication UUID, set the contentid to the file name
 	if *useFilenameAs == "uuid" {
-		*contentid = filen
+		*contentid = filen		// Note that contentid may also be set via the command line
 	}
 
-	var contentkey string
-	if *contentid != "" {
+	// if the publication UUID is imposed but not the content key, check if the content already exists in the License Server.
+	// If this is the case, get the content encryption key from the server,
+	// so that the new encryption process keeps the same key.
+	// This is necessary to allow fresh licenses decrypting previously downloaded content.
+	if *contentid != "" && *contentkey == "" {
 		// warning: this is a synchronous REST call
 		// contentKey is not initialized if the content does not exist in the License Server
 		var err error
-		contentkey, err = getContentKey(*contentid, *lcpsv, *v2, *username, *password)
+		*contentkey, err = getContentKey(*contentid, *lcpsv, *v2, *username, *password)
 		if err != nil {
 			exitWithError("Error retrieving content info", err)
 		}
 	}
 
 	// encrypt the publication
-	publication, err := encrypt.ProcessEncryption(*contentid, contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename, *cover, *pdfnometa)
+	publication, err := encrypt.ProcessEncryption(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename, *cover, *pdfnometa)
 	if err != nil {
 		exitWithError("Error processing a publication", err)
 	}
@@ -147,7 +148,7 @@ func main() {
 	elapsed := time.Since(start)
 
 	// notify the license server
-	err = encrypt.NotifyLCPServer(*publication, contentkey != "", *providerUri, *lcpsv, *v2, *username, *password, *verbose)
+	err = encrypt.NotifyLCPServer(*publication, *contentkey != "", *providerUri, *lcpsv, *v2, *username, *password, *verbose)
 	if err != nil {
 		exitWithError("Error notifying the LCP Server", err)
 	}
