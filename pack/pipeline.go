@@ -9,7 +9,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
@@ -141,7 +140,7 @@ func (p Packager) encrypt(r *Result, ep epub.Epub) (*EncryptedFileInfo, []byte) 
 	if r.Error != nil {
 		return nil, nil
 	}
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "out-readium-lcp")
+	tmpFile, err := os.CreateTemp(os.TempDir(), "out-readium-lcp")
 	if err != nil {
 		r.Error = err
 		return nil, nil

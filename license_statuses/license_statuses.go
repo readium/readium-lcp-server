@@ -25,6 +25,8 @@ type LicenseStatuses interface {
 	List(deviceLimit int64, limit int64, offset int64) func() (LicenseStatus, error)
 	GetByLicenseID(id string) (*LicenseStatus, error)
 	Update(ls LicenseStatus) error
+	Count(from time.Time, to time.Time) (int, error)
+	CountWithStatus(from time.Time, to time.Time, status string) (int, error)
 }
 
 type dbLicenseStatuses struct {
@@ -202,6 +204,35 @@ func (i dbLicenseStatuses) Update(ls LicenseStatus) error {
 		}
 	}
 	return err
+}
+
+// Count counts the number of license statuses in a time period
+func (i dbLicenseStatuses) Count(from time.Time, to time.Time) (int, error) {
+
+	var count int
+	var err error
+
+	row := i.db.QueryRow(dbutils.GetParamQuery(config.Config.LsdServer.Database, `SELECT COUNT(*) FROM license_status WHERE license_updated BETWEEN ? AND ?`),
+		from, to)
+	err = row.Scan(&count)
+	return count, err
+}
+
+// CountWithStatus counts the number of license statuses in a time period
+func (i dbLicenseStatuses) CountWithStatus(from time.Time, to time.Time, statusTxt string) (int, error) {
+
+	var count int
+	var err error
+
+	statusInt, err := status.SetStatus(statusTxt)
+	if err != nil {
+		return 0, err
+	}
+
+	row := i.db.QueryRow(dbutils.GetParamQuery(config.Config.LsdServer.Database, `SELECT COUNT(*) FROM license_status WHERE status = ? AND license_updated BETWEEN ? AND ?`),
+		statusInt, from, to)
+	err = row.Scan(&count)
+	return count, err
 }
 
 // Open defines scripts for queries & create table license_status if it does not exist

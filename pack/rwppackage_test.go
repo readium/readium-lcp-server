@@ -6,6 +6,7 @@ package pack
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -117,5 +118,67 @@ func TestSetMetadata(t *testing.T) {
 	manifest.Metadata.Language.Add("fr")
 	manifest.Metadata.ReadingProgression = "ltr"
 	manifest.Metadata.Subject.Add(rwpm.Subject{Name: "software", Scheme: "iptc", Code: "04003000"})
+
+	manifest.ReadingOrder = []rwpm.Link{
+		{
+			Href: "chapter1.html",
+			Type: "application/xhtml+xml",
+		},
+		{
+			Href: "chapter2.html",
+			Type: "application/xhtml+xml",
+		},
+	}
+	manifest.Resources = []rwpm.Link{
+		{
+			Rel:  []string{"stylesheet"},
+			Href: "style.css",
+			Type: "text/css",
+		},
+	}
+
+	// simulate writing and reading back the manifest
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	err := encoder.Encode(&manifest)
+	if err != nil {
+		t.Fatalf("Could not encode manifest to JSON, %s", err)
+	}
+
+	// verify metadata
+
+	if manifest.Metadata.Identifier != "id1" {
+		t.Errorf("Expected identifier to be 'id1', got '%s'", manifest.Metadata.Identifier)
+	}
+	if title := manifest.Metadata.Title["fr"]; title != "title" {
+		t.Errorf("Expected title to be 'title', got '%s'", title)
+	}
+	if manifest.Metadata.Description != "description" {
+		t.Errorf("Expected description to be 'description', got '%s'", manifest.Metadata.Description)
+	}
+	if manifest.Metadata.Published.String() != "2020-03-05" {
+		t.Errorf("Expected published to be '2020-03-05', got '%s'", manifest.Metadata.Published.String())
+	}
+	if manifest.Metadata.Duration != 120 {
+		t.Errorf("Expected duration to be 120, got %f", manifest.Metadata.Duration)
+	}
+	if len(manifest.Metadata.Author) != 1 || manifest.Metadata.Author[0].Name["und"] != "Laurent" {
+		t.Errorf("Expected author to be 'Laurent', got '%v'", manifest.Metadata.Author)
+	}
+	if len(manifest.Metadata.Language) != 1 || manifest.Metadata.Language[0] != "fr" {
+		t.Errorf("Expected language to be 'fr', got '%v'", manifest.Metadata.Language)
+	}
+	if manifest.Metadata.ReadingProgression != "ltr" {
+		t.Errorf("Expected reading progression to be 'ltr', got '%s'", manifest.Metadata.ReadingProgression)
+	}
+	if len(manifest.Metadata.Subject) != 1 || manifest.Metadata.Subject[0].Name != "software" {
+		t.Errorf("Expected subject to be 'software', got '%v'", manifest.Metadata.Subject)
+	}
+	if len(manifest.ReadingOrder) != 2 || manifest.ReadingOrder[0].Href != "chapter1.html" {
+		t.Errorf("Expected first reading order item to be 'chapter1.html', got '%v'", manifest.ReadingOrder)
+	}
+	if len(manifest.ReadingOrder) != 2 || manifest.ReadingOrder[1].Href != "chapter2.html" {
+		t.Errorf("Expected second reading order item to be 'chapter2.html', got '%v'", manifest.ReadingOrder)
+	}
 
 }

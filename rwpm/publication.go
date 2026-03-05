@@ -12,7 +12,7 @@ import (
 
 // Publication = Readium manifest
 type Publication struct {
-	Context      MultiString `json:"@context,omitempty"`
+	Context      string `json:"@context,omitempty"`
 	Metadata     Metadata    `json:"metadata"`
 	Links        []Link      `json:"links,omitempty"`
 	ReadingOrder []Link      `json:"readingOrder,omitempty"`
@@ -102,9 +102,7 @@ func (publication *Publication) AddLink(linkType string, rel []string, url strin
 		link.Rel = rel
 	}
 
-	if templated == true {
-		link.Templated = true
-	}
+	link.Templated = templated
 
 	publication.Links = append(publication.Links, link)
 }

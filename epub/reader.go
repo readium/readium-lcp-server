@@ -36,9 +36,6 @@ func findRootFiles(r io.Reader) ([]rootFile, error) {
 	xd.CharsetReader = charset.NewReaderLabel
 	var roots []rootFile
 	for x, err := xd.Token(); x != nil && err == nil; x, err = xd.Token() {
-		if err != nil {
-			return nil, err
-		}
 		switch x.(type) {
 		case xml.StartElement:
 			start := x.(xml.StartElement)
@@ -69,6 +66,7 @@ func (ep *Epub) addCleartextResource(name string) {
 // and returns an EPUB object
 func Read(r *zip.Reader) (Epub, error) {
 	var ep Epub
+	// read the container file
 	container, err := findFileInZip(r, ContainerFile)
 	if err != nil {
 		return ep, err
@@ -79,12 +77,14 @@ func Read(r *zip.Reader) (Epub, error) {
 	}
 	defer fd.Close()
 
+	// find the root files (opf)
 	rootFiles, err := findRootFiles(fd)
 	if err != nil {
 		return ep, err
 	}
 
 	packages := make([]opf.Package, len(rootFiles))
+	// loop through the root files
 	for i, rootFile := range rootFiles {
 		ep.addCleartextResource(rootFile.FullPath)
 		file, err := findFileInZip(r, rootFile.FullPath)
@@ -97,7 +97,34 @@ func Read(r *zip.Reader) (Epub, error) {
 		}
 		defer packageFile.Close()
 
-		packages[i], err = opf.Parse(packageFile)
+		// Read all content at once; an OPF is small, this is acceptable and simplifies the code
+		fullContent, err := io.ReadAll(packageFile)
+		if err != nil {
+			return ep, err
+		}
+		
+		contentString := string(fullContent)
+		var finalReader io.Reader
+		
+		// check the 100 first characters for the XML version
+		// ex <?xml version="1.0" encoding="utf-8"?>
+		first100String := contentString
+		if len(contentString) > 100 {
+			first100String = contentString[:100]
+		}
+		
+		if strings.Contains(first100String, `version="1.1"`) || strings.Contains(first100String, `version='1.1'`) {
+			// EPUB only supports XML 1.0, so replace version="1.1" with version="1.0"
+			// As per the EPUB spec, XML 1.1 is not supported. 
+			// In practice, XML 1.1 features are never used in EPUB files, such declaration is always a mistake.
+			modifiedContent := strings.Replace(contentString, `version="1.1"`, `version="1.0"`, 1)
+			modifiedContent = strings.Replace(modifiedContent, `version='1.1'`, `version='1.0'`, 1)
+			finalReader = strings.NewReader(modifiedContent)
+		} else {
+			finalReader = strings.NewReader(contentString)
+		}
+
+		packages[i], err = opf.Parse(finalReader)
 		if err != nil {
 			fmt.Println("Error parsing the opf file")
 			return ep, err
@@ -116,7 +143,7 @@ func Read(r *zip.Reader) (Epub, error) {
 			return Epub{}, err
 		}
 		defer r.Close()
-		m, err := xmlenc.Read(r)
+		m, _ := xmlenc.Read(r)
 		encryption = &m
 	}
 
@@ -182,7 +209,8 @@ func addCleartextResources(ep *Epub, p opf.Package) {
 		if strings.Contains(item.Properties, "cover-image") ||
 			item.ID == coverImageID ||
 			strings.Contains(item.Properties, "nav") ||
-			item.MediaType == ContentType_NCX {
+			item.MediaType == ContentType_NCX ||
+			item.MediaType == ContentType_PAGEMAP {
 			// re-construct a path, avoid insertion of backslashes as separator on Windows
 			path := filepath.ToSlash(filepath.Join(p.BasePath, item.Href))
 			ep.addCleartextResource(path)

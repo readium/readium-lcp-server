@@ -154,12 +154,19 @@ func New(bindAddr string, readonly bool, idx *index.Index, st *storage.Store, ls
 	// get a license
 	s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.GetLicense, basicAuth).Methods("GET")
 	s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.GetLicense, basicAuth).Methods("POST")
+	// get content via licence id
+	s.handlePrivateFunc(licenseRoutes, "/{license_id}/content", apilcp.GetContentInfoFromLicense, basicAuth).Methods("GET")
 	// get a protected publication via a license id
 	s.handlePrivateFunc(licenseRoutes, "/{license_id}/publication", apilcp.GetProtectedPublication, basicAuth).Methods("POST")
 	if !readonly {
 		// update a license
 		s.handlePrivateFunc(licenseRoutes, "/{license_id}", apilcp.UpdateLicense, basicAuth).Methods("PATCH")
 	}
+
+	// Utility methods
+
+	// License Count endpoint
+	s.handlePrivateFunc(sr.R, "/licensecount", apilcp.LicenseCount, basicAuth).Methods("GET")
 
 	s.source.Feed(packager.Incoming)
 	return s

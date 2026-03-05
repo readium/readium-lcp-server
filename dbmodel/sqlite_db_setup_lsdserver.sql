@@ -1,9 +1,9 @@
 CREATE TABLE license_status (
   id INTEGER PRIMARY KEY,
-  status int(11) NOT NULL,
+  status int NOT NULL,
   license_updated datetime NOT NULL,
   status_updated datetime NOT NULL,
-  device_count int(11) DEFAULT NULL,
+  device_count int DEFAULT NULL,
   potential_rights_end datetime DEFAULT NULL,
   license_ref varchar(255) NOT NULL,
   rights_end datetime DEFAULT NULL 
