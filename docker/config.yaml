@@ -62,6 +62,9 @@ license_status:
     return: true
     renting_days: 60
     renew_days: 7
+    renew_expired: true
+    # new in v1.10.0: the number of days of the extension is based on the current timestamp, not the current end date
+    renew_from_now: true
 
 
 # Frontend Server
