@@ -103,15 +103,15 @@ func main() {
 		}
 	}
 
-	idx, err := index.Open(db)
-	if err != nil {
-		log.Println("Error opening the index db: " + err.Error())
-		os.Exit(1)
-	}
-
 	lst, err := license.Open(db)
 	if err != nil {
 		log.Println("Error opening the license db: " + err.Error())
+		os.Exit(1)
+	}
+
+	idx, err := index.Open(db)
+	if err != nil {
+		log.Println("Error opening the index db: " + err.Error())
 		os.Exit(1)
 	}
 
