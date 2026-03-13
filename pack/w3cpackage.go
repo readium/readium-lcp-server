@@ -140,7 +140,7 @@ func generateRWPManifest(w3cman rwpm.W3CPublication) (manifest rwpm.Publication)
 	// debug
 	//displayW3CMan(w3cman)
 
-	manifest.Context = []string{"https://readium.org/webpub-manifest/context.jsonld"}
+	manifest.Context = "https://readium.org/webpub-manifest/context.jsonld"
 
 	if w3cman.ConformsTo == "https://www.w3.org/TR/audiobooks/" {
 		manifest.Metadata.Type = "https://schema.org/Audiobook"

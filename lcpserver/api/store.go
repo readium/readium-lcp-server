@@ -107,7 +107,7 @@ func StoreContent(w http.ResponseWriter, r *http.Request, s Server) {
 	json.NewEncoder(w).Encode(result.ID)
 }
 
-// AddContent adds content to the storage
+// AddContent adds or updates content to the storage
 // lcp spec : store data resulting from an external encryption
 // PUT method with PAYLOAD : encrypted publication in json format
 // This method adds an encrypted file to a store
@@ -219,6 +219,35 @@ func ListContents(w http.ResponseWriter, r *http.Request, s Server) {
 		return
 	}
 
+}
+
+func GetContentInfoFromLicense(w http.ResponseWriter, r *http.Request, s Server) {
+	vars := mux.Vars(r)
+	// get the license id from the request URL
+	licenseID := vars["license_id"]
+
+	// add a log
+	logging.Print("Get content info from licenceId " + licenseID)
+
+	// get the info
+	content, err := s.Index().GetFromLicense(licenseID)
+	if err != nil { //item probably not found
+		if err == index.ErrNotFound {
+			problem.Error(w, r, problem.Problem{Detail: "Index:" + err.Error(), Instance: licenseID}, http.StatusNotFound)
+		} else {
+			problem.Error(w, r, problem.Problem{Detail: "Index:" + err.Error(), Instance: licenseID}, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// return the info
+	w.Header().Set("Content-Type", api.ContentType_JSON)
+	enc := json.NewEncoder(w)
+	err = enc.Encode(content)
+	if err != nil {
+		problem.Error(w, r, problem.Problem{Detail: err.Error()}, http.StatusBadRequest)
+		return
+	}
 }
 
 // GetContentInfo returns information about the encrypted content,

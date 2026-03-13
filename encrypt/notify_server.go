@@ -22,8 +22,11 @@ import (
 type LCPServerMsgV2 struct {
 	Provider      string `json:"provider,omitempty"`
 	UUID          string `json:"uuid"`
+	AltID         string `json:"alt_id,omitempty"`
 	Title         string `json:"title"`
 	Authors       string `json:"authors,omitempty"`
+	Publishers    string `json:"publishers,omitempty"`
+	Description   string `json:"description"`
 	CoverUrl      string `json:"cover_url,omitempty"`
 	EncryptionKey []byte `json:"encryption_key"`
 	Href          string `json:"href"`
@@ -54,8 +57,15 @@ type CMSMsg struct {
 	Category      []Entity `json:"category,omitempty"`
 }
 
-// NotifyLCPServer notifies the License Server of the encryption of a publication
-func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username string, password string, verbose bool) error {
+// NotifyLCPServer notifies the License Server of the encryption of a publication.
+// The publication parameter contains all the information about the encrypted publication
+// update indicates whether this is a new publication or an update of an existing one
+// prov is the provider URI
+// lcpsv is the License Server URL
+// v2 indicates whether the License Server is a v2 server
+// username and password are used for basic authentication
+// verbose indicates whether the notification must be logged
+func NotifyLCPServer(pub Publication, update bool, prov, lcpsv string, v2 bool, username, password string, verbose bool) error {
 
 	// An empty notify URL is not an error, simply a silent encryption
 	if lcpsv == "" {
@@ -68,7 +78,11 @@ func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username stri
 	var notifyURL string
 	var err error
 	if v2 {
-		notifyURL, err = url.JoinPath(lcpsv, "publications")
+		if update {
+			notifyURL, err = url.JoinPath(lcpsv, "publications", pub.UUID)
+		} else {
+			notifyURL, err = url.JoinPath(lcpsv, "publications")
+		}
 	} else {
 		notifyURL, err = url.JoinPath(lcpsv, "contents", pub.UUID)
 	}
@@ -102,19 +116,27 @@ func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username stri
 		if err != nil {
 			return err
 		}
+		// this is a create or update operation
 		req, err = http.NewRequest("PUT", notifyURL, bytes.NewReader(jsonBody))
 		if err != nil {
 			return err
 		}
+	// V2 Server
 	} else {
 		var msg LCPServerMsgV2
 		msg.Provider = prov
 		msg.UUID = pub.UUID
+		msg.AltID = pub.AltID
 		msg.Title = pub.Title
 		for _, author := range pub.Author {
 			msg.Authors += author + ", "
 		}
 		msg.Authors = strings.TrimSuffix(msg.Authors, ", ")
+		for _, publisher := range pub.Publisher {
+			msg.Publishers += publisher + ", "
+		}
+		msg.Publishers = strings.TrimSuffix(msg.Publishers, ", ")
+		msg.Description = pub.Description
 		msg.CoverUrl = pub.CoverUrl
 		msg.EncryptionKey = pub.EncryptionKey
 		msg.Href = pub.Location
@@ -126,7 +148,11 @@ func NotifyLCPServer(pub Publication, prov, lcpsv string, v2 bool, username stri
 		if err != nil {
 			return err
 		}
-		req, err = http.NewRequest("POST", notifyURL, bytes.NewReader(jsonBody))
+		if update {
+			req, err = http.NewRequest("PUT", notifyURL, bytes.NewReader(jsonBody))
+		} else {
+			req, err = http.NewRequest("POST", notifyURL, bytes.NewReader(jsonBody))
+		}
 		if err != nil {
 			return err
 		}
