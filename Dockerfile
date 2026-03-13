@@ -14,7 +14,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -o /usr/local/bin/lcpencrypt ./lcpencrypt
 RUN CGO_ENABLED=1 GOOS=linux go build -o /usr/local/bin/lcpserver ./lcpserver
 RUN CGO_ENABLED=1 GOOS=linux go build -o /usr/local/bin/lsdserver ./lsdserver
 
-FROM debian:12-slim
+FROM debian:trixie-slim
 
 RUN apt update && apt install -y sqlite3 supervisor
 
