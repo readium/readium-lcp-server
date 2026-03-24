@@ -14,6 +14,9 @@ Using the tools provided in this project you can:
  
 **A detailed documentation is found in the [Wiki pages of the project](../../wiki). You really have to read it before you start testing this application.**
 
+**A new v2 codebase has been developed in the [EDRLab GitHub space, lcp-server repository](https://github.com/edrlab/lcp-server), and this new version has been sufficiently tested to now be ready for production.
+For existing users, moving from LCP Server v1 to v2 is not recommended in 2026. The two codebases are functionally equivalent, but there is no ETL (Extract Transform Load) procedure ready yet.** 
+
 Prerequisites
 =============
 
