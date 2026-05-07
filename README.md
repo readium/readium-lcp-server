@@ -62,7 +62,7 @@ lcpencrypt can:
 
 ## [lcpserver]
 
-A License server implements [Readium Licensed Content Protection 1.0](https://readium.org/lcp-specs/releases/lcp/latest).
+A License server implements [Readium Licensed Content Protection](https://readium.org/lcp-specs/releases/lcp/latest).
 
 Its functionalities can only be accessed after client authentication.
 
@@ -73,7 +73,7 @@ Its private functionalities are:
 
 ## [lsdserver]
 
-A Status Server implements [Readium License Status Document 1.0](https://readium.org/lcp-specs/releases/lsd/latest).
+A Status Server implements [Readium License Status Document](https://readium.org/lcp-specs/releases/lsd/latest).
 
 Its public functionalities are:
 * Return a license status document
@@ -227,10 +227,11 @@ Here are the details about the configuration properties of each server. In the s
 
 ### License Server
 
-#### profile section
-`profile`: value of the LCP profile; allowed values are:
+#### encryption profile section
+`profile`: value of the LCP encryption profile; allowed values are:
 - `basic`: default value, as described in the Readium LCP specification, used for tests only.
-- `1.0`: the current production profile, maintained by EDRLab.
+- `1.0`: the initial production profile maintained by EDRLab.
+- `2.0` ... `2.9`: the current production profiles maintained by EDRLab.
 
 #### lcp section
 `lcp`: parameters associated with the License Server.
