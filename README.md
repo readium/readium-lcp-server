@@ -231,7 +231,8 @@ Here are the details about the configuration properties of each server. In the s
 `profile`: value of the LCP encryption profile; allowed values are:
 - `basic`: default value, as described in the Readium LCP specification, used for tests only.
 - `1.0`: the initial production profile maintained by EDRLab.
-- `2.0` ... `2.9`: the current production profiles maintained by EDRLab.
+- `2.0` ... `2.9`: the current production profiles maintained by EDRLab. These ten profiles are **peers, not versions** — the trailing digit is an identifier, and `2.9` is **not** newer, stronger, or otherwise preferable to `2.0`. Each license provider picks one so that real-world deployments are spread across all ten. See [EDRLab — LCP Encryption Profiles](https://www.edrlab.org/projects/readium-lcp/encryption-profiles/) for background.
+
 
 #### lcp section
 `lcp`: parameters associated with the License Server.
