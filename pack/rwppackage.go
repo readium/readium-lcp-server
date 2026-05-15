@@ -435,7 +435,8 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string, pdfNoMeta bool) (
 		return rwpInfo, err
 	}
 
-	// extract metadata , and cover from the PDF
+	// extract the cover and metadata from the PDF
+	// the cover will be inserted in the target file even if other metadata are left unused.
 	rwpInfo, err = extractRWPInfo(inputPath, coverPath)
 	if err != nil {
 		log.Printf("Error extracting the PDF cover, %s", err.Error())
@@ -476,17 +477,22 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string, pdfNoMeta bool) (
 	// number of pages is needed to display progress in the reader
 	manifest.Metadata.NumberOfPages = rwpInfo.NumPages
 
+	// the filename will be the default title of the target manifest
+		filename := filepath.Base(inputPath)
+		filename = strings.TrimSuffix(filename, filepath.Ext(filename)) 
+		// remove underscores, hyphens, dots which are frequent in PDF file names
+		filename = strings.ReplaceAll(filename, "_", " ")
+		filename = strings.ReplaceAll(filename, "-", " ")
+		filename = strings.ReplaceAll(filename, ".", " ")
+		filename = strings.TrimSpace(filename)
+		if filename == "" {
+				filename = "No Title Available" // fallback
+		}
+
 	// PDF metadata can be so bad that we may want to ignore them
 	if pdfNoMeta {
 		// we still need a title
-		filename := filepath.Base(inputPath)
-		rwpInfo.Title = strings.TrimSuffix(filename, filepath.Ext(filename)) // default title
-		// remove underscores, hyphens, dots which are frequent in PDF file names
-		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "_", " ")
-		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "-", " ")
-		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, ".", " ")
-		rwpInfo.Title = strings.TrimSpace(rwpInfo.Title)
-		manifest.Metadata.Title.Set("und", rwpInfo.Title)
+		manifest.Metadata.Title.Set("und", filename)
 		// add PDF metadata to the manifest
 	} else {
 		// remove underscores, hyphens, stars which are frequent in PDF titles
@@ -495,7 +501,7 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string, pdfNoMeta bool) (
 		rwpInfo.Title = strings.ReplaceAll(rwpInfo.Title, "*", " ")
 		rwpInfo.Title = strings.TrimSpace(rwpInfo.Title)
 		if rwpInfo.Title == "" {
-			rwpInfo.Title = "No Title Available" // default title
+			rwpInfo.Title = filename
 		}
 		manifest.Metadata.Title.Set("und", rwpInfo.Title)
 		// there is zero or one author/subject in the PDF metadata
