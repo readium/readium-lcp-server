@@ -298,8 +298,12 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) (RWPInfo, error) {
 		if string(runes[:8]) == "__MACOSX" {
 			continue
 		}
-		// keep the original compression value (store vs deflate)
-		writer, err := zipWriter.CreateHeader(&file.FileHeader)
+		// keep the original compression value (store vs deflate);
+		// copy the FileHeader by value because zip.Writer.CreateHeader mutates
+		// fh.Flags (sets the data-descriptor bit), and the reader shares the
+		// same FileHeader pointer — mutating it corrupts file.Open() at EOF.
+		fh := file.FileHeader
+		writer, err := zipWriter.CreateHeader(&fh)
 		if err != nil {
 			return rwpInfo, err
 		}

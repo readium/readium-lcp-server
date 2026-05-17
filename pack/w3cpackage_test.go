@@ -5,8 +5,12 @@
 package pack
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
+	"hash/crc32"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -96,4 +100,91 @@ func TestMapW3CPublication(t *testing.T) {
 		t.Fatalf("W3C EncodingFormat badly mapped in Alternate")
 	}
 
+}
+
+// TestBuildRPFFromLPFWithoutDataDescriptors checks that BuildRPFFromLPF can
+// process LPF archives whose zip entries don't carry the data-descriptor flag
+// (Flags & 0x8 == 0) — the default output of Info-ZIP, 7-Zip, macOS Archive
+// Utility, and Python's zipfile, so the bulk of LPF files seen in the wild.
+//
+// Regression: the implementation previously passed &file.FileHeader to
+// zip.Writer.CreateHeader, which mutates fh.Flags |= 0x8 in place. Because the
+// reader and writer shared the same FileHeader value, the subsequent
+// file.Open() saw a data-descriptor flag the producer never wrote, read 12
+// bytes past the file body as the descriptor, and surfaced as
+// "zip: checksum error".
+func TestBuildRPFFromLPFWithoutDataDescriptors(t *testing.T) {
+	dir := t.TempDir()
+	lpfPath := filepath.Join(dir, "test.lpf")
+	rwppPath := filepath.Join(dir, "test.rwpp")
+
+	writeLPFWithoutDataDescriptors(t, lpfPath)
+
+	if _, err := BuildRPFFromLPF(lpfPath, rwppPath); err != nil {
+		t.Fatalf("BuildRPFFromLPF: %v", err)
+	}
+
+	r, err := zip.OpenReader(rwppPath)
+	if err != nil {
+		t.Fatalf("open generated rwpp: %v", err)
+	}
+	defer r.Close()
+
+	got := map[string]bool{}
+	for _, f := range r.File {
+		got[f.Name] = true
+	}
+	for _, want := range []string{RWPManifestName, W3CManifestName, "audio/track1.mp3"} {
+		if !got[want] {
+			t.Errorf("rwpp missing entry %q", want)
+		}
+	}
+}
+
+// writeLPFWithoutDataDescriptors writes a minimal valid W3C LPF whose entries
+// all have Flags=0x0000 (no data descriptor). zip.Writer.CreateHeader always
+// sets Flags |= 0x8 on non-directory entries, so we use CreateRaw and write
+// store-mode entries by hand.
+func writeLPFWithoutDataDescriptors(t *testing.T, path string) {
+	t.Helper()
+
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create lpf: %v", err)
+	}
+	defer f.Close()
+
+	zw := zip.NewWriter(f)
+
+	manifest := []byte(`{` +
+		`"conformsTo":"https://www.w3.org/TR/audiobooks/",` +
+		`"id":"test",` +
+		`"name":"Test",` +
+		`"readingOrder":[{"url":"audio/track1.mp3","encodingFormat":"audio/mpeg"}]` +
+		`}`)
+	addStoredEntry(t, zw, W3CManifestName, manifest)
+	addStoredEntry(t, zw, "audio/track1.mp3", bytes.Repeat([]byte("mp3-bytes-"), 1024))
+
+	if err := zw.Close(); err != nil {
+		t.Fatalf("close zip: %v", err)
+	}
+}
+
+func addStoredEntry(t *testing.T, zw *zip.Writer, name string, data []byte) {
+	t.Helper()
+
+	fh := &zip.FileHeader{
+		Name:               name,
+		Method:             zip.Store,
+		CRC32:              crc32.ChecksumIEEE(data),
+		CompressedSize64:   uint64(len(data)),
+		UncompressedSize64: uint64(len(data)),
+	}
+	w, err := zw.CreateRaw(fh)
+	if err != nil {
+		t.Fatalf("CreateRaw %q: %v", name, err)
+	}
+	if _, err := w.Write(data); err != nil {
+		t.Fatalf("write %q: %v", name, err)
+	}
 }
