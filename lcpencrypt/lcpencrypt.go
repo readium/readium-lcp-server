@@ -31,6 +31,9 @@ func showHelpAndExit() {
 	fmt.Println("-provider   publication provider (URI)")
 	fmt.Println("-storage    optional, target location of the encrypted publication, without filename. File system path or s3 bucket")
 	fmt.Println("-url        optional, base url associated with the storage, without filename")
+	fmt.Println("-s3-endpoint           optional, custom S3 endpoint URL for S3-compatible providers (e.g. Cloudflare R2, MinIO)")
+	fmt.Println("-s3-force-path-style   optional, boolean, use path-style S3 URLs; required by some S3-compatible providers")
+	fmt.Println("-s3-disable-ssl        optional, boolean, disable SSL when talking to the S3 endpoint")
 	fmt.Println("-filename   optional, file name for the encrypted publication; if omitted, contentid is used")
 	fmt.Println("-temp       optional, working folder for temporary files. If not set, the current directory will be used.")
 	fmt.Println("-cover      optional, boolean, indicates that a cover should be generated")
@@ -75,6 +78,9 @@ func main() {
 	password := flag.String("password", "", "optional unless lcpsv is used, password for the License server")
 	notify := flag.String("notify", "", "URL, notification endpoint for a CMS; its syntax is http://username:password@example.com")
 	verbose := flag.Bool("verbose", false, "boolean, the information sent to the LCP Server and CMS will be displayed")
+	s3Endpoint := flag.String("s3-endpoint", "", "optional, custom S3 endpoint for S3-compatible storage providers (e.g. Cloudflare R2, MinIO, Backblaze B2)")
+	s3ForcePathStyle := flag.Bool("s3-force-path-style", false, "optional, use path-style S3 URLs (bucket in path instead of subdomain); often required by S3-compatible providers")
+	s3DisableSSL := flag.Bool("s3-disable-ssl", false, "optional, disable SSL when talking to the S3 endpoint; intended for local/dev S3-compatible servers")
 
 	help := flag.Bool("help", false, "shows information")
 
@@ -126,7 +132,12 @@ func main() {
 	}
 
 	// encrypt the publication
-	publication, err := encrypt.ProcessEncryption(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename, *cover, *pdfnometa)
+	s3opts := encrypt.S3Options{
+		Endpoint:       *s3Endpoint,
+		ForcePathStyle: *s3ForcePathStyle,
+		DisableSSL:     *s3DisableSSL,
+	}
+	publication, err := encrypt.ProcessEncryption(*contentid, *contentkey, *inputPath, *tempRepo, *outputRepo, *storageRepo, *storageURL, *storageFilename, *cover, *pdfnometa, s3opts)
 	if err != nil {
 		exitWithError("Error processing a publication", err)
 	}
