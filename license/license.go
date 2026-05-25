@@ -59,7 +59,7 @@ type Link struct {
 	Title     string `json:"title,omitempty"`
 	Profile   string `json:"profile,omitempty"`
 	Templated bool   `json:"templated,omitempty"`
-	Size      int64  `json:"length,omitempty"`
+	Length    int64  `json:"length,omitempty"`
 	//Digest    []byte `json:"hash,omitempty"`
 	Checksum string `json:"hash,omitempty"`
 }
@@ -255,7 +255,7 @@ func SetLicenseLinks(l *License, c index.Content) error {
 				l.Links[i].Title = c.Location
 			}
 			l.Links[i].Type = c.Type
-			l.Links[i].Size = c.Length
+			l.Links[i].Length = c.Length
 			l.Links[i].Checksum = c.Sha256
 		}
 		// set the status link
@@ -278,7 +278,7 @@ func SetLicenseLinks(l *License, c index.Content) error {
 			Href:     c.Location,
 			Title:    l.ContentID,
 			Type:     c.Type,
-			Size:     c.Length,
+			Length:     c.Length,
 			Checksum: c.Sha256,
 		}
 		l.Links = append(l.Links, link)
