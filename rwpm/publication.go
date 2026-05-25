@@ -38,6 +38,7 @@ type Link struct {
 	Rel        MultiString `json:"rel,omitempty"`
 	Height     int         `json:"height,omitempty"`
 	Width      int         `json:"width,omitempty"`
+	Length		 int64       `json:"length,omitempty"`
 	Duration   float32     `json:"duration,omitempty"`
 	Bitrate    int         `json:"bitrate,omitempty"`
 	Properties *Properties `json:"properties,omitempty"`
