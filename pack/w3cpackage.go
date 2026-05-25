@@ -291,33 +291,33 @@ func BuildRPFFromLPF(lpfPath string, rwppPath string) (RWPInfo, error) {
 		return rwpInfo, err
 	}
 
-	// Append every lpf resource to the rwpp
-	for _, file := range lpfFile.File {
-		// filter MacOS specific files (present if a standard zipper has been used)
-		runes := []rune(file.Name)
-		if string(runes[:8]) == "__MACOSX" {
-			continue
-		}
-		// keep the original compression value (store vs deflate);
-		// copy the FileHeader by value because zip.Writer.CreateHeader mutates
-		// fh.Flags (sets the data-descriptor bit), and the reader shares the
-		// same FileHeader pointer — mutating it corrupts file.Open() at EOF.
-		fh := file.FileHeader
-		writer, err := zipWriter.CreateHeader(&fh)
-		if err != nil {
-			return rwpInfo, err
-		}
-		reader, err := file.Open()
-		if err != nil {
-			return rwpInfo, err
-		}
-		defer reader.Close()
-		_, err = io.Copy(writer, reader)
-		if err != nil {
-			return rwpInfo, err
-		}
-	}
-	return rwpInfo, nil
+// Append every lpf resource to the rwpp
+  for _, file := range lpfFile.File {
+    // filter MacOS specific files (present if a standard zipper has been used)
+    if strings.HasPrefix(file.Name, "__MACOSX") {
+      continue
+    }
+    // Copy the FileHeader by value before passing to CreateHeader.
+    // CreateHeader takes ownership of the pointer and mutates fh.Flags
+    // (sets bit 0x8 for data-descriptor), which would corrupt the
+    // same struct used later by file.Open(), causing a checksum error.
+    fhCopy := file.FileHeader
+    // keep the original compression value (store vs deflate)
+    writer, err := zipWriter.CreateHeader(&fhCopy)
+    if err != nil {
+      return rwpInfo, err
+    }
+    reader, err := file.Open()
+    if err != nil {
+      return rwpInfo, err
+    }
+    _, err = io.Copy(writer, reader)
+    reader.Close()
+    if err != nil {
+      return rwpInfo, err
+    }
+  }
+  return rwpInfo, nil
 }
 
 // newUUID generates a random UUID according to RFC 4122
