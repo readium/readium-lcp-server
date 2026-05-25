@@ -27,7 +27,7 @@ import (
 // deemed useful for a notified CMS or LCP Server
 type RWPInfo struct {
 	UUID        string
-	NumPages    int // only for PDF-based RWPs
+	NumPages    int   // only for PDF-based RWPs
 	Title       string
 	Date        string
 	Description string
@@ -81,9 +81,8 @@ func (reader *RPFReader) NewWriter(writer io.Writer) (PackageWriter, error) {
 		file.Close()
 	}
 
-	// copy immediately all ancilliary resources from the source manifest
-	// as they will not be encrypted in the current implementation
-	// FIXME: work on the encryption of ancilliary resources (except the W3C Entry Page?).
+	// copy ancillary resources from the source manifest: they will not be encrypted, but will be deflated in the output package..
+	// FIXME: work on the encryption of ancillary resources (except the W3C Entry Page?).
 	for _, manifestResource := range reader.manifest.Resources {
 		sourceFile := files[manifestResource.Href]
 		fw, err := zipWriter.Create(sourceFile.Name)
@@ -318,8 +317,8 @@ func (writer *RPFWriter) NewFile(path string, contentType string, storageMethod 
 
 // MarkAsEncrypted marks a resource as encrypted (with an algorithm), in the writer manifest
 // FIXME: currently only looks into the reading order. Add "alternates", think about adding "resources"
-// FIXME: process resources which are compressed before encryption -> add Compression and OriginalLength properties in this case
-func (writer *RPFWriter) MarkAsEncrypted(path string, originalSize int64, algorithm string) {
+// FIXME: process resources which can be compressed before encryption -> add Compression properties in this case
+func (writer *RPFWriter) MarkAsEncrypted(path string, originalLength int64, algorithm string) {
 
 	for i, resource := range writer.manifest.ReadingOrder {
 		if path == resource.Href {
@@ -329,11 +328,11 @@ func (writer *RPFWriter) MarkAsEncrypted(path string, originalSize int64, algori
 			}
 			writer.manifest.ReadingOrder[i].Properties.Encrypted = &rwpm.Encrypted{
 				Scheme: "http://readium.org/2014/01/lcp",
-				// profile data is not useful and even misleading: the same encryption algorithm applies to basic and 1.0 profiles.
+				// profile data is not useful and even misleading: the same process applies to basic and production profiles.
 				//Profile:   profile.String(),
 				Algorithm: algorithm,
+				OriginalLength: originalLength,
 			}
-
 			break
 		}
 	}
@@ -414,7 +413,7 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string, pdfNoMeta bool) (
 	defer f.Close()
 
 	// copy the content of the pdf input file into the zip output, as 'publication.pdf'.
-	// the pdf content is stored compressed so that the encryption performance on Windows is better (!).
+	// the pdf content is deflated in the archive: the encryption performance on Windows is better (!).
 	zipWriter := zip.NewWriter(f)
 	defer zipWriter.Close()
 	writer, err := zipWriter.CreateHeader(&zip.FileHeader{
@@ -435,7 +434,7 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string, pdfNoMeta bool) (
 		return rwpInfo, err
 	}
 
-	// extract the cover and metadata from the PDF
+	// extract metadata and cover from the PDF
 	// the cover will be inserted in the target file even if other metadata are left unused.
 	rwpInfo, err = extractRWPInfo(inputPath, coverPath)
 	if err != nil {
@@ -478,16 +477,16 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string, pdfNoMeta bool) (
 	manifest.Metadata.NumberOfPages = rwpInfo.NumPages
 
 	// the filename will be the default title of the target manifest
-		filename := filepath.Base(inputPath)
-		filename = strings.TrimSuffix(filename, filepath.Ext(filename)) 
-		// remove underscores, hyphens, dots which are frequent in PDF file names
-		filename = strings.ReplaceAll(filename, "_", " ")
-		filename = strings.ReplaceAll(filename, "-", " ")
-		filename = strings.ReplaceAll(filename, ".", " ")
-		filename = strings.TrimSpace(filename)
-		if filename == "" {
-				filename = "No Title Available" // fallback
-		}
+	filename := filepath.Base(inputPath)
+	filename = strings.TrimSuffix(filename, filepath.Ext(filename)) 
+	// remove underscores, hyphens, dots which are frequent in PDF file names
+	filename = strings.ReplaceAll(filename, "_", " ")
+	filename = strings.ReplaceAll(filename, "-", " ")
+	filename = strings.ReplaceAll(filename, ".", " ")
+	filename = strings.TrimSpace(filename)
+	if filename == "" {
+			filename = "No Title Available" // fallback
+	}
 
 	// PDF metadata can be so bad that we may want to ignore them
 	if pdfNoMeta {

@@ -26,7 +26,7 @@ type PackageReader interface {
 // PackageWriter is an interface
 type PackageWriter interface {
 	NewFile(path string, contentType string, storageMethod uint16) (io.WriteCloser, error)
-	MarkAsEncrypted(path string, originalSize int64, algorithm string)
+	MarkAsEncrypted(path string, originalLength int64, algorithm string)
 	Close() error
 }
 
@@ -65,14 +65,17 @@ func Process(encrypter crypto.Encrypter, contentKey string, reader PackageReader
 	if key, err = getOrSetContentKey(encrypter, contentKey); err != nil {
 		return
 	}
-	// create a compressing tool
+	// create a deflate compressor (unused in practice, but we want to keep the option of compressing before encryption)
+	// also copy ancilliary resources (manifest, cover ...): they will not be encrypted, but will be deflated in the output package.
 	var buf bytes.Buffer
 	compressor, err := flate.NewWriter(&buf, flate.BestCompression)
 	if err != nil {
 		return
 	}
 
-	// loop through the resources of the source package, encrypt them if needed, copy them into the dest package
+	// loop through all files present in the reading order of the source zip package
+	// encrypt them if necessary and copy them into the output package.
+	// these resources are currently not compressed before encryption, but it would be a good optimization for textual files.
 	for _, resource := range reader.Resources() {
 		if !resource.Encrypted() && resource.CanBeEncrypted() {
 			if resource.(*rwpResource).file == nil {
@@ -184,7 +187,7 @@ func canEncrypt(file *epub.Resource, ep epub.Epub) bool {
 func encryptRPFResource(compressor *flate.Writer, encrypter crypto.Encrypter, key crypto.ContentKey, resource Resource, packageWriter PackageWriter) error {
 
 	// add the file to the package writer
-	// note: the file is stored as-is because compression, when applied, is applied *before* encryption
+	// note: the file is not deflated: compression, when applied, is applied *before* encryption
 	file, err := packageWriter.NewFile(resource.Path(), resource.ContentType(), uint16(NoCompression))
 	if err != nil {
 		return err

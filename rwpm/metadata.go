@@ -140,7 +140,7 @@ type Encrypted struct {
 	Profile        string `json:"profile,omitempty"`
 	Algorithm      string `json:"algorithm,omitempty"`
 	Compression    string `json:"compression,omitempty"`
-	OriginalLength int    `json:"originalLength,omitempty"`
+	OriginalLength int64    `json:"originalLength,omitempty"`
 }
 
 // Subjects is an array of subjects
