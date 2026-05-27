@@ -1,0 +1,29 @@
+steps:
+  # Docker Build
+  - name: gcr.io/cloud-builders/gsutil
+    args: ['cp', 'gs://lcpserver-build-prod/wildcard.edrlab.org.key', '/workspace/wildcard.edrlab.org.key']
+  - name: gcr.io/cloud-builders/gsutil
+    args: ['cp', 'gs://lcpserver-build-prod/wildcard.edrlab.org.crt', '/workspace/wildcard.edrlab.org.crt']
+  - name: gcr.io/cloud-builders/gsutil
+    args: ['cp', 'gs://lcpserver-build-prod/GandiStandardSSLCA2.pem', '/workspace/GandiStandardSSLCA2.pem']
+  - name: ubuntu
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        ls -la /workspace && cat /workspace/wildcard.edrlab.org.crt /workspace/GandiStandardSSLCA2.pem > /workspace/wildcard.edrlab.org.final.crt
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 
+    'europe-west1-docker.pkg.dev/lcpserver-1/lcp-server-build/nginx-ssl-proxy:latest', 
+    '-f', 'docker/nginx-edrlab/Dockerfile',
+    '--build-arg', 'SSL_PRIVATE_KEY_PATH=/wildcard.edrlab.org.key',
+    '--build-arg', 'SSL_CERTIFICATE_PATH=/wildcard.edrlab.org.final.crt',
+    '.']
+
+    # Docker Push
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 
+    'europe-west1-docker.pkg.dev/lcpserver-1/lcp-server-build/nginx-ssl-proxy:latest']
+
+timeout: 3600s

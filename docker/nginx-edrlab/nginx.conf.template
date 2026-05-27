@@ -1,0 +1,31 @@
+
+
+server {
+
+  client_max_body_size 0;
+
+  listen              443 ssl;
+  server_name         $SERVER_NAME_FRONT_PROD;
+  ssl_certificate     /ssl.crt;
+  ssl_certificate_key /ssl.key;
+
+  location / {
+    proxy_pass http://$FRONT_PROD/;
+  }
+
+}
+
+server {
+
+  client_max_body_size 0;
+
+  listen              443 ssl;
+  server_name         $SERVER_NAME_FRONT_TEST;
+  ssl_certificate     /ssl.crt;
+  ssl_certificate_key /ssl.key;
+
+  location / {
+    proxy_pass http://$FRONT_TEST/;
+  }
+
+}
