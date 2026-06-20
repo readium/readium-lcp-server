@@ -503,12 +503,12 @@ func BuildRPFFromPDF(inputPath, packagePath, coverPath string, pdfNoMeta bool) (
 			rwpInfo.Title = filename
 		}
 		manifest.Metadata.Title.Set("und", rwpInfo.Title)
-		// there is zero or one author/subject in the PDF metadata
+		// there is zero or one author/description in the PDF metadata
 		if len(rwpInfo.Author) != 0 {
 			manifest.Metadata.Author.AddName(rwpInfo.Author[0])
 		}
-		if len(rwpInfo.Subject) != 0 {
-			manifest.Metadata.Subject.Add(rwpm.Subject{Name: rwpInfo.Subject[0]})
+		if len(rwpInfo.Description) != 0 {
+			manifest.Metadata.Description =rwpInfo.Description
 		}
 	}
 
@@ -567,8 +567,9 @@ func extractRWPInfo(inputPath, coverPath string) (RWPInfo, error) {
 		rwpInfo.Author = []string{author}
 	}
 	subject := cleanNulls(metadata["subject"])
+	// in a PDF, this is a brief explanation of the document's core topic or theme.
 	if subject != "" {
-		rwpInfo.Subject = []string{subject}
+		rwpInfo.Description = subject
 	}
 	rwpInfo.NumPages = doc.NumPage()
 
