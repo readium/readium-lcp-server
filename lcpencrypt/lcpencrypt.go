@@ -19,7 +19,7 @@ import (
 
 const (
 	// DO NOT FORGET to update the version
-	Software_Version = "1.13.3"
+	Software_Version = "1.14.0"
 )
 
 // showHelpAndExit displays some help and exits.
@@ -114,7 +114,7 @@ func main() {
 
 	// if the file name is the publication UUID, set the contentid to the file name
 	if *useFilenameAs == "uuid" {
-		*contentid = filen		// Note that contentid may also be set via the command line
+		*contentid = filen // Note that contentid may also be set via the command line
 	}
 
 	// if the publication UUID is imposed but not the content key, check if the content already exists in the License Server.
@@ -175,6 +175,6 @@ func main() {
 		}
 	}
 
-	log.Println("The encryption took", elapsed.Truncate(10 * time.Millisecond))
+	log.Println("The encryption took", elapsed.Truncate(10*time.Millisecond))
 	os.Exit(0)
 }
