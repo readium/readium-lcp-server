@@ -12,6 +12,7 @@ import (
 	"github.com/readium/readium-lcp-server/storage"
 )
 
+// S3Options contains the options to connect to an S3-compatible storage
 type S3Options struct {
 	Endpoint       string
 	ForcePathStyle bool
