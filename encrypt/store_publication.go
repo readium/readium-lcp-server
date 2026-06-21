@@ -12,15 +12,24 @@ import (
 	"github.com/readium/readium-lcp-server/storage"
 )
 
+type S3Options struct {
+	Endpoint       string
+	ForcePathStyle bool
+	DisableSSL     bool
+}
+
 // StoreFileOnS3 stores an encrypted file or cover image into its definitive storage.
 // it then deletes the input file.
-func StoreFileOnS3(inputPath, storageRepo, name string) error {
+func StoreFileOnS3(inputPath, storageRepo, name string, opts S3Options) error {
 
 	s3Split := strings.Split(storageRepo, ":")
 
 	s3conf := storage.S3Config{}
 	s3conf.Region = s3Split[1]
 	s3conf.Bucket = s3Split[2]
+	s3conf.Endpoint = opts.Endpoint
+	s3conf.ForcePathStyle = opts.ForcePathStyle
+	s3conf.DisableSSL = opts.DisableSSL
 
 	var store storage.Store
 	// init the S3 storage
