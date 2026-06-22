@@ -1,8 +1,6 @@
 module github.com/readium/readium-lcp-server
 
-go 1.24.0
-
-toolchain go1.24.5
+go 1.25
 
 require (
 	github.com/Machiel/slugify v1.0.1
@@ -20,7 +18,7 @@ require (
 	github.com/rickb777/date v1.21.1
 	github.com/rs/cors v1.11.1
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
-	github.com/slack-go/slack v0.17.3
+	github.com/slack-go/slack v0.23.1
 	github.com/urfave/negroni v1.0.0
 	golang.org/x/net v0.47.0
 	golang.org/x/text v0.31.0
