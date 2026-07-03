@@ -1,8 +1,6 @@
 module github.com/readium/readium-lcp-server
 
-go 1.24.0
-
-toolchain go1.24.5
+go 1.25.0
 
 require (
 	github.com/Machiel/slugify v1.0.1
@@ -22,8 +20,8 @@ require (
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	github.com/slack-go/slack v0.17.3
 	github.com/urfave/negroni v1.0.0
-	golang.org/x/net v0.47.0
-	golang.org/x/text v0.31.0
+	golang.org/x/net v0.55.0
+	golang.org/x/text v0.37.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -37,6 +35,6 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jupiterrider/ffi v0.5.0 // indirect
 	github.com/rickb777/plural v1.4.4 // indirect
-	golang.org/x/crypto v0.45.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/crypto v0.51.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 )
