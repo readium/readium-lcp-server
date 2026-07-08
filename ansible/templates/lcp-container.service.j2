@@ -1,0 +1,25 @@
+[Unit]
+Description=Readium LCP {{ item.key }}
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+TimeoutStartSec=0
+ExecStartPre=-/usr/bin/docker rm -f {{ item.key }}
+ExecStartPre=/usr/bin/docker volume create {{ item.value.volume }}
+ExecStart=/usr/bin/docker run --rm \
+  --name {{ item.key }} \
+  --label app=readium-lcp-server \
+  --label instance={{ item.key }} \
+  --publish 127.0.0.1:{{ item.value.host_port }}:8080 \
+  --volume {{ item.value.volume }}:/lcp \
+  --env-file /etc/readium-lcp-server/{{ item.key }}.env \
+  --security-opt no-new-privileges \
+  {{ item.value.image_name }}:{{ item.value.tag | default(lcp_effective_tag) }}
+ExecStop=/usr/bin/docker stop -t 30 {{ item.key }}
+
+[Install]
+WantedBy=multi-user.target

@@ -33,6 +33,10 @@ manage/config.js
 !docker/cloudbuild.test.yaml
 !docker/nginx-edrlab/cloudbuild.yaml
 build/
+.ansible-artifacts/
+.ansible-state/
+ansible/inventory.yml
 .*.swp
 docker/private/
 _/
+__pycache__/

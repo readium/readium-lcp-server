@@ -1,0 +1,45 @@
+all:
+  children:
+    lcp_servers:
+      hosts:
+        lcp-vps:
+          ansible_host: 203.0.113.10
+          ansible_user: debian
+          ansible_port: 22
+          ansible_become: true
+
+          caddy_email: admin@example.org
+
+          lcp_instances:
+            front-prod:
+              mode: prod
+              domain: front-prod.example.org
+              image_name: readium-lcp-server-prod
+              host_port: 18080
+              volume: lcp-front-prod
+              profile: "2.2"
+
+            front-test:
+              mode: test
+              domain: front-test.example.org
+              image_name: readium-lcp-server-test
+              host_port: 18081
+              volume: lcp-front-test
+              profile: basic
+
+          # Destructive on purpose: stops the container, removes the named volume,
+          # recreates it, then restarts the service. Enable only when this data is
+          # disposable.
+          lcp_volume_reset_cron:
+            - instance: front-test
+              minute: "15"
+              hour: "3"
+              day: "1"
+              month: "*"
+              weekday: "*"
+            # - instance: front-prod
+            #   minute: "45"
+            #   hour: "3"
+            #   day: "*"
+            #   month: "*"
+            #   weekday: "0"

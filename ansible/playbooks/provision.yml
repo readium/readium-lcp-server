@@ -1,0 +1,274 @@
+- name: Provision hardened LCP VPS
+  hosts: lcp_servers
+  become: true
+  gather_facts: true
+  vars:
+    lcp_effective_tag: "{{ lcp_image_tag | default('latest') }}"
+
+  pre_tasks:
+    - name: Assert Debian target
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 13
+        fail_msg: "This playbook targets fresh Debian 13+ VPS hosts."
+
+    - name: Refresh apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  tasks:
+    - name: Install base packages
+      ansible.builtin.apt:
+        name: "{{ base_packages }}"
+        state: present
+
+    - name: Enable core services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - docker
+        - caddy
+        - cron
+        - fail2ban
+        - prometheus-node-exporter
+        - rsyslog
+
+    - name: Add deploy user to docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user | default('debian') }}"
+        groups: docker
+        append: true
+
+    - name: Configure Docker daemon logs
+      ansible.builtin.template:
+        src: ../templates/docker-daemon.json.j2
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart docker
+
+    - name: Persist and cap journald logs
+      ansible.builtin.file:
+        path: /etc/systemd/journald.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Configure journald retention
+      ansible.builtin.copy:
+        dest: /etc/systemd/journald.conf.d/99-lcp.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Journal]
+          Storage=persistent
+          SystemMaxUse=1G
+          MaxRetentionSec=14day
+      notify: restart journald
+
+    - name: Harden sshd
+      ansible.builtin.template:
+        src: ../templates/sshd-hardening.conf.j2
+        dest: /etc/ssh/sshd_config.d/99-lcp-hardening.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart ssh
+
+    - name: Configure fail2ban ssh jail
+      ansible.builtin.template:
+        src: ../templates/fail2ban-sshd.local.j2
+        dest: /etc/fail2ban/jail.d/sshd.local
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart fail2ban
+
+    - name: Configure UFW defaults
+      ansible.builtin.command: "ufw default {{ item.policy }} {{ item.direction }}"
+      register: ufw_default
+      changed_when: "'Default' in ufw_default.stdout"
+      loop:
+        - { policy: deny, direction: incoming }
+        - { policy: allow, direction: outgoing }
+
+    - name: Allow required TCP ports
+      ansible.builtin.command: "ufw allow {{ item }}/tcp"
+      register: ufw_allow
+      changed_when: "'Skipping' not in ufw_allow.stdout"
+      loop:
+        - "{{ ssh_port }}"
+        - "80"
+        - "443"
+
+    - name: Check UFW status
+      ansible.builtin.command: ufw status
+      register: ufw_status
+      changed_when: false
+
+    - name: Enable UFW
+      ansible.builtin.command: ufw --force enable
+      when: "'Status: active' not in ufw_status.stdout"
+
+    - name: Ensure Caddy log directory exists
+      ansible.builtin.file:
+        path: /var/log/caddy
+        state: directory
+        owner: caddy
+        group: caddy
+        mode: "0755"
+
+    - name: Ensure LCP environment directory exists
+      ansible.builtin.file:
+        path: /etc/readium-lcp-server
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Configure container environment files
+      ansible.builtin.template:
+        src: ../templates/lcp-container.env.j2
+        dest: "/etc/readium-lcp-server/{{ item.key }}.env"
+        owner: root
+        group: root
+        mode: "0600"
+      loop: "{{ lcp_instances | dict2items }}"
+      notify: restart active lcp services
+
+    - name: Configure Caddy reverse proxy
+      ansible.builtin.template:
+        src: ../templates/Caddyfile.j2
+        dest: /etc/caddy/Caddyfile
+        owner: root
+        group: root
+        mode: "0644"
+      notify: reload caddy
+
+    - name: Configure Caddy log rotation
+      ansible.builtin.copy:
+        dest: /etc/logrotate.d/lcp-caddy
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          /var/log/caddy/*.access.log {
+            daily
+            rotate 14
+            compress
+            missingok
+            notifempty
+            create 0640 caddy caddy
+            sharedscripts
+            postrotate
+              systemctl reload caddy >/dev/null 2>&1 || true
+            endscript
+          }
+
+    - name: Install volume reset helper
+      ansible.builtin.template:
+        src: ../templates/lcp-reset-volume.sh.j2
+        dest: /usr/local/sbin/lcp-reset-volume
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Install container services
+      ansible.builtin.template:
+        src: ../templates/lcp-container.service.j2
+        dest: "/etc/systemd/system/{{ item.key }}.service"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ lcp_instances | dict2items }}"
+      notify: reload systemd
+
+    - name: Reload systemd units
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Check deployed images
+      ansible.builtin.command: "docker image inspect {{ item.value.image_name }}:{{ item.value.tag | default(lcp_effective_tag) }}"
+      register: deployed_images
+      changed_when: false
+      failed_when: false
+      loop: "{{ lcp_instances | dict2items }}"
+
+    - name: Enable container services
+      ansible.builtin.service:
+        name: "{{ item.key }}"
+        enabled: true
+      loop: "{{ lcp_instances | dict2items }}"
+
+    - name: Start container services when image exists
+      ansible.builtin.service:
+        name: "{{ item.item.key }}"
+        state: started
+      loop: "{{ deployed_images.results }}"
+      when: item.rc == 0
+
+    - name: Configure scheduled volume resets
+      ansible.builtin.cron:
+        name: "lcp reset volume {{ item.instance }}"
+        user: root
+        minute: "{{ item.minute | default('0') }}"
+        hour: "{{ item.hour | default('3') }}"
+        day: "{{ item.day | default('*') }}"
+        month: "{{ item.month | default('*') }}"
+        weekday: "{{ item.weekday | default('0') }}"
+        job: "/usr/local/sbin/lcp-reset-volume {{ item.instance }} >> /var/log/lcp-volume-reset.log 2>&1"
+        state: present
+      loop: "{{ lcp_volume_reset_cron }}"
+
+  handlers:
+    - name: restart docker
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+
+    - name: restart journald
+      ansible.builtin.service:
+        name: systemd-journald
+        state: restarted
+
+    - name: restart fail2ban
+      ansible.builtin.service:
+        name: fail2ban
+        state: restarted
+
+    - name: validate ssh
+      ansible.builtin.command: /usr/sbin/sshd -t
+      changed_when: false
+      listen: restart ssh
+
+    - name: restart ssh service
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
+      listen: restart ssh
+
+    - name: validate caddy
+      ansible.builtin.command: caddy validate --config /etc/caddy/Caddyfile
+      changed_when: false
+      listen: reload caddy
+
+    - name: restart caddy service
+      ansible.builtin.service:
+        name: caddy
+        state: restarted
+      listen: reload caddy
+
+    - name: reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: restart active lcp services
+      ansible.builtin.command: "systemctl try-restart {{ item.key }}.service"
+      loop: "{{ lcp_instances | dict2items }}"

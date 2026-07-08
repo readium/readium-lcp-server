@@ -1,0 +1,110 @@
+- name: LCP maintenance tasks
+  hosts: lcp_servers
+  become: true
+  gather_facts: false
+  vars:
+    lcp_maintenance_action: "{{ maintenance_action | default('status') }}"
+    lcp_maintenance_log_lines: "{{ maintenance_log_lines | default(120) }}"
+    lcp_selected_instance_names: "{{ deploy_instances if deploy_instances is defined else ([deploy_instance] if deploy_instance is defined else (lcp_instances.keys() | list)) }}"
+
+  tasks:
+    - name: Validate maintenance action
+      ansible.builtin.assert:
+        that:
+          - lcp_maintenance_action in ['status', 'logs', 'reset-volume', 'image-prune']
+        fail_msg: "Use maintenance_action=status, logs, reset-volume, or image-prune."
+
+    - name: Require explicit target for volume reset
+      ansible.builtin.assert:
+        that:
+          - deploy_instance is defined or deploy_instances is defined
+        fail_msg: "Volume reset is destructive. Pass -e deploy_instance=front-test or -e deploy_instance=front-prod explicitly."
+      when: lcp_maintenance_action == 'reset-volume'
+
+    - name: Validate selected instances
+      ansible.builtin.assert:
+        that:
+          - item in lcp_instances
+        fail_msg: "Unknown instance '{{ item }}'. Use one of {{ lcp_instances.keys() | list }}."
+      loop: "{{ lcp_selected_instance_names }}"
+      when: lcp_maintenance_action in ['status', 'logs', 'reset-volume']
+
+    - name: Show managed containers
+      ansible.builtin.command: docker ps -a --filter label=app=readium-lcp-server
+      register: lcp_status
+      changed_when: false
+      when: lcp_maintenance_action == 'status'
+
+    - name: Print managed containers
+      ansible.builtin.debug:
+        var: lcp_status.stdout_lines
+      when: lcp_maintenance_action == 'status'
+
+    - name: Show selected systemd service status
+      ansible.builtin.command: "systemctl --no-pager --full status {{ item }}.service"
+      register: lcp_systemd_status
+      changed_when: false
+      failed_when: false
+      loop: "{{ lcp_selected_instance_names }}"
+      when: lcp_maintenance_action == 'status'
+
+    - name: Print selected systemd service status
+      ansible.builtin.debug:
+        var: item.stdout_lines
+      loop: "{{ lcp_systemd_status.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: lcp_maintenance_action == 'status'
+
+    - name: Show listening TCP ports
+      ansible.builtin.command: ss -ltnp
+      register: lcp_listeners
+      changed_when: false
+      failed_when: false
+      when: lcp_maintenance_action == 'status'
+
+    - name: Print listening TCP ports
+      ansible.builtin.debug:
+        var: lcp_listeners.stdout_lines
+      when: lcp_maintenance_action == 'status'
+
+    - name: Show selected service logs
+      ansible.builtin.command: "journalctl -u {{ item }}.service -n {{ lcp_maintenance_log_lines }} --no-pager"
+      register: lcp_service_logs
+      changed_when: false
+      failed_when: false
+      loop: "{{ lcp_selected_instance_names }}"
+      when: lcp_maintenance_action == 'logs'
+
+    - name: Print selected service logs
+      ansible.builtin.debug:
+        var: item.stdout_lines
+      loop: "{{ lcp_service_logs.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: lcp_maintenance_action == 'logs'
+
+    - name: Show selected Docker container logs
+      ansible.builtin.command: "docker logs --tail {{ lcp_maintenance_log_lines }} {{ item }}"
+      register: lcp_container_logs
+      changed_when: false
+      failed_when: false
+      loop: "{{ lcp_selected_instance_names }}"
+      when: lcp_maintenance_action == 'logs'
+
+    - name: Print selected Docker container logs
+      ansible.builtin.debug:
+        var: item.stdout_lines
+      loop: "{{ lcp_container_logs.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: lcp_maintenance_action == 'logs'
+
+    - name: Reset selected Docker volumes
+      ansible.builtin.command: "/usr/local/sbin/lcp-reset-volume {{ item }}"
+      loop: "{{ lcp_selected_instance_names }}"
+      when: lcp_maintenance_action == 'reset-volume'
+
+    - name: Prune unused Docker images
+      ansible.builtin.command: docker image prune -af
+      when: lcp_maintenance_action == 'image-prune'

@@ -1,0 +1,22 @@
+ssh_port: "{{ ansible_port | default(22) }}"
+ssh_allow_users:
+  - "{{ ansible_user | default('debian') }}"
+
+lcp_build_platform: linux/amd64
+lcp_prod_secrets_dir: ./_
+lcp_volume_reset_cron: []
+
+caddy_email: ""
+
+base_packages:
+  - ca-certificates
+  - caddy
+  - cron
+  - curl
+  - docker.io
+  - fail2ban
+  - logrotate
+  - prometheus-node-exporter
+  - rsyslog
+  - ufw
+  - unattended-upgrades

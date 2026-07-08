@@ -1,0 +1,26 @@
+{
+{% if caddy_email | default('') %}
+	email {{ caddy_email }}
+{% endif %}
+}
+
+{% for name, instance in lcp_instances.items() %}
+{{ instance.domain }} {
+	encode zstd gzip
+
+	log {
+		output file /var/log/caddy/{{ name }}.access.log
+		format json
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	reverse_proxy 127.0.0.1:{{ instance.host_port }}
+}
+
+{% endfor %}

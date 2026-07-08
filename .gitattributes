@@ -1,0 +1,9 @@
+*.py text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+.dockerignore text eol=lf
+.gitignore text eol=lf
+**/Dockerfile text eol=lf
+docker/inittab text eol=lf
+docker/*.template text eol=lf

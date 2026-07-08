@@ -1,6 +1,11 @@
 
 .github
 .git
+.ansible-artifacts
+.ansible-state
+ansible/inventory.yml
 build
+tmp
+*.log
 
 README.md

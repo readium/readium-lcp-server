@@ -6,9 +6,11 @@ server {
 
   listen ${PORT};
   server_name         $SERVER_NAME;
+  absolute_redirect off;
+  port_in_redirect off;
 
   location / {
-    return 302 /frontend;
+    return 302 /frontend/;
   }
 
   location ^~ /storage {

@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+
+INSTANCE="${1:-}"
+
+case "$INSTANCE" in
+{% for name, instance in lcp_instances.items() %}
+  {{ name }})
+    SERVICE="{{ name }}.service"
+    VOLUME="{{ instance.volume }}"
+    ;;
+{% endfor %}
+  *)
+    echo "Usage: $0 {% for name in lcp_instances.keys() %}{{ name }}{% if not loop.last %}|{% endif %}{% endfor %}" >&2
+    exit 2
+    ;;
+esac
+
+echo "Resetting Docker volume ${VOLUME} for ${INSTANCE}"
+systemctl stop "$SERVICE"
+docker rm -f "$INSTANCE" >/dev/null 2>&1 || true
+docker volume rm -f "$VOLUME" >/dev/null 2>&1 || true
+docker volume create "$VOLUME" >/dev/null
+systemctl start "$SERVICE"

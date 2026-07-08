@@ -5,7 +5,7 @@ set -x # expands variable and prints line
 PORT=${1:-8080}
 VOLUME_NAME=${2:-/tmp/lcp}
 NAME=${3:-mylcp}
-CONTAINER_NAME=${4:-lcpmasterserver}
+IMAGE_NAME=${4:-${IMAGE_NAME:-lcpmasterserver:latest}}
 
 docker kill $NAME
 docker rm $NAME
@@ -19,4 +19,4 @@ docker run \
   --publish $PORT:$PORT \
   --env PORT=$PORT \
   --volume $VOLUME_NAME:/lcp \
-  $CONTAINER_NAME
+  $IMAGE_NAME

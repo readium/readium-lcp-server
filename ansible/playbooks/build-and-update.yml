@@ -1,0 +1,169 @@
+- name: Build locally, upload image, restart selected containers
+  hosts: lcp_servers
+  become: true
+  gather_facts: false
+  vars:
+    lcp_repo_root: "{{ playbook_dir }}/../.."
+    lcp_effective_tag: "{{ lcp_image_tag | default(lookup('pipe', 'git -C ' ~ lcp_repo_root ~ ' rev-parse --short HEAD') | trim, true) }}"
+    lcp_selected_instance_names: "{{ deploy_instances | default(([deploy_instance] if deploy_instance is defined else [])) }}"
+    lcp_artifact_dir: "{{ lcp_repo_root }}/.ansible-artifacts"
+    lcp_build_log_dir: "{{ lcp_artifact_dir }}/logs"
+
+  tasks:
+    - name: Require explicit target instance
+      ansible.builtin.assert:
+        that:
+          - deploy_instance is defined or deploy_instances is defined
+        fail_msg: "Pass -e deploy_instance=front-test, -e deploy_instance=front-prod, or -e '{deploy_instances: [front-test, front-prod]}'."
+
+    - name: Validate selected instances
+      ansible.builtin.assert:
+        that:
+          - item in lcp_instances
+        fail_msg: "Unknown instance '{{ item }}'. Use one of {{ lcp_instances.keys() | list }}."
+      loop: "{{ lcp_selected_instance_names }}"
+
+    - name: Ensure local artifact directory exists
+      ansible.builtin.file:
+        path: "{{ lcp_artifact_dir }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    - name: Ensure local build log directory exists
+      ansible.builtin.file:
+        path: "{{ lcp_build_log_dir }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    - name: Show local build log path
+      ansible.builtin.debug:
+        msg: "Build log for {{ item.key }}: {{ lcp_build_log_dir }}/{{ item.key }}-{{ item.value.tag | default(lcp_effective_tag) }}.build.log"
+      loop: "{{ lcp_instances | dict2items }}"
+      when: item.key in lcp_selected_instance_names
+
+    - name: Build and test image locally
+      ansible.builtin.command:
+        cmd: "python3 docker/ci-build.py {{ item.value.mode }} {{ lcp_prod_secrets_dir }}"
+        chdir: "{{ lcp_repo_root }}"
+      environment:
+        CI_BUILD_LOG: "{{ lcp_build_log_dir }}/{{ item.key }}-{{ item.value.tag | default(lcp_effective_tag) }}.build.log"
+        IMAGE_NAME: "{{ item.value.image_name }}"
+        TAG: "{{ item.value.tag | default(lcp_effective_tag) }}"
+        PROFILE: "{{ item.value.profile | default('') }}"
+        PLATFORM: "{{ lcp_build_platform }}"
+        PYTHONUNBUFFERED: "1"
+      loop: "{{ lcp_instances | dict2items }}"
+      when: item.key in lcp_selected_instance_names
+      delegate_to: localhost
+      become: false
+
+    - name: Save image artifact locally
+      ansible.builtin.command:
+        cmd: "docker save -o {{ lcp_artifact_dir }}/{{ item.key }}-{{ item.value.tag | default(lcp_effective_tag) }}.tar {{ item.value.image_name }}:{{ item.value.tag | default(lcp_effective_tag) }}"
+        chdir: "{{ lcp_repo_root }}"
+      loop: "{{ lcp_instances | dict2items }}"
+      when: item.key in lcp_selected_instance_names
+      delegate_to: localhost
+      become: false
+
+    - name: Upload image artifact
+      ansible.builtin.copy:
+        src: "{{ lcp_artifact_dir }}/{{ item.key }}-{{ item.value.tag | default(lcp_effective_tag) }}.tar"
+        dest: "/tmp/{{ item.key }}-{{ item.value.tag | default(lcp_effective_tag) }}.tar"
+        owner: root
+        group: root
+        mode: "0600"
+      loop: "{{ lcp_instances | dict2items }}"
+      when: item.key in lcp_selected_instance_names
+
+    - name: Load image on VPS
+      ansible.builtin.command: "docker load -i /tmp/{{ item.key }}-{{ item.value.tag | default(lcp_effective_tag) }}.tar"
+      loop: "{{ lcp_instances | dict2items }}"
+      when: item.key in lcp_selected_instance_names
+
+    - name: Remove remote image artifact
+      ansible.builtin.file:
+        path: "/tmp/{{ item.key }}-{{ item.value.tag | default(lcp_effective_tag) }}.tar"
+        state: absent
+      loop: "{{ lcp_instances | dict2items }}"
+      when: item.key in lcp_selected_instance_names
+
+    - name: Ensure LCP environment directory exists
+      ansible.builtin.file:
+        path: /etc/readium-lcp-server
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Update selected container environment files
+      ansible.builtin.template:
+        src: ../templates/lcp-container.env.j2
+        dest: "/etc/readium-lcp-server/{{ item.key }}.env"
+        owner: root
+        group: root
+        mode: "0600"
+      loop: "{{ lcp_instances | dict2items }}"
+      when: item.key in lcp_selected_instance_names
+
+    - name: Update systemd services with selected image tag
+      ansible.builtin.template:
+        src: ../templates/lcp-container.service.j2
+        dest: "/etc/systemd/system/{{ item.key }}.service"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ lcp_instances | dict2items }}"
+      when: item.key in lcp_selected_instance_names
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Restart selected containers
+      ansible.builtin.service:
+        name: "{{ item.key }}"
+        enabled: true
+        state: restarted
+      loop: "{{ lcp_instances | dict2items }}"
+      when: item.key in lcp_selected_instance_names
+
+    - name: Wait for selected backend ports
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ item.value.host_port }}"
+        state: started
+        delay: 1
+        timeout: 60
+      register: lcp_backend_wait
+      failed_when: false
+      loop: "{{ lcp_instances | dict2items }}"
+      when: item.key in lcp_selected_instance_names
+
+    - name: Show service logs for backend startup failures
+      ansible.builtin.command: "journalctl -u {{ item.item.key }}.service -n 80 --no-pager"
+      register: lcp_backend_failure_logs
+      changed_when: false
+      failed_when: false
+      loop: "{{ lcp_backend_wait.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+      when: item.failed | default(false)
+
+    - name: Print service logs for backend startup failures
+      ansible.builtin.debug:
+        var: item.stdout_lines
+      loop: "{{ lcp_backend_failure_logs.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.item.key }}"
+      when: item.stdout_lines is defined
+
+    - name: Assert selected backend ports are listening
+      ansible.builtin.assert:
+        that:
+          - (lcp_backend_wait.results | default([]) | selectattr('failed', 'defined') | selectattr('failed') | list | length) == 0
+        fail_msg: "One or more selected backend ports did not start. See the service logs printed above."

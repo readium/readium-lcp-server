@@ -130,7 +130,9 @@ ENV LOGGING_SLACK_CHANNEL=$LOGGING_SLACK_CHANNEL
 
 COPY /docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 
-RUN apk --update add --no-cache libc6-compat gettext sed ca-certificates openssl && update-ca-certificates && ls -als /usr/bin/lcpserver && ls -als /usr/bin/lsdserver && ls -als /usr/bin/frontend && ls -als /frontend/manage/ && ls -als /usr/bin/
+RUN apk --update add --no-cache libc6-compat gettext sed ca-certificates openssl && \
+sed -i 's/\r$//' /init.sh /etc/inittab /etc/nginx/templates/default.conf.template && \
+update-ca-certificates && ls -als /usr/bin/lcpserver && ls -als /usr/bin/lsdserver && ls -als /usr/bin/frontend && ls -als /frontend/manage/ && ls -als /usr/bin/
 #RUN ldd /usr/bin/lcpserver
 #RUN ldd /usr/bin/lsdserver
 #RUN ldd /usr/bin/frontend
