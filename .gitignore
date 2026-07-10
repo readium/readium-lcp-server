@@ -2,6 +2,7 @@ lcpserve
 readium-lcp-server
 lcpencrypt/lcpencrypt
 files/
+data/
 *.sqlite*
 lcpserver/manage/config.js
 .vscode/launch.json
