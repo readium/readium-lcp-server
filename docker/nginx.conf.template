@@ -1,0 +1,26 @@
+
+
+server {
+
+  client_max_body_size 0;
+
+  listen ${PORT};
+  server_name         $SERVER_NAME;
+
+  location / {
+    return 302 /frontend;
+  }
+
+  location /lcpserver/ {
+    proxy_pass http://127.0.0.1:${LCP_PORT}/;
+  }
+
+  location /lsdserver/ {
+    proxy_pass http://127.0.0.1:${LSD_PORT}/;
+  }
+
+  location /frontend/ {
+    proxy_pass http://127.0.0.1:${FRONTEND_PORT}/;
+  }
+
+}

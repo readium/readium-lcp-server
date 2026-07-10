@@ -1,0 +1,14 @@
+steps:
+  # Docker Build
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 
+    'europe-west1-docker.pkg.dev/lcpserver-1/lcp-server-build/readium-lcp-server-build-test:latest', 
+    '-f', 'docker/Dockerfile',
+    '.']
+
+    # Docker Push
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 
+    'europe-west1-docker.pkg.dev/lcpserver-1/lcp-server-build/readium-lcp-server-build-test:latest']
+
+timeout: 3600s
